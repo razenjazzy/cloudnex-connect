@@ -280,4 +280,4 @@ A change is complete only when behavior is validated, security is reviewed, docu
 
 ## Current honest status
 
-The existing platform is approximately **74/100**. The foundations are strong, but the 10/10 target is blocked by integration work, not by missing framework bulk. The full ClawSpring/reference folders remain patterns and references; production behavior stays in the TypeScript application.
+The contracted LINE Phase 2 platform is certified **100/100 in-scope** ([ENTERPRISE_CERTIFICATION.md](ENTERPRISE_CERTIFICATION.md)). The 2026-09-04 **74/100** figure was a pre-two-OA, pre-VPS snapshot. Operator UAT remains outside that score.

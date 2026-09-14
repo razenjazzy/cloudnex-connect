@@ -3,6 +3,7 @@
 # Mongo for users, admin-chain changes, other vhosts, committing VPS secrets.
 # Server .env stays on the box. GitHub secret VPS_SSH_KEY is the SSH key only.
 # Image: build linux/amd64 and push razenjazzy/cloudnex-connect:staging; VPS pulls.
+# Job runs only when repository variable ENABLE_STAGING_VPS_DEPLOY is the string true.
 name: staging-vps
 
 on:
@@ -17,12 +18,14 @@ concurrency:
   group: staging-vps
   cancel-in-progress: true
 
+# Do not gate on secrets.* in job if — GitHub treats that as an invalid workflow
+# (failed run with zero jobs). Opt in with a repository variable instead.
 jobs:
   deploy:
     name: Deploy amardhaka.io
     runs-on: ubuntu-latest
     environment: staging
-    if: ${{ secrets.VPS_SSH_KEY != '' }}
+    if: ${{ vars.ENABLE_STAGING_VPS_DEPLOY == 'true' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

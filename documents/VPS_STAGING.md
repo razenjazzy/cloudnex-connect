@@ -116,7 +116,7 @@ Laptop (SSH key that can `ssh root@187.127.179.49`):
 npm run deploy:staging-vm
 ```
 
-GitHub → Environments → **staging**: `VPS_SSH_KEY` (SSH private key only), optional `VPS_HOST`. Push `main` runs `.github/workflows/staging-vps.yml`. It **never** writes `.env`.
+GitHub → repository variable `ENABLE_STAGING_VPS_DEPLOY=true`, Environments → **staging**: `VPS_SSH_KEY` (SSH private key only), `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`, optional `VPS_HOST`. Then push `main` runs `.github/workflows/staging-vps.yml`. Unset variable → job skipped. It **never** writes `.env`.
 
 ## 9. Rollback
 
