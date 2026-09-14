@@ -2,8 +2,7 @@ import type { CommandHandler } from './index';
 import { setUserLanguage } from '../../services/firestore';
 import { createBotTextFlexMessage } from '../templates';
 import type { UserLanguage } from '../../services/firestore';
-import { DEFAULT_CHANNEL_ID, getBrandTitle } from '../channels';
-import { linkUserRichMenu } from '../rich-menu';
+import { getBrandTitle } from '../channels';
 import { hasActiveSalesSession } from '../../services/sales-session';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
@@ -24,6 +23,7 @@ const langThHandler: CommandHandler = {
     const { userId, userLanguage, agentName } = ctx;
     const result = await setUserLanguage(userId, 'th');
     if (!result.ok) {
+      ctx.trayRest = { language: userLanguage, salesSessionActive: hasActiveSalesSession(ctx.profile) };
       return [createBotTextFlexMessage({
         title: getBrandTitle(userLanguage),
         body: tr(userLanguage, 'บันทึกภาษาไม่สำเร็จ กรุณาลองใหม่อีกครั้ง', 'Unable to save language preference. Please try again.'),
@@ -31,7 +31,7 @@ const langThHandler: CommandHandler = {
         tone: 'error',
       })];
     }
-    await linkUserRichMenu(userId, 'th', ctx.channel?.channelId || DEFAULT_CHANNEL_ID, 'default', hasActiveSalesSession(ctx.profile));
+    ctx.trayRest = { language: 'th', salesSessionActive: hasActiveSalesSession(ctx.profile) };
     return [botText(`${agentName} เปลี่ยนภาษาเป็นไทยแล้วค่ะ`, 'th')];
   },
 };
@@ -44,6 +44,7 @@ const langEnHandler: CommandHandler = {
     const { userId, userLanguage, agentName } = ctx;
     const result = await setUserLanguage(userId, 'en');
     if (!result.ok) {
+      ctx.trayRest = { language: userLanguage, salesSessionActive: hasActiveSalesSession(ctx.profile) };
       return [createBotTextFlexMessage({
         title: getBrandTitle(userLanguage),
         body: tr(userLanguage, 'บันทึกภาษาไม่สำเร็จ กรุณาลองใหม่อีกครั้ง', 'Unable to save language preference. Please try again.'),
@@ -51,7 +52,7 @@ const langEnHandler: CommandHandler = {
         tone: 'error',
       })];
     }
-    await linkUserRichMenu(userId, 'en', ctx.channel?.channelId || DEFAULT_CHANNEL_ID, 'default', hasActiveSalesSession(ctx.profile));
+    ctx.trayRest = { language: 'en', salesSessionActive: hasActiveSalesSession(ctx.profile) };
     return [botText(`${agentName} switched language to English.`, 'en')];
   },
 };
@@ -69,6 +70,7 @@ const langToggleHandler: CommandHandler = {
     const target: UserLanguage = userLanguage === 'en' ? 'th' : 'en';
     const result = await setUserLanguage(userId, target);
     if (!result.ok) {
+      ctx.trayRest = { language: userLanguage, salesSessionActive: hasActiveSalesSession(ctx.profile) };
       return [createBotTextFlexMessage({
         title: getBrandTitle(userLanguage),
         body: tr(userLanguage, 'บันทึกภาษาไม่สำเร็จ กรุณาลองใหม่อีกครั้ง', 'Unable to save language preference. Please try again.'),
@@ -76,7 +78,7 @@ const langToggleHandler: CommandHandler = {
         tone: 'error',
       })];
     }
-    await linkUserRichMenu(userId, target, ctx.channel?.channelId || DEFAULT_CHANNEL_ID, 'default', hasActiveSalesSession(ctx.profile));
+    ctx.trayRest = { language: target, salesSessionActive: hasActiveSalesSession(ctx.profile) };
     return [botText(target === 'en' ? `${ctx.agentName} switched language to English.` : `${ctx.agentName} เปลี่ยนภาษาเป็นไทยแล้วค่ะ`, target)];
   },
 };

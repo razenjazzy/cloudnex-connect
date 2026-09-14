@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "cns-line-oa": {
+    "cloudnex-connect": {
       "command": "npx",
       "args": ["ts-node", "--transpile-only", "src/mcp/server.ts"],
       "env": {

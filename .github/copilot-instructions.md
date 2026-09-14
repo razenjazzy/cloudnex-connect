@@ -1,4 +1,4 @@
-# Copilot Instructions for cns-line-oa
+# Copilot Instructions for cloudnex-connect
 
 This repository is designed for efficient, budget-aware agent work. Keep every change narrow, architecture-aware, and verification-first.
 

@@ -1,5 +1,6 @@
 import { messagingApi } from '@line/bot-sdk';
 import type { OdooSaleOrder } from '../../services/odoo/types';
+import type { ErpDeliveryStatus } from '../../erp/adapter';
 import { t, tFill, stateLabel, invoiceStatusLabel, type Lang } from '../../services/i18n';
 import { bindPostbackData } from '../postback';
 import { BRAND, createDatePickerButton, createMessageActionButton, createPrefillButton, createUriActionButton, formatMoney, truncate } from './shared';
@@ -19,7 +20,7 @@ const QUOTATION_STATE_SEQUENCE = ['draft', 'sent', 'sale'] as const;
  */
 export const createQuotationJourneyFlexMessage = (
   order: OdooSaleOrder,
-  options: { role: 'admin' | 'customer'; salesTier?: 'salesperson' | 'sales_manager'; canManageLines?: boolean; portalLink?: string; pdfLink?: string },
+  options: { role: 'admin' | 'customer'; salesTier?: 'salesperson' | 'sales_manager'; canManageLines?: boolean; portalLink?: string; pdfLink?: string; delivery?: ErpDeliveryStatus },
   language: Lang
 ): messagingApi.FlexMessage => {
   const customerName = order.partner_id?.[1] || '-';
@@ -38,6 +39,31 @@ export const createQuotationJourneyFlexMessage = (
       { type: 'text', text: invoiceLabel, size: 'sm', color: BRAND.tealStrong, align: 'end', flex: 3, wrap: true },
     ],
   } : null;
+  const delivery = options.delivery;
+  const deliveryLines = delivery
+    ? [
+        `${t('deliveryField', language)}: ${delivery.state}${delivery.carrier ? ` · ${delivery.carrier}` : ''}`,
+        ...(delivery.trackingRef ? [`${t('trackingField', language)}: ${delivery.trackingRef}`] : []),
+        ...(delivery.responsible ? [`${t('deliveryPerson', language)}: ${delivery.responsible}`] : []),
+        ...(delivery.scheduledDate ? [delivery.scheduledDate] : []),
+      ]
+    : [];
+  const deliveryChip: messagingApi.FlexBox | null = deliveryLines.length
+    ? {
+        type: 'box',
+        layout: 'vertical',
+        backgroundColor: BRAND.paper,
+        cornerRadius: BRAND.radius,
+        paddingAll: 'sm',
+        contents: deliveryLines.map((line, index) => ({
+          type: 'text' as const,
+          text: line,
+          size: 'xs' as const,
+          color: index === 0 ? BRAND.tealStrong : BRAND.inkSoft,
+          wrap: true,
+        })),
+      }
+    : null;
   const lines = order.lines || [];
   const visibleLines = lines.slice(0, 4);
   const extraCount = lines.length - visibleLines.length;
@@ -120,6 +146,19 @@ export const createQuotationJourneyFlexMessage = (
     bodyActions.push(options.portalLink
       ? createUriActionButton(t('confirm', language), options.portalLink, 'primary', BRAND.teal)
       : createMessageActionButton(t('confirm', language), `QUOTE APPROVE ${order.id}`, 'primary', BRAND.teal));
+  } else if (!isCancelled && isDraft) {
+    bodyActions.push({
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: BRAND.paper,
+      cornerRadius: BRAND.radius,
+      paddingAll: 'sm',
+      contents: [
+        { type: 'text', text: t('quoteWaitingForSales', language), size: 'xs', color: BRAND.inkSoft, wrap: true },
+      ],
+    });
+  } else if (!isCancelled && isSale && options.portalLink) {
+    bodyActions.push(createUriActionButton(t('invoiceField', language), options.portalLink, 'secondary', BRAND.goldTint));
   }
 
   const footerContents: messagingApi.FlexComponent[] = [];
@@ -135,8 +174,9 @@ export const createQuotationJourneyFlexMessage = (
   if (options.role === 'admin') {
     footerContents.push(createMessageActionButton(t('moreActions', language), `QUOTE MORE ${order.id}`, 'secondary', BRAND.tealTint));
     footerContents.push(createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.goldTint));
-  } else if (!isCancelled && isSale && options.portalLink) {
-    footerContents.push(createUriActionButton(t('invoiceField', language), options.portalLink, 'secondary', BRAND.goldTint));
+  } else {
+    footerContents.push(createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.goldTint));
+    footerContents.push(createMessageActionButton(t('myQuotations', language), 'QUOTE LIST', 'secondary', BRAND.tealTint));
   }
 
   return {
@@ -166,6 +206,7 @@ export const createQuotationJourneyFlexMessage = (
         contents: [
           statusRow,
           ...(invoiceChip ? [invoiceChip] : []),
+          ...(deliveryChip ? [deliveryChip] : []),
           ...(visibleLines.length ? [{
             type: 'box' as const,
             layout: 'vertical' as const,

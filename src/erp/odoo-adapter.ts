@@ -1,7 +1,8 @@
 import { createServiceCatalogItem, deleteServiceCatalogItem, findProductsByQuery, getServiceByIdentifier, listServiceCatalogItems, updateServiceCatalogItem } from '../services/odoo/catalog';
-import { addSaleOrderLine, cancelSaleOrder, confirmSaleOrder, createInvoiceForSaleOrder, createQuotationFromLine, findOrderByReference, removeSaleOrderLine, sendQuotationEmail, updateSaleOrderLineQty } from '../services/odoo/sales';
+import { addSaleOrderLine, cancelSaleOrder, confirmSaleOrder, createInvoiceForSaleOrder, createQuotationFromLine, findOrderByReference, getSaleOrderById, removeSaleOrderLine, sendQuotationEmail, updateSaleOrderLineQty } from '../services/odoo/sales';
 import { createPartnerFromLine, deletePartnerFromLine, getPartnerByPhone, updatePartnerFromLine } from '../services/odoo/partners';
 import { getDailySalesSnapshot } from '../services/odoo/reporting';
+import { getOutgoingPickingForOrder } from '../services/odoo/delivery';
 import type { OdooProduct } from '../services/odoo/types';
 import type { ErpAdapter, ErpCustomerUpdate, ErpPartner, ErpPermission, ErpProduct, ErpProviderName, ErpQuoteDraft, ErpQuotationOptions, ErpService, ErpServiceUpdate, ErpWriteAction } from './adapter';
 
@@ -139,6 +140,11 @@ export const odooAdapter: ErpAdapter = {
       state: order.state,
       amountTotal: order.amount_total,
     } : null;
+  },
+  async getDeliveryStatus(orderId: number) {
+    const order = await getSaleOrderById(orderId);
+    if (!order?.name) return null;
+    return getOutgoingPickingForOrder(order.name);
   },
   async getDailySnapshot() {
     return getDailySalesSnapshot();

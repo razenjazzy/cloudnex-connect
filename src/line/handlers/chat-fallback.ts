@@ -79,7 +79,7 @@ export const handleChatFallback = async (
     })];
   }
 
-  const chatResult = await processChatMessage(userId, text.trim(), userLanguage);
+  const chatResult = await processChatMessage(userId, text.trim(), userLanguage, channel?.channelId);
 
   if (!chatResult.handled) {
     const faqHits = await searchSimilarFaqs(text.trim());

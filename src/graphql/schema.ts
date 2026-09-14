@@ -52,7 +52,7 @@ const Query = new GraphQLObjectType({
       type: GraphQLJSON,
       resolve: () => ({
         ok: true,
-        service: 'cns-line-oa',
+        service: 'cloudnex-connect',
         environment: process.env.NODE_ENV || 'development',
         timestamp: new Date().toISOString(),
       }),

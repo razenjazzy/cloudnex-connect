@@ -20,6 +20,7 @@ type CachedUserState = {
     lastActionOtpAt?: string;
     salesTier?: 'salesperson' | 'sales_manager';
     salesSessionExpiresAt?: string;
+    lastChannelId?: string;
 };
 
 type RepositoryDependencies = {
@@ -238,6 +239,16 @@ export const createUserProfileRepository = (dependencies: RepositoryDependencies
         dependencies.mergeCached(userId, { salesSessionExpiresAt: salesSessionExpiresAt || undefined });
         const result = await dependencies.write('setSalesSessionExpiresAt', async database => {
             await database.collection('users').doc(userId).set({ salesSessionExpiresAt: salesSessionExpiresAt || null }, { merge: true });
+        });
+        if (!result.ok) dependencies.restorePrevious(userId, previous);
+        return result;
+    },
+
+    setLastChannelId: async (userId: string, lastChannelId: string) => {
+        const previous = dependencies.getPrevious(userId);
+        dependencies.mergeCached(userId, { lastChannelId });
+        const result = await dependencies.write('setLastChannelId', async database => {
+            await database.collection('users').doc(userId).set({ lastChannelId }, { merge: true });
         });
         if (!result.ok) dependencies.restorePrevious(userId, previous);
         return result;

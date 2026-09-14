@@ -1,6 +1,6 @@
-# CNS LINE OA — Production Ansible Playbooks
+# Cloudnex Connect — Ansible playbooks
 
-This directory contains production-ready Ansible playbooks and roles to provision, configure, deploy, and monitor `cns-line-oa` on target servers (Ubuntu / Debian).
+This directory provisions, deploys, and monitors **cloudnex-connect** on Ubuntu/Debian.
 
 ---
 
@@ -23,7 +23,7 @@ ansible/
 ├── roles/
 │   ├── common/                    # OS baseline, user creation, security
 │   ├── docker/                    # Docker engine & compose setup
-│   ├── cns_line_oa/               # App code sync, .env templating, compose run
+│   ├── cloudnex_connect/          # App sync, .env templating, compose run
 │   └── nginx/                     # Reverse proxy for LINE Webhooks & SSL
 └── README.md
 ```
@@ -56,7 +56,7 @@ ansible-vault encrypt_string 'your-line-channel-secret' --name 'vault_line_chann
 ```
 Add the encrypted strings into `group_vars/production.yml`.
 
-The `cns_line_oa` role fails before deployment when required runtime values
+The `cloudnex_connect` role fails before deployment when required runtime values
 are missing. Configure vault-backed LINE credentials, Odoo credentials, and
 `OPS_API_TOKEN`; configure `WEBHOOK_TEST_TOKEN` and demo session secrets when
 those staging-only controls are enabled. Do not rely on fallback token values.

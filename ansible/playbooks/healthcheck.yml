@@ -1,5 +1,5 @@
 ---
-- name: Verify Health and Readiness of CNS LINE OA
+- name: Verify Health and Readiness of Cloudnex Connect
   hosts: all
   gather_facts: false
   tasks:

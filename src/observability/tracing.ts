@@ -6,7 +6,7 @@ import { appLogger } from '../services/logger';
 
 const isEnabled = (): boolean => /^(1|true|yes|on)$/i.test(process.env.OTEL_ENABLED || '');
 
-const tracer = trace.getTracer('cns-line-oa');
+const tracer = trace.getTracer('cloudnex-connect');
 
 let provider: NodeTracerProvider | null = null;
 
@@ -19,7 +19,7 @@ export const initTracing = (): void => {
 
   provider = new NodeTracerProvider({
     resource: resourceFromAttributes({
-      'service.name': 'cns-line-oa',
+      'service.name': 'cloudnex-connect',
     }),
     spanProcessors: [new BatchSpanProcessor(exporter)],
   });

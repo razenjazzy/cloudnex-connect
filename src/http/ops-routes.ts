@@ -12,6 +12,7 @@ import { demoSessionRotateGraceDefaultMinutes } from './env';
 import { buildWorkflowAudit } from './workflow-audit';
 import { demoSessionRotateBodySchema } from './openapi/schemas';
 import { getPlatformStatus } from '../platform/status';
+import { handleOdooHook } from './odoo-hook';
 
 export const registerOpsRoutes = (app: Express): void => {
     app.get('/ops/kpi', requireOpsToken, (_req, res) => {
@@ -75,5 +76,10 @@ export const registerOpsRoutes = (app: Express): void => {
 
     app.get('/ops/platform', requireOpsToken, async (_req, res) => {
         return res.status(200).json(await getPlatformStatus());
+    });
+
+    app.post('/ops/odoo-hook', requireOpsToken, jsonParser, async (req, res) => {
+        const result = await handleOdooHook(req.body);
+        return res.status(result.status).json(result);
     });
 };

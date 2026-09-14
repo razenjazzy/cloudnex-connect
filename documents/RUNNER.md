@@ -1,17 +1,17 @@
 # Runner System
 
-A single orchestrator (`runner.sh`) to set up, verify, run, and validate deployment for
+A single orchestrator (`scripts/runner.sh`) to set up, verify, run, and validate deployment for
 both halves of this repo:
 
-- **backend** — `cns-line-oa` TypeScript/Express LINE bot
+- **backend** — `cloudnex-connect` TypeScript/Express LINE bot
 - **claw** — `clawframework` Python research framework (main.py + clawspring)
 
 ## Quick start
 
 ```bash
-./runner.sh setup          # install backend npm deps + claw python deps
-./runner.sh health         # non-destructive full verification (compile + build + test)
-./runner.sh all            # setup -> verify -> run backend server (blocking)
+./scripts/runner.sh setup          # install backend npm deps + claw python deps
+./scripts/runner.sh health         # non-destructive full verification (compile + build + test)
+./scripts/runner.sh all            # setup -> verify -> run backend server (blocking)
 ```
 
 These are also exposed as npm scripts (`npm run runner:health`, etc.).
@@ -36,7 +36,7 @@ These are also exposed as npm scripts (`npm run runner:health`, etc.).
 
 ## Configuration
 
-Defaults live in `runner.conf` (overridable via env vars):
+Defaults live in `scripts/runner.conf` (overridable via env vars):
 
 - `PORT` / `BACKEND_PORT` — backend port (default 8080)
 - `PYTHON_BIN` — python interpreter (default `.venv/bin/python`)

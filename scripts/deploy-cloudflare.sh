@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-ROOT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 
 if ! command -v cloudflared >/dev/null 2>&1; then
   echo "cloudflared is not installed. Install it first, then run this script again."

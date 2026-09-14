@@ -3,6 +3,12 @@ dist
 .env
 .env.*
 !.env.example
+credentials.json
+*-credentials.json
+**/service-account*.json
+google-application-credentials.json
+firebase-adminsdk*.json
+*-firebase-adminsdk*.json
 deploy.env.yaml
 deploy.env.production.yaml
 deploy.env.staging.yaml

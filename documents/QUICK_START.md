@@ -1,4 +1,4 @@
-# CNS LINE OA — Quick Start
+# CloudNEx Connect — Quick Start
 
 ## Development
 
@@ -18,18 +18,18 @@ npm start                # node dist/index.js
 ## Docker
 
 ```bash
-docker build -t cns-line-oa .
-docker run -p 8080:8080 --env-file .env cns-line-oa
+docker build -f deploy/docker/Dockerfile -t cloudnex-connect .
+docker run -p 8080:8080 --env-file .env cloudnex-connect
 ```
 
-There's also a lighter local dev container (`Dockerfile.dev` +
-`docker-compose.dev.yml`) and a single `./runner.sh` orchestrator for
+There's also a lighter local dev container (`deploy/docker/Dockerfile.dev` +
+`deploy/docker/docker-compose.dev.yml`) and `scripts/runner.sh` for
 setup/build/test/health checks — see `RUNNER.md`.
 
 ## Free Cloudflare Tunnel
 
 ```bash
-./deploy-cloudflare.sh   # builds the app and exposes localhost:8080 publicly
+npm run cloudflare       # builds the app and exposes localhost:8080 publicly
 ```
 
 ---
@@ -166,7 +166,7 @@ npx tsc --noEmit   # type-check
 
 ```bash
 cp deploy.env.staging.yaml.example deploy.env.staging.yaml
-cp deploy.env.production.yaml.example deploy.env.production.yaml
+cp deploy/env/production.yaml.example deploy.env.production.yaml
 
 npm run preflight:staging && npm run deploy:staging
 PRODUCTION_APPROVED=true npm run preflight:prod && npm run deploy:prod

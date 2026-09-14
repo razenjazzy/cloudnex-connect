@@ -1,9 +1,9 @@
 import { messagingApi, webhook } from '@line/bot-sdk';
 import type { Readable } from 'node:stream';
 import { classifyIntent, transcribeAudioToText } from '../services/vertexai';
-import { resolveCommandReply } from './command-router';
+import { resolveCommandReply, type CommandReplyContext } from './command-router';
 import { resolvePostbackToText } from './postback';
-import { getEscalationState, getUserLanguage, getUserProfile, updateUserScore } from '../services/firestore';
+import { getEscalationState, getUserLanguage, getUserProfile, setLastChannelId, updateUserScore } from '../services/firestore';
 import { ChannelConfig, getAgentName } from './channels';
 import type { ChannelContext } from './channels';
 import { appLogger } from '../services/logger';
@@ -128,6 +128,9 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
     const client = new messagingApi.MessagingApiClient({ channelAccessToken: input.channelConfig.channelAccessToken });
     const userLanguage = await getUserLanguage(input.conversationId);
     const profile = await getUserProfile(input.conversationId);
+    if (profile.lastChannelId !== input.channelConfig.channelId) {
+      await setLastChannelId(input.conversationId, input.channelConfig.channelId);
+    }
     const agentName = getAgentName(userLanguage);
 
     let inputText = input.text?.trim() || '';
@@ -175,7 +178,7 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
       }]);
     }
 
-    const messages = await resolveCommandReply({
+    const ctx: CommandReplyContext = {
       text: inputText,
       userId: input.conversationId,
       userLanguage,
@@ -185,9 +188,12 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
       requestId: input.requestId,
       channel: input.channel,
       isGroupContext: input.isGroupContext,
-    });
-
-    return deliverMessages(client, input, messages);
+    };
+    const messages = await resolveCommandReply(ctx);
+    const delivered = await deliverMessages(client, input, messages);
+    const { queueTrayRestAfterReply } = await import('./rich-menu');
+    queueTrayRestAfterReply(input.conversationId, ctx.trayRest, input.channelConfig.channelId);
+    return delivered;
   });
 };
 

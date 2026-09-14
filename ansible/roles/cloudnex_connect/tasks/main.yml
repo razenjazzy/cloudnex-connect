@@ -48,7 +48,7 @@
     group: "{{ app_group }}"
     mode: '0644'
 
-- name: Build and start the cns-line-oa Docker container
+- name: Build and start the cloudnex-connect Docker container
   community.docker.docker_compose_v2:
     project_src: "{{ app_dir }}"
     state: present
@@ -67,4 +67,4 @@
 
 - name: Log health status
   debug:
-    msg: "CNS LINE OA app is successfully running and responding to /healthz: {{ healthz_result.json | default(healthz_result.content) }}"
+    msg: "Cloudnex Connect is running /healthz: {{ healthz_result.json | default(healthz_result.content) }}"

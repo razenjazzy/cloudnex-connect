@@ -2,7 +2,7 @@ import type { Express } from 'express';
 import { handleWebhook } from '../line/webhook';
 import { resolveChannelConfig, resolveEffectiveChannelContext } from '../line/channels';
 import { getAgentName } from '../line/channels';
-import { resolveCommandReply } from '../line/command-router';
+import { resolveCommandReply, type CommandReplyContext } from '../line/command-router';
 import { getUserLanguage, getUserProfile } from '../services/firestore';
 import { safeTokenMatch } from '../services/demo-session';
 import { jsonParser, webhookLimiter, webhookTestLimiter, isReadOnlyWebhookTestCommand, toSafeLogText } from './middleware';
@@ -60,7 +60,7 @@ export const registerWebhookRoutes = (app: Express): void => {
             const agentName = getAgentName(userLanguage);
             const baseUrl = `${req.protocol}://${req.get('host')}`;
 
-            const botMessages = await resolveCommandReply({
+            const ctx: CommandReplyContext = {
                 text,
                 userId,
                 userLanguage,
@@ -69,7 +69,10 @@ export const registerWebhookRoutes = (app: Express): void => {
                 baseUrl,
                 requestId: String(res.getHeader('x-request-id') || '') || undefined,
                 channel,
-            });
+            };
+            const botMessages = await resolveCommandReply(ctx);
+            const { queueTrayRestAfterReply } = await import('../line/rich-menu');
+            queueTrayRestAfterReply(userId, ctx.trayRest, channel?.channelId);
             return res.json(botMessages);
         } catch (error) {
             console.error('Error in webhook-test:', error);

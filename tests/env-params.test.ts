@@ -8,6 +8,9 @@ describe('environment param catalog', () => {
       NODE_ENV: 'production',
       LINE_CHANNEL_SECRET: 'x',
       LINE_CHANNEL_ACCESS_TOKEN: 'x',
+      LINE_CHANNEL_CUSTOMER_SECRET: 'x',
+      LINE_CHANNEL_CUSTOMER_ACCESS_TOKEN: 'x',
+      LINE_CHANNEL_CUSTOMER_BASIC_ID: '@724tneri',
       ADMIN_USER_ID: 'U1',
       GOOGLE_CLOUD_PROJECT: 'p',
       GOOGLE_APPLICATION_CREDENTIALS_JSON: '{}',
@@ -31,5 +34,6 @@ describe('environment param catalog', () => {
     const audit = auditEnvParams('production', { APP_ENV: 'production' });
     expect(audit.missingRequired).not.toContain('ENABLE_DEMO_CONTROL_PANEL');
     expect(audit.missingRequired).toContain('LINE_CHANNEL_SECRET');
+    expect(audit.missingRequired).toContain('LINE_CHANNEL_CUSTOMER_SECRET');
   });
 });

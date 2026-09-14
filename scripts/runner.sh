@@ -1,11 +1,9 @@
 #!/bin/bash
-# runner - end-to-end runner: cns-line-oa backend + clawframework python
-# ./runner.sh <cmd> [args]
-#  setup | backend:build|test|dev|smoke | claw:setup|check|run|tests |
-#  deploy:check | health | all  (./runner.sh help for usage)
+# runner - cloudnex-connect backend + clawframework
+# ./scripts/runner.sh <cmd> [args]
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
 GREEN=$'\033[0;32m'; CYAN=$'\033[0;36m'; YELLOW=$'\033[1;33m'
@@ -18,8 +16,8 @@ err()  { printf "${RED}[✘]${NC} %s\n" "$*" >&2; }
 die()  { err "$*"; exit 1; }
 h()    { printf "${BOLD}%s${NC}\n" "$*"; }
 
-if [ -f "$REPO_ROOT/runner.conf" ]; then
-  set +u; source "$REPO_ROOT/runner.conf"; set -u
+if [ -f "$REPO_ROOT/scripts/runner.conf" ]; then
+  set +u; source "$REPO_ROOT/scripts/runner.conf"; set -u
 fi
 
 require_tool() {
@@ -97,10 +95,10 @@ deploy_check() {
     bash ./scripts/preflight-check.sh "$env"
   else
     warn "deploy.env.${env}.yaml not found - running cutover validators only"
-    bash ./scripts/validate-cutover.sh "$env" "deploy.env.${env}.yaml.example"
+    bash ./scripts/validate-cutover.sh "$env" "deploy/env/${env}.yaml.example"
   fi
   h "deploy: docker image build (no push)"
-  docker build -t cns-line-oa:check .
+  docker build -f deploy/docker/Dockerfile -t cloudnex-connect:check .
   ok "docker build succeeded"
 }
 
@@ -112,10 +110,10 @@ cloudrun_deploy() {
   h "cloudrun: deploy pipeline (env=${env})"
   require_tool gcloud
   if [ ! -f "deploy.env.${env}.yaml" ]; then
-    die "Missing deploy.env.${env}.yaml (copy from deploy.env.${env}.yaml.example and fill)."
+    die "Missing deploy.env.${env}.yaml (copy from deploy/env/${env}.yaml.example and fill)."
   fi
   bash ./scripts/preflight-check.sh "$env"
-  bash ./deploy.sh "$env"
+  bash ./scripts/deploy-cloudrun.sh "$env"
   ok "cloudrun deploy complete"
 }
 
@@ -124,9 +122,9 @@ cloudrun_deploy() {
 railway_check() {
   h "railway: validate alternate-target image"
   require_tool docker
-  docker build -t cns-line-oa:railway-check .
+  docker build -f deploy/docker/Dockerfile -t cloudnex-connect:railway-check .
   local id
-  id=$(docker run -d --rm -e PORT=8080 -e NODE_ENV=test cns-line-oa:railway-check)
+  id=$(docker run -d --rm -e PORT=8080 -e NODE_ENV=test cloudnex-connect:railway-check)
   sleep 4
   docker exec "$id" sh -c 'wget -qO- http://localhost:8080/healthz >/dev/null 2>&1' \
     && ok "railway image healthz OK" || warn "healthz not reachable in container (service deps may be needed)"

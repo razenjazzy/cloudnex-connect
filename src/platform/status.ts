@@ -33,6 +33,7 @@ export type PlatformFlags = {
   staging: boolean;
   erpProvider: string;
   lineConfigured: boolean;
+  lineCustomerConfigured: boolean;
   firestoreProjectConfigured: boolean;
   odooConfigured: boolean;
   mongoConfigured: boolean;
@@ -61,6 +62,10 @@ const isLineConfigured = (): boolean => Boolean(
   process.env.LINE_CHANNEL_SECRET?.trim() && process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim(),
 );
 
+const isLineCustomerConfigured = (): boolean => Boolean(
+  process.env.LINE_CHANNEL_CUSTOMER_SECRET?.trim() && process.env.LINE_CHANNEL_CUSTOMER_ACCESS_TOKEN?.trim(),
+);
+
 const isOdooConfigured = (): boolean => Boolean(
   process.env.ODOO_URL?.trim()
   && process.env.ODOO_DB?.trim()
@@ -76,6 +81,7 @@ export const getPlatformFlags = (): PlatformFlags => ({
   staging: isStaging,
   erpProvider: process.env.ERP_PROVIDER?.trim().toLowerCase() || 'odoo',
   lineConfigured: isLineConfigured(),
+  lineCustomerConfigured: isLineCustomerConfigured(),
   firestoreProjectConfigured: Boolean(process.env.GOOGLE_CLOUD_PROJECT?.trim()),
   odooConfigured: isOdooConfigured(),
   mongoConfigured: Boolean(mongoUri),
@@ -118,6 +124,12 @@ const collectWarnings = (flags: PlatformFlags, checks: PlatformCheck[]): string[
   if (!flags.adminAllowlistConfigured) {
     warnings.push('ADMIN_USER_ID is unset; ADMIN ENABLE fails closed.');
   }
+  if ((flags.staging || flags.deliveryProduction) && !flags.lineCustomerConfigured) {
+    warnings.push('LINE_CHANNEL_CUSTOMER_SECRET or ACCESS_TOKEN unset; POST /webhook/customer will 404.');
+  }
+  if ((flags.staging || flags.deliveryProduction) && !process.env.LINE_CHANNEL_CUSTOMER_BASIC_ID?.trim()) {
+    warnings.push('LINE_CHANNEL_CUSTOMER_BASIC_ID unset; Add-friend for unquoted customers will be missing.');
+  }
   if (flags.mongoVectorEnabled && !flags.mongoConfigured) {
     warnings.push('MONGO_VECTOR_ENABLED is on but MONGODB_URI is unset.');
   }
@@ -139,12 +151,12 @@ export const getPlatformStatus = async () => {
   const probes = await runRuntimeProbes(getRateStore(), readyzTimeoutMs);
   const checks: PlatformCheck[] = [
     {
-      name: 'line',
-      required: true,
-      ok: flags.lineConfigured,
-      message: flags.lineConfigured
-        ? 'LINE channel secret and access token are set'
-        : 'LINE_CHANNEL_SECRET or LINE_CHANNEL_ACCESS_TOKEN missing',
+      name: 'line-customer',
+      required: false,
+      ok: flags.lineCustomerConfigured,
+      message: flags.lineCustomerConfigured
+        ? 'Cloudnex Customer secret and access token are set'
+        : 'LINE_CHANNEL_CUSTOMER_SECRET or LINE_CHANNEL_CUSTOMER_ACCESS_TOKEN missing',
     },
     { ...probes.firestore, required: true },
     { ...probes.odoo, required: true },

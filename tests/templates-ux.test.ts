@@ -96,6 +96,30 @@ describe('quotation journey invoice chip', () => {
     }, { role: 'admin' }, 'en');
     expect(JSON.stringify(message)).toContain('To invoice');
   });
+
+  it('shows picking state and tracking text when delivery is passed', () => {
+    const json = JSON.stringify(createQuotationJourneyFlexMessage({
+      id: 1,
+      name: 'S0001',
+      state: 'sale',
+      amount_total: 100,
+      partner_id: [9, 'Somchai'],
+      lines: [{ productName: 'App', qty: 1, priceUnit: 100, subtotal: 100 }],
+    }, {
+      role: 'customer',
+      delivery: {
+        pickingName: 'WH/OUT/0001',
+        state: 'done',
+        carrier: 'Company vehicle',
+        trackingRef: 'FREE-TEXT-1',
+        responsible: 'Driver A',
+      },
+    }, 'en'));
+    expect(json).toContain('Delivery');
+    expect(json).toContain('done');
+    expect(json).toContain('FREE-TEXT-1');
+    expect(json).toContain('Driver A');
+  });
 });
 
 describe('quotation journey state actions', () => {
@@ -167,13 +191,14 @@ describe('quotation journey state actions', () => {
     expect(json).toContain('Download');
     expect(json).not.toContain('Download PDF');
     expect(json).not.toContain('QUOTE APPROVE 17');
-    expect(json).not.toContain('NAV HOME');
+    expect(json).toContain('NAV HOME');
+    expect(json).toContain('QUOTE LIST');
     expect(json).not.toContain('QUOTE CONFIRM');
     expect(json).not.toContain('QUOTE SEND');
     expect(json).not.toContain('QUOTE MORE');
   });
 
-  it('gives the customer Invoice, View Quote, and Download on a sales order', () => {
+  it('gives the customer Invoice, View Quote, Home, and My quotations on a sales order', () => {
     const json = JSON.stringify(createQuotationJourneyFlexMessage(
       { ...order, state: 'sale', invoice_status: 'invoiced' },
       { role: 'customer', portalLink: 'https://example.com/q', pdfLink: 'https://example.com/p' },
@@ -188,7 +213,22 @@ describe('quotation journey state actions', () => {
     expect(json).not.toContain('QUOTE APPROVE');
     expect(json).not.toContain('QUOTE INVOICE');
     expect(json).not.toContain('QUOTE CONFIRM');
-    expect(json).not.toContain('NAV HOME');
+    expect(json).toContain('NAV HOME');
+    expect(json).toContain('QUOTE LIST');
+  });
+
+  it('tells the customer to wait for sales send on a draft, with Home and My quotations', () => {
+    const json = JSON.stringify(createQuotationJourneyFlexMessage(
+      { ...order, state: 'draft' },
+      { role: 'customer' },
+      'en',
+    ));
+    expect(json).toContain('Sales will send this quote');
+    expect(json).toContain('NAV HOME');
+    expect(json).toContain('QUOTE LIST');
+    expect(json).not.toContain('QUOTE CONFIRM');
+    expect(json).not.toContain('QUOTE SEND');
+    expect(json).not.toContain('QUOTE MORE');
   });
 
   it('shows Invoice beside Send Invoice on a sales order, with the same three footer rows', () => {

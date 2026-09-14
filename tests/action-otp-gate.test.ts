@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { isGatedMutation } from '../src/line/handlers/action-otp';
+import { isGatedMutation, shouldGateActionOtp } from '../src/line/handlers/action-otp';
 import { portalOrderIdFromPendingCommand } from '../src/services/action-otp-complete';
+import type { UserProfile } from '../src/services/firestore';
 
 describe('isGatedMutation', () => {
   it('gates the quote lifecycle mutations', () => {
@@ -46,6 +47,27 @@ describe('isGatedMutation', () => {
 
   it('is not fooled by a prefix appearing mid-string', () => {
     expect(isGatedMutation('NOT A QUOTE CREATE COMMAND')).toBe(false);
+  });
+});
+
+describe('shouldGateActionOtp', () => {
+  const base = (overrides: Partial<UserProfile>): UserProfile => ({
+    language: 'en',
+    role: 'user',
+    odooVerified: true,
+    marketingOptIn: false,
+    ...overrides,
+  });
+
+  it('skips Action OTP when a verified customer creates their own quote', () => {
+    expect(shouldGateActionOtp('QUOTE CREATE App,1,Somchai,0812345678', { profile: base({}) })).toBe(false);
+  });
+
+  it('still gates staff quote create and send confirm', () => {
+    const staff = base({ salesTier: 'salesperson' });
+    expect(shouldGateActionOtp('QUOTE CREATE App,1,Somchai,0812345678', { profile: staff })).toBe(true);
+    expect(shouldGateActionOtp('QUOTE SEND CONFIRM 51 BOTH a@b.com', { profile: staff })).toBe(true);
+    expect(shouldGateActionOtp('QUOTE SEND CONFIRM 51 BOTH a@b.com', { profile: base({}) })).toBe(true);
   });
 });
 

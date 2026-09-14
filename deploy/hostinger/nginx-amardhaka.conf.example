@@ -1,0 +1,15 @@
+# TLS is typically certbot-managed. This location block must forward
+# /webhook, /webhook/sales, and /webhook/customer with X-Line-Signature.
+# Copy the location /webhook { } into the amardhaka.io server{} on the VPS.
+# Do not add this file to other vhosts.
+
+location /webhook {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Line-Signature $http_x_line_signature;
+    proxy_read_timeout 60s;
+}

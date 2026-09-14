@@ -55,6 +55,7 @@ type CachedUserState = {
     lastActionOtpAt?: string;
     salesTier?: 'salesperson' | 'sales_manager';
     salesSessionExpiresAt?: string;
+    lastChannelId?: string;
 };
 
 const isPendingFlowActive = (pendingFlow: PendingFlowState | undefined | null): pendingFlow is PendingFlowState => {
@@ -437,6 +438,7 @@ export const setUserContactPhone = userProfileRepository.setContactPhone;
 
 export const setUserOdooVerificationStatus = userProfileRepository.setVerificationStatus;
 export const setSalesSessionExpiresAt = userProfileRepository.setSalesSessionExpiresAt;
+export const setLastChannelId = userProfileRepository.setLastChannelId;
 
 const phoneVariantsOverlap = (left: string, right: string): boolean => {
     const a = phoneMatchVariants(left);
@@ -444,28 +446,43 @@ const phoneVariantsOverlap = (left: string, right: string): boolean => {
     return a.some(value => b.has(value));
 };
 
-const findUserIdByPhone = async (phone: string, verifiedOnly: boolean): Promise<string | null> => {
+const findUserIdByPhone = async (phone: string, verifiedOnly: boolean, preferredChannelId?: string): Promise<string | null> => {
     const variants = phoneMatchVariants(phone);
     if (!variants.length) return null;
+
+    const pickPreferred = (ids: Array<{ id: string; lastChannelId?: string }>): string | null => {
+        if (!ids.length) return null;
+        if (preferredChannelId) {
+            const match = ids.find(row => row.lastChannelId === preferredChannelId);
+            if (match) return match.id;
+        }
+        return ids[0].id;
+    };
 
     const database = getDb();
     if (database) {
         try {
             let query = database.collection('users').where('phone', 'in', variants);
             if (verifiedOnly) query = query.where('odooVerified', '==', true);
-            const snap = await query.limit(1).get();
-            if (!snap.empty) return snap.docs[0].id;
+            const snap = await query.limit(10).get();
+            return pickPreferred(snap.docs.map(doc => ({
+                id: doc.id,
+                lastChannelId: typeof doc.data().lastChannelId === 'string' ? doc.data().lastChannelId : undefined,
+            })));
         } catch (error) {
             logFirestoreError(verifiedOnly ? 'findVerifiedUserIdByPhone' : 'findLineUserIdByPhone', error);
         }
     }
 
+    const cached: Array<{ id: string; lastChannelId?: string }> = [];
     for (const [userId, entry] of userStateCache.entries()) {
         if (!entry.state.phone) continue;
         if (verifiedOnly && !entry.state.odooVerified) continue;
-        if (phoneVariantsOverlap(phone, entry.state.phone)) return userId;
+        if (phoneVariantsOverlap(phone, entry.state.phone)) {
+            cached.push({ id: userId, lastChannelId: entry.state.lastChannelId });
+        }
     }
-    return null;
+    return pickPreferred(cached);
 };
 
 /** Odoo-verified LINE user (staff). */
@@ -473,11 +490,20 @@ export const findVerifiedUserIdByPhone = async (phone: string): Promise<string |
     findUserIdByPhone(phone, true);
 
 /** Any LINE user who shared this phone — including receive-only customers. */
-export const findLineUserIdByPhone = async (phone: string): Promise<string | null> =>
-    findUserIdByPhone(phone, false);
+export const findLineUserIdByPhone = async (phone: string, preferredChannelId?: string): Promise<string | null> =>
+    findUserIdByPhone(phone, false, preferredChannelId);
 
-export const findVerifiedUserIdByPartnerId = async (partnerId: number): Promise<string | null> => {
+export const findVerifiedUserIdByPartnerId = async (partnerId: number, preferredChannelId?: string): Promise<string | null> => {
     if (!Number.isFinite(partnerId) || partnerId <= 0) return null;
+
+    const pickPreferred = (ids: Array<{ id: string; lastChannelId?: string }>): string | null => {
+        if (!ids.length) return null;
+        if (preferredChannelId) {
+            const match = ids.find(row => row.lastChannelId === preferredChannelId);
+            if (match) return match.id;
+        }
+        return ids[0].id;
+    };
 
     const database = getDb();
     if (database) {
@@ -485,19 +511,23 @@ export const findVerifiedUserIdByPartnerId = async (partnerId: number): Promise<
             const snap = await database.collection('users')
                 .where('odooPartnerId', '==', partnerId)
                 .where('odooVerified', '==', true)
-                .limit(1)
+                .limit(10)
                 .get();
-            if (!snap.empty) return snap.docs[0].id;
+            return pickPreferred(snap.docs.map(doc => ({
+                id: doc.id,
+                lastChannelId: typeof doc.data().lastChannelId === 'string' ? doc.data().lastChannelId : undefined,
+            })));
         } catch (error) {
             logFirestoreError('findVerifiedUserIdByPartnerId', error);
         }
     }
 
+    const cached: Array<{ id: string; lastChannelId?: string }> = [];
     for (const [userId, entry] of userStateCache.entries()) {
         if (!entry.state.odooVerified || entry.state.odooPartnerId !== partnerId) continue;
-        return userId;
+        cached.push({ id: userId, lastChannelId: entry.state.lastChannelId });
     }
-    return null;
+    return pickPreferred(cached);
 };
 
 /** LINE users who VERIFY as an Odoo Sales User or Sales Administrator. */

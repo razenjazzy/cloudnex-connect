@@ -17,6 +17,7 @@ type CachedProfileState = {
     lastActionOtpAt?: string;
     salesTier?: 'salesperson' | 'sales_manager';
     salesSessionExpiresAt?: string;
+    lastChannelId?: string;
 };
 
 type PendingFlowPredicate = (pendingFlow: PendingFlowState | undefined | null) => pendingFlow is PendingFlowState;
@@ -42,6 +43,7 @@ export const buildFallbackUserProfile = (
     lastActionOtpAt: cached.lastActionOtpAt,
     salesTier: cached.salesTier,
     salesSessionExpiresAt: cached.salesSessionExpiresAt,
+    lastChannelId: cached.lastChannelId,
 });
 
 /**
@@ -94,5 +96,6 @@ export const parseStoredUserProfile = (
         lastActionOtpAt: typeof data.lastActionOtpAt === 'string' ? data.lastActionOtpAt : undefined,
         salesTier: data.salesTier === 'salesperson' || data.salesTier === 'sales_manager' ? data.salesTier : undefined,
         salesSessionExpiresAt: typeof data.salesSessionExpiresAt === 'string' ? data.salesSessionExpiresAt : undefined,
+        lastChannelId: typeof data.lastChannelId === 'string' && data.lastChannelId.trim() ? data.lastChannelId.trim() : undefined,
     };
 };

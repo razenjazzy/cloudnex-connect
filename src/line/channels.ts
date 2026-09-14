@@ -11,6 +11,19 @@ export type ChannelConfig = ChannelContext & {
 };
 
 export const DEFAULT_CHANNEL_ID = 'default';
+/** Cloudnex Sales (`POST /webhook/sales`). Falls back to default LINE_* credentials if SALES_* is unset. */
+export const SALES_CHANNEL_ID = 'sales';
+/** Cloudnex Customer (`POST /webhook/customer`). */
+export const CUSTOMER_CHANNEL_ID = 'customer';
+/** Flex / product name. LINE OA Manager names are Cloudnex Sales and Cloudnex Customer. */
+export const APP_NAME = 'CloudNex Connect';
+
+/** LINE user ids on this OA are not valid on the other. Pushes must use matching credentials. */
+export const customerNotifyChannelId = (): string =>
+  resolveChannelConfig(CUSTOMER_CHANNEL_ID) ? CUSTOMER_CHANNEL_ID : DEFAULT_CHANNEL_ID;
+
+export const salesNotifyChannelId = (): string =>
+  resolveChannelConfig(SALES_CHANNEL_ID) ? SALES_CHANNEL_ID : DEFAULT_CHANNEL_ID;
 
 /**
  * Single source of truth for the bot's persona name and its fallback, so a
@@ -23,7 +36,7 @@ export const getAgentName = (language: 'th' | 'en' = 'en'): string => {
 };
 
 export const getBrandTitle = (language: 'th' | 'en' = 'en'): string =>
-  `CloudNex Connect: ${getAgentName(language)}`;
+  `${APP_NAME}: ${getAgentName(language)}`;
 
 const parseServiceList = (value: string | undefined): string[] | null => {
   if (value === undefined) return null;
@@ -35,41 +48,58 @@ const parseServiceList = (value: string | undefined): string[] | null => {
 
 const toEnvKey = (channelId: string): string => channelId.toUpperCase().replace(/[^A-Z0-9]/g, '_');
 
+const defaultChannelConfig = (): ChannelConfig | null => {
+  const channelSecret = process.env.LINE_CHANNEL_SECRET?.trim() || '';
+  const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim() || '';
+  if (!channelSecret || !channelAccessToken) return null;
+  return {
+    channelId: DEFAULT_CHANNEL_ID,
+    channelSecret,
+    channelAccessToken,
+    enabledServices: parseServiceList(process.env.LINE_CHANNEL_DEFAULT_SERVICES),
+  };
+};
+
 /**
  * Resolves channel credentials/config from environment variables only.
  * The default channel preserves the existing flat LINE_CHANNEL_SECRET /
  * LINE_CHANNEL_ACCESS_TOKEN vars for backward compatibility. Additional
  * channels are configured via LINE_CHANNEL_<ID>_SECRET / _ACCESS_TOKEN / _SERVICES.
+ * `sales` reuses default credentials when LINE_CHANNEL_SALES_* is unset so
+ * Cloudnex Line Sales can use POST /webhook/sales without duplicating tokens.
  * Returns null when the channel is unknown or missing required credentials.
  */
 export const resolveChannelConfig = (channelId: string): ChannelConfig | null => {
   const normalized = channelId.trim();
   if (!normalized) return null;
 
-  if (normalized === DEFAULT_CHANNEL_ID) {
-    const channelSecret = process.env.LINE_CHANNEL_SECRET?.trim() || '';
-    const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim() || '';
-    if (!channelSecret || !channelAccessToken) return null;
-
-    return {
-      channelId: DEFAULT_CHANNEL_ID,
-      channelSecret,
-      channelAccessToken,
-      enabledServices: parseServiceList(process.env.LINE_CHANNEL_DEFAULT_SERVICES),
-    };
-  }
+  if (normalized === DEFAULT_CHANNEL_ID) return defaultChannelConfig();
 
   const envKey = toEnvKey(normalized);
   const channelSecret = process.env[`LINE_CHANNEL_${envKey}_SECRET`]?.trim() || '';
   const channelAccessToken = process.env[`LINE_CHANNEL_${envKey}_ACCESS_TOKEN`]?.trim() || '';
-  if (!channelSecret || !channelAccessToken) return null;
+  if (channelSecret && channelAccessToken) {
+    return {
+      channelId: normalized,
+      channelSecret,
+      channelAccessToken,
+      enabledServices: parseServiceList(process.env[`LINE_CHANNEL_${envKey}_SERVICES`]),
+    };
+  }
 
-  return {
-    channelId: normalized,
-    channelSecret,
-    channelAccessToken,
-    enabledServices: parseServiceList(process.env[`LINE_CHANNEL_${envKey}_SERVICES`]),
-  };
+  if (normalized === SALES_CHANNEL_ID) {
+    const fallback = defaultChannelConfig();
+    if (!fallback) return null;
+    return {
+      ...fallback,
+      channelId: SALES_CHANNEL_ID,
+      enabledServices: process.env.LINE_CHANNEL_SALES_SERVICES !== undefined
+        ? parseServiceList(process.env.LINE_CHANNEL_SALES_SERVICES)
+        : fallback.enabledServices,
+    };
+  }
+
+  return null;
 };
 
 /**
@@ -89,7 +119,10 @@ export const resolveBasicId = (channelId: string): string | undefined => {
   }
 
   const envKey = toEnvKey(normalized);
-  return process.env[`LINE_CHANNEL_${envKey}_BASIC_ID`]?.trim() || undefined;
+  const namespaced = process.env[`LINE_CHANNEL_${envKey}_BASIC_ID`]?.trim();
+  if (namespaced) return namespaced;
+  if (normalized === SALES_CHANNEL_ID) return process.env.LINE_CHANNEL_BASIC_ID?.trim() || undefined;
+  return undefined;
 };
 
 /**

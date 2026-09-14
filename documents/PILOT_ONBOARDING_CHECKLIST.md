@@ -39,7 +39,7 @@ explicitly out of scope until the Phase 6 decision gate (see the strategy doc).
 
 ## 4. Configure and deploy
 
-Copy `deploy.env.production.yaml.example` to a pilot-specific env file and set:
+Copy `deploy/env/production.yaml.example` to a pilot-specific env file and set:
 
 - [ ] `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN` (from step 1)
 - [ ] `ODOO_URL`, `ODOO_DB`, `ODOO_USERNAME`, `ODOO_API_KEY` (from step 2)
