@@ -28,7 +28,7 @@ const CATEGORY_ICON: Record<CommandCategoryKey, string> = {
  * list, "smart IVR"-style. Each button sends `GUIDE <category>`, which
  * createGuideCategoryFlexMessage below renders as a drill-down card.
  */
-export const createGuideCategoriesFlexMessage = (language: ReportLanguage, agentName: string): messagingApi.FlexMessage => ({
+export const createGuideCategoriesFlexMessage = (language: ReportLanguage, _agentName: string): messagingApi.FlexMessage => ({
   type: 'flex',
   altText: language === 'en' ? `${getBrandTitle('en')} guide` : `คู่มือ ${getBrandTitle('th')}`,
   contents: {
@@ -70,7 +70,7 @@ export const createGuideCategoriesFlexMessage = (language: ReportLanguage, agent
  * rather than either a fixed message action (wrong for commands that need
  * real values) or plain unstructured text.
  */
-export const createGuideCategoryFlexMessage = (category: CommandCategoryKey, language: ReportLanguage, agentName: string): messagingApi.FlexMessage => {
+export const createGuideCategoryFlexMessage = (category: CommandCategoryKey, language: ReportLanguage, _agentName: string): messagingApi.FlexMessage => {
   const label = GUIDE_CATEGORY_LABELS[category][language];
   const commands = getCommandsForCategory(category);
   const note = GUIDE_CATEGORY_NOTES[category]?.[language];

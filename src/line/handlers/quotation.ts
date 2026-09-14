@@ -60,9 +60,6 @@ const statusRetryActions = (orderId: number, language: UserLanguage) => [
   { label: t('retryStatus', language), text: `QUOTE STATUS ${orderId}`, style: 'primary' as const },
 ];
 
-const adminOnlyReply = (language: UserLanguage) =>
-  botText(tr(language, 'คำสั่งนี้สำหรับแอดมินเท่านั้น', 'This command is admin-only.'), language);
-
 const staffOnlyReply = (language: UserLanguage) =>
   botText(tr(language, 'คำสั่งนี้สำหรับพนักงานขาย', 'This action is for sales users.'), language);
 

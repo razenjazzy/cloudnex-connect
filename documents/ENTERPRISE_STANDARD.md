@@ -1,4 +1,4 @@
-# Enterprise standard architecture for cns-line-oa
+# Enterprise standard architecture for CloudNEx Connect
 
 ## Objective
 

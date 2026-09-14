@@ -3,71 +3,73 @@
 Use this checklist after the reviewed release snapshot is committed. Do not put
 credentials or secret values in this repository.
 
-**Note:** Cloud Run (`release.yml`) is manual `workflow_dispatch` only. **Staging** is Hostinger VPS (`documents/VPS_STAGING.md`). Railway variable names remain in `documents/RAILWAY_STAGING.md`. Work through the Cloud Run list below only if Cloud Run is actually going to be used.
+**Current staging path:** Hostinger VPS `https://amardhaka.io` ([VPS_STAGING.md](VPS_STAGING.md)), image `razenjazzy/cloudnex-connect:staging`. Certification snapshot: [ENTERPRISE_CERTIFICATION.md](ENTERPRISE_CERTIFICATION.md).
 
-## Railway staging (current path)
+Cloud Run (`release.yml`) is optional `workflow_dispatch` only. Railway variable names remain in [RAILWAY_STAGING.md](RAILWAY_STAGING.md) for historical deploys. Do not treat Railway as the live host.
 
-- [x] `npm test`, `npm run lint`, `npx tsc --noEmit` pass locally before push.
-- [x] Dockerfile copies `dist/` and `skills/`, runs `node dist/index.js`, healthchecks `/healthz`.
-- [ ] Railway service has `APP_ENV=staging`, LINE, Firestore JSON credentials, sandbox Odoo, `ADMIN_USER_ID`, `OPS_API_TOKEN`.
-- [ ] Staging demo flags: `ENABLE_DEMO_CONTROL_PANEL`, `ENABLE_WEBHOOK_TEST` (+ token), optional `ENABLE_GRAPHQL` / `ENABLE_API_DOCS`.
-- [ ] `LINE_WEBHOOK_ASYNC` remains false unless Redis + a worker process exist.
-- [ ] After deploy: `/healthz` 200, `/readyz` 200, `scripts/validate-railway.sh https://amardhaka.io`.
-- [ ] LINE webhook URL points at the Railway host `/webhook` on a **test** OA.
+## Hostinger VPS staging (current path)
 
-## Automated Local Evidence
+- [x] `npm test`, `npm run lint`, `npx tsc --noEmit` pass locally before push (re-run on each certification).
+- [x] `deploy/docker/Dockerfile` (root `Dockerfile` symlink) copies `dist/` and `skills/`, runs `node dist/index.js`, healthchecks `/healthz`.
+- [x] VPS `.env` (not in git) has `APP_ENV=staging`, Sales + Customer LINE keys, Firestore JSON, Odoo, `ADMIN_USER_ID`, `OPS_API_TOKEN`, `PUBLIC_BASE_URL=https://amardhaka.io`.
+- [x] Staging demo flags: `ENABLE_DEMO_CONTROL_PANEL`, `ENABLE_WEBHOOK_TEST` (+ tokens), GraphQL / API docs on for this lane.
+- [x] `LINE_WEBHOOK_ASYNC` is false (no Redis worker).
+- [x] After deploy: `/healthz` 200, `/readyz` 200 (`service: cloudnex-connect`, `appEnv: staging`).
+- [x] LINE webhooks: `POST https://amardhaka.io/webhook/sales` (Cloudnex Sales `@938qytwi`) and `POST https://amardhaka.io/webhook/customer` (Cloudnex Customer `@724tneri`). `POST /webhook` uses default Sales credentials.
+- [x] Compact rich menus published on both OAs (ids in VPS `LINE_RICH_MENU_*` and `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON`).
+- [ ] On-device USER_JOURNEY C0–C5 / S1–S4 signoff.
+- [ ] GitHub Actions auto-deploy: repository variable `ENABLE_STAGING_VPS_DEPLOY=true` and environment `staging` secrets (`VPS_SSH_KEY`, `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, optional `VPS_HOST`). Until then, deploy with `npm run deploy:staging-vm`.
+
+## Automated local evidence
 
 - [x] `npm test` passes.
-- [x] `npm run build -- --pretty false` passes.
-- [x] `npm run lint` passes with no errors or warnings.
-- [x] `git diff --check` passes.
-- [x] `.github/workflows/release.yml` parses as YAML.
-- [ ] `npm run preflight:staging` passes against a real staging manifest.
-- [ ] `npm run smoke -- <staging-url>` passes after deployment.
-- [ ] Staging deploy evidence is generated and reviewed.
+- [x] `npm run build` / `npx tsc --noEmit` passes.
+- [x] `npm run lint` passes with no errors (unused-var warnings in quotation/guide cleaned).
+- [x] `.github/workflows/release.yml` and `staging-vps.yml` parse as YAML.
+- [x] `staging-vps.yml` does **not** use `secrets.*` in `job.if` (invalid workflow). Gate is `vars.ENABLE_STAGING_VPS_DEPLOY == 'true'`.
+- [ ] `npm run preflight:staging` against a real staging YAML manifest if Cloud Run is used.
+- [ ] Optional: `npm run smoke -- https://amardhaka.io` after a deploy.
 
-## GitHub Environment Configuration
+## GitHub (VPS Actions, optional)
 
-Configure these as GitHub repository or environment secrets, not committed
-files:
+Configure as GitHub **environment `staging`** secrets / repository variables, not committed files:
 
-- [ ] `DEPLOY_ENV_STAGING_YAML` contains the reviewed staging YAML manifest.
-- [ ] `DEPLOY_ENV_PRODUCTION_YAML` contains the reviewed production YAML manifest.
-- [ ] `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` are set per environment.
-- [ ] `CLOUD_RUN_SECRETS` maps every required runtime secret.
-- [ ] `GCP_WORKLOAD_IDENTITY_PROVIDER` and `GCP_SERVICE_ACCOUNT` are configured.
-- [ ] `CLOUD_RUN_SERVICE_NAME` is configured.
-- [ ] `STAGING_BASE_URL` and `PRODUCTION_BASE_URL` are configured.
-- [ ] `OPS_API_TOKEN` is configured for smoke checks.
-- [ ] GitHub `staging` and `production` environments have intended reviewers and protection rules.
-- [ ] GitHub variable `PRODUCTION_ENVIRONMENT` is set to the exact protected production environment name.
+- [ ] Repository variable `ENABLE_STAGING_VPS_DEPLOY` = `true` to run deploy on `main` push.
+- [ ] `VPS_SSH_KEY` (SSH private key only; never the VPS `.env`).
+- [ ] `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`.
+- [ ] Optional `VPS_HOST` (default `root@187.127.179.49` in the deploy script).
 
-Required Cloud Run secret mappings are validated by
-`scripts/validate-cutover.sh` and include LINE credentials, Odoo API key,
-`DEMO_CONTROL_TOKEN`, and `OPS_API_TOKEN`. Add `REDIS_URL` when the manifest
-sets `RATE_LIMIT_STORE=redis`.
+## GitHub (Cloud Run, optional)
 
-## Runtime Signoff
+Only if Cloud Run will be used:
 
-- [ ] Rotate any credential that was ever exposed outside the intended secret store.
+- [ ] `DEPLOY_ENV_STAGING_YAML` / `DEPLOY_ENV_PRODUCTION_YAML`.
+- [ ] `GOOGLE_CLOUD_PROJECT`, `GOOGLE_CLOUD_LOCATION`, `CLOUD_RUN_SECRETS`, WIF, service name, base URLs.
+- [ ] `OPS_API_TOKEN` for smoke checks.
+- [ ] Protected `staging` / `production` environments and reviewers.
+
+Required Cloud Run secret mappings are validated by `scripts/validate-cutover.sh`.
+
+## Runtime signoff
+
+- [ ] Rotate any credential that was ever exposed outside the intended secret store (including LINE tokens pasted in chat).
 - [ ] Confirm `ERP_PROVIDER=odoo` until another ERP adapter is implemented.
-- [ ] Confirm `ENABLE_WEBHOOK_TEST=false` in production.
+- [ ] Confirm `ENABLE_WEBHOOK_TEST=false` in production (`deliveryProduction` / `APP_ENV=production`).
 - [ ] Confirm `ALLOW_DEMO_HEADER_TOKEN_FALLBACK=false` in production.
 - [ ] Confirm the demo control panel is disabled in production unless explicitly time-boxed.
 - [ ] Confirm `PRODUCTION_APPROVED=true` is supplied only for an approved manual production run.
-- [ ] Verify `/healthz` and `/readyz` after staging deployment.
-- [ ] Verify LINE webhook signature validation with the configured channel.
-- [ ] Exercise `VERIFY`, `ADMIN ENABLE`, one product lookup, one quote, and one audit-log read in staging.
+- [x] Verify `/healthz` and `/readyz` after staging deployment (2026-09-14).
+- [x] LINE webhook URLs registered and Messaging API webhook test OK (Sales + Customer).
+- [ ] Exercise `VERIFY`, one product lookup, one Customer self-quote, one Sales send, one audit-log read on device.
+- [ ] Firestore composite index `(phone, odooVerified)` if QUOTE SEND requires it.
 - [ ] Record staging approval before production dispatch.
 - [ ] Confirm rollback target and owner before production deployment.
 
-## Release Sequence
+## Release sequence (VPS staging)
 
-1. Commit the reviewed release snapshot.
-2. Configure staging environment secrets and manifest.
-3. Run `npm run preflight:staging`.
-4. Deploy staging through `.github/workflows/release.yml`.
-5. Run smoke checks and review deploy evidence.
-6. Obtain staging signoff.
-7. Dispatch the workflow with `deploy_production=true` only after approval.
-8. Run production smoke checks and retain evidence.
+1. Commit the reviewed snapshot (never `.env`).
+2. `npm test` && `npm run lint` && `npx tsc --noEmit`.
+3. `npm run deploy:staging-vm` **or** enable `ENABLE_STAGING_VPS_DEPLOY` and push `main`.
+4. Confirm `https://amardhaka.io/healthz` and `/readyz`.
+5. Obtain USER_JOURNEY signoff.
+6. Production only after demo/webhook-test off and credential rotation.
