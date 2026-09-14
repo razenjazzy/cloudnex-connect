@@ -34,7 +34,7 @@
 
 - name: Deploy .env configuration from template
   template:
-    src: .env.j2
+    src: env.j2
     dest: "{{ app_dir }}/.env"
     owner: "{{ app_user }}"
     group: "{{ app_group }}"
