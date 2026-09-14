@@ -194,7 +194,7 @@ const functionDeclarations = [
   },
   {
     name: 'createOrder',
-    description: 'Create an order for the user.',
+    description: 'Create a draft Odoo sales quotation (sale.order in draft) when the customer asks for a quote or to place an order.',
     parametersJsonSchema: {
       type: 'object',
       properties: {
@@ -251,6 +251,7 @@ const processGeminiResponse = async (
   userId: string,
   isThai: boolean,
   agentName: string,
+  channelId?: string,
 ): Promise<{ messages: messagingApi.Message[]; aiTextResponse: string }> => {
   const parts = ((response as any)?.candidates?.[0]?.content?.parts || []) as any[];
   const messages: messagingApi.Message[] = [];
@@ -295,13 +296,27 @@ const processGeminiResponse = async (
           );
           const total = quotation?.total ?? (odooProduct.list_price * qty);
           aiTextResponse += quotation
-            ? `[Quotation ${quotation.orderName} for ${qty}x ${odooProduct.name}]`
+            ? `[Draft quotation ${quotation.orderName} for ${qty}x ${odooProduct.name}]`
             : `[Order summary for ${qty}x ${odooProduct.name}]`;
           messages.push(createOrderSummaryFlexMessage(total, isThai ? 'th' : 'en', quotation?.orderId));
           if (quotation) {
             messages.push({ type: 'text', text: isThai
-              ? `${agentName} สร้างใบเสนอราคาใน Odoo แล้ว เลขที่ ${quotation.orderName}`
-              : `${agentName} created an Odoo quotation: ${quotation.orderName}` });
+              ? `${agentName} สร้างใบเสนอราคาฉบับร่างใน Odoo แล้ว เลขที่ ${quotation.orderName}`
+              : `${agentName} created a draft Odoo quotation: ${quotation.orderName}` });
+            if (channelId) {
+              const { getSaleOrderById } = await import('./odoo');
+              const { notifyQuoteParties } = await import('../line/quote-notify');
+              const order = await getSaleOrderById(quotation.orderId);
+              if (order) {
+                await notifyQuoteParties({
+                  order,
+                  channelId,
+                  actorUserId: userId,
+                  notifyCustomer: false,
+                  notifySales: true,
+                });
+              }
+            }
           }
         } else {
           const msg = isThai
@@ -333,6 +348,7 @@ export const processChatMessage = async (
   userId: string,
   userText: string,
   language: ChatLanguage,
+  channelId?: string,
 ): Promise<ChatResult> => {
   const agentName = getAgentName(language);
   const isThai = language === 'th';
@@ -384,7 +400,7 @@ export const processChatMessage = async (
 
       if (!response) throw lastError || new Error('No response from GenAI');
 
-      const { messages, aiTextResponse } = await processGeminiResponse(response, userId, isThai, agentName);
+      const { messages, aiTextResponse } = await processGeminiResponse(response, userId, isThai, agentName, channelId);
       geminiCircuit.recordSuccess();
 
       if (messages.length === 0) {

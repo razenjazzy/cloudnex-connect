@@ -8,6 +8,7 @@ describe('platform flags', () => {
     expect(flags).toEqual(expect.objectContaining({
       appEnv: expect.stringMatching(/development|staging|production/),
       lineConfigured: expect.any(Boolean),
+      lineCustomerConfigured: expect.any(Boolean),
       firestoreProjectConfigured: expect.any(Boolean),
       odooConfigured: expect.any(Boolean),
       graphqlEnabled: expect.any(Boolean),

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * cns — operator CLI for cns-line-oa.
+ * cns — operator CLI for cloudnex-connect.
  *
  * A thin terminal client over the app's existing ops/admin HTTP endpoints
  * (see src/ops-client/client.ts). Configure via environment variables:
@@ -53,7 +53,7 @@ export const parseArgs = (argv: string[]): { command: string; positional: string
   return { command: command || 'help', positional, flags };
 };
 
-const HELP = `cns — cns-line-oa operator CLI
+const HELP = `cns — cloudnex-connect operator CLI
 
 Usage: cns <command> [args] [--flags]
 

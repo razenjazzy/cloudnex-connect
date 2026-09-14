@@ -1,57 +1,134 @@
-# Staging: amardhaka.io
+# Staging VM: Cloudnex Connect on amardhaka.io
 
-Docker on Hostinger. Domain is the public URL. Do not edit other vhosts (`golpocom.com`, `shahbaizidarefin.com`).
+Formerly `/opt/cns-line-oa`. App directory is **`/opt/cloudnex-connect`**. Secrets stay on the VM — never commit `.env`.
+
+LINE HMAC → Firestore profile → one `resolveCommandReply` → Flex. Laptop/CI **builds and pushes** `razenjazzy/cloudnex-connect:staging`. The VPS **docker pull**s that image (no `npm install` / `npm ci` on the host).
 
 | | |
 |---|---|
 | Domain | `https://amardhaka.io` |
-| Webhook | `POST https://amardhaka.io/webhook` |
 | Host | `root@187.127.179.49` |
-| App | `/opt/cns-line-oa` |
-| Env | `/opt/cns-line-oa/.env` (server only) |
+| App | `/opt/cloudnex-connect` |
+| Env | `/opt/cloudnex-connect/.env` (server only) |
+| Image | `razenjazzy/cloudnex-connect:staging` |
 | Compose | `deploy/hostinger/docker-compose.staging.yml` |
 | Lane | `APP_ENV=staging`, image `NODE_ENV=production` |
+| Sales webhook | `POST https://amardhaka.io/webhook/sales` |
+| Customer webhook | `POST https://amardhaka.io/webhook/customer` |
 
-LINE HMAC → Firestore profile → one `resolveCommandReply` → Flex.
+Existing VM: `mv /opt/cns-line-oa /opt/cloudnex-connect` and keep the same `.env`. Then update nginx if it still points at the old path (compose `env_file` is `/opt/cloudnex-connect/.env`).
 
-## Required config (already forced in compose)
+---
 
-`PUBLIC_BASE_URL=https://amardhaka.io`
+## 1. First boot (Ubuntu)
 
-Also in `.env`: LINE secret + access token, Firestore project + credentials JSON, Odoo URL/DB/user/key, `ADMIN_USER_ID`, `OPS_API_TOKEN`, `DEMO_CONTROL_TOKEN`, `WEBHOOK_TEST_TOKEN`. Demo, webhook-test, GraphQL, and API docs are on. Claw, async queues, and Mongo stay off.
-
-## Deploy
+Do not edit other vhosts (`golpocom.com`, `shahbaizidarefin.com`).
 
 ```bash
-cd /opt/cns-line-oa
-docker compose -f deploy/hostinger/docker-compose.staging.yml --env-file .env up -d --build
+apt-get update
+apt-get install -y ca-certificates curl gnupg nginx certbot python3-certbot-nginx
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+chmod a+r /etc/apt/keyrings/docker.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo $VERSION_CODENAME) stable" > /etc/apt/sources.list.d/docker.list
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+```
+
+DNS: A `@` → `187.127.179.49`. CNAME `www` → `amardhaka.io`.
+
+## 2. App directory (no secrets)
+
+```bash
+mkdir -p /opt/cloudnex-connect
+```
+
+From a laptop with this repo (rsync excludes `.env`):
+
+```bash
+npm run deploy:staging-vm
+```
+
+Or copy the tree once without `.env`, then fill env (step 3) before compose.
+
+## 3. Server `.env` (never git)
+
+```bash
+cd /opt/cloudnex-connect
+cp deploy/env/staging.example .env
+# edit .env on the server: LINE Sales + Customer tokens, Firestore JSON, Odoo, ADMIN_USER_ID, OPS/DEMO/WEBHOOK tokens
+bash scripts/check-line-channels.sh .env
+```
+
+Required for two OAs:
+
+- Sales: `LINE_CHANNEL_SECRET` / `LINE_CHANNEL_ACCESS_TOKEN` / `LINE_CHANNEL_BASIC_ID=@938qytwi` (or `LINE_CHANNEL_SALES_*`)
+- Customer: `LINE_CHANNEL_CUSTOMER_SECRET` / `_ACCESS_TOKEN` / `_BASIC_ID=@724tneri` / `_SERVICES=commerce,catalog`
+- `ADMIN_USER_ID` = Cloudnex Sales LINE user ids
+- `APP_ENV=staging`, `PUBLIC_BASE_URL=https://amardhaka.io`
+
+Rotate channel secrets that were pasted in chat.
+
+## 4. Compose (Docker Hub pull)
+
+Compose bind is `127.0.0.1:8080` only. Set `DOCKER_IMAGE=razenjazzy/cloudnex-connect:staging` on the server `.env` (optional; compose defaults to that name).
+
+```bash
+cd /opt/cloudnex-connect
+docker pull razenjazzy/cloudnex-connect:staging
+docker compose -f deploy/hostinger/docker-compose.staging.yml --env-file .env up -d --no-build --pull always
 curl -sS http://127.0.0.1:8080/healthz
 curl -sS http://127.0.0.1:8080/readyz
 ```
 
-DNS: A `@` → `187.127.179.49`. CNAME `www` → `amardhaka.io` is fine.
+Repeat deploys from a machine logged into Docker Hub: `npm run deploy:staging-vm` (builds, pushes, VPS pulls). Cloud Run: `scripts/deploy-cloudrun.sh`. Local tunnel: `scripts/deploy-cloudflare.sh`.
 
-TLS:
+## 5. Nginx + TLS
+
+Merge [deploy/hostinger/nginx-amardhaka.conf.example](../deploy/hostinger/nginx-amardhaka.conf.example) into the `amardhaka.io` server. `proxy_pass http://127.0.0.1:8080` **without** a `/webhook` URI suffix so `/webhook/sales` and `/webhook/customer` are preserved. Forward `X-Line-Signature`.
 
 ```bash
+nginx -t && systemctl reload nginx
 certbot --nginx -d amardhaka.io -d www.amardhaka.io
 ```
 
-LINE Developers webhook: `https://amardhaka.io/webhook`. Rich menu ids: laptop `npm run rich-menu:upload`, then put ids in `.env` and recreate.
+## 6. LINE Developers
 
-Smoke: `GET https://amardhaka.io/healthz`, `/readyz`, `/demo`.
-
-## GitHub → VPS (push `main`)
-
-`ci.yml` builds and tests. `.github/workflows/staging-vps.yml` rsyncs this repo to `/opt/cns-line-oa` and recreates the container. It never writes `.env`.
-
-GitHub → Settings → Environments → **staging** secrets:
-
-| Secret | Value |
+| OA | Webhook |
 |---|---|
-| `VPS_SSH_KEY` | Private key that can `ssh root@187.127.179.49` |
-| `VPS_HOST` | Optional; default `root@187.127.179.49` |
+| Cloudnex Sales `@938qytwi` | `https://amardhaka.io/webhook/sales` |
+| Cloudnex Customer `@724tneri` | `https://amardhaka.io/webhook/customer` |
 
-From a laptop with that key: `npm run deploy:vps-staging`.
+`POST /webhook` still uses default Sales credentials.
 
-Out of scope for this path: new npm packages, a second command router, GraphQL LINE events, Mongo for users, admin-chain changes, nginx for other domains, committing VPS secrets.
+## 7. Smoke
+
+- `GET https://amardhaka.io/healthz` — `service` is `cloudnex-connect`
+- `GET https://amardhaka.io/readyz`
+- `GET https://amardhaka.io/demo` (ops/demo tokens)
+- `GET /ops/platform` — `lineCustomerConfigured` true when Customer env is set
+
+## 8. Repeat deploy from laptop / GitHub
+
+Laptop (SSH key that can `ssh root@187.127.179.49`):
+
+```bash
+npm run deploy:staging-vm
+```
+
+GitHub → Environments → **staging**: `VPS_SSH_KEY` (SSH private key only), optional `VPS_HOST`. Push `main` runs `.github/workflows/staging-vps.yml`. It **never** writes `.env`.
+
+## 9. Rollback
+
+`.env` stays put. Recreate from a previous git checkout on the VM, or `docker compose ... up -d` after `git checkout <commit>` of the app dir.
+
+## Troubleshooting
+
+| Symptom | Likely cause |
+|---|---|
+| LINE 400 HMAC | Wrong secret for that OA (`sales` vs `customer`) |
+| `/webhook/customer` 404 | Empty `LINE_CHANNEL_CUSTOMER_SECRET` / token |
+| Webhook 200 but no `/webhook/sales` | nginx `proxy_pass .../webhook` stripped the path — use the example location |
+| Deploy refuses | `check-line-channels.sh` or lockfile SHA mismatch |
+
+Out of scope: extra npm packages on the VM, other vhosts, committing VPS secrets.

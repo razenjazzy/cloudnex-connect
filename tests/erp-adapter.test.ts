@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { addSaleOrderLine, cancelSaleOrder, confirmSaleOrder, createInvoiceForSaleOrder, createQuotationFromLine, findOrderByReference, updateSaleOrderLineQty } from '../src/services/odoo/sales';
+import { addSaleOrderLine, cancelSaleOrder, confirmSaleOrder, createInvoiceForSaleOrder, createQuotationFromLine, findOrderByReference, getSaleOrderById, updateSaleOrderLineQty } from '../src/services/odoo/sales';
+import { getOutgoingPickingForOrder } from '../src/services/odoo/delivery';
 import { createPartnerFromLine, deletePartnerFromLine, getPartnerByPhone, updatePartnerFromLine } from '../src/services/odoo/partners';
 import { getDailySalesSnapshot } from '../src/services/odoo/reporting';
 import { createServiceCatalogItem, deleteServiceCatalogItem, findProductsByQuery, getServiceByIdentifier, listServiceCatalogItems, updateServiceCatalogItem } from '../src/services/odoo/catalog';
@@ -22,6 +23,10 @@ vi.mock('../src/services/odoo/sales', () => ({
   cancelSaleOrder: vi.fn(),
   createQuotationFromLine: vi.fn(),
   findOrderByReference: vi.fn(),
+  getSaleOrderById: vi.fn(),
+}));
+vi.mock('../src/services/odoo/delivery', () => ({
+  getOutgoingPickingForOrder: vi.fn(),
 }));
 vi.mock('../src/services/odoo/partners', () => ({
   createPartnerFromLine: vi.fn(),
@@ -46,6 +51,8 @@ const mockedAddQuoteLine = vi.mocked(addSaleOrderLine);
 const mockedEditQuoteLine = vi.mocked(updateSaleOrderLineQty);
 const mockedCancelQuote = vi.mocked(cancelSaleOrder);
 const mockedFindOrder = vi.mocked(findOrderByReference);
+const mockedGetSaleOrderById = vi.mocked(getSaleOrderById);
+const mockedGetPicking = vi.mocked(getOutgoingPickingForOrder);
 const mockedGetPartner = vi.mocked(getPartnerByPhone);
 const mockedCreateCustomer = vi.mocked(createPartnerFromLine);
 const mockedUpdateCustomer = vi.mocked(updatePartnerFromLine);
@@ -194,6 +201,14 @@ describe('Odoo ERP adapter', () => {
 
     await expect(odooAdapter.cancelQuote(42)).resolves.toBe(true);
     expect(mockedCancelQuote).toHaveBeenCalledWith(42);
+  });
+
+  it('loads outgoing picking by sale order name', async () => {
+    mockedGetSaleOrderById.mockResolvedValue({ id: 42, name: 'S0042' } as never);
+    mockedGetPicking.mockResolvedValue({ pickingName: 'WH/OUT/1', state: 'done' });
+
+    await expect(odooAdapter.getDeliveryStatus(42)).resolves.toEqual({ pickingName: 'WH/OUT/1', state: 'done' });
+    expect(mockedGetPicking).toHaveBeenCalledWith('S0042');
   });
 
   it('selects Odoo by default and rejects unimplemented ERP providers', () => {

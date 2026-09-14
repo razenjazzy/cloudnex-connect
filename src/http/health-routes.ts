@@ -6,7 +6,7 @@ export const registerHealthRoutes = (app: Express): void => {
     app.get('/healthz', (_req, res) => {
         res.status(200).json({
             ok: true,
-            service: 'cns-line-oa',
+            service: 'cloudnex-connect',
             environment: process.env.NODE_ENV || 'development',
             appEnv,
             timestamp: new Date().toISOString(),

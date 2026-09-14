@@ -19,6 +19,7 @@ const GOLD_TINT = '#F4E9D4';
 const fills = { teal: TEAL, tealTint: TEAL_TINT, gold: GOLD, goldTint: GOLD_TINT };
 const inks = { teal: '#FFFFFF', tealTint: TEAL_STRONG, gold: '#FFFFFF', goldTint: GOLD };
 
+/** Language fill follows EN/TH only. Verify fill follows sales session only. Tap darkens that one tile. */
 const tileFill = (area, activeId, lang, sessionOn) => {
   if (area.id === activeId) return 'teal';
   if (area.id === 'verify') return sessionOn ? 'gold' : 'tealTint';

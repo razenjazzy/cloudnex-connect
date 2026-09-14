@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DEFAULT_CHANNEL_ID, getAgentName, getBrandTitle, oaChatDeepLink, resolveChannelConfig } from '../src/line/channels';
+import { APP_NAME, CUSTOMER_CHANNEL_ID, DEFAULT_CHANNEL_ID, SALES_CHANNEL_ID, customerNotifyChannelId, getAgentName, getBrandTitle, oaChatDeepLink, resolveChannelConfig, salesNotifyChannelId } from '../src/line/channels';
 
 const ENV_KEYS = [
   'LINE_CHANNEL_SECRET',
@@ -8,6 +8,9 @@ const ENV_KEYS = [
   'LINE_CHANNEL_SALES_SECRET',
   'LINE_CHANNEL_SALES_ACCESS_TOKEN',
   'LINE_CHANNEL_SALES_SERVICES',
+  'LINE_CHANNEL_CUSTOMER_SECRET',
+  'LINE_CHANNEL_CUSTOMER_ACCESS_TOKEN',
+  'LINE_CHANNEL_CUSTOMER_SERVICES',
 ];
 
 describe('resolveChannelConfig', () => {
@@ -71,11 +74,43 @@ describe('resolveChannelConfig', () => {
   });
 
   it('returns null for an unconfigured named channel', () => {
-    expect(resolveChannelConfig('sales')).toBeNull();
+    expect(resolveChannelConfig('hr')).toBeNull();
   });
 
   it('returns null for an empty channelId', () => {
     expect(resolveChannelConfig('   ')).toBeNull();
+  });
+
+  it('resolves the customer OA and uses it for customer LINE pushes', () => {
+    process.env.LINE_CHANNEL_CUSTOMER_SECRET = 'secret-customer';
+    process.env.LINE_CHANNEL_CUSTOMER_ACCESS_TOKEN = 'token-customer';
+    process.env.LINE_CHANNEL_CUSTOMER_SERVICES = 'commerce,catalog';
+
+    expect(resolveChannelConfig(CUSTOMER_CHANNEL_ID)).toEqual({
+      channelId: CUSTOMER_CHANNEL_ID,
+      channelSecret: 'secret-customer',
+      channelAccessToken: 'token-customer',
+      enabledServices: ['commerce', 'catalog'],
+    });
+    expect(customerNotifyChannelId()).toBe(CUSTOMER_CHANNEL_ID);
+    expect(salesNotifyChannelId()).toBe(DEFAULT_CHANNEL_ID);
+  });
+
+  it('serves Cloudnex Sales at /webhook/sales using default LINE credentials when SALES_* is unset', () => {
+    process.env.LINE_CHANNEL_SECRET = 'secret-default';
+    process.env.LINE_CHANNEL_ACCESS_TOKEN = 'token-default';
+
+    expect(resolveChannelConfig(SALES_CHANNEL_ID)).toEqual({
+      channelId: SALES_CHANNEL_ID,
+      channelSecret: 'secret-default',
+      channelAccessToken: 'token-default',
+      enabledServices: null,
+    });
+    expect(salesNotifyChannelId()).toBe(SALES_CHANNEL_ID);
+  });
+
+  it('falls back to the Sales OA for customer pushes when the customer channel is unset', () => {
+    expect(customerNotifyChannelId()).toBe(DEFAULT_CHANNEL_ID);
   });
 });
 
@@ -100,13 +135,14 @@ describe('agent name', () => {
   it('defaults to Sora in English and โซระ in Thai', () => {
     expect(getAgentName('en')).toBe('Sora');
     expect(getAgentName('th')).toBe('โซระ');
+    expect(APP_NAME).toBe('CloudNex Connect');
     expect(getBrandTitle('en')).toBe('CloudNex Connect: Sora');
     expect(getBrandTitle('th')).toBe('CloudNex Connect: โซระ');
   });
 });
 
 describe('oaChatDeepLink', () => {
-  const keys = ['LINE_CHANNEL_BASIC_ID'];
+  const keys = ['LINE_CHANNEL_BASIC_ID', 'LINE_CHANNEL_CUSTOMER_BASIC_ID'];
   const original: Record<string, string | undefined> = {};
 
   beforeEach(() => {
@@ -129,5 +165,10 @@ describe('oaChatDeepLink', () => {
     process.env.LINE_CHANNEL_BASIC_ID = 'cloudnex';
     expect(oaChatDeepLink(DEFAULT_CHANNEL_ID)).toBe('https://line.me/R/ti/p/@cloudnex');
     expect(oaChatDeepLink(DEFAULT_CHANNEL_ID)).not.toContain('%40');
+  });
+
+  it('points Add-friend for customer pushes at Cloudnex Customer', () => {
+    process.env.LINE_CHANNEL_CUSTOMER_BASIC_ID = '@724tneri';
+    expect(oaChatDeepLink(CUSTOMER_CHANNEL_ID)).toBe('https://line.me/R/ti/p/@724tneri');
   });
 });

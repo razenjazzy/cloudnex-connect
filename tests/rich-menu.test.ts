@@ -83,13 +83,22 @@ describe('richMenuIdForLanguage', () => {
     const withSession = {
       ...env,
       LINE_RICH_MENU_JSON: JSON.stringify({
-        en: { default: 'richmenu-en-default', 'default-verified': 'richmenu-en-verified', verify: 'richmenu-en-verify' },
+        en: { default: 'richmenu-en-default', 'default-verified': 'richmenu-en-verified', verify: 'richmenu-en-verify', 'verify-verified': 'richmenu-en-verify-on', home: 'richmenu-en-home' },
         th: { default: 'richmenu-th-default' },
       }),
     };
     expect(richMenuIdForLanguage('en', withSession, 'default', true)).toBe('richmenu-en-verified');
-    expect(richMenuIdForLanguage('en', withSession, 'home', true)).toBe('richmenu-en-verified');
-    expect(richMenuIdForLanguage('en', withSession, 'verify', true)).toBe('richmenu-en-verify');
+    expect(richMenuIdForLanguage('en', withSession, 'home', true)).toBe('richmenu-en-home');
+    expect(richMenuIdForLanguage('en', withSession, 'verify', true)).toBe('richmenu-en-verify-on');
+    expect(richMenuIdForLanguage('en', {
+      LINE_RICH_MENU_JSON: JSON.stringify({
+        en: { default: 'en-rest', 'default-verified': 'en-gold-verify', language: 'en-lang-press', 'language-verified': 'en-lang-press-on' },
+      }),
+    }, 'language', true)).toBe('en-lang-press-on');
+    expect(richMenuIdForLanguage('en', {
+      LINE_RICH_MENU_JSON: JSON.stringify({ en: { default: 'sales-rest' } }),
+      LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON: JSON.stringify({ en: { default: 'customer-rest' } }),
+    }, 'default', false, 'customer')).toBe('customer-rest');
   });
 });
 
@@ -97,6 +106,7 @@ describe('trayVariantForCommand', () => {
   it('maps tray taps to the active cell', () => {
     expect(trayVariantForCommand('NAV HOME')).toBe('home');
     expect(trayVariantForCommand('FORM VERIFY')).toBe('verify');
+    expect(trayVariantForCommand('VERIFY SIGNOUT')).toBe('verify');
     expect(trayVariantForCommand('NAV commerce')).toBe('commerce');
     expect(trayVariantForCommand('FORM ORDER STATUS')).toBe('orders');
     expect(trayVariantForCommand('GUIDE')).toBe('help');
@@ -109,6 +119,13 @@ describe('native tray Language / Verify fills', () => {
   const GOLD = '#A97A2B';
   const TEAL_TINT = '#E3F0EE';
   const tileFills = (svg: string) => [...svg.matchAll(/<rect x="\d+" y="\d+"[^>]*fill="(#[A-F0-9]+)"/g)].map(m => m[1]);
+  /** Same rules as scripts/generate-rich-menu.mjs tileFill. */
+  const tileFill = (id: string, activeId: string | null, lang: 'en' | 'th', sessionOn: boolean) => {
+    if (id === activeId) return 'teal';
+    if (id === 'verify') return sessionOn ? 'gold' : 'tealTint';
+    if (id === 'language') return lang === 'en' ? 'gold' : 'tealTint';
+    return 'tealTint';
+  };
 
   it('golds Language on English rest and uses regular teal for Verify', () => {
     const fills = tileFills(readFileSync('assets/rich-menu/menu-en.svg', 'utf8'));
@@ -121,5 +138,50 @@ describe('native tray Language / Verify fills', () => {
     const fills = tileFills(readFileSync('assets/rich-menu/menu-th.svg', 'utf8'));
     expect(fills[5]).toBe(TEAL_TINT);
     expect(fills[1]).toBe(TEAL_TINT);
+  });
+
+  it('keeps Language and Verify independent: tap darkens only that tile', () => {
+    // Language: gold (EN) → dark teal tap → light teal (TH) → dark teal tap → gold (EN)
+    expect(tileFill('language', null, 'en', false)).toBe('gold');
+    expect(tileFill('verify', null, 'en', false)).toBe('tealTint');
+    expect(tileFill('language', 'language', 'en', false)).toBe('teal');
+    expect(tileFill('verify', 'language', 'en', false)).toBe('tealTint');
+    expect(tileFill('language', null, 'th', false)).toBe('tealTint');
+    expect(tileFill('verify', null, 'th', false)).toBe('tealTint');
+    expect(tileFill('language', 'language', 'th', false)).toBe('teal');
+    expect(tileFill('verify', 'language', 'th', false)).toBe('tealTint');
+    expect(tileFill('language', null, 'en', false)).toBe('gold');
+
+    // Verify: regular teal → dark teal tap → gold → dark teal tap → light teal
+    expect(tileFill('verify', null, 'en', false)).toBe('tealTint');
+    expect(tileFill('language', null, 'en', false)).toBe('gold');
+    expect(tileFill('verify', 'verify', 'en', false)).toBe('teal');
+    expect(tileFill('language', 'verify', 'en', false)).toBe('gold');
+    expect(tileFill('verify', null, 'en', true)).toBe('gold');
+    expect(tileFill('language', null, 'en', true)).toBe('gold');
+    expect(tileFill('verify', 'verify', 'en', true)).toBe('teal');
+    expect(tileFill('language', 'verify', 'en', true)).toBe('gold');
+    expect(tileFill('verify', null, 'en', false)).toBe('tealTint');
+    expect(tileFill('language', null, 'en', false)).toBe('gold');
+    expect(richMenuIdForLanguage('en', {
+      LINE_RICH_MENU_JSON: JSON.stringify({
+        en: { default: 'en-rest', 'default-verified': 'en-gold-verify', verify: 'en-press', language: 'en-lang-press' },
+        th: { default: 'th-rest', language: 'th-lang-press' },
+      }),
+    }, 'default', false)).toBe('en-rest');
+    expect(richMenuIdForLanguage('th', {
+      LINE_RICH_MENU_JSON: JSON.stringify({
+        th: { default: 'th-rest' },
+      }),
+    }, 'default', false)).toBe('th-rest');
+    expect(richMenuIdForLanguage('en', {
+      LINE_RICH_MENU_JSON: JSON.stringify({
+        en: { default: 'en-rest', 'default-verified': 'en-gold-verify' },
+      }),
+    }, 'default', true)).toBe('en-gold-verify');
+  });
+
+  it('does not use gold/teal fills from Flex NAV HOME', () => {
+    expect(readFileSync('tests/templates-nav.test.ts', 'utf8')).toContain('NAV HOME rounded boxes');
   });
 });

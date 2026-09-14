@@ -78,6 +78,13 @@ export const UI_STRINGS = {
     en: "This quotation isn't linked to your account.",
     th: 'ใบเสนอราคานี้ไม่ได้ผูกกับบัญชีของคุณ',
   },
+  quoteWaitingForSales: {
+    en: 'Sales will send this quote. You can approve it after it arrives.',
+    th: 'ฝ่ายขายจะส่งใบเสนอราคานี้ คุณอนุมัติได้เมื่อได้รับแล้ว',
+  },
+  deliveryField: { en: 'Delivery', th: 'การจัดส่ง' },
+  trackingField: { en: 'Tracking', th: 'เลขติดตาม' },
+  deliveryPerson: { en: 'Responsible', th: 'ผู้รับผิดชอบ' },
   quoteApproved: { en: 'Quotation approved. Thank you!', th: 'อนุมัติใบเสนอราคาแล้ว ขอบคุณค่ะ' },
   quoteApprovedStaff: { en: 'Customer approved. Next: Invoice or Send Invoice.', th: 'ลูกค้าอนุมัติแล้ว ขั้นถัดไป: ใบแจ้งหนี้ หรือ ส่งใบแจ้งหนี้' },
   quoteNotFound: { en: 'Quotation not found.', th: 'ไม่พบใบเสนอราคานี้' },

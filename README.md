@@ -1,9 +1,9 @@
-# CloudNex Connect (CNS LINE OA)
+# CloudNEx Connect (formerly cns-line-oa)
 
 TypeScript Express backend that connects a LINE Official Account to Odoo ERP. Users work in LINE Flex cards (Thai/English). Identity lives in Firestore. Sales, partners, and products live in Odoo.
 
 **Release:** v3.0.0 — Odoo LINE OA v2 production (bug-fix cut).  
-**Runtime:** Node 22+. **Persona:** Sora / โซระ.
+**Runtime:** Node 22+. **Persona:** Sora / โซระ. **Package:** `cloudnex-connect`.
 
 This README is the map. Implementation details stay in `documents/` and `CLAUDE.md`. If a document disagrees with running code, the code wins.
 
@@ -11,7 +11,7 @@ This README is the map. Implementation details stay in `documents/` and `CLAUDE.
 
 ## What it does
 
-Sales staff and customers use one Official Account:
+Sales staff use **Cloudnex Line Sales** (`POST /webhook/sales`). Customers use **Cloudnex Line Customer** (`POST /webhook/customer`). Same CloudNex Connect app and `resolveCommandReply`. Asking for a quote or order on the Customer OA creates a draft sales quotation. Quote/invoice LINE pushes go to Cloudnex Line Customer; sales alerts stay on Cloudnex Line Sales.
 
 | Persona | What they do in LINE |
 |---|---|
@@ -91,7 +91,9 @@ All ERP calls go through `getErpAdapter()` (`src/erp/registry.ts` → `odoo-adap
 
 | Route | Purpose |
 |---|---|
-| `POST /webhook` | Default LINE channel |
+| `POST /webhook` | Default LINE channel (legacy; same credentials as Sales if `LINE_CHANNEL_SALES_*` is unset) |
+| `POST /webhook/sales` | Cloudnex Sales |
+| `POST /webhook/customer` | Cloudnex Customer |
 | `POST /webhook/:channelId` | Extra OAs (`LINE_CHANNEL_<ID>_SECRET` / `_ACCESS_TOKEN` / `_SERVICES`) |
 | `GET /healthz` | Liveness |
 | `GET /readyz` | LINE + Firestore + Odoo (+ optional Mongo/queues) |
@@ -114,11 +116,11 @@ Same codebase. Lane is `APP_ENV`, not `NODE_ENV`. Docker sets `NODE_ENV=producti
 | Staging | `staging` | `https://amardhaka.io` | if `ENABLE_DEMO_CONTROL_PANEL` | if `ENABLE_WEBHOOK_TEST` |
 | Production | `production` | delivery (Cloud Run when cut) | **off** | **off** |
 
-Canonical keys: `src/http/env-params.ts`. Copy-paste: `.env.example`, `deploy.env.staging.example`, `deploy.env.production.example`. Full table: `documents/ENVIRONMENTS.md`. Staging host: `documents/VPS_STAGING.md`.
+Canonical keys: `src/http/env-params.ts`. Copy-paste: `.env.example`, `deploy/env/staging.example`, `deploy/env/production.example`. Full table: `documents/ENVIRONMENTS.md`. Staging VM: `documents/VPS_STAGING.md`. `npm run deploy:staging-vm`.
 
 ### Required for staging / production (values in the host secret store)
 
-`APP_ENV`, `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN`, `ADMIN_USER_ID`, `GOOGLE_CLOUD_PROJECT`, Odoo URL/DB/user/key, `ERP_PROVIDER=odoo`, `PUBLIC_BASE_URL`, `OPS_API_TOKEN`. Off-GCP hosts also need `GOOGLE_APPLICATION_CREDENTIALS_JSON`. Optional: Gemini (`GOOGLE_AI_STUDIO_API_KEY`), rich-menu ids, `LINE_CHANNEL_BASIC_ID` (`@handle` for Return to chat), `SALES_SESSION_TTL_HOURS` (default 24).
+`APP_ENV`, `LINE_CHANNEL_SECRET`, `LINE_CHANNEL_ACCESS_TOKEN`, `LINE_CHANNEL_CUSTOMER_SECRET`, `LINE_CHANNEL_CUSTOMER_ACCESS_TOKEN`, `LINE_CHANNEL_CUSTOMER_BASIC_ID`, `ADMIN_USER_ID`, `GOOGLE_CLOUD_PROJECT`, Odoo URL/DB/user/key, `ERP_PROVIDER=odoo`, `PUBLIC_BASE_URL`, `OPS_API_TOKEN`. Off-GCP hosts also need `GOOGLE_APPLICATION_CREDENTIALS_JSON`. Optional: Gemini (`GOOGLE_AI_STUDIO_API_KEY`), rich-menu ids, Sales `LINE_CHANNEL_BASIC_ID` (`@938qytwi`), `SALES_SESSION_TTL_HOURS` (default 24). `npm run check:line-channels` verifies two-OA keys without printing secrets.
 
 Leave unset unless provisioned: `LINE_WEBHOOK_ASYNC`, `CLAWFRAMEWORK_ENABLED`, `MONGO_VECTOR_ENABLED`, `RUN_BULLMQ_WORKER`.
 
@@ -179,7 +181,7 @@ npm run test:validators
 npm run lint
 ```
 
-Demo: `http://localhost:8080/demo` (same `resolveCommandReply` as LINE). Tunnel: `./deploy-cloudflare.sh`. Orchestrator: `documents/RUNNER.md`.
+Demo: `http://localhost:8080/demo` (same `resolveCommandReply` as LINE). Tunnel: `npm run cloudflare`. Orchestrator: `documents/RUNNER.md`.
 
 ### Native tray (laptop only)
 
@@ -237,8 +239,8 @@ Handlers today: action-otp, navigation, admin, verification, language, help, com
 |---|---|
 | `APP_ENV` | `development` \| `staging` \| `production` |
 | `PUBLIC_BASE_URL` | Origin for `/verify/*` links |
-| `LINE_CHANNEL_*` | Secret, token, optional numeric id, `@basicId` |
-| `LINE_CHANNEL_<ID>_*` | Extra OAs |
+| `LINE_CHANNEL_*` | Sales OA secret, token, optional numeric id, `@basicId` |
+| `LINE_CHANNEL_CUSTOMER_*` | Customer OA; required on staging/production |
 | `LINE_RICH_MENU_EN/TH/JSON` | Tray ids from upload script |
 | `SALES_SESSION_TTL_HOURS` | Gold VERIFY session; default 24 |
 | `ADMIN_USER_ID` | Comma-separated `U…` ids; fail closed if empty |

@@ -162,3 +162,19 @@ export const parseDemoQuotePayload = (payload: string): DemoQuoteInput | null =>
     ...(paymentTerm ? { paymentTerm } : {}),
   };
 };
+
+/** Customer OA: product + qty only; name/phone come from the verified profile. */
+export const parseSelfQuotePayload = (
+  payload: string,
+  identity: { customerName: string; phone: string },
+): DemoQuoteInput | null => {
+  const staffParsed = parseDemoQuotePayload(payload);
+  if (staffParsed) {
+    return { ...staffParsed, customerName: identity.customerName || staffParsed.customerName, phone: identity.phone || staffParsed.phone };
+  }
+  const [productNameRaw, qtyRaw, , , customerRefRaw, discountRaw, validityRaw, noteRaw, paymentTermRaw] = parseCsv(payload);
+  const rest = [productNameRaw, qtyRaw, identity.customerName, identity.phone, customerRefRaw, discountRaw, validityRaw, noteRaw, paymentTermRaw]
+    .map(v => v || '')
+    .join(',');
+  return parseDemoQuotePayload(rest);
+};

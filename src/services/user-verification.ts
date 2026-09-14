@@ -18,7 +18,6 @@ import { DEFAULT_CHANNEL_ID, getAgentName, resolveChannelConfig } from '../line/
 import { sendTargetedMessage, sendTargetedFlexMessage } from '../line/messaging';
 import { createBotTextFlexMessage } from '../line/templates';
 import { appLogger } from './logger';
-import { linkUserRichMenu } from '../line/rich-menu';
 import { startSalesSession } from './sales-session';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
@@ -32,11 +31,6 @@ const bindSalesTierIfOdooSalesUser = async (userId: string, partnerId: number): 
     salesTier: salesTier || 'customer',
   });
   return salesTier;
-};
-
-const linkHomeMenuAfterVerify = async (userId: string, channelId?: string, language?: UserLanguage, salesSessionActive = false) => {
-  const lang = language || await getUserLanguage(userId);
-  await linkUserRichMenu(userId, lang, channelId || DEFAULT_CHANNEL_ID, 'verify', salesSessionActive);
 };
 
 const verificationKindLabel = (language: UserLanguage, salesTier?: 'salesperson' | 'sales_manager') => {
@@ -239,7 +233,6 @@ export const verifyOdooUserByOtp = async (input: VerifyOtpInput): Promise<string
 
   const salesTier = await bindSalesTierIfOdooSalesUser(input.userId, consumed.data.partnerId);
   await startSalesSession(input.userId);
-  await linkHomeMenuAfterVerify(input.userId, consumed.data.channelId, input.language, true);
   const { deliverPendingQuoteInvites } = await import('../line/quote-notify');
   await deliverPendingQuoteInvites(input.userId, consumed.data.channelId || DEFAULT_CHANNEL_ID);
 
@@ -288,7 +281,6 @@ export const verifyOdooUserByToken = async (token: string): Promise<{ ok: boolea
   // The magic-link flow completes over plain HTTP, so without this push the
   // LINE chat never learns the verification actually succeeded.
   const language = await getUserLanguage(consumed.data.userId);
-  await linkHomeMenuAfterVerify(consumed.data.userId, consumed.data.channelId, language, true);
   const successCard = createBotTextFlexMessage({
     title: tr(language, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
     body: verificationSuccessMessage(language, '', salesTier),
@@ -309,6 +301,8 @@ export const verifyOdooUserByToken = async (token: string): Promise<{ ok: boolea
   if (home.type === 'flex') {
     await sendTargetedFlexMessage([consumed.data.userId], home, consumed.data.channelId);
   }
+  const { queueTrayRestAfterReply } = await import('../line/rich-menu');
+  queueTrayRestAfterReply(consumed.data.userId, { language, salesSessionActive: true }, consumed.data.channelId || DEFAULT_CHANNEL_ID);
 
   notifyAdminOfVerification({
     userId: consumed.data.userId,

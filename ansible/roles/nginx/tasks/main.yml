@@ -8,8 +8,8 @@
 
 - name: Deploy Nginx reverse proxy configuration
   template:
-    src: cns-line-oa.conf.j2
-    dest: /etc/nginx/sites-available/cns-line-oa.conf
+    src: cloudnex-connect.conf.j2
+    dest: /etc/nginx/sites-available/cloudnex-connect.conf
     owner: root
     group: root
     mode: '0644'
@@ -18,8 +18,8 @@
 
 - name: Enable site by linking to sites-enabled
   file:
-    src: /etc/nginx/sites-available/cns-line-oa.conf
-    dest: /etc/nginx/sites-enabled/cns-line-oa.conf
+    src: /etc/nginx/sites-available/cloudnex-connect.conf
+    dest: /etc/nginx/sites-enabled/cloudnex-connect.conf
     state: link
   when: nginx_enabled
   notify: Reload Nginx

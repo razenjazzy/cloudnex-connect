@@ -27,7 +27,7 @@ describe('NAV HOME rounded boxes', () => {
     expect(row?.contents?.[0]?.weight).toBeUndefined();
   });
 
-  it('golds Verify only when the sales session is on', () => {
+  it('keeps Flex NAV HOME Verify and Language on the same teal as other buttons', () => {
     const on = createServiceHomeFlexMessage(
       [{ key: 'VERIFY', label: 'Verify account' }, { key: 'commerce', label: 'Products & Quotes' }],
       'en',
@@ -42,14 +42,14 @@ describe('NAV HOME rounded boxes', () => {
     );
     const onBody = on.contents as { body?: { contents?: Array<Record<string, unknown>> }; footer?: { contents?: Array<Record<string, unknown>> } };
     const offBody = off.contents as { body?: { contents?: Array<Record<string, unknown>> } };
-    expect(onBody.body?.contents?.[0]?.backgroundColor).toBe(BRAND.gold);
+    expect(onBody.body?.contents?.[0]?.backgroundColor).toBe(BRAND.teal);
     expect(onBody.body?.contents?.[1]?.backgroundColor).toBe(BRAND.teal);
-    expect(offBody.body?.contents?.[0]?.backgroundColor).toBe(BRAND.tealTint);
-    expect(offBody.body?.contents?.[1]?.backgroundColor).toBe(BRAND.teal);
-    expect(onBody.footer?.contents?.[0]?.backgroundColor).toBe(BRAND.gold);
+    expect(offBody.body?.contents?.[0]?.backgroundColor).toBe(BRAND.teal);
+    expect(onBody.footer?.contents?.[0]?.backgroundColor).toBe(BRAND.tealTint);
+    expect(onBody.footer?.contents?.[1]?.backgroundColor).toBe(BRAND.tealTint);
   });
 
-  it('uses regular Language fill on the Thai home footer', () => {
+  it('uses the same Language fill on the Thai home footer', () => {
     const message = createServiceHomeFlexMessage([{ key: 'commerce', label: 'สินค้าและใบเสนอราคา' }], 'th', 'โซระ');
     const bubble = message.contents as { footer?: { contents?: Array<Record<string, unknown>> } };
     expect(bubble.footer?.contents?.[0]?.backgroundColor).toBe(BRAND.tealTint);

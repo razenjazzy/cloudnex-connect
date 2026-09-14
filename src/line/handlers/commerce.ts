@@ -6,7 +6,7 @@ import {
   createBotTextFlexMessage,
   formatMoney,
 } from '../templates';
-import { parseDemoQuotePayload } from '../command-validators';
+import { parseDemoQuotePayload, parseSelfQuotePayload } from '../command-validators';
 import {
   findPaymentTermByName,
   findProductByQuery,
@@ -20,7 +20,8 @@ import {
 } from '../../services/odoo';
 import { recordAuditEvent, setLastProductContext } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
-import { canManageQuoteLines, isQuoteStaff, quoteJourneyRole, syncStaffProfile } from '../quote-access';
+import { t } from '../../services/i18n';
+import { canManageQuoteLines, canViewOrderAsCustomer, isQuoteStaff, quoteJourneyRole, selfQuoteIdentity, syncStaffProfile } from '../quote-access';
 import { notifyQuoteParties } from '../quote-notify';
 import { getErpAdapter } from '../../erp/registry';
 import { getPlatformStatus } from '../../platform/status';
@@ -100,18 +101,24 @@ const demoOrderHandler: CommandHandler = {
       state: found.state,
       amount_total: found.amountTotal || 0,
     };
-    const [portalLink, pdfLink] = await Promise.all([
+    const [portalLink, pdfLink, delivery] = await Promise.all([
       getSaleOrderPortalLink(order.id).then(v => v || undefined),
       getSaleOrderPdfLink(order.id).then(v => v || undefined),
+      getErpAdapter().getDeliveryStatus(found.id),
     ]);
     const profile = await syncStaffProfile(ctx.userId, ctx.profile);
     const role = quoteJourneyRole(profile);
+    const orderPartnerId = Array.isArray(order.partner_id) ? order.partner_id[0] : undefined;
+    if (!canViewOrderAsCustomer(profile, orderPartnerId)) {
+      return [botText(t('quoteNotYours', userLanguage), userLanguage)];
+    }
     return [createQuotationJourneyFlexMessage(order, {
       role,
       salesTier: profile.salesTier,
       canManageLines: canManageQuoteLines(profile),
       portalLink,
       pdfLink,
+      ...(delivery ? { delivery } : {}),
     }, userLanguage)];
   },
 };
@@ -124,10 +131,22 @@ const demoQuoteHandler: CommandHandler = {
     const { userLanguage, text, userId, channel, requestId } = ctx;
     const profile = await syncStaffProfile(userId, ctx.profile);
     const payload = text.trim().replace(/^QUOTE CREATE\s*/i, '').trim();
-    const parsed = parseDemoQuotePayload(payload);
+    const identity = selfQuoteIdentity(profile);
+    const parsed = isQuoteStaff(profile)
+      ? parseDemoQuotePayload(payload)
+      : parseSelfQuotePayload(payload, identity);
     if (!parsed) {
       const { resolveCommandReply } = await import('../command-router');
       return resolveCommandReply({ ...ctx, text: 'FORM QUOTE CREATE' });
+    }
+
+    if (!isQuoteStaff(profile) && !profile.odooPartnerId) {
+      return [botText(tr(userLanguage,
+        'กรุณายืนยันตัวตนก่อนสร้างใบเสนอราคา',
+        'Verify your account before creating a quote.',
+      ), userLanguage, [
+        { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
+      ])];
     }
 
     const { productName, qty, customerName, phone, customerReference, discountPercent, validityDate, note, paymentTerm, productId: parsedProductId } = parsed;
@@ -149,13 +168,14 @@ const demoQuoteHandler: CommandHandler = {
     // createQuotationFromLine's findOrCreatePartner blindly create/match a
     // bystander contact by name+phone. Unverified/new customers (the
     // common case) fall through to today's behavior unchanged.
-    const namedPartner = await getPartnerByName(customerName);
+    const namedPartner = isQuoteStaff(profile) ? await getPartnerByName(customerName) : null;
     if (namedPartner && phone && namedPartner.phone !== phone) {
       await getErpAdapter().updateCustomer(namedPartner.id, { phone });
     }
     const existingPartner = isQuoteStaff(profile)
       ? (namedPartner || await getPartnerByPhone(phone))
       : null;
+    const partnerId = isQuoteStaff(profile) ? existingPartner?.id : profile.odooPartnerId;
 
     // Optional field, resolved (not just validated) here — a miss never
     // blocks the quote, it just proceeds without a payment term set
@@ -169,7 +189,7 @@ const demoQuoteHandler: CommandHandler = {
     }
 
     const quotation = await getErpAdapter().createQuotation(customerName, phone, product.name, qty, {
-      partnerId: existingPartner?.id,
+      partnerId,
       customerRef: customerReference,
       discountPercent,
       validityDate,

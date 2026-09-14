@@ -1,10 +1,10 @@
 ---
-app_name: cns-line-oa
+app_name: cloudnex-connect
 app_user: appuser
 app_group: appuser
-app_dir: /opt/cns-line-oa
+app_dir: /opt/cloudnex-connect
 app_port: 8080
-docker_image_name: cns-line-oa
+docker_image_name: cloudnex-connect
 docker_image_tag: latest
 
 # Node/Container runtime settings

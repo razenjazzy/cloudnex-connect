@@ -1,22 +1,25 @@
 import { describe, expect, it } from 'vitest';
-import { canManageQuoteLines, isQuoteStaff, quoteJourneyRole } from '../src/line/quote-access';
+import { canViewOrderAsCustomer, isQuoteStaff, selfQuoteIdentity } from '../src/line/quote-access';
 
-describe('quote access from Odoo sales groups', () => {
-  it('gives Confirm/Send staff cards to Odoo sales users without LINE admin', () => {
-    const sales = { role: 'user' as const, salesTier: 'salesperson' as const };
-    expect(isQuoteStaff(sales)).toBe(true);
-    expect(quoteJourneyRole(sales)).toBe('admin');
-    expect(canManageQuoteLines(sales)).toBe(false);
+describe('canViewOrderAsCustomer', () => {
+  it('lets staff view any partner', () => {
+    expect(canViewOrderAsCustomer({ role: 'user', salesTier: 'salesperson', odooPartnerId: 1 }, 99)).toBe(true);
   });
 
-  it('keeps Edit/Cancel for LINE admin and Odoo sales managers', () => {
-    expect(canManageQuoteLines({ role: 'admin', salesTier: undefined })).toBe(true);
-    expect(canManageQuoteLines({ role: 'user', salesTier: 'sales_manager' })).toBe(true);
+  it('lets a customer view only their own partner', () => {
+    const customer = { role: 'user' as const, odooPartnerId: 42 };
+    expect(canViewOrderAsCustomer(customer, 42)).toBe(true);
+    expect(canViewOrderAsCustomer(customer, 99)).toBe(false);
+    expect(canViewOrderAsCustomer({ role: 'user' }, 42)).toBe(false);
   });
+});
 
-  it('gives portal customers the buyer card, not Confirm/Send', () => {
-    const customer = { role: 'user' as const, salesTier: undefined };
-    expect(isQuoteStaff(customer)).toBe(false);
-    expect(quoteJourneyRole(customer)).toBe('customer');
+describe('selfQuoteIdentity', () => {
+  it('uses the verified profile, not staff form fields', () => {
+    expect(selfQuoteIdentity({ displayName: 'Somchai', phone: '0812345678' })).toEqual({
+      customerName: 'Somchai',
+      phone: '0812345678',
+    });
+    expect(isQuoteStaff({ role: 'user' })).toBe(false);
   });
 });

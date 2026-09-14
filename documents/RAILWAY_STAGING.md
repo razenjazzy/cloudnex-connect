@@ -2,7 +2,7 @@
 
 Railway was the previous staging host. The service is **offline**. Live staging is Hostinger VPS: [VPS_STAGING.md](./VPS_STAGING.md) (`https://amardhaka.io`).
 
-Keep this file as the Railway variable table. Copy those names into `/opt/cns-line-oa/.env`, then set `PUBLIC_BASE_URL=https://amardhaka.io`. Template: `deploy.env.staging.example`.
+Keep this file as the Railway variable table. Copy those names into `/opt/cloudnex-connect/.env`, then set `PUBLIC_BASE_URL=https://amardhaka.io`. Template: `deploy/env/staging.example`.
 
 `railway.json` still builds the repo `Dockerfile` if you ever re-link Railway. Production remains Cloud Run (`release.yml`, manual).
 

@@ -31,7 +31,16 @@ ENABLE_GRAPHQL=true          # optional
 ENABLE_API_DOCS=true         # optional
 ```
 
-Plus LINE test OA, Firestore JSON credentials, sandbox Odoo, `ADMIN_USER_ID`, `OPS_API_TOKEN`, `PUBLIC_BASE_URL=https://amardhaka.io`. See `documents/VPS_STAGING.md`.
+Plus LINE **Cloudnex Sales** and **Cloudnex Customer** credentials, Firestore JSON credentials, sandbox Odoo, `ADMIN_USER_ID` (Sales OA LINE user ids), `OPS_API_TOKEN`, `PUBLIC_BASE_URL=https://amardhaka.io`. See `documents/VPS_STAGING.md`.
+
+Two Official Accounts (staging and production):
+
+| OA | Webhook | Env |
+|---|---|---|
+| Cloudnex Sales `@938qytwi` | `POST /webhook/sales` (also `POST /webhook`) | `LINE_CHANNEL_SECRET` / `_ACCESS_TOKEN` / `_BASIC_ID`, or `LINE_CHANNEL_SALES_*` |
+| Cloudnex Customer `@724tneri` | `POST /webhook/customer` | `LINE_CHANNEL_CUSTOMER_SECRET` / `_ACCESS_TOKEN` / `_BASIC_ID` / `_SERVICES=commerce,catalog` |
+
+Do not commit tokens. Copy keys from `deploy/env/staging.example` into the host `.env`. `npm run check:line-channels` confirms they are non-empty without printing values.
 
 ## 3. Production (final delivery)
 
@@ -50,4 +59,4 @@ Cloud Run `release.yml` remains manual until GCP secrets exist. Railway is not p
 
 Firestore is identity SoR. Odoo is ERP via `getErpAdapter()`. Mongo is optional LINE FAQ only. `SALES_SESSION_TTL_HOURS` (default 24) is the gold VERIFY sales-login window.
 
-Variable names for each lane: `src/http/env-params.ts`. Railway copy-paste keys: `deploy.env.staging.example`. Delivery keys: `deploy.env.production.example`. `GET /ops/platform` reports `env.missingRequired`.
+Variable names for each lane: `src/http/env-params.ts`. Railway copy-paste keys: `deploy/env/staging.example`. Delivery keys: `deploy/env/production.example`. `GET /ops/platform` reports `env.missingRequired`.

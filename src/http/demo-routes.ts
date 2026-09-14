@@ -1,7 +1,7 @@
 import type { Express } from 'express';
 import { buildDemoPage } from '../demo/page';
 import { getAgentName } from '../line/channels';
-import { resolveCommandReply } from '../line/command-router';
+import { resolveCommandReply, type CommandReplyContext } from '../line/command-router';
 import { getUserLanguage, getUserProfile } from '../services/firestore';
 import { getDemoOverview, runDemoJourney } from '../services/demo';
 import { getDemoPlatformPayload } from '../platform/service-modules';
@@ -134,7 +134,7 @@ export const registerDemoRoutes = (app: Express): void => {
             const agentName = getAgentName(userLanguage);
             const baseUrl = `${req.protocol}://${req.get('host')}`;
 
-            const botMessages = await resolveCommandReply({
+            const ctx: CommandReplyContext = {
                 text: rawText,
                 userId,
                 userLanguage,
@@ -142,7 +142,10 @@ export const registerDemoRoutes = (app: Express): void => {
                 agentName,
                 baseUrl,
                 requestId: String(res.getHeader('x-request-id') || '') || undefined,
-            });
+            };
+            const botMessages = await resolveCommandReply(ctx);
+            const { queueTrayRestAfterReply } = await import('../line/rich-menu');
+            queueTrayRestAfterReply(userId, ctx.trayRest);
 
             // Flatten the LINE messages into a minimal chat transcript the widget
             // can render: text messages keep their text, Flex messages surface a

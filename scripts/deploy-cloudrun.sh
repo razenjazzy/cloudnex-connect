@@ -1,6 +1,9 @@
 #!/bin/bash
 set -euo pipefail
 
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
 DEPLOY_ENV=${1:-${DEPLOY_ENV:-production}}
 PROJECT_ID=${GOOGLE_CLOUD_PROJECT:-}
 REGION=${GOOGLE_CLOUD_LOCATION:-"us-central1-a"}

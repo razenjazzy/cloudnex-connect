@@ -77,6 +77,16 @@ export type ErpOrderStatus = {
   amountTotal?: number;
 };
 
+export type ErpDeliveryStatus = {
+  pickingName: string;
+  state: string;
+  scheduledDate?: string;
+  doneDate?: string;
+  carrier?: string;
+  trackingRef?: string;
+  responsible?: string;
+};
+
 export type ErpDailySnapshotRow = {
   product: string;
   stock: number;
@@ -115,6 +125,7 @@ export type ErpAdapter = {
   cancelQuote: (orderId: number) => Promise<boolean>;
   sendQuotationEmail: (orderId: number, email: string, subject: string, body: string) => Promise<boolean>;
   getOrderStatus: (orderRef: string) => Promise<ErpOrderStatus | null>;
+  getDeliveryStatus: (orderId: number) => Promise<ErpDeliveryStatus | null>;
   getDailySnapshot: () => Promise<ErpDailySnapshotRow[]>;
   getDailySummary: () => Promise<string | null>;
   permissionFor: (action: ErpWriteAction) => ErpPermission;

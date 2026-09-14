@@ -98,6 +98,34 @@ const opsPaths: Record<string, OpenApiPath> = {
       responses: { '200': { description: 'Platform status snapshot' } },
     },
   },
+  '/ops/odoo-hook': {
+    post: {
+      tags: ['ops'],
+      summary: 'Odoo picking.done or approval.stage notify (Sales OA; customer on shipped)',
+      security: bearer,
+      requestBody: {
+        required: true,
+        content: {
+          'application/json': {
+            schema: {
+              type: 'object',
+              required: ['event', 'orderId'],
+              properties: {
+                event: { type: 'string', enum: ['picking.done', 'approval.stage'] },
+                orderId: { type: 'integer', minimum: 1 },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        '200': { description: 'Notified' },
+        '400': jsonResponse(toOpenApiSchema(errorResponseSchema), 'Invalid body'),
+        '401': jsonResponse(toOpenApiSchema(errorResponseSchema), 'Unauthorized'),
+        '404': jsonResponse(toOpenApiSchema(errorResponseSchema), 'Order not found'),
+      },
+    },
+  },
   '/jobs/daily-report': {
     post: {
       tags: ['jobs'],
@@ -127,7 +155,7 @@ const opsPaths: Record<string, OpenApiPath> = {
 export const buildOpenApiDocument = (): Record<string, unknown> => ({
   openapi: '3.1.0',
   info: {
-    title: 'cns-line-oa ops API',
+    title: 'cloudnex-connect ops API',
     version: '1.0.0',
     description: 'Schema-driven OpenAPI generated from Zod. LINE webhooks are not documented here.',
   },

@@ -1,13 +1,13 @@
 # Staging on Hostinger VPS. Env file is on the server only — never commit secrets.
+# Runtime image is pulled from Docker Hub (built on laptop/CI). The VPS does not npm ci.
 services:
-  cns-line-oa:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
-    container_name: cns-line-oa-staging
+  cloudnex-connect:
+    image: ${DOCKER_IMAGE:-razenjazzy/cloudnex-connect:staging}
+    pull_policy: always
+    container_name: cloudnex-connect-staging
     restart: unless-stopped
     env_file:
-      - /opt/cns-line-oa/.env
+      - /opt/cloudnex-connect/.env
     environment:
       APP_ENV: staging
       NODE_ENV: production

@@ -9,6 +9,8 @@ import {
 } from '../../services/firestore';
 import { generateOtp, generateLinkToken } from '../../services/user-verification';
 import { isOtpGatedCommand } from '../../services/service-catalog';
+import { isQuoteStaff } from '../quote-access';
+import type { UserProfile } from '../../services/firestore';
 
 export const isGatedMutation = isOtpGatedCommand;
 
@@ -28,13 +30,20 @@ const botText = (title: string, body: string, language: UserLanguage, tone: 'inf
 // real handler ever runs. Only applies to already-verified users (an
 // unverified self-service QUOTE CREATE caller has no established identity to
 // "step up" from — that path is unchanged, same as before this feature).
+/** Staff CUD still requires Action OTP. A verified customer creating their own quote does not. */
+export const shouldGateActionOtp = (
+  upperText: string,
+  ctx: { profile: UserProfile; actionOtpReplay?: boolean },
+): boolean => {
+  if (!ctx.profile.odooVerified) return false;
+  if (!isGatedMutation(upperText)) return false;
+  if (upperText.startsWith('QUOTE CREATE') && !isQuoteStaff(ctx.profile)) return false;
+  return !ctx.actionOtpReplay;
+};
+
 const actionOtpGateHandler: CommandHandler = {
   name: 'action-otp-gate',
-  match: (upperText, ctx) => {
-    if (!ctx.profile.odooVerified) return false;
-    if (!isGatedMutation(upperText)) return false;
-    return !ctx.actionOtpReplay;
-  },
+  match: (upperText, ctx) => shouldGateActionOtp(upperText, ctx),
   handle: async (ctx) => {
     const { userLanguage, userId, channel, text: originalText, baseUrl } = ctx;
     const otpCode = generateOtp();

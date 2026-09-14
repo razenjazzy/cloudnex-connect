@@ -1,5 +1,6 @@
-# Staging env for amardhaka.io. Lives on the server at /opt/cns-line-oa/.env
+# Staging env for amardhaka.io. Lives on the server at /opt/cloudnex-connect/.env
 # Do not commit real values.
+# Runtime image: DOCKER_IMAGE=razenjazzy/cloudnex-connect:staging (VPS pulls; secrets stay here)
 
 APP_ENV=staging
 NODE_ENV=production
@@ -11,13 +12,27 @@ PUBLIC_BASE_URL=https://amardhaka.io
 LINE_CHANNEL_SECRET=
 LINE_CHANNEL_ACCESS_TOKEN=
 LINE_CHANNEL_ID=
-LINE_CHANNEL_BASIC_ID=
+LINE_CHANNEL_BASIC_ID=@938qytwi
+# Cloudnex Sales webhook: https://amardhaka.io/webhook/sales
+# Uses LINE_CHANNEL_* above unless LINE_CHANNEL_SALES_* is filled.
+LINE_CHANNEL_SALES_SECRET=
+LINE_CHANNEL_SALES_ACCESS_TOKEN=
+LINE_CHANNEL_SALES_BASIC_ID=@938qytwi
+LINE_CHANNEL_SALES_SERVICES=
+LINE_CHANNEL_SALES_RICH_MENU_JSON=
 LINE_AGENT_NAME_EN=Sora
 LINE_AGENT_NAME_TH=โซระ
 LINE_RICH_MENU_EN=
 LINE_RICH_MENU_TH=
 LINE_RICH_MENU_JSON=
 ADMIN_USER_ID=
+
+# Cloudnex Customer — webhook https://amardhaka.io/webhook/customer
+LINE_CHANNEL_CUSTOMER_SECRET=
+LINE_CHANNEL_CUSTOMER_ACCESS_TOKEN=
+LINE_CHANNEL_CUSTOMER_BASIC_ID=@724tneri
+LINE_CHANNEL_CUSTOMER_SERVICES=commerce,catalog
+LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON=
 
 GOOGLE_CLOUD_PROJECT=
 GOOGLE_CLOUD_LOCATION=

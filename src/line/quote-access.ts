@@ -3,6 +3,7 @@ import type { UserProfile } from '../services/firestore/types';
 import { findOdooSalesTierByPartnerId } from '../services/odoo/admin';
 
 type QuoteActor = Pick<UserProfile, 'role' | 'salesTier'>;
+type QuoteOwner = Pick<UserProfile, 'role' | 'salesTier' | 'odooPartnerId' | 'displayName' | 'phone'>;
 
 /** Odoo Sales User or Sales Administrator. LINE `role=admin` is extra, not required. */
 export const isQuoteStaff = (profile: QuoteActor): boolean =>
@@ -17,6 +18,18 @@ export const canManageQuoteLines = (profile: QuoteActor): boolean =>
 /** Flex journey-card viewer: staff (Confirm/Send) vs the customer (Approve). */
 export const quoteJourneyRole = (profile: QuoteActor): 'admin' | 'customer' =>
   isQuoteStaff(profile) ? 'admin' : 'customer';
+
+/** Name/phone for a customer self-quote — never collected as staff form fields. */
+export const selfQuoteIdentity = (profile: Pick<UserProfile, 'displayName' | 'phone'>): { customerName: string; phone: string } => ({
+  customerName: (profile.displayName || 'LINE Customer').trim(),
+  phone: (profile.phone || '').trim(),
+});
+
+/** Non-staff may only see SOs for their linked Odoo partner. */
+export const canViewOrderAsCustomer = (profile: QuoteOwner, orderPartnerId: number | undefined): boolean => {
+  if (isQuoteStaff(profile)) return true;
+  return Boolean(profile.odooPartnerId && orderPartnerId && profile.odooPartnerId === orderPartnerId);
+};
 
 /**
  * Refresh Odoo login vs customer onto the Firestore profile. A linked

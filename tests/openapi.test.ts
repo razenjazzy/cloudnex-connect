@@ -24,6 +24,7 @@ describe('OpenAPI / Zod parity', () => {
     const paths = document.paths as Record<string, unknown>;
     expect(paths['/ops/kpi']).toBeTruthy();
     expect(paths['/ops/platform']).toBeTruthy();
+    expect(paths['/ops/odoo-hook']).toBeTruthy();
     expect(paths['/ops/demo-session/rotate']).toBeTruthy();
     expect(paths['/jobs/daily-report']).toBeTruthy();
     expect(document.openapi).toBe('3.1.0');

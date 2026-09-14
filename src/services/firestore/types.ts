@@ -75,6 +75,8 @@ export type UserProfile = {
     lastActionOtpAt?: string;
     salesTier?: OdooSalesTier;
     salesSessionExpiresAt?: string;
+    /** Last LINE OA channelId for this user (`sales` or `customer`). */
+    lastChannelId?: string;
 };
 
 export type OdooVerificationChallenge = {

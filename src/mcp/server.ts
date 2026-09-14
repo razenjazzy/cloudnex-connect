@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * cns-line-oa MCP server.
+ * cloudnex-connect MCP server.
  *
  * Exposes this app's own ops/admin surface as MCP tools, over the exact
  * same HTTP endpoints and tokens as src/cli (see src/ops-client/client.ts).
@@ -46,11 +46,11 @@ const asErrorResult = (error: unknown) => ({
   content: [{ type: 'text' as const, text: error instanceof OpsClientError ? error.message : String(error) }],
 });
 
-const server = new McpServer({ name: 'cns-line-oa', version: '1.0.0' });
+const server = new McpServer({ name: 'cloudnex-connect', version: '1.0.0' });
 
 server.registerTool(
   'healthz',
-  { title: 'Health check', description: `Liveness check for the cns-line-oa instance at ${config.baseUrl}. Always safe to call.` },
+  { title: 'Health check', description: `Liveness check for the cloudnex-connect instance at ${config.baseUrl}. Always safe to call.` },
   async () => {
     try { return asToolResult(await getHealthz(config)); } catch (error) { return asErrorResult(error); }
   }
@@ -159,7 +159,7 @@ server.registerTool(
 const main = async (): Promise<void> => {
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  console.error(`cns-line-oa MCP server ready, target=${config.baseUrl}`);
+  console.error(`cloudnex-connect MCP server ready, target=${config.baseUrl}`);
 };
 
 main().catch(error => {

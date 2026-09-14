@@ -1,5 +1,5 @@
-# Optional Cloud Run-style yaml. Live VPS staging uses /opt/cns-line-oa/.env
-# (see deploy.env.staging.example). Do not enable Redis/group-buy unless those exist.
+# Optional Cloud Run-style yaml. Live VPS staging uses /opt/cloudnex-connect/.env
+# (see deploy/env/staging.example). Do not enable Redis/group-buy unless those exist.
 NODE_ENV: "production"
 ENABLE_WEBHOOK_TEST: "true"
 ENABLE_DEMO_CONTROL_PANEL: "true"

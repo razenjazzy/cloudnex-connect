@@ -1,10 +1,11 @@
 import { createQuotationJourneyFlexMessage } from './templates';
-import { DEFAULT_CHANNEL_ID, oaChatDeepLink } from './channels';
+import { oaChatDeepLink, customerNotifyChannelId, salesNotifyChannelId } from './channels';
 import { sendTargetedFlexMessage, sendTargetedMessage } from './messaging';
 import { getPartnerById, getSaleOrderById, getSaleOrderPdfLink, getSaleOrderPortalLink } from '../services/odoo';
 import type { OdooSaleOrder } from '../services/odoo/types';
 import { findVerifiedUserIdByPartnerId, findLineUserIdByPhone, getUserLanguage, getUserProfile, listVerifiedSalesLineUserIds, persistQuoteInvite, consumeQuoteInvites } from '../services/firestore';
 import { getErpAdapter } from '../erp/registry';
+import type { ErpDeliveryStatus } from '../erp/adapter';
 import { phoneMatchVariants } from '../services/phone-match';
 
 export type QuoteSendChannel = 'line' | 'email' | 'both';
@@ -47,11 +48,12 @@ const salesNotifyUserIds = async (): Promise<string[]> => {
 
 export const resolveCustomerLineUserId = async (partner: { id: number; phone?: string } | null): Promise<string | null> => {
   if (!partner) return null;
+  const customerChannel = customerNotifyChannelId();
   if (partner.phone) {
-    const byPhone = await findLineUserIdByPhone(partner.phone);
+    const byPhone = await findLineUserIdByPhone(partner.phone, customerChannel);
     if (byPhone) return byPhone;
   }
-  return findVerifiedUserIdByPartnerId(partner.id);
+  return findVerifiedUserIdByPartnerId(partner.id, customerChannel);
 };
 
 const getOrderLinks = async (orderId: number) => {
@@ -76,26 +78,28 @@ export const notifyQuoteParties = async (input: {
   viaLine?: boolean;
   email?: { to: string; subject: string; body: string };
   salesIntro?: string;
+  delivery?: ErpDeliveryStatus;
 }): Promise<{ customerLineId: string | null; emailed: boolean; salesPushed: number; inviteUri?: string }> => {
   const notifyCustomer = input.notifyCustomer !== false;
   const notifySales = input.notifySales !== false;
   const viaLine = input.viaLine !== false;
-  const channelId = input.channelId || DEFAULT_CHANNEL_ID;
+  const customerChannelId = customerNotifyChannelId();
+  const salesChannelId = salesNotifyChannelId();
 
   const partner = input.order.partner_id ? await getPartnerById(input.order.partner_id[0]) : null;
   const customerLineId = notifyCustomer && viaLine ? await resolveCustomerLineUserId(partner) : null;
   const links = await getOrderLinks(input.order.id);
 
   if (notifyCustomer && viaLine && !customerLineId && partner?.phone) {
-    await saveQuoteInvite(partner.phone, input.order.id, channelId);
+    await saveQuoteInvite(partner.phone, input.order.id, customerChannelId);
   }
 
   if (customerLineId && customerLineId !== input.actorUserId) {
     const language = await getUserLanguage(customerLineId);
     await sendTargetedFlexMessage(
       [customerLineId],
-      createQuotationJourneyFlexMessage(input.order, { role: 'customer', ...links }, language),
-      channelId,
+      createQuotationJourneyFlexMessage(input.order, { role: 'customer', ...links, ...(input.delivery ? { delivery: input.delivery } : {}) }, language),
+      customerChannelId,
     );
   }
 
@@ -105,12 +109,12 @@ export const notifyQuoteParties = async (input: {
   if (salesIds.length) {
     const language = await getUserLanguage(salesIds[0]);
     if (input.salesIntro) {
-      await sendTargetedMessage(salesIds, input.salesIntro, channelId);
+      await sendTargetedMessage(salesIds, input.salesIntro, salesChannelId);
     }
     await sendTargetedFlexMessage(
       salesIds,
-      createQuotationJourneyFlexMessage(input.order, { role: 'admin', ...links }, language),
-      channelId,
+      createQuotationJourneyFlexMessage(input.order, { role: 'admin', ...links, ...(input.delivery ? { delivery: input.delivery } : {}) }, language),
+      salesChannelId,
     );
   }
 
@@ -123,7 +127,7 @@ export const notifyQuoteParties = async (input: {
     customerLineId: customerLineId && customerLineId !== input.actorUserId ? customerLineId : null,
     emailed,
     salesPushed: salesIds.length,
-    inviteUri: notifyCustomer && viaLine && !customerLineId ? oaChatDeepLink(channelId) : undefined,
+    inviteUri: notifyCustomer && viaLine && !customerLineId ? oaChatDeepLink(customerChannelId) : undefined,
   };
 };
 

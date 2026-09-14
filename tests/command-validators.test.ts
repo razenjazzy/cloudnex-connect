@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   parseDemoQuotePayload,
+  parseSelfQuotePayload,
   parseServiceCreatePayload,
   parseServiceUpdatePayload,
   parseUserCreatePayload,
@@ -155,6 +156,17 @@ describe('command validators', () => {
     it('rejects a validity date that is not YYYY-MM-DD', () => {
       expect(parseDemoQuotePayload('App Premium Plan,2,Somchai,0812345678,,,31-12-2026,,')).toBeNull();
       expect(parseDemoQuotePayload('App Premium Plan,2,Somchai,0812345678,,,not-a-date,,')).toBeNull();
+    });
+  });
+
+  describe('parseSelfQuotePayload', () => {
+    it('binds product and qty to the verified profile identity', () => {
+      expect(parseSelfQuotePayload('App Premium Plan,2', { customerName: 'Somchai', phone: '0812345678' })).toMatchObject({
+        productName: 'App Premium Plan',
+        qty: 2,
+        customerName: 'Somchai',
+        phone: '0812345678',
+      });
     });
   });
 });

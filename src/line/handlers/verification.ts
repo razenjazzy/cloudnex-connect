@@ -4,8 +4,6 @@ import { createBotTextFlexMessage } from '../templates';
 import type { UserLanguage } from '../../services/firestore';
 import { syncStaffProfile } from '../quote-access';
 import { buildHomeMenuMessage } from '../command-router';
-import { DEFAULT_CHANNEL_ID } from '../channels';
-import { linkUserRichMenu } from '../rich-menu';
 import { clearSalesLogin } from '../../services/sales-session';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
@@ -63,6 +61,7 @@ const verifyOtpHandler: CommandHandler = {
     const message = await verifyOdooUserByOtp({ userId, otpCode, language: userLanguage, agentName });
     const card = botText(message, userLanguage);
     if (!/✅/.test(message)) return [card];
+    ctx.trayRest = { language: userLanguage, salesSessionActive: true };
     return [
       card,
       buildHomeMenuMessage(userLanguage, agentName, ctx.channel, ctx.profile.role === 'admin', true),
@@ -101,9 +100,7 @@ const verifySignoutHandler: CommandHandler = {
   handle: async (ctx) => {
     const { userLanguage, userId, agentName, channel, profile } = ctx;
     await clearSalesLogin(userId);
-    if (!ctx.isGroupContext) {
-      await linkUserRichMenu(userId, userLanguage, channel?.channelId || DEFAULT_CHANNEL_ID, 'default', false);
-    }
+    ctx.trayRest = { language: userLanguage, salesSessionActive: false };
     return [
       createBotTextFlexMessage({
         title: tr(userLanguage, 'ออกจากระบบแล้ว', 'Signed out'),
