@@ -67,6 +67,11 @@ export const handleWebhook = [
             baseUrl,
             isGroupContext: job.isGroupContext,
           })));
+          appLogger.info('line_webhook_queued', {
+            channelId: channelConfig.channelId,
+            queued: jobs.length,
+            requestId,
+          });
           res.status(200).json({ queued: jobs.length });
           return;
         }

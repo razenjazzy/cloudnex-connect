@@ -10,6 +10,8 @@ describe('staging compose LINE queue', () => {
     expect(yaml).toContain('REDIS_URL: redis://redis:6379');
     expect(yaml).toContain('LINE_WEBHOOK_ASYNC: "true"');
     expect(yaml).toContain('RUN_BULLMQ_WORKER: "true"');
+    expect(yaml).toContain('TZ: Asia/Bangkok');
+    expect(yaml).toContain('/usr/share/zoneinfo:/usr/share/zoneinfo:ro');
     expect(yaml).toContain('condition: service_healthy');
   });
 });

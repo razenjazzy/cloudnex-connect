@@ -59,12 +59,32 @@ export const getOpsJobQueue = (): Queue => {
 };
 
 export const enqueueLineEvent = async (job: LineEventJob): Promise<string> => {
-  const queued = await getLineEventQueue().add('line-event', job, {
-    jobId: job.webhookEventId,
+  const queue = getLineEventQueue();
+  const jobId = job.webhookEventId;
+  const opts = {
+    jobId,
     removeOnComplete: 100,
     removeOnFail: 200,
-  });
-  return String(queued.id);
+    attempts: 3,
+    backoff: { type: 'exponential' as const, delay: 2000 },
+  };
+  try {
+    const queued = await queue.add('line-event', job, opts);
+    return String(queued.id);
+  } catch (error) {
+    if (!jobId) throw error;
+    const existing = await queue.getJob(jobId);
+    if (!existing) throw error;
+    const state = await existing.getState();
+    if (state === 'failed') {
+      await existing.updateData(job);
+      await existing.retry();
+      appLogger.warn('line_event_requeued_after_fail', { jobId });
+      return String(existing.id);
+    }
+    appLogger.info('line_event_duplicate', { jobId, state });
+    return String(existing.id);
+  }
 };
 
 export const enqueueOpsJob = async (name: OpsJobName, actor = 'ops'): Promise<string> => {

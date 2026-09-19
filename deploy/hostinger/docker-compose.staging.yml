@@ -7,11 +7,16 @@ services:
     container_name: cloudnex-connect-staging-redis
     restart: unless-stopped
     command: redis-server --save 60 1 --loglevel warning
+    environment:
+      TZ: Asia/Bangkok
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 8
+    volumes:
+      - /usr/share/zoneinfo/Asia/Bangkok:/etc/localtime:ro
+      - /usr/share/zoneinfo:/usr/share/zoneinfo:ro
     # No host ports — LINE queue only.
 
   cloudnex-connect:
@@ -40,8 +45,12 @@ services:
       RUN_BULLMQ_WORKER: "true"
       MONGO_VECTOR_ENABLED: "false"
       RATE_LIMIT_STORE: memory
+      TZ: Asia/Bangkok
     ports:
       - "127.0.0.1:8080:8080"
+    volumes:
+      - /usr/share/zoneinfo/Asia/Bangkok:/etc/localtime:ro
+      - /usr/share/zoneinfo:/usr/share/zoneinfo:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
       interval: 30s

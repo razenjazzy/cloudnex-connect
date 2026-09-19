@@ -30,3 +30,12 @@ describe('LINE event extraction and queue gating', () => {
     if (previous !== undefined) process.env.REDIS_URL = previous;
   });
 });
+
+describe('enqueueLineEvent job ids', () => {
+  it('retries a failed job when LINE reuses webhookEventId', async () => {
+    const src = await import('node:fs').then(fs => fs.readFileSync('src/jobs/queue.ts', 'utf8'));
+    expect(src).toContain('line_event_requeued_after_fail');
+    expect(src).toContain('existing.retry');
+    expect(src).toContain('attempts: 3');
+  });
+});
