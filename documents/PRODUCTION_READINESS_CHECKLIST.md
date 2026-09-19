@@ -53,7 +53,7 @@ Required Cloud Run secret mappings are validated by `scripts/validate-cutover.sh
 
 ## Runtime signoff
 
-- [ ] Rotate any credential that was ever exposed outside the intended secret store (including LINE tokens pasted in chat).
+- [x] Rotate LINE **access tokens** that were pasted in chat (2026-09-19): issued new tokens on the VPS via LINE `oauth2/v3`, updated `/opt/cloudnex-connect/.env`, compose recreate, `bot/info` 200 both OAs, webhook endpoint test 200 for `/webhook/sales` and `/webhook/customer`, old long-lived tokens revoked (`/v2/oauth/revoke` 200 then `bot/info` 401). Channel **secrets** were not rotated (LINE Developers console only). New access tokens are JWT-style (~30 day expiry); re-issue before they lapse. Do not commit `.env`.
 - [x] Confirm `ERP_PROVIDER=odoo` (`readyz` `flags.erpProvider=odoo` on 2026-09-19).
 - [x] Confirm `ENABLE_WEBHOOK_TEST=false` in production (`deliveryProduction` / `APP_ENV=production`) — enforced in code; `deploy/env/production.example`.
 - [x] Confirm `ALLOW_DEMO_HEADER_TOKEN_FALLBACK=false` in production — `deploy/env/production.example`.
@@ -61,7 +61,7 @@ Required Cloud Run secret mappings are validated by `scripts/validate-cutover.sh
 - [x] Confirm `PRODUCTION_APPROVED=true` is supplied only for an approved manual production run (`scripts/require-production-signoff.sh`; not set in git).
 - [x] Verify `/healthz` and `/readyz` after staging deployment (2026-09-19, v5.0.1).
 - [x] LINE webhook URLs registered and Messaging API webhook test OK (Sales + Customer).
-- [ ] Exercise `VERIFY`, one product lookup, one Customer self-quote, one Sales send, one audit-log read on device.
+- [ ] Exercise `VERIFY`, one Customer self-quote, and one Sales send **on the LINE app** (mutating `/webhook-test` is 403 while `NODE_ENV=production`). HTTP substitutes 2026-09-19: Sales `PRODUCT FIND` via `/webhook-test` returned Flex (2 products); `GET /ops/audit-log` 200 (`count=5`). Customer guest `PRODUCT FIND` on a throwaway userId returned PDPA + home, not the kilo carousel.
 - [x] Firestore composite index `users.phone` + `odooVerified` **READY** on project `cns-line-oa` (id `CICAgJiUpoMK`, 2026-09-19). Spec: `deploy/firestore.indexes.json`.
 - [x] GCP org policy `constraints/iam.disableServiceAccountKeyCreation` **enforced** on `cns-line-oa` (2026-09-19).
 - [x] Automated staging live check 2026-09-19 (`validate:staging`). `STAGING_VALIDATED` / `PRODUCTION_APPROVED` are **not** stored in git.

@@ -100,7 +100,7 @@ export const createServiceActionFlexMessage = (
         layout: 'vertical',
         paddingAll: 'lg',
         contents: [
-          createTapRow(`🏠 ${t('home', language)}`, 'NAV HOME', BRAND.goldTint, BRAND.tealStrong, 'lg'),
+          createTapRow(`🏠 ${t('home', language)}`, 'NAV HOME', BRAND.tealTint, BRAND.tealStrong, 'lg'),
         ],
       },
     },
@@ -126,7 +126,7 @@ export const createAdminConfigFlexMessage = (
       })),
     },
     footer: {
-      type: 'box', layout: 'vertical', paddingAll: 'lg', contents: [createMessageActionButton(t('back', language), 'NAV HOME', 'secondary', BRAND.goldTint)],
+      type: 'box', layout: 'vertical', paddingAll: 'lg', contents: [createMessageActionButton(t('back', language), 'NAV HOME', 'secondary', BRAND.tealTint)],
     },
   },
 });

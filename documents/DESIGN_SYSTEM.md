@@ -20,7 +20,7 @@ Defined as `BRAND` in `src/line/templates.ts`:
 | `ink` | `#10201E` | Primary body text |
 | `inkSoft` | `#5B6C69` | Secondary/caption text |
 | `surface` | `#FFFFFF` | Card/bubble background |
-| `paper` | `#F1F4F2` | (reserved — page-level background, unused inside Flex bubbles) |
+| `paper` | `#F1F4F2` | Identity strip on home; stock chip on product cards |
 
 Filled optional-field rows and identity VERIFY success use the `✅` emoji, not a
 drawn circle/square. Action Verify fail still uses `createResultIconBox` (red

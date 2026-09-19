@@ -78,7 +78,7 @@ export const createSalesFeatureTogglesFlexMessage = (params: {
         layout: 'vertical',
         paddingAll: 'lg',
         contents: [
-          createMessageActionButton(tr(language, 'หน้าหลัก', 'Home'), 'NAV HOME', 'secondary', BRAND.goldTint),
+          createMessageActionButton(tr(language, 'หน้าหลัก', 'Home'), 'NAV HOME', 'secondary', BRAND.tealTint),
         ],
       },
     },

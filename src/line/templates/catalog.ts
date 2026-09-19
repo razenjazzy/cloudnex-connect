@@ -39,7 +39,7 @@ export const createProductPickerFlexMessage = (
       type: 'box',
       layout: 'vertical',
       paddingAll: 'lg',
-      contents: [createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.goldTint)],
+      contents: [createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint)],
     },
   },
 });
@@ -87,7 +87,7 @@ export const createProductCardFlexMessage = (
                 type: 'box',
                 layout: 'vertical',
                 flex: 1,
-                backgroundColor: BRAND.goldTint,
+                backgroundColor: BRAND.paper,
                 cornerRadius: BRAND.radius,
                 paddingAll: 'sm',
                 contents: [
@@ -112,7 +112,7 @@ export const createProductCardFlexMessage = (
             spacing: 'md',
             contents: [
               { ...createMessageActionButton(t('searchAgain', language), 'FORM PRODUCT FIND', 'secondary', BRAND.tealTint), flex: 1 },
-              { ...createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.goldTint), flex: 1 },
+              { ...createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint), flex: 1 },
             ],
           },
         ],
@@ -173,7 +173,7 @@ const createProductCatalogBubble = (
               type: 'box',
               layout: 'vertical',
               flex: 1,
-              backgroundColor: BRAND.goldTint,
+              backgroundColor: BRAND.paper,
               cornerRadius: BRAND.radius,
               paddingAll: 'sm',
               contents: [
@@ -256,7 +256,7 @@ export const createOrderSummaryFlexMessage = (total: number, language: ReportLan
             'primary',
             BRAND.teal,
           ),
-          createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.goldTint),
+          createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint),
         ],
       },
     },

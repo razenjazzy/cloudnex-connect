@@ -171,9 +171,9 @@ export const createQuotationJourneyFlexMessage = (
   }
   if (options.role === 'admin') {
     footerContents.push(createMessageActionButton(t('moreActions', language), `QUOTE MORE ${order.id}`, 'secondary', BRAND.tealTint));
-    footerContents.push(createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.goldTint));
+    footerContents.push(createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint));
   } else {
-    footerContents.push(createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.goldTint));
+    footerContents.push(createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint));
     footerContents.push(createMessageActionButton(t('myQuotations', language), 'QUOTE LIST', 'secondary', BRAND.tealTint));
   }
 
@@ -516,7 +516,7 @@ export const createQuotationListFlexMessage = (
             { ...createDatePickerButton(t('dateTo', language), bindPostbackData('quote.list.to', userId)), flex: 1 },
           ] },
           ...(hasMore && nextCursor ? [createMessageActionButton(t('moreActions', language), `QUOTE LIST CURSOR ${nextCursor}${dateQuery}`, 'secondary', BRAND.tealTint)] : []),
-          createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.goldTint),
+          createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint),
         ],
       },
     },

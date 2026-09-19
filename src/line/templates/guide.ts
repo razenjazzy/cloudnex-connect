@@ -51,7 +51,7 @@ export const createGuideCategoriesFlexMessage = (language: ReportLanguage, _agen
       type: 'box',
       layout: 'vertical',
       paddingAll: 'lg',
-      contents: [createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.goldTint)],
+      contents: [createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint)],
     },
   },
 });
@@ -97,8 +97,8 @@ export const createGuideCategoryFlexMessage = (category: CommandCategoryKey, lan
         spacing: 'md',
         paddingAll: 'lg',
         contents: [
-          { ...createMessageActionButton(language === 'en' ? 'Back' : 'ย้อนกลับ', 'GUIDE', 'secondary', BRAND.goldTint), flex: 1 },
-          { ...createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.goldTint), flex: 1 },
+          { ...createMessageActionButton(language === 'en' ? 'Back' : 'ย้อนกลับ', 'GUIDE', 'secondary', BRAND.tealTint), flex: 1 },
+          { ...createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint), flex: 1 },
         ],
       },
     },

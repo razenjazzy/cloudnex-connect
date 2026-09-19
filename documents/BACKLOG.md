@@ -61,11 +61,9 @@ deferred or not-yet-verified pieces.
   `cancelSaleOrder`, `createInvoiceForSaleOrder`) were verified directly
   against the real staging Odoo; the on-device tap flow (prefilled-keyboard
   buttons, in particular) has not been confirmed on a live LINE client.
-- **Firestore composite index** for `(phone, odooVerified)` on the `users`
-  collection (powers `findVerifiedUserIdByPhone`, used by `QUOTE SEND`).
-  Not created yet — no real Firestore traffic has hit that query path.
-  Firestore will surface an index-creation link in the error the first time
-  it's needed; click that link rather than pre-creating the index blind.
+- ~~**Firestore composite index** for `(phone, odooVerified)` on `users`~~ —
+  **closed 2026-09-19:** index `CICAgJiUpoMK` READY on project `cns-line-oa`.
+  Spec: `deploy/firestore.indexes.json`.
 
 ## Infra / ops follow-up
 
@@ -118,9 +116,9 @@ deferred or not-yet-verified pieces.
 
 ## Known limitations (accepted, not bugs)
 
-- The rich-menu chat-bar label ("Tap to open") is English-only. LINE has no
-  per-user-language chat-bar text without maintaining separate per-user rich
-  menus (a meaningfully bigger feature than this).
+- ~~The rich-menu chat-bar label ("Tap to open") is English-only.~~ **Closed:**
+  EN/TH menus use `chatBarTextEn` / `chatBarTextTh` (`Menu` / `เมนู`) in
+  [`assets/rich-menu/layout.json`](../assets/rich-menu/layout.json).
 - `QUOTE CREATE` always asks for customer name + phone, even when the caller
   is an already-verified admin creating their own quote — an explicit
   product decision made this session (kept for consistency/simplicity over

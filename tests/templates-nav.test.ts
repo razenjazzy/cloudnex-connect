@@ -27,6 +27,13 @@ describe('NAV HOME rounded boxes', () => {
     expect(row?.contents?.[0]?.weight).toBeUndefined();
   });
 
+  it('uses tealTint for the service-action Home row, not gold', () => {
+    const message = createServiceActionFlexMessage('Commerce', [{ text: 'QUOTE LIST', label: 'Quotes' }], 'en');
+    const bubble = message.contents as { footer?: { contents?: Array<{ backgroundColor?: string; action?: { text?: string } }> } };
+    expect(bubble.footer?.contents?.[0]?.backgroundColor).toBe(BRAND.tealTint);
+    expect(bubble.footer?.contents?.[0]?.action?.text).toBe('NAV HOME');
+  });
+
   it('keeps Flex NAV HOME Verify and Language on the same teal as other buttons', () => {
     const on = createServiceHomeFlexMessage(
       [{ key: 'VERIFY', label: 'Verify account' }, { key: 'commerce', label: 'Products & Quotes' }],

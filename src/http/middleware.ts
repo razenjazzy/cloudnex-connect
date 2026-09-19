@@ -106,10 +106,14 @@ export const isReadOnlyWebhookTestCommand = (text: string): boolean => {
         'JOURNEY',
         'DEMO JOURNEY',
         'NAME',
+        'LANG',
         'LANG EN',
         'LANG TH',
         'THAI',
         'ENGLISH',
+        'BACK',
+        'NAV HOME',
+        'NAV COMMERCE',
         'SYSTEM STATUS',
     ].includes(upperText)
         || upperText.startsWith('PRODUCT FIND ')

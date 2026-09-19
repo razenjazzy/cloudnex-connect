@@ -22,6 +22,7 @@ import { runRuntimeProbes, type ProbeResult } from '../services/runtime-probes';
 import { loadSkills } from '../services/skill-loader';
 import { getServiceModules } from './service-modules';
 import { auditEnvParams } from '../http/env-params';
+import { lineAccessTokenExpiryWarnings } from '../services/line-access-token-expiry';
 
 export type PlatformCheck = ProbeResult & { required: boolean };
 
@@ -136,6 +137,7 @@ const collectWarnings = (flags: PlatformFlags, checks: PlatformCheck[]): string[
   if (flags.production && flags.clawEnabled) {
     warnings.push('CLAWFRAMEWORK_ENABLED in production is unsupported; keep it off.');
   }
+  warnings.push(...lineAccessTokenExpiryWarnings());
   const envAudit = auditEnvParams(flags.appEnv);
   for (const key of envAudit.missingRequired) {
     warnings.push(`Missing ${flags.appEnv} config: ${key}`);

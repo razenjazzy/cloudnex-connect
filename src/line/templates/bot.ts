@@ -104,7 +104,7 @@ export const createBotTextFlexMessage = (params: {
             )]),
           ...(params.secondaryAction ? [createMessageActionButton(params.secondaryAction.label, params.secondaryAction.text, 'secondary', BRAND.goldTint)] : []),
           ...(params.actions?.length && !params.actions.some(action => action.text === 'NAV HOME')
-            ? [createMessageActionButton(t('home', params.language), 'NAV HOME', 'secondary', BRAND.goldTint)]
+            ? [createMessageActionButton(t('home', params.language), 'NAV HOME', 'secondary', BRAND.tealTint)]
             : []),
         ],
       },
