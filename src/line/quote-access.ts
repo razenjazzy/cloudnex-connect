@@ -25,6 +25,13 @@ export const selfQuoteIdentity = (profile: Pick<UserProfile, 'displayName' | 'ph
   phone: (profile.phone || '').trim(),
 });
 
+/** Customer OA quote form is product + qty only (C3). Staff still get optional fields. */
+export const customerQuoteFormStepCount = (flowKey: string, fieldCount: number, profile: QuoteActor): number =>
+  flowKey === 'QUOTE_CREATE' && !isQuoteStaff(profile) ? 2 : fieldCount;
+
+export const customerQuoteSkipsOptionalSummary = (flowKey: string, profile: QuoteActor): boolean =>
+  flowKey === 'QUOTE_CREATE' && !isQuoteStaff(profile);
+
 /** Non-staff may only see SOs for their linked Odoo partner. */
 export const canViewOrderAsCustomer = (profile: QuoteOwner, orderPartnerId: number | undefined): boolean => {
   if (isQuoteStaff(profile)) return true;

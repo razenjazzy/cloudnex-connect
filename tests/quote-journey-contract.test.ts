@@ -23,14 +23,14 @@ describe('quote journey home and approve', () => {
     expect(sliceHandler(quotation, 'quote-confirm', 'quote-send-options')).not.toContain('homeMenuFromContext');
   });
 
-  it('appends NAV commerce after send, invoice send, cancel, and approve', () => {
-    expect(sliceHandler(quotation, 'quote-send-confirm', 'quote-more')).toContain('withCommerceMenu');
-    expect(sliceHandler(quotation, 'quote-invoice-send-confirm', 'quote-invoice')).toContain('withCommerceMenu');
-    expect(sliceHandler(quotation, 'quote-cancel', 'quote-invoice-send')).toContain('withCommerceMenu');
-    expect(sliceHandler(quotation, 'quote-approve', 'quote-add')).toContain('withCommerceMenu');
+  it('ends invoice send and cancel with status Flex (Home on the card), not a commerce carousel', () => {
+    expect(sliceHandler(quotation, 'quote-invoice-send-confirm', 'quote-invoice')).not.toContain('withCommerceMenu');
+    expect(sliceHandler(quotation, 'quote-cancel', 'quote-invoice-send')).not.toContain('withCommerceMenu');
+    expect(sliceHandler(quotation, 'quote-invoice', 'quote-list')).not.toContain('withCommerceMenu');
+    expect(sliceHandler(quotation, 'quote-confirm', 'quote-send-options')).not.toContain('withCommerceMenu');
+    expect(sliceHandler(quotation, 'quote-send-confirm', 'quote-more')).not.toContain('withCommerceMenu');
+    expect(sliceHandler(quotation, 'quote-approve', 'quote-add')).not.toContain('withCommerceMenu');
     expect(sliceHandler(quotation, 'quote-approve', 'quote-add')).toContain('salesIntro');
-    expect(sliceHandler(quotation, 'quote-invoice-send-confirm', 'quote-invoice')).not.toContain('homeMenuFromContext');
-    expect(sliceHandler(quotation, 'quote-cancel', 'quote-invoice-send')).not.toContain('homeMenuFromContext');
   });
 
   it('notifies sales on approve without auto-home', () => {

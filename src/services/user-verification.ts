@@ -11,7 +11,7 @@ import {
   setUserSalesTier,
   UserLanguage,
 } from './firestore';
-import { getPartnerByPhone } from './odoo/partners';
+import { getPartnerById, getPartnerByPhone } from './odoo/partners';
 import { findOdooSalesTierByPartnerId } from './odoo/admin';
 import { DEFAULT_CHANNEL_ID, getAgentName, resolveChannelConfig } from '../line/channels';
 import { sendTargetedMessage, sendTargetedFlexMessage } from '../line/messaging';
@@ -20,6 +20,12 @@ import { appLogger } from './logger';
 import { startSalesSession } from './sales-session';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
+
+const bindVerifiedPartner = async (userId: string, partnerId: number, phone?: string): Promise<{ ok: boolean; partnerName?: string }> => {
+  const partner = await getPartnerById(partnerId).catch(() => null);
+  const result = await setUserOdooPartner(userId, partnerId, partner?.name, phone || partner?.phone);
+  return { ok: result.ok, partnerName: partner?.name };
+};
 
 const bindSalesTierIfOdooSalesUser = async (userId: string, partnerId: number): Promise<'salesperson' | 'sales_manager' | undefined> => {
   const salesTier = await findOdooSalesTierByPartnerId(partnerId);
@@ -33,17 +39,23 @@ const bindSalesTierIfOdooSalesUser = async (userId: string, partnerId: number): 
 };
 
 const verificationKindLabel = (language: UserLanguage, salesTier?: 'salesperson' | 'sales_manager') => {
-  if (salesTier === 'sales_manager') return tr(language, 'ผู้ดูแลฝ่ายขาย', 'Sales Administrator');
-  if (salesTier === 'salesperson') return tr(language, 'ผู้ใช้ฝ่ายขาย', 'Sales User');
-  return tr(language, 'ลูกค้า', 'customer');
+  if (salesTier === 'sales_manager') return tr(language, 'ผู้ดูแลฝ่ายขาย Odoo', 'an Odoo Sales Administrator');
+  if (salesTier === 'salesperson') return tr(language, 'ผู้ใช้ฝ่ายขาย Odoo', 'an Odoo Sales User');
+  return tr(language, 'ลูกค้า Odoo', 'an Odoo customer');
 };
 
-const verificationSuccessMessage = (language: UserLanguage, _agentName: string, salesTier?: 'salesperson' | 'sales_manager') =>
-  tr(
-    language,
-    `✅ ยืนยันตัวตน Odoo สำเร็จแล้ว — ${verificationKindLabel(language, salesTier)}`,
-    `✅ Odoo verification completed — ${verificationKindLabel(language, salesTier)}.`,
-  );
+export const verificationSuccessMessage = (language: UserLanguage, partnerName: string | undefined, salesTier?: 'salesperson' | 'sales_manager') => {
+  const who = (partnerName || '').trim();
+  const kind = verificationKindLabel(language, salesTier);
+  if (language === 'en') {
+    return who
+      ? `✅ ${who} is ${kind}.`
+      : `✅ This LINE account is ${kind}.`;
+  }
+  return who
+    ? `✅ ${who} เป็น${kind}`
+    : `✅ บัญชี LINE นี้เป็น${kind}`;
+};
 
 const normalizePhone = (value: string): string => value.replace(/[^0-9+]/g, '').trim();
 
@@ -70,6 +82,7 @@ const notifyAdminOfVerification = async (params: {
   userId: string;
   phone: string;
   partnerId: number;
+  partnerName?: string;
   channelId?: string;
   salesTier?: 'salesperson' | 'sales_manager';
 }): Promise<void> => {
@@ -86,12 +99,9 @@ const notifyAdminOfVerification = async (params: {
   if (!adminUserId) return;
   try {
     const adminLanguage = await getUserLanguage(adminUserId);
-    const staff = Boolean(params.salesTier);
     await sendTargetedMessage(
       [adminUserId],
-      staff
-        ? tr(adminLanguage, `ผู้ใช้ฝ่ายขายยืนยันบัญชี Odoo แล้ว (เบอร์ ${params.phone})`, `An Odoo Sales user just verified (phone ${params.phone}).`)
-        : tr(adminLanguage, `ลูกค้ายืนยันบัญชี Odoo แล้ว (เบอร์ ${params.phone})`, `A customer just verified their Odoo account (phone ${params.phone}).`),
+      verificationSuccessMessage(adminLanguage, params.partnerName, params.salesTier),
       params.channelId,
     );
   } catch (err) {
@@ -218,7 +228,7 @@ export const verifyOdooUserByOtp = async (input: VerifyOtpInput): Promise<string
     return tr(input.language, `${input.agentName} ยืนยัน OTP ไม่สำเร็จ กรุณาลองใหม่`, `${input.agentName} OTP verification failed. Please try again.`);
   }
 
-  const bindResult = await setUserOdooPartner(input.userId, consumed.data.partnerId, undefined, consumed.data.phone);
+  const bindResult = await bindVerifiedPartner(input.userId, consumed.data.partnerId, consumed.data.phone);
   if (!bindResult.ok) {
     return tr(input.language, `${input.agentName} ยืนยันสำเร็จ แต่ผูกบัญชีผู้ใช้ไม่สำเร็จ กรุณาลองอีกครั้ง`, `${input.agentName} verification succeeded but user binding failed. Please retry.`);
   }
@@ -238,12 +248,13 @@ export const verifyOdooUserByOtp = async (input: VerifyOtpInput): Promise<string
     userId: input.userId,
     phone: consumed.data.phone,
     partnerId: consumed.data.partnerId,
+    partnerName: bindResult.partnerName,
     channelId: consumed.data.channelId,
     salesTier,
   })
     .catch(err => console.warn('verifyOdooUserByOtp: post-verify notify failed (non-fatal):', err));
 
-  return verificationSuccessMessage(input.language, input.agentName, salesTier);
+  return verificationSuccessMessage(input.language, bindResult.partnerName, salesTier);
 };
 
 export const verifyOdooUserByToken = async (token: string): Promise<{ ok: boolean; message: string; channelId?: string }> => {
@@ -260,7 +271,7 @@ export const verifyOdooUserByToken = async (token: string): Promise<{ ok: boolea
     return { ok: false, message: 'Verification link is invalid or already used.' };
   }
 
-  const bindResult = await setUserOdooPartner(consumed.data.userId, consumed.data.partnerId, undefined, consumed.data.phone);
+  const bindResult = await bindVerifiedPartner(consumed.data.userId, consumed.data.partnerId, consumed.data.phone);
   if (!bindResult.ok) {
     return { ok: false, message: 'Verification succeeded, but failed to bind Odoo user profile.' };
   }
@@ -281,13 +292,13 @@ export const verifyOdooUserByToken = async (token: string): Promise<{ ok: boolea
   const language = await getUserLanguage(consumed.data.userId);
   const successCard = createBotTextFlexMessage({
     title: tr(language, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
-    body: verificationSuccessMessage(language, '', salesTier),
+    body: verificationSuccessMessage(language, bindResult.partnerName, salesTier),
     language,
     tone: 'success',
   });
   const profile = await getUserProfile(consumed.data.userId);
   const channel = resolveChannelConfig(consumed.data.channelId || DEFAULT_CHANNEL_ID);
-  const { homeMenuFromContext } = await import('../line/command-router');
+  const { resumeQuoteFromLastProduct, homeMenuFromContext } = await import('../line/command-router');
   const home = homeMenuFromContext({
     userLanguage: language,
     agentName: getAgentName(language),
@@ -295,7 +306,20 @@ export const verifyOdooUserByToken = async (token: string): Promise<{ ok: boolea
     profile: { ...profile, odooVerified: true },
   });
   await sendTargetedFlexMessage([consumed.data.userId], successCard, consumed.data.channelId);
-  if (home.type === 'flex') {
+  const resume = await resumeQuoteFromLastProduct({
+    text: '',
+    userId: consumed.data.userId,
+    userLanguage: language,
+    profile: { ...profile, odooVerified: true },
+    agentName: getAgentName(language),
+    baseUrl: '',
+    channel: channel ? { channelId: channel.channelId, enabledServices: channel.enabledServices } : undefined,
+  });
+  if (resume?.length) {
+    for (const message of resume) {
+      if (message.type === 'flex') await sendTargetedFlexMessage([consumed.data.userId], message, consumed.data.channelId);
+    }
+  } else if (home.type === 'flex') {
     await sendTargetedFlexMessage([consumed.data.userId], home, consumed.data.channelId);
   }
   const { queueTrayRestAfterReply } = await import('../line/rich-menu');
@@ -305,6 +329,7 @@ export const verifyOdooUserByToken = async (token: string): Promise<{ ok: boolea
     userId: consumed.data.userId,
     phone: consumed.data.phone,
     partnerId: consumed.data.partnerId,
+    partnerName: bindResult.partnerName,
     channelId: consumed.data.channelId,
     salesTier,
   })

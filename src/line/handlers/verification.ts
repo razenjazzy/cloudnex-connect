@@ -1,9 +1,9 @@
 import type { CommandHandler } from './index';
-import { startOdooUserVerification, verifyOdooUserByOtp } from '../../services/user-verification';
+import { startOdooUserVerification, verificationSuccessMessage, verifyOdooUserByOtp } from '../../services/user-verification';
 import { createBotTextFlexMessage } from '../templates';
-import type { UserLanguage } from '../../services/firestore';
+import { getUserProfile, type UserLanguage } from '../../services/firestore';
 import { syncStaffProfile } from '../quote-access';
-import { homeMenuFromContext } from '../command-router';
+import { homeMenuFromContext, resumeQuoteFromLastProduct } from '../command-router';
 import { clearSalesLogin } from '../../services/sales-session';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
@@ -62,10 +62,10 @@ const verifyOtpHandler: CommandHandler = {
     const card = botText(message, userLanguage);
     if (!/✅/.test(message)) return [card];
     ctx.trayRest = { language: userLanguage, salesSessionActive: true };
-    return [
-      card,
-      homeMenuFromContext({ ...ctx, profile: { ...ctx.profile, odooVerified: true } }),
-    ];
+    const verified = { ...(await getUserProfile(userId)), odooVerified: true as const };
+    const resume = await resumeQuoteFromLastProduct({ ...ctx, profile: verified });
+    if (resume?.length) return [card, ...resume];
+    return [card, homeMenuFromContext({ ...ctx, profile: verified })];
   },
 };
 
@@ -78,17 +78,11 @@ const verifyStatusHandler: CommandHandler = {
     const synced = await syncStaffProfile(userId, profile);
     return [createBotTextFlexMessage({
       title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
-      body: tr(
-        userLanguage,
-        profile.odooVerified
-          ? `${agentName} บัญชีของคุณยืนยันแล้ว (${synced.salesTier === 'sales_manager' ? 'ผู้ดูแลฝ่ายขาย' : synced.salesTier === 'salesperson' ? 'ผู้ใช้ฝ่ายขาย' : 'ลูกค้า'})${synced.odooVerifiedAt ? ` เมื่อ ${synced.odooVerifiedAt}` : ''}`
-          : `${agentName} บัญชียังไม่ยืนยัน`,
-        profile.odooVerified
-          ? `${agentName} your account is verified as ${synced.salesTier === 'sales_manager' ? 'Sales Administrator' : synced.salesTier === 'salesperson' ? 'Sales User' : 'customer'}${synced.odooVerifiedAt ? ` at ${synced.odooVerifiedAt}` : ''}`
-          : `${agentName} your account is not verified yet`,
-      ),
+      body: profile.odooVerified
+        ? verificationSuccessMessage(userLanguage, synced.displayName, synced.salesTier)
+        : tr(userLanguage, `${agentName} บัญชียังไม่ยืนยัน`, `${agentName} your account is not verified yet`),
       language: userLanguage,
-      tone: 'info',
+      tone: profile.odooVerified ? 'success' : 'info',
       actions: [{ label: tr(userLanguage, 'ยืนยันอีกครั้ง', 'Verify again'), text: 'FORM VERIFY' }],
     })];
   },

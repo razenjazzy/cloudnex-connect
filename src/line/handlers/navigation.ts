@@ -4,7 +4,7 @@ import { homeMenuFromContext } from '../command-router';
 import { getServiceDefinition, getVisibleCommands, isServiceEnabledForChannel } from '../../services/service-catalog';
 import { createServiceActionFlexMessage } from '../templates';
 import { isQuoteStaff } from '../quote-access';
-import { commerceFollowUpMessages } from '../commerce-followup';
+import { commerceFollowUpMessages, catalogFollowUpMessages } from '../commerce-followup';
 
 const tr = (language: string, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -45,6 +45,10 @@ const navServiceHandler: CommandHandler = {
     );
     if (key === 'commerce') {
       const follow = await commerceFollowUpMessages(ctx, 2);
+      if (follow.length) return follow;
+    }
+    if (key === 'catalog') {
+      const follow = await catalogFollowUpMessages(ctx, 2);
       if (follow.length) return follow;
     }
     return [actionMenu];

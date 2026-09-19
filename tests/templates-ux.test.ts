@@ -43,6 +43,11 @@ describe('product card quote CTA', () => {
     expect(json).toContain('FORM QUOTE CREATE FROM CARD');
     expect(json).not.toContain('"text":"FORM QUOTE CREATE"');
   });
+
+  it('binds quote create to the product id when the card has one', () => {
+    const message = createProductCardFlexMessage('App Premium', 100, 3, 'en', 11);
+    expect(JSON.stringify(message)).toContain('FORM QUOTE CREATE FROM CARD 11');
+  });
 });
 
 describe('optional summary', () => {
@@ -72,12 +77,12 @@ describe('verification result icon', () => {
   it('keeps the original ✅ copy and does not add a second square tick', () => {
     const message = createBotTextFlexMessage({
       title: 'Cloudnex assistant',
-      body: '✅ Odoo verification completed — Sales Administrator.',
+      body: '✅ Somchai is an Odoo Sales Administrator.',
       language: 'en',
       tone: 'success',
     });
     const json = JSON.stringify(message);
-    expect(json).toContain('✅ Odoo verification completed — Sales Administrator.');
+    expect(json).toContain('✅ Somchai is an Odoo Sales Administrator.');
     expect(json).not.toContain('#12B76A');
   });
 });
@@ -187,10 +192,10 @@ describe('quotation journey state actions', () => {
     ));
     expect(json).toContain('https://example.com/q');
     expect(json).toContain('Confirm');
+    expect(json).toContain('QUOTE APPROVE 17');
     expect(json).toContain('View Quote');
     expect(json).toContain('Download');
     expect(json).not.toContain('Download PDF');
-    expect(json).not.toContain('QUOTE APPROVE 17');
     expect(json).toContain('NAV HOME');
     expect(json).toContain('QUOTE LIST');
     expect(json).not.toContain('QUOTE CONFIRM');

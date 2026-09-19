@@ -183,4 +183,4 @@ These sit **on top of** LINE + Firestore + `resolveCommandReply`. They must not 
 
 ## Recommended next
 
-Staging is the live lane (`npm run deploy:staging-vm`, then `npm run validate:staging`). Remaining work is on-device [USER_JOURNEY.md](USER_JOURNEY.md) C0–C5 / S1–S4, credential rotation, then `STAGING_VALIDATED=true PRODUCTION_APPROVED=true npm run deploy:prod`. Do not add a second router or a generic `src/app/core` rewrite.
+**v5.0.1** is the staging cut (`npm run deploy:staging-vm`). No further product scope in this lane. Operator follow-up only: on-device [USER_JOURNEY.md](USER_JOURNEY.md) captures, credential rotation, then `STAGING_VALIDATED=true PRODUCTION_APPROVED=true npm run deploy:prod`. Do not add a second router or a generic `src/app/core` rewrite.

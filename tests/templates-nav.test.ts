@@ -83,3 +83,24 @@ describe('NAV HOME rounded boxes', () => {
     expect(bubble.body?.contents?.[1]?.backgroundColor).toBe(BRAND.teal);
   });
 });
+
+describe('customer home after VERIFY', () => {
+  it('prints the bound Odoo name and phone on the home card', async () => {
+    const { homeMenuFromContext } = await import('../src/line/command-router');
+    const message = homeMenuFromContext({
+      userLanguage: 'en',
+      agentName: 'Sora',
+      profile: {
+        language: 'en',
+        role: 'user',
+        odooVerified: true,
+        marketingOptIn: false,
+        displayName: 'Somchai',
+        phone: '0812345678',
+      },
+    });
+    const json = JSON.stringify(message);
+    expect(json).toContain('Somchai');
+    expect(json).toContain('0812345678');
+  });
+});

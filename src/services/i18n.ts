@@ -114,6 +114,8 @@ export const UI_STRINGS = {
   dateTo: { en: '📅 To', th: '📅 ถึง' },
   createQuote: { en: 'Create quote', th: 'สร้างใบเสนอราคา' },
   searchAgain: { en: 'Search again', th: 'ค้นหาอีกครั้ง' },
+  viewProduct: { en: 'View', th: 'ดูสินค้า' },
+  productCatalog: { en: 'Catalog', th: 'สินค้า' },
   productDetail: { en: 'Product detail', th: 'รายละเอียดสินค้า' },
   productNext: { en: 'Review and choose the next action', th: 'ตรวจสอบข้อมูลแล้วเลือกขั้นตอนต่อไป' },
   price: { en: 'Price', th: 'ราคา' },

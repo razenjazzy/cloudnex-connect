@@ -22,6 +22,9 @@ export const DEMO_PAGE_MARKUP = `
         <div class="chip">3. FORM QUOTE CREATE → Odoo</div>
         <div class="chip">4. Journey + role (VERIFY vs ADMIN)</div>
         <div class="chip">5. Ops: /api-docs and /graphql</div>
+        <div class="chip">6. Admin chain (fail closed)</div>
+        <div class="chip">7. VERIFY phone chip</div>
+        <div class="chip">8. Named Odoo success</div>
       </div>
     </section>
 
@@ -54,8 +57,10 @@ export const DEMO_PAGE_MARKUP = `
           <li>2. First web-chat message opens PDPA + home (same as LINE).</li>
           <li>3. FORM QUOTE CREATE writes a real Odoo quotation.</li>
           <li>4. Run Full Simulation Flow for partner/product/quote readback.</li>
-          <li>5. Role privilege: VERIFY STATUS is identity. ADMIN ENABLE still needs allowlist + Odoo admin.</li>
-          <li>6. Ops only: /api-docs and /graphql with tokens — not the LINE path.</li>
+          <li>5. Ops only: /api-docs and /graphql — not the LINE path.</li>
+          <li>6. Close: LINE → odooVerified → ADMIN_USER_ID → Odoo admin capability.</li>
+          <li>7. FORM VERIFY chips the LINE/Odoo phone — tap, then OTP.</li>
+          <li>8. Success copy: “&lt;Odoo name&gt; is an Odoo Sales User.”</li>
         </ul>
         <p class="warn">For production launch: protect demo endpoints behind OPS token or internal network policy.</p>
         <pre id="runbook-output">Runbook has not executed yet.</pre>

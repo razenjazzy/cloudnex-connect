@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FLOW_SPECS, getFlowByStartCommand } from '../src/services/guided-forms';
+import { FLOW_SPECS, getFlowByStartCommand, loadVerifyPhoneOptions } from '../src/services/guided-forms';
 import { pickDefaultPaymentTermName } from '../src/services/odoo/sales';
 
 describe('getFlowByStartCommand', () => {
@@ -197,5 +197,12 @@ describe('QUOTE_SEND and INVOICE_SEND flows', () => {
     expect(FLOW_SPECS.QUOTE_SEND.fields.find(f => f.key === 'email')?.skipWhen?.({ channel: 'LINE' })).toBe(true);
     expect(FLOW_SPECS.QUOTE_SEND.fields.find(f => f.key === 'email')?.skipWhen?.({ channel: 'EMAIL' })).toBe(false);
     expect(getFlowByStartCommand('FORM INVOICE SEND')?.key).toBe('INVOICE_SEND');
+  });
+});
+
+describe('VERIFY phone chips', () => {
+  it('prefills the LINE session phone without calling Odoo', async () => {
+    await expect(loadVerifyPhoneOptions({ savedPhone: '0812345678' })).resolves.toEqual(['0812345678']);
+    expect(FLOW_SPECS.VERIFY.fields[0].loadOptions).toBe(loadVerifyPhoneOptions);
   });
 });

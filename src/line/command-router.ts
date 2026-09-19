@@ -25,6 +25,7 @@ import {
   markConsentNoticeShown,
   markUserFirstContact,
   setUserPendingFlow,
+  setLastProductContext,
   getUserProfile,
   UserLanguage,
   UserProfile,
@@ -45,8 +46,9 @@ import { checkMessagesAgainstLineLimits } from './message-limits';
 import { bindPostbackData } from './postback';
 import { withSpan } from '../observability/tracing';
 import { appLogger } from '../services/logger';
-import { isQuoteStaff, selfQuoteIdentity } from './quote-access';
+import { isQuoteStaff, selfQuoteIdentity, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary } from './quote-access';
 import { evaluateCommandGrid, isGuestAllowedCommand } from './command-grid';
+import { getErpAdapter } from '../erp/registry';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -145,6 +147,7 @@ const buildFormPromptMessage = async (
   promptOverride?: string,
   contextNote?: string,
   collected: Record<string, string> = {},
+  profile: UserProfile = { language, role: 'user', odooVerified: false, marketingOptIn: false },
 ): Promise<messagingApi.Message> => {
   const field = flowSpec.fields[stepIndex];
   const options = field.loadOptions
@@ -160,7 +163,7 @@ const buildFormPromptMessage = async (
     title: tr(language, `${agentName} ${flowSpec.labelTh}`, `${agentName} ${flowSpec.labelEn}`),
     prompt: promptOverride || tr(language, field.promptTh, field.promptEn),
     stepIndex,
-    totalSteps: flowSpec.fields.length,
+    totalSteps: customerQuoteFormStepCount(flowSpec.key, flowSpec.fields.length, profile),
     language,
     optional: field.optional,
     options,
@@ -279,7 +282,7 @@ const handleGuidedFormStep = async (ctx: CommandReplyContext): Promise<messaging
       const idx = Number(fieldMatch[1]);
       if (flowSpec.fields[idx]) {
         await setUserPendingFlow(userId, { ...pending, editingFieldIndex: idx, expiresAt: buildFlowExpiry() });
-        return [await buildFormPromptMessage(userLanguage, agentName, flowSpec, idx, userId, undefined, undefined, pending.collected)];
+        return [await buildFormPromptMessage(userLanguage, agentName, flowSpec, idx, userId, undefined, undefined, pending.collected, profile)];
       }
     }
 
@@ -297,6 +300,7 @@ const handleGuidedFormStep = async (ctx: CommandReplyContext): Promise<messaging
           ),
           undefined,
           pending.collected,
+          profile,
         )];
       }
 
@@ -330,6 +334,7 @@ const handleGuidedFormStep = async (ctx: CommandReplyContext): Promise<messaging
       ),
       undefined,
       pending.collected,
+      profile,
     )];
   }
 
@@ -342,6 +347,11 @@ const handleGuidedFormStep = async (ctx: CommandReplyContext): Promise<messaging
 
   if (flowSpec.optionalSummaryStartIndex !== undefined && nextIndex >= flowSpec.optionalSummaryStartIndex) {
     const collectedWithDefaults = await applyFieldDefaults(flowSpec, collected);
+    if (customerQuoteSkipsOptionalSummary(flowSpec.key, profile)) {
+      await setUserPendingFlow(userId, null);
+      const finalCommandText = flowSpec.buildFinalCommand(collectedWithDefaults);
+      return resolveCommandReply({ ...ctx, text: finalCommandText, profile: { ...profile, pendingFlow: undefined } });
+    }
     await setUserPendingFlow(userId, {
       flow: flowSpec.key,
       stepIndex: nextIndex,
@@ -364,7 +374,7 @@ const handleGuidedFormStep = async (ctx: CommandReplyContext): Promise<messaging
     collected,
     expiresAt: buildFlowExpiry(),
   });
-  return [await buildFormPromptMessage(userLanguage, agentName, flowSpec, nextIndex, userId, undefined, undefined, collected)];
+  return [await buildFormPromptMessage(userLanguage, agentName, flowSpec, nextIndex, userId, undefined, undefined, collected, profile)];
 };
 
 // ---------------------------------------------------------------------------
@@ -384,8 +394,35 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
     ), userLanguage)];
   }
 
-  if (upperText === 'FORM QUOTE CREATE FROM CARD') {
-    const product = profile.lastProductContext;
+  const fromCard = /^FORM QUOTE CREATE FROM CARD(?:\s+(\d+))?$/i.exec(ctx.text.trim());
+  if (fromCard) {
+    const cardProductId = fromCard[1] ? Number(fromCard[1]) : undefined;
+    let product = profile.lastProductContext;
+    const ttlMs = profile.odooVerified ? 10 * 60 * 1000 : 2 * 60 * 60 * 1000;
+    if (cardProductId && Number.isFinite(cardProductId)) {
+      const erp = getErpAdapter();
+      const found = await erp.lookupProduct(cardProductId)
+        || await erp.lookupService(String(cardProductId));
+      if (found) {
+        product = {
+          productId: found.id,
+          productName: found.name,
+          expiresAt: new Date(Date.now() + ttlMs).toISOString(),
+        };
+        await setLastProductContext(userId, product);
+      }
+    }
+    if (!profile.odooVerified) {
+      const using = product?.productName
+        ? tr(userLanguage, `ใช้สินค้า: ${product.productName}\n`, `Using: ${product.productName}\n`)
+        : '';
+      return [text(tr(userLanguage,
+        `${using}${agentName} กรุณายืนยันด้วยเบอร์ในบัญชีผู้ใช้ Odoo ก่อนสร้างใบเสนอราคา`,
+        `${using}${agentName} verify with the phone on your Odoo user account before creating a quote.`,
+      ), userLanguage, undefined, [
+        { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
+      ])];
+    }
     const flowSpec = FLOW_SPECS.QUOTE_CREATE;
     if (!product?.productName) {
       return handleFormCommand({ ...ctx, text: 'FORM QUOTE CREATE' });
@@ -419,6 +456,7 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
       undefined,
       tr(userLanguage, `ใช้สินค้า: ${product.productName}`, `Using: ${product.productName}`),
       { productName: product.productName, productId: String(product.productId), ...identity },
+      profile,
     )];
   }
 
@@ -473,13 +511,18 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
     })];
   }
 
+  const formCollected: Record<string, string> = {
+    ...(flowSpec.key === 'QUOTE_CREATE' && !isQuoteStaff(profile) ? selfQuoteIdentity(profile) : {}),
+    ...(profile.phone ? { savedPhone: profile.phone } : {}),
+    ...(profile.displayName ? { displayName: profile.displayName } : {}),
+  };
   await setUserPendingFlow(userId, {
     flow: flowSpec.key,
     stepIndex: 0,
-    collected: flowSpec.key === 'QUOTE_CREATE' && !isQuoteStaff(profile) ? selfQuoteIdentity(profile) : {},
+    collected: formCollected,
     expiresAt: buildFlowExpiry(),
   });
-  const prompt = await buildFormPromptMessage(userLanguage, agentName, flowSpec, 0, userId);
+  const prompt = await buildFormPromptMessage(userLanguage, agentName, flowSpec, 0, userId, undefined, undefined, formCollected, profile);
   if (flowSpec.key === 'VERIFY' && profile.odooVerified) {
     return [
       text(tr(userLanguage,
@@ -490,6 +533,17 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
     ];
   }
   return [prompt];
+};
+
+export const resumeQuoteFromLastProduct = async (ctx: CommandReplyContext): Promise<messagingApi.Message[] | null> => {
+  const profile = await getUserProfile(ctx.userId);
+  const product = profile.lastProductContext;
+  if (!profile.odooVerified || !product?.productName) return null;
+  if (product.expiresAt && Date.parse(product.expiresAt) <= Date.now()) return null;
+  const command = product.productId
+    ? `FORM QUOTE CREATE FROM CARD ${product.productId}`
+    : 'FORM QUOTE CREATE FROM CARD';
+  return handleFormCommand({ ...ctx, profile: { ...profile, odooVerified: true }, text: command });
 };
 
 // ---------------------------------------------------------------------------

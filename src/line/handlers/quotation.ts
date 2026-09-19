@@ -27,6 +27,7 @@ import { t } from '../../services/i18n';
 import { sendTargetedFlexMessage } from '../messaging';
 import { notifyQuoteParties, resolveCustomerLineUserId, type QuoteSendChannel } from '../quote-notify';
 import { getErpAdapter } from '../../erp/registry';
+import type { ErpDeliveryStatus } from '../../erp/adapter';
 import { decodeQuoteListCursor, encodeQuoteListCursor } from '../quote-list-cursor';
 import { FLOW_SPECS } from '../../services/guided-forms';
 import { canManageQuoteLines, canViewOrderAsCustomer, isQuoteStaff, quoteJourneyRole, syncStaffProfile } from '../quote-access';
@@ -39,7 +40,7 @@ const tr = (language: UserLanguage, th: string, en: string): string => (language
 const inferTone = (value: string): 'info' | 'success' | 'warning' | 'error' => {
   const lower = value.toLowerCase();
   if (/failed|error|invalid|not found|not linked|ไม่สำเร็จ|ไม่พบ|ไม่ได้ผูก|ยังไม่ได้ยืนยัน/.test(lower)) return 'error';
-  if (/success|approved|sent|confirmed|สำเร็จ|อนุมัติ|ส่งให้ลูกค้า/.test(lower)) return 'success';
+  if (/success|approved|sent|confirmed|cancelled|created|สำเร็จ|อนุมัติ|ส่งให้ลูกค้า|ยกเลิกแล้ว|สร้างใบแจ้งหนี้แล้ว/.test(lower)) return 'success';
   return 'info';
 };
 
@@ -65,7 +66,12 @@ const statusRetryActions = (orderId: number, language: UserLanguage) => [
 const staffOnlyReply = (language: UserLanguage) =>
   botText(tr(language, 'คำสั่งนี้สำหรับพนักงานขาย', 'This action is for sales users.'), language);
 
-const staffCardOptions = (profile: UserProfile, links: { portalLink?: string; pdfLink?: string }, order?: OdooSaleOrder) => {
+const staffCardOptions = (
+  profile: UserProfile,
+  links: { portalLink?: string; pdfLink?: string },
+  order?: OdooSaleOrder,
+  delivery?: ErpDeliveryStatus | null,
+) => {
   const role = quoteJourneyRole(profile);
   appLogger.info('quote_journey_card', {
     gitCommit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT || null,
@@ -84,6 +90,7 @@ const staffCardOptions = (profile: UserProfile, links: { portalLink?: string; pd
     salesTier: profile.salesTier,
     canManageLines: canManageQuoteLines(profile),
     ...links,
+    ...(delivery ? { delivery } : {}),
   };
 };
 
@@ -268,8 +275,11 @@ const quoteStatusHandler: CommandHandler = {
     if (!canViewOrderAsCustomer(profile, orderPartnerId)) {
       return [botText(t('quoteNotYours', userLanguage), userLanguage)];
     }
-    const { portalLink, pdfLink } = await getOrderLinks(orderId);
-    return [createQuotationJourneyFlexMessage(order, staffCardOptions(profile, { portalLink, pdfLink }, order), userLanguage)];
+    const [{ portalLink, pdfLink }, delivery] = await Promise.all([
+      getOrderLinks(orderId),
+      getErpAdapter().getDeliveryStatus(orderId),
+    ]);
+    return [createQuotationJourneyFlexMessage(order, staffCardOptions(profile, { portalLink, pdfLink }, order, delivery), userLanguage)];
   },
 };
 
@@ -288,7 +298,7 @@ const quoteConfirmHandler: CommandHandler = {
     const ok = await getErpAdapter().confirmOrder(orderId);
     recordAuditEvent({ action: 'quote_confirm', outcome: ok ? 'success' : 'failure', actorUserId: userId, channelId: channel?.channelId, requestId, targetId: String(orderId) });
     if (!ok) {
-      return withCommerceMenu(ctx, [botText(tr(userLanguage, 'ยืนยันคำสั่งซื้อไม่สำเร็จ กรุณาลองใหม่', 'Failed to confirm the order. Please try again.'), userLanguage)]);
+      return [botText(tr(userLanguage, 'ยืนยันคำสั่งซื้อไม่สำเร็จ กรุณาลองใหม่', 'Failed to confirm the order. Please try again.'), userLanguage)];
     }
 
     // The order state change already succeeded in Odoo at this point (ok
@@ -309,13 +319,13 @@ const quoteConfirmHandler: CommandHandler = {
       .catch(err => console.warn('quote-confirm: customer notify failed (non-fatal):', err));
 
     const { portalLink, pdfLink } = await getOrderLinks(orderId);
-    return withCommerceMenu(ctx, [
+    return [
       botText(
         tr(userLanguage, 'ยืนยันใบเสนอราคาแล้ว หน้าอนุมัติของลูกค้าพร้อมเปิด', 'Quotation confirmed. The customer quote page is ready to approve.'),
         userLanguage,
       ),
       createQuotationJourneyFlexMessage(order, staffCardOptions(profile, { portalLink, pdfLink }, order), userLanguage),
-    ]);
+    ];
   },
 };
 
@@ -405,7 +415,7 @@ const quoteSendConfirmHandler: CommandHandler = {
       detail: `${sendChannel}:${result.customerLineId ? 'line' : 'no_line'}:${result.emailed ? 'email' : 'no_email'}`,
     });
 
-    return withCommerceMenu(ctx, [
+    return [
       botText(
         sendChannelSummary(userLanguage, result, sendChannel),
         userLanguage,
@@ -413,7 +423,7 @@ const quoteSendConfirmHandler: CommandHandler = {
         result.inviteUri ? { label: t('addFriend', userLanguage), uri: result.inviteUri } : undefined,
       ),
       createQuotationJourneyFlexMessage(sentOrder, staffCardOptions(profile, { portalLink, pdfLink }, sentOrder), userLanguage),
-    ]);
+    ];
   },
 };
 
@@ -471,7 +481,7 @@ const quoteApproveHandler: CommandHandler = {
     const ok = await getErpAdapter().confirmOrder(orderId);
     if (!ok) {
       recordAuditEvent({ action: 'quote_approve', outcome: 'failure', actorUserId: userId, channelId: channel?.channelId, requestId: ctx.requestId, targetId: String(orderId) });
-      return withCommerceMenu(ctx, [botText(tr(userLanguage, 'อนุมัติไม่สำเร็จ กรุณาลองใหม่', 'Approval failed. Please try again.'), userLanguage)]);
+      return [botText(tr(userLanguage, 'อนุมัติไม่สำเร็จ กรุณาลองใหม่', 'Approval failed. Please try again.'), userLanguage)];
     }
 
     const adminUserId = process.env.ADMIN_USER_ID?.trim();
@@ -502,10 +512,10 @@ const quoteApproveHandler: CommandHandler = {
       salesIntro: t('quoteApprovedStaff', userLanguage),
     }).catch(err => console.warn('quote-approve: sales notify failed (non-fatal):', err));
 
-    return withCommerceMenu(ctx, [
+    return [
       botText(t('quoteApproved', userLanguage), userLanguage),
       createQuotationJourneyFlexMessage(confirmed, { role: 'customer', portalLink, pdfLink }, userLanguage),
-    ]);
+    ];
   },
 };
 
@@ -664,7 +674,7 @@ const quoteCancelHandler: CommandHandler = {
     const ok = await getErpAdapter().cancelQuote(orderId);
     recordAuditEvent({ action: 'quote_cancel', outcome: ok ? 'success' : 'failure', actorUserId: userId, channelId: channel?.channelId, requestId, targetId: String(orderId) });
     if (!ok) {
-      return withCommerceMenu(ctx, [botText(tr(userLanguage, 'ยกเลิกใบเสนอราคาไม่สำเร็จ กรุณาลองใหม่', 'Failed to cancel the quotation. Please try again.'), userLanguage)]);
+      return [botText(tr(userLanguage, 'ยกเลิกใบเสนอราคาไม่สำเร็จ กรุณาลองใหม่', 'Failed to cancel the quotation. Please try again.'), userLanguage)];
     }
 
     const order = await getSaleOrderById(orderId);
@@ -680,10 +690,10 @@ const quoteCancelHandler: CommandHandler = {
       .catch(err => console.warn('quote-cancel: customer notify failed (non-fatal):', err));
 
     const { portalLink, pdfLink } = await getOrderLinks(orderId);
-    return withCommerceMenu(ctx, [
+    return [
       botText(tr(userLanguage, 'ยกเลิกใบเสนอราคาแล้ว', 'Quotation cancelled.'), userLanguage),
       createQuotationJourneyFlexMessage(order, staffCardOptions(profile, { portalLink, pdfLink }, order), userLanguage),
-    ]);
+    ];
   },
 };
 
@@ -762,7 +772,7 @@ const quoteInvoiceSendConfirmHandler: CommandHandler = {
       detail: `${sendChannel}:${result.customerLineId ? 'line' : 'no_line'}:${result.emailed ? 'email' : 'no_email'}`,
     });
 
-    return withCommerceMenu(ctx, [
+    return [
       botText(
         sendChannelSummary(userLanguage, result, sendChannel),
         userLanguage,
@@ -770,7 +780,7 @@ const quoteInvoiceSendConfirmHandler: CommandHandler = {
         result.inviteUri ? { label: t('addFriend', userLanguage), uri: result.inviteUri } : undefined,
       ),
       createQuotationJourneyFlexMessage(invoicedOrder, staffCardOptions(profile, { portalLink, pdfLink }, invoicedOrder), userLanguage),
-    ]);
+    ];
   },
 };
 
@@ -813,10 +823,10 @@ const quoteInvoiceHandler: CommandHandler = {
       .catch(err => console.warn('quote-invoice: notify failed (non-fatal):', err));
 
     const { portalLink, pdfLink } = await getOrderLinks(orderId);
-    return withCommerceMenu(ctx, [
+    return [
       botText(tr(userLanguage, 'สร้างใบแจ้งหนี้แล้ว', 'Invoice created.'), userLanguage),
       createQuotationJourneyFlexMessage(order, staffCardOptions(profile, { portalLink, pdfLink }, order), userLanguage),
-    ]);
+    ];
   },
 };
 

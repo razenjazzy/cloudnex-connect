@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canViewOrderAsCustomer, isQuoteStaff, selfQuoteIdentity } from '../src/line/quote-access';
+import { canViewOrderAsCustomer, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary, isQuoteStaff, selfQuoteIdentity } from '../src/line/quote-access';
 
 describe('canViewOrderAsCustomer', () => {
   it('lets staff view any partner', () => {
@@ -21,5 +21,14 @@ describe('selfQuoteIdentity', () => {
       phone: '0812345678',
     });
     expect(isQuoteStaff({ role: 'user' })).toBe(false);
+  });
+});
+
+describe('customer quote form (C3)', () => {
+  it('is product and qty only for customers, full form for staff', () => {
+    expect(customerQuoteFormStepCount('QUOTE_CREATE', 9, { role: 'user' })).toBe(2);
+    expect(customerQuoteFormStepCount('QUOTE_CREATE', 9, { role: 'user', salesTier: 'salesperson' })).toBe(9);
+    expect(customerQuoteSkipsOptionalSummary('QUOTE_CREATE', { role: 'user' })).toBe(true);
+    expect(customerQuoteSkipsOptionalSummary('QUOTE_CREATE', { role: 'admin' })).toBe(false);
   });
 });
