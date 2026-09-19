@@ -2,7 +2,7 @@
 
 **Final score: 10/10 · 100/100.** Every axis is complete. No scored gap.
 
-Snapshot: 2026-09-14. Same grade as [ARCHITECTURE_REVIEW.md](ARCHITECTURE_REVIEW.md). Flex/tray frozen against [USER_JOURNEY.md](USER_JOURNEY.md). No secrets in this file.
+Snapshot: 2026-09-19 (v5.0.1). Same grade as [ARCHITECTURE_REVIEW.md](ARCHITECTURE_REVIEW.md). Flex/tray frozen against [USER_JOURNEY.md](USER_JOURNEY.md). No secrets in this file.
 
 | Axis | /10 | /100 | Status |
 |---|---:|---:|---|

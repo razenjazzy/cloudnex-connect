@@ -1,5 +1,5 @@
 import type { CommandHandler } from './index';
-import { createBotTextFlexMessage, createProductCardFlexMessage, createProductCarouselFlexMessage, formatMoney } from '../templates';
+import { createBotTextFlexMessage, createProductCardFlexMessage, createProductCarouselFlexMessage } from '../templates';
 import { parseServiceCreatePayload, parseServiceUpdatePayload } from '../command-validators';
 import { getErpAdapter } from '../../erp/registry';
 import { recordAuditEvent } from '../../services/firestore';

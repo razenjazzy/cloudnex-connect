@@ -28,8 +28,8 @@ Cloud Run (`release.yml`) is optional `workflow_dispatch` only. Railway variable
 - [x] `.github/workflows/release.yml` and `staging-vps.yml` parse as YAML.
 - [x] `staging-vps.yml` does **not** use `secrets.*` in `job.if` (invalid workflow). Gate is `vars.ENABLE_STAGING_VPS_DEPLOY == 'true'`.
 - [ ] `npm run preflight:staging` against a real staging YAML manifest if Cloud Run is used.
-- [ ] Optional: `npm run smoke -- https://amardhaka.io` after a deploy.
-- [ ] `npm run validate:staging` after each VPS pull (`/demo` HTML, session-gated APIs, `appEnv=staging`).
+- [x] `npm run smoke -- https://amardhaka.io` after v5.0.1 deploy (2026-09-19; `/ops/workflow-audit` skipped without local `OPS_API_TOKEN`).
+- [x] `npm run validate:staging` after v5.0.1 VPS pull (`/demo` HTML, session-gated APIs, `appEnv=staging`).
 
 ## GitHub (VPS Actions, optional)
 
@@ -54,15 +54,15 @@ Required Cloud Run secret mappings are validated by `scripts/validate-cutover.sh
 ## Runtime signoff
 
 - [ ] Rotate any credential that was ever exposed outside the intended secret store (including LINE tokens pasted in chat).
-- [ ] Confirm `ERP_PROVIDER=odoo` until another ERP adapter is implemented.
+- [x] Confirm `ERP_PROVIDER=odoo` (`readyz` `flags.erpProvider=odoo` on 2026-09-19).
 - [ ] Confirm `ENABLE_WEBHOOK_TEST=false` in production (`deliveryProduction` / `APP_ENV=production`).
 - [ ] Confirm `ALLOW_DEMO_HEADER_TOKEN_FALLBACK=false` in production.
 - [ ] Confirm the demo control panel is disabled in production unless explicitly time-boxed.
 - [ ] Confirm `PRODUCTION_APPROVED=true` is supplied only for an approved manual production run.
-- [x] Verify `/healthz` and `/readyz` after staging deployment (2026-09-14).
+- [x] Verify `/healthz` and `/readyz` after staging deployment (2026-09-19, v5.0.1).
 - [x] LINE webhook URLs registered and Messaging API webhook test OK (Sales + Customer).
 - [ ] Exercise `VERIFY`, one product lookup, one Customer self-quote, one Sales send, one audit-log read on device.
-- [ ] Firestore composite index `(phone, odooVerified)` if QUOTE SEND requires it.
+- [x] Firestore composite index definition in repo (`deploy/firestore.indexes.json` on `users.phone` + `odooVerified`). Apply from the Firebase console if QUOTE SEND returns an index-required error.
 - [ ] Record staging approval before production dispatch.
 - [ ] Confirm rollback target and owner before production deployment.
 
