@@ -84,7 +84,7 @@ const requireToken = (token: string | undefined, name: string): string => {
 // ---------------------------------------------------------------------------
 
 export const getHealthz = (config: OpsClientConfig) =>
-  request<{ ok: boolean; service: string; environment: string; timestamp: string }>(config, 'GET', '/healthz');
+  request<{ ok: boolean; service: string; environment: string; appEnv?: string; nodeEnv?: string; timestamp: string }>(config, 'GET', '/healthz');
 
 export const getReadyz = (config: OpsClientConfig) =>
   request<{ ready: boolean; checks: Array<{ name: string; ok: boolean; message: string }>; uptimeSeconds: number }>(

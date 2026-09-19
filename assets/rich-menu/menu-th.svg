@@ -16,20 +16,20 @@
     <path fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" d="M 1218 179.39 H 1282 L 1274 223.39 H 1226 Z M 1236 179.39 V 165.39 A 14 14 0 0 1 1264 165.39 V 179.39"/>
     <text class="label" fill="#063F3D" x="1250" y="324.01">สินค้าและใบเสนอราคา</text>
   <rect x="1676" y="28" width="796" height="379.5" rx="28" fill="#FFFFFF"/>
-    <circle fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" cx="2074" cy="187.39" r="36"/>
-    <ellipse fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" cx="2074" cy="187.39" rx="14" ry="36"/>
-    <path fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" d="M 2038 187.39 h 72"/>
-    <text class="label" fill="#063F3D" x="2074" y="324.01">ภาษา</text>
+    <rect fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" x="2040" y="153.39" width="30" height="30" rx="5"/>
+    <rect fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" x="2078" y="153.39" width="30" height="30" rx="5"/>
+    <rect fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" x="2040" y="191.39" width="30" height="30" rx="5"/>
+    <rect fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" x="2078" y="191.39" width="30" height="30" rx="5"/>
+    <text class="label" fill="#063F3D" x="2074" y="324.01">สถานะออเดอร์</text>
   <rect x="28" y="435.5" width="796" height="379.5" rx="28" fill="#FFFFFF"/>
     <circle fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" cx="426" cy="594.89" r="38"/>
     <path fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" d="M 410 596.89 L 422 610.89 L 446 580.89"/>
     <text class="label" fill="#063F3D" x="426" y="731.51">ยืนยันตัวตน</text>
   <rect x="852" y="435.5" width="796" height="379.5" rx="28" fill="#FFFFFF"/>
-    <rect fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" x="1216" y="560.89" width="30" height="30" rx="5"/>
-    <rect fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" x="1254" y="560.89" width="30" height="30" rx="5"/>
-    <rect fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" x="1216" y="598.89" width="30" height="30" rx="5"/>
-    <rect fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" x="1254" y="598.89" width="30" height="30" rx="5"/>
-    <text class="label" fill="#063F3D" x="1250" y="731.51">สถานะออเดอร์</text>
+    <circle fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" cx="1250" cy="594.89" r="36"/>
+    <ellipse fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" cx="1250" cy="594.89" rx="14" ry="36"/>
+    <path fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" d="M 1214 594.89 h 72"/>
+    <text class="label" fill="#063F3D" x="1250" y="731.51">ภาษา</text>
   <rect x="1676" y="435.5" width="796" height="379.5" rx="28" fill="#FFFFFF"/>
     <circle fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" cx="2074" cy="594.89" r="38"/>
     <path fill="none" stroke="#063F3D" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" d="M 2062 582.89 A 14 14 0 1 1 2074 600.89 V 608.89"/>

@@ -15,21 +15,21 @@ describe('native LINE rich menu layout', () => {
     expect(layout.areas.map(area => area.action.text)).toEqual([
       'NAV HOME',
       'NAV commerce',
-      'LANG',
-      'FORM VERIFY',
       'FORM ORDER STATUS',
+      'FORM VERIFY',
+      'LANG',
       'GUIDE',
     ]);
     expect(layout.areas.map(area => area.labelEn)).toEqual([
       'Home',
       'Products & Quotes',
-      'Language',
-      'Verify',
       'Order Status',
+      'Verify',
+      'Language',
       'Help',
     ]);
     expect(layout.areas.every(area => !area.fill)).toBe(true);
-    expect(layout.areas.map(area => area.id)).toEqual(['home', 'commerce', 'language', 'verify', 'orders', 'help']);
+    expect(layout.areas.map(area => area.id)).toEqual(['home', 'commerce', 'orders', 'verify', 'language', 'help']);
   });
 
   it('uses sentence-case i18n labels', () => {
@@ -38,9 +38,9 @@ describe('native LINE rich menu layout', () => {
     expect(layout.areas.map(area => area.labelTh)).toEqual([
       'หน้าหลัก',
       'สินค้าและใบเสนอราคา',
-      'ภาษา',
-      'ยืนยันตัวตน',
       'สถานะออเดอร์',
+      'ยืนยันตัวตน',
+      'ภาษา',
       'ช่วยเหลือ',
     ]);
   });
@@ -130,8 +130,9 @@ describe('native tray Language / Verify fills', () => {
   it('golds Language on English rest and leaves Verify idle (no teal)', () => {
     const fills = tileFills(readFileSync('assets/rich-menu/menu-en.svg', 'utf8'));
     expect(fills).toHaveLength(6);
-    expect(fills[2]).toBe(GOLD);
+    expect(fills[2]).toBe(IDLE);
     expect(fills[3]).toBe(IDLE);
+    expect(fills[4]).toBe(GOLD);
   });
 
   it('uses no teal for Language on Thai rest', () => {

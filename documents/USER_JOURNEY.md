@@ -14,7 +14,7 @@ Persona names: **Sora** (EN), **โซระ** (TH). Guide/home titles: **CloudN
 
 1. `https://amardhaka.io/healthz` and `/readyz` are 200.
 2. **Cloudnex Sales** webhook: `POST https://amardhaka.io/webhook/sales`. **Cloudnex Customer** webhook: `POST https://amardhaka.io/webhook/customer` with `LINE_CHANNEL_CUSTOMER_*`. Quotes/invoices push to Cloudnex Customer; sales staff stay on Cloudnex Sales. A customer asking for a quote or order creates a **draft** `sale.order`. Flex title stays CloudNex Connect.
-3. Compact tray is live (2×3: **Home | Products & Quotes | Language** / **Verify | Order Status | Help**). Rest tiles are **white (no teal)**. **Language is gold** while English and **white** while Thai. **Verify is gold** while the session is on and **white** while not. A tap fills that tile **dark teal**. Equal gutter around and between tiles. After generate/upload, set `LINE_RICH_MENU_EN`, `LINE_RICH_MENU_TH`, `LINE_RICH_MENU_JSON`, and `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` on the VPS `.env`, then recreate.
+3. Compact tray is live (2×3: **Home | Products & Quotes | Order Status** / **Verify | Language | Help**). Rest tiles are **white (no teal)**. **Language is gold** while English and **white** while Thai. **Verify is gold** while the session is on and **white** while not. A tap fills that tile **dark teal**. Equal gutter around and between tiles. After generate/upload, set `LINE_RICH_MENU_EN`, `LINE_RICH_MENU_TH`, `LINE_RICH_MENU_JSON`, and `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` on the VPS `.env`, then recreate.
 4. Sales onboard: add **Cloudnex Sales** as a friend, then **VERIFY**. Capture account language is English (or tap Language until English). Existing Firestore `language: th` stays Thai until Language is tapped.
 
 ---

@@ -7,7 +7,7 @@ import { runDailyReport } from '../jobs/daily-report';
 import { seedOdooSampleSalesDataWithAudit } from '../services/seed-odoo';
 import { ensureDemoSessionStateLoaded, rotateDemoSessionSecret } from '../http/demo-session';
 import { buildWorkflowAudit } from '../http/workflow-audit';
-import { demoSessionRotateGraceDefaultMinutes, isOpsJobsAsync } from '../http/env';
+import { demoSessionRotateGraceDefaultMinutes, isOpsJobsAsync, appEnv } from '../http/env';
 import { enqueueOpsJob } from '../jobs/queue';
 import { getDemoPlatformPayload } from '../platform/service-modules';
 import { getPlatformStatus } from '../platform/status';
@@ -53,7 +53,9 @@ const Query = new GraphQLObjectType({
       resolve: () => ({
         ok: true,
         service: 'cloudnex-connect',
-        environment: process.env.NODE_ENV || 'development',
+        environment: appEnv,
+        appEnv,
+        nodeEnv: process.env.NODE_ENV || 'development',
         timestamp: new Date().toISOString(),
       }),
     },

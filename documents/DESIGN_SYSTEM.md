@@ -142,8 +142,7 @@ LINE size **2500×843** (not the tall 2500×1686 canvas). Tokens:
 - Home / Products & Quotes / Order Status / Help are never gold. Current screen = `teal`
 - After a tray tap LINE links `menu-{lang}-{id}.png` or `menu-{lang}-{id}-verified.png` via `LINE_RICH_MENU_JSON`
 - Layout 2×3, icon above text: Home (`NAV HOME`), Products & Quotes
-  (`NAV commerce`), Language (`LANG`); Verify (`FORM VERIFY`), Order Status
-  (`FORM ORDER STATUS`), Help (`GUIDE`)
+  (`NAV commerce`), Order Status (`FORM ORDER STATUS`); Verify (`FORM VERIFY`), Language (`LANG`), Help (`GUIDE`)
 - Languages: `menu-en.png` + `menu-th.png`, plus `*-verified.png` when the
   sales session is on. Default is English (Language gold, Verify regular).
   `LANG` and session state link `LINE_RICH_MENU_TH` / `LINE_RICH_MENU_EN`

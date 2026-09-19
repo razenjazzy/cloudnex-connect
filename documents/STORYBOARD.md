@@ -140,7 +140,7 @@ four are now shipped (rich menu, `GUIDE`, header consistency); the
 remaining two are real scope, just not attempted yet:
 
 - ✅ Rich-menu redesign — compact 2500×843 teal grid: Home, Products & Quotes,
-  Language / Verify, Order Status, Help. Verify is gold while the sales
+  Order Status / Verify, Language, Help. Verify is gold while the sales
   session is on; Language is goldTint on the English tray. Publish with
   `npm run rich-menu:upload`; set `LINE_RICH_MENU_*` and
   `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` on the VPS. `LANG` links the matching
