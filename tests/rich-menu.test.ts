@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { richMenuIdForLanguage, trayVariantForCommand } from '../src/line/rich-menu';
+import { richMenuIdForLanguage, trayAfterReplyPlan, trayVariantForCommand } from '../src/line/rich-menu';
 
 describe('native LINE rich menu layout', () => {
   const layout = JSON.parse(readFileSync('assets/rich-menu/layout.json', 'utf8')) as {
@@ -177,5 +177,13 @@ describe('native tray Language / Verify fills', () => {
 
   it('does not use gold/teal fills from Flex NAV HOME', () => {
     expect(readFileSync('tests/templates-nav.test.ts', 'utf8')).toContain('NAV HOME rounded boxes');
+  });
+});
+
+describe('trayAfterReplyPlan', () => {
+  it('skips the pressed-home then rest dance', () => {
+    expect(trayAfterReplyPlan('home')).toEqual({ press: 'default', restDelayed: false });
+    expect(trayAfterReplyPlan('commerce')).toEqual({ press: 'commerce', restDelayed: true });
+    expect(trayAfterReplyPlan(undefined)).toBeNull();
   });
 });

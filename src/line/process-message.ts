@@ -208,17 +208,16 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
     noteTrayGeneration(input.conversationId, trayGeneration);
     const messages = await resolveCommandReply(ctx);
     const delivered = await deliverMessages(client, input, messages);
-    const { linkUserRichMenu, queueTrayRestAfterReply } = await import('./rich-menu');
-    if (ctx.trayHighlight && !input.isGroupContext) {
-      void linkUserRichMenu(
+    const { applyTrayAfterReply } = await import('./rich-menu');
+    if (!input.isGroupContext) {
+      applyTrayAfterReply(
         input.conversationId,
         ctx.userLanguage,
         input.channelConfig.channelId,
         ctx.trayHighlight,
-        Boolean(ctx.trayRest?.salesSessionActive),
+        ctx.trayRest,
       );
     }
-    queueTrayRestAfterReply(input.conversationId, ctx.trayRest, input.channelConfig.channelId);
     if (ctx.pendingCatalogPush && !input.isGroupContext) {
       void pushDeferredCommerceCatalog({
         userId: input.conversationId,

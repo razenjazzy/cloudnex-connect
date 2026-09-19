@@ -10,7 +10,7 @@ describe('native tray reply path', () => {
     expect(processMessage).toContain('pendingCatalogPush');
     expect(processMessage).toContain('pushDeferredCommerceCatalog');
     const deliverIdx = processMessage.indexOf('const delivered = await deliverMessages');
-    const linkIdx = processMessage.indexOf('void linkUserRichMenu');
+    const linkIdx = processMessage.indexOf('applyTrayAfterReply');
     expect(deliverIdx).toBeGreaterThan(-1);
     expect(linkIdx).toBeGreaterThan(deliverIdx);
   });

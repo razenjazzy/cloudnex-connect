@@ -87,6 +87,15 @@ export const linkUserRichMenu = async (
   }
 };
 
+/** Home is already the rest tray — do not press then rest (two LINE rich-menu calls). */
+export const trayAfterReplyPlan = (
+  highlight?: RichMenuVariant,
+): { press: RichMenuVariant; restDelayed: boolean } | null => {
+  if (!highlight) return null;
+  if (highlight === 'home') return { press: 'default', restDelayed: false };
+  return { press: highlight, restDelayed: true };
+};
+
 /** After the success Flex is sent, rest Language/Verify (gold vs light teal). Dark teal is tap-only. */
 export const queueTrayRestAfterReply = (
   userId: string,
@@ -99,4 +108,19 @@ export const queueTrayRestAfterReply = (
       appLogger.warn('rich_menu_rest_failed', { error: String(error) });
     });
   }, 750);
+};
+
+export const applyTrayAfterReply = (
+  userId: string,
+  language: UserLanguage,
+  channelId: string | undefined,
+  highlight: RichMenuVariant | undefined,
+  rest: TrayRestState | undefined,
+): void => {
+  const plan = trayAfterReplyPlan(highlight);
+  if (!plan) return;
+  const sales = Boolean(rest?.salesSessionActive);
+  const channel = channelId || DEFAULT_CHANNEL_ID;
+  void linkUserRichMenu(userId, language, channel, plan.press, sales);
+  if (plan.restDelayed) queueTrayRestAfterReply(userId, rest, channel);
 };

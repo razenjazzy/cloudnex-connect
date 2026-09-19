@@ -149,11 +149,8 @@ export const registerDemoRoutes = (app: Express): void => {
                 requestId: String(res.getHeader('x-request-id') || '') || undefined,
             };
             const botMessages = await resolveCommandReply(ctx);
-            const { linkUserRichMenu, queueTrayRestAfterReply } = await import('../line/rich-menu');
-            if (ctx.trayHighlight) {
-              void linkUserRichMenu(userId, ctx.userLanguage, 'default', ctx.trayHighlight, Boolean(ctx.trayRest?.salesSessionActive));
-            }
-            queueTrayRestAfterReply(userId, ctx.trayRest);
+            const { applyTrayAfterReply } = await import('../line/rich-menu');
+            applyTrayAfterReply(userId, ctx.userLanguage, 'default', ctx.trayHighlight, ctx.trayRest);
 
             // Flatten the LINE messages into a minimal chat transcript the widget
             // can render: text messages keep their text, Flex messages surface a

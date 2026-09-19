@@ -71,11 +71,8 @@ export const registerWebhookRoutes = (app: Express): void => {
                 channel,
             };
             const botMessages = await resolveCommandReply(ctx);
-            const { linkUserRichMenu, queueTrayRestAfterReply } = await import('../line/rich-menu');
-            if (ctx.trayHighlight) {
-              void linkUserRichMenu(userId, ctx.userLanguage, channel?.channelId, ctx.trayHighlight, Boolean(ctx.trayRest?.salesSessionActive));
-            }
-            queueTrayRestAfterReply(userId, ctx.trayRest, channel?.channelId);
+            const { applyTrayAfterReply } = await import('../line/rich-menu');
+            applyTrayAfterReply(userId, ctx.userLanguage, channel?.channelId, ctx.trayHighlight, ctx.trayRest);
             return res.json(botMessages);
         } catch (error) {
             console.error('Error in webhook-test:', error);
