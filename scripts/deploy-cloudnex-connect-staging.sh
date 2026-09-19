@@ -51,10 +51,10 @@ if [ "$REMOTE_LOCK" != "$EXPECTED_LOCK" ]; then
 fi
 bash "$REMOTE_DIR/scripts/check-line-channels.sh" "$REMOTE_DIR/.env"
 cd "$REMOTE_DIR"
-docker rm -f cns-line-oa-staging >/dev/null 2>&1 || true
+docker rm -f cns-line-oa-staging cloudnex-connect-staging >/dev/null 2>&1 || true
 echo "[deploy] docker pull ${IMAGE}"
 docker pull "$IMAGE"
-DOCKER_IMAGE="$IMAGE" docker compose -f deploy/hostinger/docker-compose.staging.yml --env-file .env up -d --no-build --pull always
+DOCKER_IMAGE="$IMAGE" docker compose -f deploy/hostinger/docker-compose.staging.yml --env-file .env up -d --force-recreate --no-build --pull always
 for i in 1 2 3 4 5 6 7 8 9 10; do
   if curl -fsS http://127.0.0.1:8080/healthz >/dev/null; then
     break
