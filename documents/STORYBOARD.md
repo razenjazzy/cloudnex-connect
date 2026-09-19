@@ -3,6 +3,10 @@
 Screenshot capture list: `documents/USER_JOURNEY.md`. That book plus the live
 staging OA are the design freeze; this file is capability status, not shots.
 
+## Status as of 2026-09-19 (v5.0.1 staging)
+
+Contracted LINE OA v3 (dual OA, catalog carousel, C0–C5 / staff send-approve-invoice) is **built and deployed** on `https://amardhaka.io`. Remaining items are operator PNGs and Odoo-side apps (stock/pricelists), not missing bot code.
+
 ## Status as of 2026-09-07
 
 A step-by-step walkthrough of the actual Sales-user and customer journey as
@@ -196,10 +200,7 @@ working estimate:
 | Enterprise-grade hardening (auth, audit, step-up security) | **~95%** (was ~70%) | Step-up OTP (now covering the full quote lifecycle **and** `USER`/`SERVICE` CRUD), full admin-authorization chain, audit trail + archive, `ADMIN CONFIG` UI, ansible fallback-secret removal, `salesTier` Odoo-role gating, `tests/http-auth.test.ts`/`tests/action-otp-gate.test.ts` regression coverage, and Track A3's audit sweep (which found and fixed a real authorization bypass on `DAILY REPORT`/`SEGMENT CUSTOMERS`) are all shipped since this was last written (see `ENTERPRISE_ROADMAP.md` — security now scores 10/10). Remaining gap: Odoo-touching handlers still have no automated test coverage beyond live verification (a deliberate choice — no mocking pattern exists yet for `odoo.ts`, not introduced speculatively). |
 | UX consistency & polish | **~95%** (was ~50%) | Every item on this pass's list is now shipped: design-system pass, picker chips, the summary card, the per-card header consistency sweep, the `GUIDE` overhaul, and the rich-menu redesign (which also fixed a live, real bug — a broken button no real user could have used). Remaining: natural-language/fuzzy matching against real phrasing variety, and multi-channel broadcast outside a customer's Odoo-linked identity — both still explicitly not started, per the "Not built yet" list above. |
 
-**Overall: roughly 3/4 of the core sales journey is built and verified.**
-The remaining quarter splits between genuinely blocked items (Odoo
-configuration, not this codebase's job) and UX/polish work that's been
-scoped but not built yet.
+**Overall (v5.0.1):** contracted Sales + Customer OA journey is complete in code and on staging. Left: on-device USER_JOURNEY PNGs; Odoo stock/pricelists if those apps are installed later; NL fuzzy matching and extra broadcast (explicitly not in this cut).
 
 ---
 

@@ -1,6 +1,8 @@
 # User journey book — CloudNex Connect (LINE OA)
 
-Capture this on the **staging** Official Account (`https://amardhaka.io`) after `/healthz` is green and the compact rich menu is published. English is the default. Thai appears only after **Language**. Do not screenshot OTP codes or real customer PII; use dummy Odoo partners.
+**v5.0.1 code is frozen** on `https://amardhaka.io`. Remaining work in this book is on-device PNG capture only (no new LINE commands).
+
+Capture this on the **staging** Official Account after `/healthz` is green and the compact rich menu is published. English is the default. Thai appears only after **Language**. Do not screenshot OTP codes or real customer PII; use dummy Odoo partners.
 
 Each step: send the listed command (tray or button), confirm the expected UI, then save one PNG into `documents/journey/` using the filename. Chat plus the native tray should be visible when the tray is part of the step.
 
@@ -76,7 +78,7 @@ Footer **Send** and **More → Send Email** both open the same composer. Action 
 | C1 | Customer **Confirm** | Thank-you + Sales Order (View Quote \| Download + **Invoice**). Staff is pushed “customer approved” + Sales Order card (**Invoice \| Send Invoice**). No NAV HOME. Success uses the green square tick | `journey/c1-customer-approve.png` |
 | C2 | Staff **Confirm** on a *sent* quote (if C1 was skipped) | **Sales Order**. Body: **Invoice \| Send Invoice**. Footer: View Quote \| Download, More, Home | `journey/c2-sales-order-admin.png` |
 | C3 | Customer OA card after sale | **Sales Order**; Invoice in the body when a portal link exists. Footer Home + My quotations | `journey/c3-sales-order-customer.png` |
-| C4 | Staff **Invoice** (when invoice chip is To invoice) | Same Sales Order card; invoice chip updates. **Send Invoice** opens the composer. After send: status Flex + **NAV HOME**. Action Verify only on confirm-send. Cancel also ends with status + NAV HOME. | `journey/c4-invoice-staff.png` |
+| C4 | Staff **Invoice** (when invoice chip is To invoice) | Same Sales Order card; invoice chip updates. **Send Invoice** opens the composer. After send or cancel: **status Flex + journey card** (Home on the card). No catalog carousel. Action Verify only on confirm-send. | `journey/c4-invoice-staff.png` |
 
 Odoo analog: Send marks the quote sent; Confirm/Approve converts to sales order; Invoice / Send Invoice match the SO header. Not on LINE: e-sign, payment, delivery.
 
@@ -140,7 +142,7 @@ Drop files next to this doc:
 ![D4 Guide TH](journey/d4-guide-th.png)
 ![D5 Lang EN](journey/d5-lang-en.png)
 
-Staging files named here are observational guides; recapture after this work. Unmapped extras stay out of the book. After capture, commit only the journey filenames.
+In git today: `a3-verify`, `a4-products-quotes`, `b1`, `b4`, `b5`, `b6`, `b8`, `c1-customer-approve`, `c2-sales-order-admin`, `c4-invoice-staff`. Recapture those if they predate v5.0.1. Still needed: Customer C0–C5, A1–A2, A3 language, A5–A6, B2–B3, B9–B11, C3 customer SO, D1–D5. After capture, commit only the journey filenames.
 
 ---
 

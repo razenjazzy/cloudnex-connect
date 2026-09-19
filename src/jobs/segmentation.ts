@@ -3,10 +3,7 @@ import { sendTargetedMessage } from '../line/messaging';
 import { filterMarketingOptedInUserIds, getUserLanguage } from '../services/firestore';
 import { appLogger, createExecutionId } from '../services/logger';
 
-// This is a placeholder. In reality, we'd use Gemini 3.1 Pro to generate personalized copy
-// based on the specific segments that the user falls into.
-// Bilingual to match the rest of the product — a marketing message is the
-// one place this bot previously broke TH/EN parity.
+// Fixed bilingual templates (VIP / cart / dormant / general). Gemini is not required here.
 const generateMessageForSegment = (segment: string, language: 'th' | 'en'): string => {
     const th = {
         VIP: 'ขอบคุณที่อุดหนุนเราอย่างต่อเนื่องค่ะ รับส่วนลด 20% สำหรับสินค้าเข้าใหม่ก่อนใคร',
