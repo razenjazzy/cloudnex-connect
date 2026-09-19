@@ -183,4 +183,4 @@ These sit **on top of** LINE + Firestore + `resolveCommandReply`. They must not 
 
 ## Recommended next
 
-**v5.0.1** is the complete staging platform (live `https://amardhaka.io`). Product code is done. Operator-only leftovers: remaining USER_JOURNEY PNGs, apply `deploy/firestore.indexes.json` if the console asks, credential rotation, then `STAGING_VALIDATED=true PRODUCTION_APPROVED=true npm run deploy:prod`. Do not add a second router or a generic `src/app/core` rewrite.
+**v5.0.1** plus C0 home-identity gate (name/phone only after `odooVerified`). Staging live. Firestore index READY; SA-key org policy enforced. Production Cloud Run is still gated: no `deploy.env.production.yaml` in this workspace, `STAGING_VALIDATED`/`PRODUCTION_APPROVED` not in git. Operator: remaining USER_JOURNEY PNGs, credential rotation if tokens were pasted, then `STAGING_VALIDATED=true PRODUCTION_APPROVED=true npm run deploy:prod`. Do not add a second router or a generic `src/app/core` rewrite.

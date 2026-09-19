@@ -103,4 +103,23 @@ describe('customer home after VERIFY', () => {
     expect(json).toContain('Somchai');
     expect(json).toContain('0812345678');
   });
+
+  it('does not print LINE displayName before VERIFY (C0)', async () => {
+    const { homeMenuFromContext } = await import('../src/line/command-router');
+    const message = homeMenuFromContext({
+      userLanguage: 'en',
+      agentName: 'Sora',
+      profile: {
+        language: 'en',
+        role: 'user',
+        odooVerified: false,
+        marketingOptIn: false,
+        displayName: 'LINE Guest',
+        phone: '0810000000',
+      },
+    });
+    const json = JSON.stringify(message);
+    expect(json).not.toContain('LINE Guest');
+    expect(json).not.toContain('0810000000');
+  });
 });
