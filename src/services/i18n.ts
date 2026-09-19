@@ -69,6 +69,10 @@ export const UI_STRINGS = {
   sendViaEmail: { en: 'Send Email', th: 'ส่งอีเมล' },
   sendViaBoth: { en: 'Send both', th: 'ส่งทั้งคู่' },
   phoneField: { en: 'Phone', th: 'เบอร์โทร' },
+  quoteLineNotDelivered: {
+    en: 'LINE was not delivered. The partner needs a phone on the quotation, or the customer must open Cloudnex Customer.',
+    th: 'ส่งทาง LINE ไม่สำเร็จ ต้องมีเบอร์บนใบเสนอราคา หรือลูกค้าต้องเปิด Cloudnex Customer',
+  },
   quoteNotLinked: {
     en: 'This customer has not opened the Official Account yet. Share the Add friend link below or send email. They do not need VERIFY to receive it.',
     th: 'ลูกค้ายังไม่ได้เพิ่ม Official Account นี้ ส่งลิงก์เพิ่มเพื่อนด้านล่างหรือส่งอีเมล ลูกค้าไม่ต้อง VERIFY เพื่อรับใบเสนอราคา',

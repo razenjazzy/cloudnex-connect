@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { addSaleOrderLine, cancelSaleOrder, confirmSaleOrder, createInvoiceForSaleOrder, createQuotationFromLine, findOrderByReference, getSaleOrderById, updateSaleOrderLineQty } from '../src/services/odoo/sales';
+import { createServiceCatalogItem, deleteServiceCatalogItem, findProductsByQuery, getProductById, getServiceByIdentifier, listProducts, listServiceCatalogItems, updateServiceCatalogItem } from '../src/services/odoo/catalog';
+import { addSaleOrderLine, cancelSaleOrder, confirmSaleOrder, createInvoiceForSaleOrder, createQuotationFromLine, findOrderByReference, findPaymentTermByName, getSaleOrderById, getSaleOrderPdfLink, getSaleOrderPortalLink, updateSaleOrderLineQty } from '../src/services/odoo/sales';
+import { createPartnerFromLine, deletePartnerFromLine, getPartnerByName, getPartnerByPhone, updatePartnerFromLine } from '../src/services/odoo/partners';
 import { getOutgoingPickingForOrder } from '../src/services/odoo/delivery';
-import { createPartnerFromLine, deletePartnerFromLine, getPartnerByPhone, updatePartnerFromLine } from '../src/services/odoo/partners';
 import { getDailySalesSnapshot } from '../src/services/odoo/reporting';
-import { createServiceCatalogItem, deleteServiceCatalogItem, findProductsByQuery, getServiceByIdentifier, listServiceCatalogItems, updateServiceCatalogItem } from '../src/services/odoo/catalog';
 import { odooAdapter } from '../src/erp/odoo-adapter';
 import { getErpAdapter } from '../src/erp/registry';
 
@@ -11,7 +11,9 @@ vi.mock('../src/services/odoo/catalog', () => ({
   createServiceCatalogItem: vi.fn(),
   deleteServiceCatalogItem: vi.fn(),
   findProductsByQuery: vi.fn(),
+  getProductById: vi.fn(),
   getServiceByIdentifier: vi.fn(),
+  listProducts: vi.fn(),
   listServiceCatalogItems: vi.fn(),
   updateServiceCatalogItem: vi.fn(),
 }));
@@ -23,22 +25,28 @@ vi.mock('../src/services/odoo/sales', () => ({
   cancelSaleOrder: vi.fn(),
   createQuotationFromLine: vi.fn(),
   findOrderByReference: vi.fn(),
+  findPaymentTermByName: vi.fn(),
   getSaleOrderById: vi.fn(),
-}));
-vi.mock('../src/services/odoo/delivery', () => ({
-  getOutgoingPickingForOrder: vi.fn(),
+  getSaleOrderPdfLink: vi.fn(),
+  getSaleOrderPortalLink: vi.fn(),
+  sendQuotationEmail: vi.fn(),
 }));
 vi.mock('../src/services/odoo/partners', () => ({
   createPartnerFromLine: vi.fn(),
   deletePartnerFromLine: vi.fn(),
+  getPartnerByName: vi.fn(),
   getPartnerByPhone: vi.fn(),
   updatePartnerFromLine: vi.fn(),
+}));
+vi.mock('../src/services/odoo/delivery', () => ({
+  getOutgoingPickingForOrder: vi.fn(),
 }));
 vi.mock('../src/services/odoo/reporting', () => ({
   getDailySalesSnapshot: vi.fn(),
 }));
 
 const mockedFindProducts = vi.mocked(findProductsByQuery);
+const mockedListProducts = vi.mocked(listProducts);
 const mockedListServices = vi.mocked(listServiceCatalogItems);
 const mockedGetService = vi.mocked(getServiceByIdentifier);
 const mockedCreateService = vi.mocked(createServiceCatalogItem);
@@ -79,8 +87,9 @@ describe('Odoo ERP adapter', () => {
       { id: 1, name: 'Widget Pro', sku: 'WP-1', price: 125, quantity: 8, currency: 'THB' },
     ]);
     expect(mockedFindProducts).toHaveBeenCalledWith('widget', 5);
+    mockedListProducts.mockResolvedValue([]);
     await expect(odooAdapter.searchProducts('   ')).resolves.toEqual([]);
-    expect(mockedFindProducts).toHaveBeenCalledTimes(1);
+    expect(mockedListProducts).toHaveBeenCalled();
   });
 
   it('returns every match when a search term is ambiguous, instead of only the first', async () => {
@@ -209,6 +218,23 @@ describe('Odoo ERP adapter', () => {
 
     await expect(odooAdapter.getDeliveryStatus(42)).resolves.toEqual({ pickingName: 'WH/OUT/1', state: 'done' });
     expect(mockedGetPicking).toHaveBeenCalledWith('S0042');
+  });
+
+  it('looks up products, named partners, payment terms, and order links through the adapter', async () => {
+    vi.mocked(getProductById).mockResolvedValue({ id: 9, name: 'App', default_code: 'A1', list_price: 10, qty_available: 2 });
+    vi.mocked(getPartnerByName).mockResolvedValue({ id: 3, name: 'Somchai', phone: '081', email: 'a@b.c' });
+    vi.mocked(findPaymentTermByName).mockResolvedValue({ id: 7, name: 'Immediate' });
+    vi.mocked(getSaleOrderPortalLink).mockResolvedValue('https://odoo/portal');
+    vi.mocked(getSaleOrderPdfLink).mockResolvedValue('https://odoo/pdf');
+
+    await expect(odooAdapter.lookupProduct(9)).resolves.toEqual({
+      id: 9, name: 'App', sku: 'A1', price: 10, quantity: 2, currency: 'THB',
+    });
+    await expect(odooAdapter.lookupCustomerByName('Somchai')).resolves.toEqual({
+      id: 3, name: 'Somchai', phone: '081', email: 'a@b.c',
+    });
+    await expect(odooAdapter.findPaymentTermId('Immediate')).resolves.toBe(7);
+    await expect(odooAdapter.getOrderLinks(42)).resolves.toEqual({ portal: 'https://odoo/portal', pdf: 'https://odoo/pdf' });
   });
 
   it('selects Odoo by default and rejects unimplemented ERP providers', () => {

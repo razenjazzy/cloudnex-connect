@@ -1,6 +1,6 @@
 import { messagingApi } from '@line/bot-sdk';
 import { t } from '../../services/i18n';
-import { BRAND, createMessageActionButton, createPrefillButton, createTapRow, truncate, type ReportLanguage } from './shared';
+import { BRAND, createMessageActionButton, createPrefillButton, createTapRow, flexBubbleStyles, flexHeaderBox, truncate, type ReportLanguage } from './shared';
 import { SERVICE_ICON } from './navigation';
 import { getBrandTitle } from '../channels';
 import {
@@ -33,32 +33,24 @@ export const createGuideCategoriesFlexMessage = (language: ReportLanguage, _agen
   altText: language === 'en' ? `${getBrandTitle('en')} guide` : `คู่มือ ${getBrandTitle('th')}`,
   contents: {
     type: 'bubble',
-    styles: {
-      header: { backgroundColor: BRAND.teal },
-      body: { backgroundColor: BRAND.surface },
-      footer: { backgroundColor: BRAND.surface },
-    },
-    header: {
+    styles: flexBubbleStyles,
+    header: flexHeaderBox(
+      getBrandTitle(language),
+      language === 'en' ? 'Tap a topic to see its commands' : 'แตะหัวข้อเพื่อดูคำสั่ง',
+    ),
+    body: {
       type: 'box',
       layout: 'vertical',
-      paddingAll: 'md',
-      contents: [
-        { type: 'text', text: getBrandTitle(language), weight: 'bold', size: 'md', color: '#FFFFFF', wrap: true },
-        { type: 'text', text: language === 'en' ? 'Tap a topic to see its commands' : 'แตะหัวข้อเพื่อดูคำสั่ง', size: 'xs', color: '#DDEBE9', margin: 'xs', wrap: true },
-      ],
+      spacing: 'md',
+      paddingAll: 'lg',
+      contents: GUIDE_CATEGORY_ORDER.map(category =>
+        createTapRow(`${CATEGORY_ICON[category]} ${GUIDE_CATEGORY_LABELS[category][language]}`, `GUIDE ${category}`),
+      ),
     },
-      body: {
-        type: 'box',
-        layout: 'vertical',
-        spacing: 'sm',
-        paddingBottom: 'lg',
-        contents: GUIDE_CATEGORY_ORDER.map(category =>
-          createTapRow(`${CATEGORY_ICON[category]} ${GUIDE_CATEGORY_LABELS[category][language]}`, `GUIDE ${category}`),
-        ),
-      },
     footer: {
       type: 'box',
       layout: 'vertical',
+      paddingAll: 'lg',
       contents: [createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.goldTint)],
     },
   },
@@ -80,24 +72,16 @@ export const createGuideCategoryFlexMessage = (category: CommandCategoryKey, lan
         altText: truncate(`${getBrandTitle(language)} — ${label}`, 390),
     contents: {
       type: 'bubble',
-      styles: {
-        header: { backgroundColor: BRAND.teal },
-        body: { backgroundColor: BRAND.surface },
-        footer: { backgroundColor: BRAND.surface },
-      },
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'md',
-        contents: [
-          { type: 'text', text: `${CATEGORY_ICON[category]} ${label}`, weight: 'bold', size: 'md', color: '#FFFFFF', wrap: true },
-          { type: 'text', text: language === 'en' ? 'Tap to fill in, edit, then send' : 'แตะเพื่อกรอก แก้ไข แล้วส่งได้เลย', size: 'xs', color: '#DDEBE9', margin: 'xs', wrap: true },
-        ],
-      },
+      styles: flexBubbleStyles,
+      header: flexHeaderBox(
+        `${CATEGORY_ICON[category]} ${label}`,
+        language === 'en' ? 'Tap to fill in, edit, then send' : 'แตะเพื่อกรอก แก้ไข แล้วส่งได้เลย',
+      ),
       body: {
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
+        paddingAll: 'lg',
         contents: [
           ...(note ? [{ type: 'text' as const, text: note, size: 'xs' as const, color: BRAND.inkSoft, wrap: true, margin: 'md' as const }] : []),
           ...commands.map(cmd => (
@@ -111,6 +95,7 @@ export const createGuideCategoryFlexMessage = (category: CommandCategoryKey, lan
         type: 'box',
         layout: 'horizontal',
         spacing: 'md',
+        paddingAll: 'lg',
         contents: [
           { ...createMessageActionButton(language === 'en' ? 'Back' : 'ย้อนกลับ', 'GUIDE', 'secondary', BRAND.goldTint), flex: 1 },
           { ...createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.goldTint), flex: 1 },

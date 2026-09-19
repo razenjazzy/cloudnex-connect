@@ -11,6 +11,7 @@ import { generateOtp, generateLinkToken } from '../../services/user-verification
 import { isOtpGatedCommand } from '../../services/service-catalog';
 import { isQuoteStaff } from '../quote-access';
 import type { UserProfile } from '../../services/firestore';
+import { auditWrite, commandPrefixForAudit } from '../../services/write-audit';
 
 export const isGatedMutation = isOtpGatedCommand;
 
@@ -57,10 +58,15 @@ const actionOtpGateHandler: CommandHandler = {
     });
 
     if (!created.ok) {
-      // A transient Firestore error creating the challenge itself — logged
-      // server-side already. Ask the user to retry rather than silently
-      // either blocking the action forever or bypassing the gate.
       console.warn('action-otp-gate: challenge creation failed:', created.error);
+      auditWrite({
+        action: 'approval_requested',
+        outcome: 'failure',
+        actorUserId: userId,
+        channelId: channel?.channelId || DEFAULT_CHANNEL_ID,
+        requestId: ctx.requestId,
+        detail: commandPrefixForAudit(originalText),
+      });
       return [botText(
         tr(userLanguage, 'ลองอีกครั้ง', 'Please try again'),
         tr(userLanguage, 'ไม่สามารถเริ่มการยืนยันได้ในขณะนี้ กรุณาลองคำสั่งเดิมอีกครั้ง', 'Could not start verification right now. Please retry the same action.'),
@@ -68,6 +74,15 @@ const actionOtpGateHandler: CommandHandler = {
         'error',
       )];
     }
+
+    auditWrite({
+      action: 'approval_requested',
+      outcome: 'success',
+      actorUserId: userId,
+      channelId: channel?.channelId || DEFAULT_CHANNEL_ID,
+      requestId: ctx.requestId,
+      detail: commandPrefixForAudit(originalText),
+    });
 
     const origin = (process.env.PUBLIC_BASE_URL?.trim() || baseUrl || '').replace(/\/$/, '');
     const link = origin ? `${origin}/verify/action?token=${encodeURIComponent(linkToken)}` : '';
@@ -97,6 +112,16 @@ const actionVerifyHandler: CommandHandler = {
     const consumed = await consumeActionOtpChallenge({ userId, otpCode: code });
     if (!consumed.ok || !consumed.data) {
       const reason = consumed.error || '';
+      if (reason.includes('action_otp_locked') || reason.includes('action_otp_expired') || reason.includes('action_otp_invalid') || reason.includes('action_otp_not_found')) {
+        auditWrite({
+          action: 'approval_rejected',
+          outcome: 'failure',
+          actorUserId: userId,
+          channelId: ctx.channel?.channelId,
+          requestId: ctx.requestId,
+          detail: reason.includes('locked') ? 'locked' : reason.includes('expired') ? 'expired' : 'invalid',
+        });
+      }
       // Only these three are genuine "the code itself didn't work" outcomes
       // — anything else (a Firestore error, a missing index, a transient
       // failure) must not be reported as "invalid code", which would
@@ -128,6 +153,14 @@ const actionVerifyHandler: CommandHandler = {
     }
 
     await setLastActionOtpAt(userId);
+    auditWrite({
+      action: 'approval_approved',
+      outcome: 'success',
+      actorUserId: userId,
+      channelId: ctx.channel?.channelId,
+      requestId: ctx.requestId,
+      detail: commandPrefixForAudit(consumed.data.pendingCommandText),
+    });
     const { resolveCommandReply } = await import('../command-router');
     // ctx.profile is a plain snapshot from this request, not a live
     // reference — replaying with the stale profile (no lastActionOtpAt)

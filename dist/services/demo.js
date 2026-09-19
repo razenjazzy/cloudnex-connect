@@ -8,6 +8,7 @@ const base_repository_1 = require("../infra/mongo/base-repository");
 const service_modules_1 = require("../platform/service-modules");
 const env_1 = require("../http/env");
 const odoo_1 = require("./odoo");
+const seed_odoo_1 = require("./seed-odoo");
 const isLineConfigured = () => {
     const accessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim() || '';
     const secret = process.env.LINE_CHANNEL_SECRET?.trim() || '';
@@ -35,7 +36,7 @@ const safePingOdoo = async () => {
 };
 const safeSeedOdoo = async () => {
     try {
-        return await (0, odoo_1.seedOdooSampleSalesData)();
+        return await (0, seed_odoo_1.seedOdooSampleSalesDataWithAudit)('demo');
     }
     catch (error) {
         return `Odoo seed failed: ${String(error)}`;

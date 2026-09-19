@@ -152,7 +152,10 @@ export type AuditAction =
     | 'approval_approved'
     | 'approval_rejected'
     | 'approval_expired'
-    | 'approval_completed';
+    | 'approval_completed'
+    | 'pricing_config_update'
+    | 'demo_session_rotate'
+    | 'sample_data_seed';
 
 export type AuditOutcome = 'success' | 'failure';
 

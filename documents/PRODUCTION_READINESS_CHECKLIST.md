@@ -29,6 +29,7 @@ Cloud Run (`release.yml`) is optional `workflow_dispatch` only. Railway variable
 - [x] `staging-vps.yml` does **not** use `secrets.*` in `job.if` (invalid workflow). Gate is `vars.ENABLE_STAGING_VPS_DEPLOY == 'true'`.
 - [ ] `npm run preflight:staging` against a real staging YAML manifest if Cloud Run is used.
 - [ ] Optional: `npm run smoke -- https://amardhaka.io` after a deploy.
+- [ ] `npm run validate:staging` after each VPS pull (`/demo` HTML, session-gated APIs, `appEnv=staging`).
 
 ## GitHub (VPS Actions, optional)
 
@@ -70,6 +71,6 @@ Required Cloud Run secret mappings are validated by `scripts/validate-cutover.sh
 1. Commit the reviewed snapshot (never `.env`).
 2. `npm test` && `npm run lint` && `npx tsc --noEmit`.
 3. `npm run deploy:staging-vm` **or** enable `ENABLE_STAGING_VPS_DEPLOY` and push `main`.
-4. Confirm `https://amardhaka.io/healthz` and `/readyz`.
+4. Confirm `https://amardhaka.io/healthz` and `/readyz`, then `npm run validate:staging`.
 5. Obtain USER_JOURNEY signoff.
 6. Production only after demo/webhook-test off and credential rotation.

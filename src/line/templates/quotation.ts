@@ -3,7 +3,7 @@ import type { OdooSaleOrder } from '../../services/odoo/types';
 import type { ErpDeliveryStatus } from '../../erp/adapter';
 import { t, tFill, stateLabel, invoiceStatusLabel, type Lang } from '../../services/i18n';
 import { bindPostbackData } from '../postback';
-import { BRAND, createDatePickerButton, createMessageActionButton, createPrefillButton, createUriActionButton, formatMoney, truncate } from './shared';
+import { BRAND, createDatePickerButton, createMessageActionButton, createPrefillButton, createUriActionButton, flexBubbleStyles, flexHeaderBox, formatMoney, truncate } from './shared';
 
 const tr = (language: Lang, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -184,25 +184,13 @@ export const createQuotationJourneyFlexMessage = (
     altText: truncate(`${t('quotation', language)} ${order.name} — ${customerName} — ${formatMoney(order.amount_total, language)}`, 390),
     contents: {
       type: 'bubble',
-      styles: {
-        header: { backgroundColor: BRAND.teal },
-        body: { backgroundColor: BRAND.surface },
-        footer: { backgroundColor: BRAND.surface },
-      },
-        header: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'md',
-        contents: [
-          { type: 'text', text: order.name, weight: 'bold', size: 'lg', color: '#FFFFFF', wrap: true },
-          { type: 'text', text: `${t('customer', language)}: ${customerName}`, size: 'xs', color: '#DDEBE9', margin: 'xs', wrap: true },
-        ],
-      },
+      styles: flexBubbleStyles,
+      header: flexHeaderBox(order.name, `${t('customer', language)}: ${customerName}`),
       body: {
         type: 'box',
         layout: 'vertical',
         spacing: 'md',
-        paddingBottom: 'lg',
+        paddingAll: 'lg',
         contents: [
           statusRow,
           ...(invoiceChip ? [invoiceChip] : []),
@@ -258,6 +246,7 @@ export const createQuotationJourneyFlexMessage = (
         type: 'box',
         layout: 'vertical',
         spacing: 'md',
+        paddingAll: 'lg',
         contents: footerContents.length
           ? footerContents.slice(0, 3)
           : [{ type: 'text', text: ' ', size: 'xs', color: BRAND.surface }],
@@ -302,17 +291,9 @@ export const createQuotationMoreFlexMessage = (
     altText: truncate(`${t('moreActions', language)} ${order.name}`, 390),
     contents: {
       type: 'bubble',
-      styles: { header: { backgroundColor: BRAND.teal }, body: { backgroundColor: BRAND.surface }, footer: { backgroundColor: BRAND.surface } },
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'md',
-        contents: [
-          { type: 'text', text: t('moreActions', language), weight: 'bold', size: 'md', color: '#FFFFFF' },
-          { type: 'text', text: order.name, size: 'xs', color: '#DDEBE9', margin: 'xs' },
-        ],
-      },
-      body: { type: 'box', layout: 'vertical', spacing: 'md', paddingBottom: 'lg', contents: rows },
+      styles: flexBubbleStyles,
+      header: flexHeaderBox(t('moreActions', language), order.name),
+      body: { type: 'box', layout: 'vertical', spacing: 'md', paddingAll: 'lg', contents: rows },
     },
   };
 };
@@ -355,21 +336,13 @@ export const createQuotationEditFlexMessage = (
     altText: truncate(`${tr(language, 'แก้ไขใบเสนอราคา', 'Edit Quote')} ${order.name}`, 390),
     contents: {
       type: 'bubble',
-      styles: { header: { backgroundColor: BRAND.teal }, body: { backgroundColor: BRAND.surface }, footer: { backgroundColor: BRAND.surface } },
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'md',
-        contents: [
-          { type: 'text', text: tr(language, 'แก้ไขใบเสนอราคา', 'Edit Quote'), weight: 'bold', size: 'md', color: '#FFFFFF' },
-          { type: 'text', text: order.name, size: 'xs', color: '#DDEBE9', margin: 'xs' },
-        ],
-      },
+      styles: flexBubbleStyles,
+      header: flexHeaderBox(tr(language, 'แก้ไขใบเสนอราคา', 'Edit Quote'), order.name),
       body: {
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
-        paddingBottom: 'lg',
+        paddingAll: 'lg',
         contents: [
           { type: 'text', text: tr(language, 'แตะรายการเพื่อแก้จำนวน เพิ่มหรือลบด้านล่าง', 'Tap a line to change qty. Add or remove below.'), size: 'xs', color: BRAND.inkSoft, wrap: true },
           ...lineRows,
@@ -379,6 +352,7 @@ export const createQuotationEditFlexMessage = (
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
+        paddingAll: 'lg',
         contents: [
           createPrefillButton(t('addItem', language), `QUOTE ADD ${order.id} `, 'primary', BRAND.teal),
           createMessageActionButton(t('back', language), `QUOTE MORE ${order.id}`, 'secondary', BRAND.goldTint),
@@ -428,21 +402,13 @@ export const createQuoteSendComposerFlexMessage = (
     },
     contents: {
       type: 'bubble',
-      styles: { header: { backgroundColor: BRAND.teal }, body: { backgroundColor: BRAND.surface }, footer: { backgroundColor: BRAND.surface } },
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'md',
-        contents: [
-          { type: 'text', text: title, weight: 'bold', size: 'md', color: '#FFFFFF' },
-          { type: 'text', text: order.name, size: 'xs', color: '#DDEBE9', margin: 'xs' },
-        ],
-      },
+      styles: flexBubbleStyles,
+      header: flexHeaderBox(title, order.name),
       body: {
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
-        paddingBottom: 'lg',
+        paddingAll: 'lg',
         contents: [
           { type: 'text', text: `${t('customer', language)}: ${customerName}`, size: 'sm', color: BRAND.ink, wrap: true },
           { type: 'text', text: `${t('phoneField', language)}: ${phone || '—'}`, size: 'sm', color: BRAND.ink, wrap: true },
@@ -457,6 +423,7 @@ export const createQuoteSendComposerFlexMessage = (
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
+        paddingAll: 'lg',
         contents: [
           {
             type: 'box',
@@ -494,27 +461,16 @@ export const createQuotationListFlexMessage = (
     altText: truncate(t('myQuotations', language), 390),
     contents: {
       type: 'bubble',
-      styles: {
-        header: { backgroundColor: BRAND.teal },
-        body: { backgroundColor: BRAND.surface },
-        footer: { backgroundColor: BRAND.surface },
-      },
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'md',
-        contents: [
-          { type: 'text', text: t('myQuotations', language), weight: 'bold', size: 'md', color: '#FFFFFF', wrap: true },
-          { type: 'text', text: orders.length
-            ? tFill('listTapHint', language, { n: orders.length })
-            : t('noQuotationsYet', language), size: 'xs', color: '#DDEBE9', margin: 'xs', wrap: true },
-        ],
-      },
+      styles: flexBubbleStyles,
+      header: flexHeaderBox(
+        t('myQuotations', language),
+        orders.length ? tFill('listTapHint', language, { n: orders.length }) : t('noQuotationsYet', language),
+      ),
       body: {
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
-        paddingBottom: 'lg',
+        paddingAll: 'lg',
         contents: orders.length
           ? orders.map(order => {
               const kind = order.state === 'sale' || order.state === 'done' ? t('orderKind', language) : t('quotation', language);
@@ -555,6 +511,7 @@ export const createQuotationListFlexMessage = (
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
+        paddingAll: 'lg',
         contents: [
           { type: 'box', layout: 'horizontal', spacing: 'md', contents: [
             { ...createDatePickerButton(t('dateFrom', language), bindPostbackData('quote.list.from', userId)), flex: 1 },

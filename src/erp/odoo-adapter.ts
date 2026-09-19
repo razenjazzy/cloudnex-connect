@@ -1,6 +1,6 @@
-import { createServiceCatalogItem, deleteServiceCatalogItem, findProductsByQuery, getServiceByIdentifier, listServiceCatalogItems, updateServiceCatalogItem } from '../services/odoo/catalog';
-import { addSaleOrderLine, cancelSaleOrder, confirmSaleOrder, createInvoiceForSaleOrder, createQuotationFromLine, findOrderByReference, getSaleOrderById, removeSaleOrderLine, sendQuotationEmail, updateSaleOrderLineQty } from '../services/odoo/sales';
-import { createPartnerFromLine, deletePartnerFromLine, getPartnerByPhone, updatePartnerFromLine } from '../services/odoo/partners';
+import { createServiceCatalogItem, deleteServiceCatalogItem, findProductsByQuery, getProductById, getServiceByIdentifier, listProducts, listServiceCatalogItems, updateServiceCatalogItem } from '../services/odoo/catalog';
+import { addSaleOrderLine, cancelSaleOrder, confirmSaleOrder, createInvoiceForSaleOrder, createQuotationFromLine, findOrderByReference, findPaymentTermByName, getSaleOrderById, getSaleOrderPdfLink, getSaleOrderPortalLink, removeSaleOrderLine, sendQuotationEmail, updateSaleOrderLineQty } from '../services/odoo/sales';
+import { createPartnerFromLine, deletePartnerFromLine, getPartnerByName, getPartnerByPhone, updatePartnerFromLine } from '../services/odoo/partners';
 import { getDailySalesSnapshot } from '../services/odoo/reporting';
 import { getOutgoingPickingForOrder } from '../services/odoo/delivery';
 import type { OdooProduct } from '../services/odoo/types';
@@ -54,9 +54,9 @@ export const odooAdapter: ErpAdapter = {
   },
   async searchProducts(query: string, limit = 10): Promise<ErpProduct[]> {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) return [];
-
-    const products = await findProductsByQuery(normalized, limit);
+    const products = normalized
+      ? await findProductsByQuery(normalized, limit)
+      : await listProducts(limit);
     return products.map(toErpProduct);
   },
   async listServices(limit = 10): Promise<ErpService[]> {
@@ -154,6 +154,28 @@ export const odooAdapter: ErpAdapter = {
     return rows.length
       ? rows.map(row => `${row.product}: ${row.salesYesterday} sold, ${row.stock} in stock, ${row.revenueYesterday} revenue`).join('\n')
       : null;
+  },
+  async lookupProduct(productId: number): Promise<ErpProduct | null> {
+    const product = await getProductById(productId);
+    return product ? toErpProduct(product) : null;
+  },
+  async lookupCustomerByName(name: string): Promise<ErpPartner | null> {
+    const partner = await getPartnerByName(name.trim());
+    return partner ? { id: partner.id, name: partner.name, phone: partner.phone, email: partner.email } : null;
+  },
+  async findPaymentTermId(query: string): Promise<number | null> {
+    const term = await findPaymentTermByName(query);
+    return term?.id ?? null;
+  },
+  async getOrderLinks(orderId: number): Promise<{ portal?: string; pdf?: string }> {
+    const [portal, pdf] = await Promise.all([
+      getSaleOrderPortalLink(orderId),
+      getSaleOrderPdfLink(orderId),
+    ]);
+    return {
+      ...(portal ? { portal } : {}),
+      ...(pdf ? { pdf } : {}),
+    };
   },
   permissionFor: permissionForAction,
 };

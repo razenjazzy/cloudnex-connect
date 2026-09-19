@@ -161,36 +161,26 @@ These sit **on top of** LINE + Firestore + `resolveCommandReply`. They must not 
 
 ### Phase 2 — ERP adapter contract
 
-- create the ERP interface layer
-- keep Odoo as the first implementation
-- define extension points for future ERP providers
+- Done: `src/erp/adapter.ts` + `odoo-adapter.ts` via `getErpAdapter()`. Handlers must not call Odoo RPC directly.
 
 ### Phase 3 — command grid and UX config
 
-- define command metadata registry
-- add role/channel visibility
-- add approval and write gating
-- extend LINE Flex menu generation from the registry
+- Done (metadata + gates): `src/line/command-grid.ts` for identity/admin/nav/guest visibility and Sales-OA-only admin commands.
+- Service action menus still come from `SERVICE_CATALOG` (same Flex as today).
+- Write OTP remains `requiresOtp` on `COMMAND_PREFIX_SERVICE_MAP`.
 
 ### Phase 4 — enterprise security enhancement
 
-- add write approval pipeline
-- add audit/event logging for every change
-- enforce config traceability
-- keep fail-closed handling for admin and ops endpoints
+- Done: Action OTP is the write-approval pipeline (`approval_requested` / `approval_approved` / `approval_rejected` in the audit log). QUOTE APPROVE remains the customer approval store.
+- Done: Config writes (feature toggles, pricing model, demo-session rotate, sample seed) emit `recordAuditEvent` without secrets or OTP codes.
+- Ops/admin HTTP stays fail-closed (`requireOpsToken` / `adminOnly`).
 
 ### Phase 5 — validation and release discipline
 
-- staging validation first
-- production only after signoff
-- maintain a clean commit boundary between dev and deploy branches
+- Done: `npm run validate:staging` checks live `https://amardhaka.io` (healthz `appEnv=staging`, readyz, `/demo` HTML+CSP, `/demo/connections` session-gated).
+- Done: `npm run deploy:prod` requires `STAGING_VALIDATED=true` and `PRODUCTION_APPROVED=true` (`scripts/require-production-signoff.sh`). Cloud Run cutover uses the same flags. Staging VPS workflow runs the live gate after pull.
+- Commit boundary: CI on every push; VPS staging on `main` when enabled; Cloud Run production is `workflow_dispatch` only after staging job + `deploy_production=true`. Never commit `.env`.
 
-## Recommended next implementation branch
+## Recommended next
 
-The next repo-standard implementation should focus on three artifacts:
-
-1. an ERP adapter contract
-2. a command registry model
-3. a staging-safe deploy allowlist
-
-Those are the core items that convert this app from a service bot into a reusable enterprise integration platform.
+Staging is the live lane (`npm run deploy:staging-vm`, then `npm run validate:staging`). Remaining work is on-device [USER_JOURNEY.md](USER_JOURNEY.md) C0–C5 / S1–S4, credential rotation, then `STAGING_VALIDATED=true PRODUCTION_APPROVED=true npm run deploy:prod`. Do not add a second router or a generic `src/app/core` rewrite.

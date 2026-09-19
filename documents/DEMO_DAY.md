@@ -1,6 +1,6 @@
-# Demo day — 5 September 2026
+# Demo day — 19 September 2026
 
-Presenter script for a walkable architecture demo. Live surface: `/demo`. Web chat uses the same `resolveCommandReply` as LINE.
+Presenter script for a walkable architecture demo. Live surface: `https://amardhaka.io/demo`. Web chat uses the same `resolveCommandReply` as LINE.
 
 ## Do not say
 
@@ -14,24 +14,30 @@ Firestore holds LINE identity, PDPA, guided-form `pendingFlow`, group-buy sessio
 
 ## Talk track (about 12 minutes)
 
-1. Open `/demo`. If production-gated, log in with `DEMO_CONTROL_TOKEN`. Point at **Refresh Connections**: LINE, Firestore, Odoo. Mongo may be “not configured” — that is fine.
+1. Open `/demo`. You should see the HTML panel, not JSON. Paste `DEMO_CONTROL_TOKEN` (or `OPS_API_TOKEN` if they are the same), click **Login Session**, then **Refresh Connections**: LINE, Firestore, Odoo. Mongo may be “not configured” — that is fine.
 2. Open **Interactive Bot — Web Chat**. Send any first message. Expect PDPA + home menu. Same router as `POST /webhook`.
-3. Use **Try “create a quote”** or type `FORM QUOTE CREATE`. Complete the guided fields. A real `sale.order` is created when Odoo is up. Mutations still need step-up OTP for verified users on LINE.
+3. Use **Try “create a quote”** or type `FORM QUOTE CREATE`. Complete the guided fields. A real `sale.order` is created when Odoo is up. On LINE, identity VERIFY comes first; staff mutations still need Action Verify (step-up OTP) on the final write.
 4. Click **Run Full Simulation Flow**. Walk the journey steps: seed, partner, product, quotation readback.
-5. Optional read-only: `PRODUCT FIND App` via `/webhook-test` (sync; never enable async LINE on this demo host unless Redis + `npm run worker` are running).
-6. Ops add-ons, not the bot: `/readyz`, `/ops/platform`, `/api-docs` and `POST /graphql` (`healthz` public; `platformModules` / `platformStatus` / `kpi` need ops token). Do not send LINE webhooks here.
-7. If `MONGO_VECTOR_ENABLED` is off, skip FAQ. If on, unmatched chat may search embeddings after Gemini; `FEEDBACK GOOD` upserts Q/A into `chat_embeddings`.
-8. Close: admin chain is LINE identity → Firestore profile → `odooVerified` → `ADMIN_USER_ID` allowlist → Odoo admin capability → `role = admin`.
+5. **Role privilege (live):** type `VERIFY STATUS` — this is Odoo identity, not admin. Then type `ADMIN ENABLE`. It stays fail-closed unless this LINE user is on `ADMIN_USER_ID` **and** Odoo reports admin capability. Do not call a verified customer “admin.”
+6. Optional read-only: `PRODUCT FIND App` via `/webhook-test` (sync).
+7. Ops add-ons, not the bot: `/readyz`, `/ops/platform`, `/api-docs` and `POST /graphql` (`healthz` public; `platformModules` / `platformStatus` / `kpi` need ops token). Do not send LINE webhooks here.
+8. If `MONGO_VECTOR_ENABLED` is off, skip FAQ. If on, unmatched chat may search embeddings after Gemini; `FEEDBACK GOOD` upserts Q/A into `chat_embeddings`.
+9. Close: admin chain is LINE identity → Firestore profile → `odooVerified` → `ADMIN_USER_ID` allowlist → Odoo admin capability → `role = admin`. Fail closed.
+
+**Async LINE (BullMQ) stays off** unless Redis and a long-lived worker are running. Do not enable it on scale-to-zero for this demo. Staging compose already sets `LINE_WEBHOOK_ASYNC=false` and `RUN_BULLMQ_WORKER=false`.
 
 ## Commands worth typing live
 
 | Command | Why |
 |---|---|
 | `NAV HOME` | Channel-gated Flex menu |
-| `FORM PRODUCT FIND` | Catalog search in Odoo |
+| `NAV commerce` | Sales actions or customer shop |
+| `FORM PRODUCT FIND` | Catalog search in Odoo (staff) |
 | `FORM QUOTE CREATE` | Commerce write path |
 | `QUOTE LIST` | Readback |
+| `QUOTE SEND <id>` | LINE / email / both to Customer OA |
 | `VERIFY STATUS` | Identity, not admin |
+| `ADMIN ENABLE` | Role privilege; fails closed off the allowlist |
 | `SKILLS` | Markdown skills cannot override TS commands |
 
 ## Module map

@@ -34,6 +34,17 @@ export const buildCspHeader = (): string =>
     "frame-ancestors 'none'",
   ].join('; ');
 
+/** Demo control panel HTML: inline script + same-origin fetch. JSON /demo APIs still use the strict header. */
+export const buildDemoCspHeader = (): string =>
+  [
+    "default-src 'none'",
+    "script-src 'unsafe-inline'",
+    "style-src 'unsafe-inline'",
+    "img-src 'self' data:",
+    "connect-src 'self'",
+    "frame-ancestors 'none'",
+  ].join('; ');
+
 /** Swagger UI needs inline scripts/styles and data: images. Applied only on /api-docs. */
 export const buildSwaggerCspHeader = (): string =>
   [

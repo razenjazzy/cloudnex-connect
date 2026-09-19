@@ -28,15 +28,11 @@ docker build --platform linux/amd64 -f deploy/docker/Dockerfile -t "$IMAGE" "$RO
 echo "[deploy] docker push ${IMAGE}"
 docker push "$IMAGE"
 
-rsync -az --delete \
+echo "[deploy] rsync staging allowlist (never .env, never --delete)"
+rsync -az \
+  --files-from="$ROOT/deploy/staging-rsync.allowlist" \
   --exclude '.env' \
   --exclude '.env.*' \
-  --exclude '.git' \
-  --exclude 'node_modules' \
-  --exclude 'dist' \
-  --exclude '.cursor' \
-  --exclude '.claude' \
-  --exclude 'agent-transcripts' \
   -e "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new" \
   "$ROOT/" \
   "$HOST:$REMOTE/"

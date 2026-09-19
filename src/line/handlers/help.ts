@@ -1,9 +1,9 @@
 import type { CommandHandler } from './index';
-import { buildHomeMenuMessage } from '../command-router';
-import { hasActiveSalesSession } from '../../services/sales-session';
+import { homeMenuFromContext } from '../command-router';
 import { buildCommandKeywordGuidance, isGuideCommand, parseGuideCategoryKey } from '../command-guide';
 import { createBotTextFlexMessage, createGuideCategoriesFlexMessage, createGuideCategoryFlexMessage } from '../templates';
-import { pingOdoo, seedOdooSampleSalesData } from '../../services/odoo';
+import { pingOdoo } from '../../services/odoo';
+import { seedOdooSampleSalesDataWithAudit } from '../../services/seed-odoo';
 import { setEscalationState } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
 
@@ -36,7 +36,7 @@ const homeMenuHandler: CommandHandler = {
   name: 'help-home',
   match: (u) => ['เริ่มต้น', 'START', 'HELP', 'OPTIONS', 'MENU'].includes(u),
   handle: async (ctx) =>
-    [buildHomeMenuMessage(ctx.userLanguage, ctx.agentName, ctx.channel, ctx.profile.role === 'admin', hasActiveSalesSession(ctx.profile))],
+    [homeMenuFromContext(ctx)],
 };
 
 // FEATURES — list bot capabilities
@@ -70,7 +70,7 @@ const runDemoJourneyHandler: CommandHandler = {
   handle: async (ctx) => {
     const { userLanguage, agentName } = ctx;
     const odooStatus = await pingOdoo();
-    const seedStatus = await seedOdooSampleSalesData();
+    const seedStatus = await seedOdooSampleSalesDataWithAudit(ctx.userId, ctx.channel?.channelId, ctx.requestId);
     const intro = tr(userLanguage, `${agentName} เตรียมสภาพแวดล้อมเดโมให้แล้วค่ะ`, `${agentName} prepared your demo environment.`);
     return [botText(
       `${intro}\n\n${tr(userLanguage, 'สถานะ Odoo:', 'Odoo:')} ${odooStatus}\n${tr(userLanguage, 'ผลการสร้างข้อมูลตัวอย่าง:', 'Seed:')} ${seedStatus}\n\n${buildJourneyMessage(userLanguage, agentName)}`,
@@ -151,7 +151,7 @@ export const buildKeywordGuidanceMessages = (
   if (!guidance) return null;
   return [
     botText(guidance, ctx.userLanguage),
-    buildHomeMenuMessage(ctx.userLanguage, ctx.agentName, ctx.channel, ctx.profile.role === 'admin', hasActiveSalesSession(ctx.profile)),
+    homeMenuFromContext(ctx),
   ];
 };
 

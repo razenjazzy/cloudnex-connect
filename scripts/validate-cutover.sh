@@ -73,6 +73,11 @@ if [ "$DEPLOY_ENV" = "production" ]; then
     exit 1
   fi
 
+  if [ "${STAGING_VALIDATED:-false}" != "true" ]; then
+    echo "[validate-cutover] STAGING_VALIDATED=true is required (npm run validate:staging first)." >&2
+    exit 1
+  fi
+
   if [ "${ALLOW_UNAUTHENTICATED:-false}" = "true" ]; then
     echo "[validate-cutover] ALLOW_UNAUTHENTICATED=true is not allowed for production." >&2
     exit 1

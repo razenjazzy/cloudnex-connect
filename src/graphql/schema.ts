@@ -4,7 +4,7 @@ import { listRecentAuditEventsPage } from '../services/firestore';
 import { parseAuditLogFilters, decodeAuditCursor } from '../services/audit-query';
 import { runAuditRotationJob } from '../jobs/audit-rotation';
 import { runDailyReport } from '../jobs/daily-report';
-import { seedOdooSampleSalesData } from '../services/odoo';
+import { seedOdooSampleSalesDataWithAudit } from '../services/seed-odoo';
 import { ensureDemoSessionStateLoaded, rotateDemoSessionSecret } from '../http/demo-session';
 import { buildWorkflowAudit } from '../http/workflow-audit';
 import { demoSessionRotateGraceDefaultMinutes, isOpsJobsAsync } from '../http/env';
@@ -150,7 +150,7 @@ const Mutation = new GraphQLObjectType({
       resolve: async (_src, _args, ctx: GraphqlContext) => {
         requireAdmin(ctx);
         return runOrEnqueueJob('seed-odoo', async () => {
-          const status = await seedOdooSampleSalesData();
+          const status = await seedOdooSampleSalesDataWithAudit('graphql');
           return { ok: true, message: status };
         });
       },

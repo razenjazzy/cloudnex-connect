@@ -7,7 +7,6 @@ import {
   getUserProfile,
   recordAuditEvent,
   setUserOdooPartner,
-  setUserContactPhone,
   setUserOdooVerificationStatus,
   setUserSalesTier,
   UserLanguage,
@@ -124,7 +123,6 @@ export const startOdooUserVerification = async (input: StartVerificationInput): 
 
   const partner = await getPartnerByPhone(phone);
   if (!partner) {
-    await setUserContactPhone(input.userId, phone);
     return {
       message: tr(
         input.language,
@@ -289,14 +287,13 @@ export const verifyOdooUserByToken = async (token: string): Promise<{ ok: boolea
   });
   const profile = await getUserProfile(consumed.data.userId);
   const channel = resolveChannelConfig(consumed.data.channelId || DEFAULT_CHANNEL_ID);
-  const { buildHomeMenuMessage } = await import('../line/command-router');
-  const home = buildHomeMenuMessage(
-    language,
-    getAgentName(language),
-    channel ? { channelId: channel.channelId, enabledServices: channel.enabledServices } : undefined,
-    profile.role === 'admin',
-    true,
-  );
+  const { homeMenuFromContext } = await import('../line/command-router');
+  const home = homeMenuFromContext({
+    userLanguage: language,
+    agentName: getAgentName(language),
+    channel: channel ? { channelId: channel.channelId, enabledServices: channel.enabledServices } : undefined,
+    profile: { ...profile, odooVerified: true },
+  });
   await sendTargetedFlexMessage([consumed.data.userId], successCard, consumed.data.channelId);
   if (home.type === 'flex') {
     await sendTargetedFlexMessage([consumed.data.userId], home, consumed.data.channelId);

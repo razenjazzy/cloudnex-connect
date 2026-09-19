@@ -15,17 +15,22 @@ const sliceHandler = (source: string, name: string, nextName: string) => {
 describe('quote journey home and approve', () => {
   it('does not auto-home after send (waiting for approval)', () => {
     const send = sliceHandler(quotation, 'quote-send-confirm', 'quote-more');
-    expect(send).not.toContain('buildHomeMenuMessage');
+    expect(send).not.toContain('homeMenuFromContext');
   });
 
   it('does not auto-home after create invoice or staff confirm', () => {
-    expect(sliceHandler(quotation, 'quote-invoice', 'quote-list')).not.toContain('buildHomeMenuMessage');
-    expect(sliceHandler(quotation, 'quote-confirm', 'quote-send-options')).not.toContain('buildHomeMenuMessage');
+    expect(sliceHandler(quotation, 'quote-invoice', 'quote-list')).not.toContain('homeMenuFromContext');
+    expect(sliceHandler(quotation, 'quote-confirm', 'quote-send-options')).not.toContain('homeMenuFromContext');
   });
 
-  it('homes only after invoice send confirm or cancel', () => {
-    expect(sliceHandler(quotation, 'quote-invoice-send-confirm', 'quote-invoice')).toContain('buildHomeMenuMessage');
-    expect(sliceHandler(quotation, 'quote-cancel', 'quote-invoice-send')).toContain('buildHomeMenuMessage');
+  it('appends NAV commerce after send, invoice send, cancel, and approve', () => {
+    expect(sliceHandler(quotation, 'quote-send-confirm', 'quote-more')).toContain('withCommerceMenu');
+    expect(sliceHandler(quotation, 'quote-invoice-send-confirm', 'quote-invoice')).toContain('withCommerceMenu');
+    expect(sliceHandler(quotation, 'quote-cancel', 'quote-invoice-send')).toContain('withCommerceMenu');
+    expect(sliceHandler(quotation, 'quote-approve', 'quote-add')).toContain('withCommerceMenu');
+    expect(sliceHandler(quotation, 'quote-approve', 'quote-add')).toContain('salesIntro');
+    expect(sliceHandler(quotation, 'quote-invoice-send-confirm', 'quote-invoice')).not.toContain('homeMenuFromContext');
+    expect(sliceHandler(quotation, 'quote-cancel', 'quote-invoice-send')).not.toContain('homeMenuFromContext');
   });
 
   it('notifies sales on approve without auto-home', () => {

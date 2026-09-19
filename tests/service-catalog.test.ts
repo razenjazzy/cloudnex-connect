@@ -70,6 +70,10 @@ describe('getAvailableServices', () => {
     expect(getAvailableServices(undefined, true)).toHaveLength(SERVICE_CATALOG.length);
   });
 
+  it('keeps customers on commerce only', () => {
+    expect(getAvailableServices(undefined, false, false).map(s => s.key)).toEqual(['commerce']);
+  });
+
   it('drops entirely admin-gated services for a non-admin', () => {
     const available = getAvailableServices(undefined, false);
     expect(available.map(s => s.key)).not.toContain('reporting');
@@ -100,6 +104,18 @@ describe('getVisibleCommands', () => {
   it('shows every command to an admin', () => {
     const directory = SERVICE_CATALOG.find(s => s.key === 'directory')!;
     expect(getVisibleCommands(directory, true)).toEqual(directory.commands);
+  });
+
+  it('keeps customers on shop commands only', () => {
+    const commerce = SERVICE_CATALOG.find(s => s.key === 'commerce')!;
+    expect(getVisibleCommands(commerce, false, false).map(c => c.text)).toEqual(['QUOTE LIST']);
+    expect(getVisibleCommands(commerce, true, true).map(c => c.text)).toEqual([
+      'FORM PRODUCT FIND',
+      'FORM QUOTE CREATE',
+      'FORM ORDER STATUS',
+      'QUOTE LIST',
+      'FORM MESSAGE CUSTOMER',
+    ]);
   });
 });
 

@@ -3,7 +3,7 @@ import { resolveChannelConfig, resolveEffectiveChannelContext } from '../line/ch
 import { processLineMessageJob } from '../line/process-message';
 import { runDailyReport } from './daily-report';
 import { runAuditRotationJob } from './audit-rotation';
-import { seedOdooSampleSalesData } from '../services/odoo';
+import { seedOdooSampleSalesDataWithAudit } from '../services/seed-odoo';
 import { bullmqPrefix } from '../http/env';
 import { appLogger } from '../services/logger';
 import { bullmqConnection, isQueueBackendReady, type LineEventJob, type OpsJobPayload } from './queue';
@@ -52,7 +52,7 @@ export const startQueueWorkers = (): Worker[] => {
       return;
     }
     if (name === 'seed-odoo') {
-      await seedOdooSampleSalesData();
+      await seedOdooSampleSalesDataWithAudit(actor || 'queue');
       return;
     }
     if (name === 'audit-rotate') {

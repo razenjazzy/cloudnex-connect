@@ -1,6 +1,6 @@
 import type { Express } from 'express';
 import { runDailyReport } from '../jobs/daily-report';
-import { seedOdooSampleSalesData } from '../services/odoo';
+import { seedOdooSampleSalesDataWithAudit } from '../services/seed-odoo';
 import { adminOnly } from '../services/admin-token-auth';
 import { jsonParser, opsJobLimiter } from './middleware';
 import { isOpsJobsAsync } from './env';
@@ -52,7 +52,7 @@ export const registerJobsRoutes = (app: Express): void => {
     app.post('/jobs/seed-odoo', jsonParser, adminOnly, opsJobLimiter, async (_req, res) => {
         try {
             const outcome = await runJob('seed-odoo', async () => {
-                return seedOdooSampleSalesData();
+                return seedOdooSampleSalesDataWithAudit('ops');
             });
             if (typeof outcome.body === 'string') return res.status(outcome.status).send(outcome.body);
             return res.status(outcome.status).json(outcome.body);

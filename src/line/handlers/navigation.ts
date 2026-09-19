@@ -1,9 +1,10 @@
 import { messagingApi } from '@line/bot-sdk';
 import type { CommandHandler } from './index';
-import { buildHomeMenuMessage } from '../command-router';
-import { hasActiveSalesSession } from '../../services/sales-session';
+import { homeMenuFromContext } from '../command-router';
 import { getServiceDefinition, getVisibleCommands, isServiceEnabledForChannel } from '../../services/service-catalog';
 import { createServiceActionFlexMessage } from '../templates';
+import { isQuoteStaff } from '../quote-access';
+import { commerceFollowUpMessages } from '../commerce-followup';
 
 const tr = (language: string, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -11,7 +12,7 @@ const tr = (language: string, th: string, en: string): string => (language === '
 const navHomeHandler: CommandHandler = {
   name: 'nav-home',
   match: (u) => u === 'NAV HOME' || u === 'NAV' || u === 'BACK',
-  handle: async (ctx) => [buildHomeMenuMessage(ctx.userLanguage, ctx.agentName, ctx.channel, ctx.profile.role === 'admin', hasActiveSalesSession(ctx.profile))],
+  handle: async (ctx) => [homeMenuFromContext(ctx)],
 };
 
 // NAV <serviceKey> — show service-specific action panel
@@ -30,17 +31,23 @@ const navServiceHandler: CommandHandler = {
 
     const serviceDef = getServiceDefinition(key);
     const isAdmin = profile.role === 'admin';
-    const visibleCommands = serviceDef ? getVisibleCommands(serviceDef, isAdmin) : [];
+    const isStaff = isQuoteStaff(profile);
+    const visibleCommands = serviceDef ? getVisibleCommands(serviceDef, isAdmin, isStaff) : [];
 
     if (!serviceDef || !isServiceEnabledForChannel(serviceDef.key, channel) || !visibleCommands.length) {
       return [{ type: 'text', text: tr(userLanguage, `${agentName} ไม่พบบริการนี้`, `${agentName} service not found.`) } as messagingApi.TextMessage];
     }
 
-    return [createServiceActionFlexMessage(
+    const actionMenu = createServiceActionFlexMessage(
       userLanguage === 'en' ? serviceDef.labelEn : serviceDef.labelTh,
       visibleCommands.map(c => ({ text: c.text, label: userLanguage === 'en' ? c.labelEn : c.labelTh })),
       userLanguage,
-    )];
+    );
+    if (key === 'commerce') {
+      const follow = await commerceFollowUpMessages(ctx, 2);
+      if (follow.length) return follow;
+    }
+    return [actionMenu];
   },
 };
 

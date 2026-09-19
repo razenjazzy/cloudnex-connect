@@ -194,7 +194,8 @@ describe('QUOTE_SEND and INVOICE_SEND flows', () => {
     expect(FLOW_SPECS.QUOTE_SEND.buildFinalCommand({ orderId: '17', channel: 'LINE' })).toBe('QUOTE SEND CONFIRM 17 LINE');
     expect(FLOW_SPECS.QUOTE_SEND.buildFinalCommand({ orderId: '17', channel: 'EMAIL', email: 'a@b.com', template: 'Hello' })).toBe('QUOTE SEND CONFIRM 17 EMAIL a@b.com | Hello');
     expect(FLOW_SPECS.INVOICE_SEND.buildFinalCommand({ orderId: '17', channel: 'BOTH', email: 'a@b.com' })).toBe('QUOTE INVOICE SEND CONFIRM 17 BOTH a@b.com');
-    expect(getFlowByStartCommand('FORM QUOTE SEND')?.key).toBe('QUOTE_SEND');
+    expect(FLOW_SPECS.QUOTE_SEND.fields.find(f => f.key === 'email')?.skipWhen?.({ channel: 'LINE' })).toBe(true);
+    expect(FLOW_SPECS.QUOTE_SEND.fields.find(f => f.key === 'email')?.skipWhen?.({ channel: 'EMAIL' })).toBe(false);
     expect(getFlowByStartCommand('FORM INVOICE SEND')?.key).toBe('INVOICE_SEND');
   });
 });

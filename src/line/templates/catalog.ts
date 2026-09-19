@@ -1,6 +1,6 @@
 import { messagingApi } from '@line/bot-sdk';
 import { t } from '../../services/i18n';
-import { BRAND, createMessageActionButton, createTapRow, formatMoney, truncate, type ReportLanguage } from './shared';
+import { BRAND, createMessageActionButton, createTapRow, flexBubbleStyles, flexHeaderBox, formatMoney, truncate, type ReportLanguage } from './shared';
 
 /**
  * PRODUCT FIND <query> shown when the search matched more than one
@@ -17,35 +17,28 @@ export const createProductPickerFlexMessage = (
   altText: language === 'en' ? `${products.length} products found` : `พบสินค้า ${products.length} รายการ`,
   contents: {
     type: 'bubble',
-    styles: {
-      header: { backgroundColor: BRAND.teal },
-      body: { backgroundColor: BRAND.surface },
-      footer: { backgroundColor: BRAND.surface },
-    },
-    header: {
-      type: 'box',
-      layout: 'vertical',
-      paddingAll: 'md',
-      contents: [
-        { type: 'text', text: language === 'en' ? 'Multiple products matched' : 'พบสินค้าหลายรายการ', weight: 'bold', size: 'md', color: '#FFFFFF', wrap: true },
-        { type: 'text', text: language === 'en' ? 'Tap the one you meant' : 'แตะเลือกสินค้าที่ต้องการ', size: 'xs', color: '#DDEBE9', margin: 'xs', wrap: true },
-      ],
-    },
+    styles: flexBubbleStyles,
+    header: flexHeaderBox(
+      language === 'en' ? 'Multiple products matched' : 'พบสินค้าหลายรายการ',
+      language === 'en' ? 'Tap the one you meant' : 'แตะเลือกสินค้าที่ต้องการ',
+    ),
     body: {
       type: 'box',
       layout: 'vertical',
-      spacing: 'sm',
+      spacing: 'md',
+      paddingAll: 'lg',
       contents: products.map(product => createTapRow(
         product.price !== undefined ? `${product.name} — ${formatMoney(product.price, language)}` : product.name,
         `PRODUCT FIND ${product.name}`,
         BRAND.tealTint,
         BRAND.tealStrong,
-        'sm',
+        'md',
       )),
     },
     footer: {
       type: 'box',
       layout: 'vertical',
+      paddingAll: 'lg',
       contents: [createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.goldTint)],
     },
   },
@@ -57,25 +50,13 @@ export const createProductCardFlexMessage = (productName: string, price: number,
     altText: truncate(language === 'en' ? `Product: ${productName}` : `สินค้า: ${productName}`, 390),
     contents: {
       type: 'bubble',
-      styles: {
-        header: { backgroundColor: BRAND.teal },
-        body: { backgroundColor: BRAND.surface },
-        footer: { backgroundColor: BRAND.surface },
-      },
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'md',
-        contents: [
-          { type: 'text', text: t('productDetail', language), color: '#FFFFFF', weight: 'bold', size: 'md', wrap: true },
-          { type: 'text', text: t('productNext', language), color: '#DDEBE9', size: 'xs', margin: 'xs', wrap: true },
-        ],
-      },
+      styles: flexBubbleStyles,
+      header: flexHeaderBox(t('productDetail', language), t('productNext', language)),
       body: {
         type: 'box',
         layout: 'vertical',
         spacing: 'md',
-        paddingBottom: 'lg',
+        paddingAll: 'lg',
         contents: [
           { type: 'text', text: productName, weight: 'bold', size: 'xl', color: BRAND.ink, wrap: true },
           {
@@ -115,6 +96,7 @@ export const createProductCardFlexMessage = (productName: string, price: number,
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
+        paddingAll: 'lg',
         contents: [
           createMessageActionButton(t('createQuote', language), 'FORM QUOTE CREATE FROM CARD', 'primary', BRAND.teal),
           {
@@ -132,31 +114,36 @@ export const createProductCardFlexMessage = (productName: string, price: number,
   };
 };
 
+export const createProductCarouselFlexMessage = (
+  products: { name: string; price?: number; quantity?: number }[],
+  language: ReportLanguage,
+): messagingApi.FlexMessage => ({
+  type: 'flex',
+  altText: language === 'en' ? `${products.length} products` : `สินค้า ${products.length} รายการ`,
+  contents: {
+    type: 'carousel',
+    contents: products.slice(0, 10).map(product =>
+      (createProductCardFlexMessage(product.name, product.price || 0, product.quantity || 0, language).contents as messagingApi.FlexBubble),
+    ),
+  },
+});
+
 export const createOrderSummaryFlexMessage = (total: number, language: ReportLanguage = 'en', orderId?: number): messagingApi.FlexMessage => {
   return {
     type: 'flex',
     altText: language === 'en' ? 'Order summary' : 'สรุปคำสั่งซื้อ',
     contents: {
       type: 'bubble',
-      styles: {
-        header: { backgroundColor: BRAND.teal },
-        body: { backgroundColor: BRAND.surface },
-        footer: { backgroundColor: BRAND.surface },
-      },
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'md',
-        contents: [
-          { type: 'text', text: language === 'en' ? 'Quotation created' : 'สร้างใบเสนอราคาแล้ว', weight: 'bold', size: 'md', color: '#FFFFFF', wrap: true },
-          { type: 'text', text: language === 'en' ? 'Summary and next steps' : 'สรุปและขั้นตอนถัดไป', size: 'xs', color: '#DDEBE9', margin: 'xs', wrap: true },
-        ],
-      },
+      styles: flexBubbleStyles,
+      header: flexHeaderBox(
+        language === 'en' ? 'Quotation created' : 'สร้างใบเสนอราคาแล้ว',
+        language === 'en' ? 'Summary and next steps' : 'สรุปและขั้นตอนถัดไป',
+      ),
       body: {
         type: 'box',
         layout: 'vertical',
         spacing: 'md',
-        paddingBottom: 'lg',
+        paddingAll: 'lg',
         contents: [
           {
             type: 'box',
@@ -176,6 +163,7 @@ export const createOrderSummaryFlexMessage = (total: number, language: ReportLan
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
+        paddingAll: 'lg',
         contents: [
           createMessageActionButton(
             t('checkOrder', language),

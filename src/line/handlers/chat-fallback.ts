@@ -15,9 +15,7 @@
 import { messagingApi } from '@line/bot-sdk';
 import { processChatMessage } from '../../services/chat';
 import { createBotTextFlexMessage } from '../templates';
-import { buildHomeMenuMessage } from '../command-router';
-import { hasActiveSalesSession } from '../../services/sales-session';
-import type { CommandReplyContext } from '../command-router';
+import { homeMenuFromContext, type CommandReplyContext } from '../command-router';
 import { getEscalationState } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
 import { searchSimilarFaqs } from '../../infra/mongo/embeddings';
@@ -58,7 +56,7 @@ const materializeMessages = (
 export const handleChatFallback = async (
   ctx: CommandReplyContext,
 ): Promise<messagingApi.Message[]> => {
-  const { userId, text, userLanguage, agentName, channel, profile } = ctx;
+  const { userId, text, userLanguage, agentName, channel } = ctx;
 
   // While escalated (HUMAN command, or the AI's own judgment call), step
   // aside instead of auto-replying — a real person is expected to be
@@ -92,7 +90,7 @@ export const handleChatFallback = async (
     }
     return [
       ...materializeMessages(chatResult.messages, userLanguage),
-      buildHomeMenuMessage(userLanguage, agentName, channel, profile.role === 'admin', hasActiveSalesSession(profile)),
+      homeMenuFromContext(ctx),
     ];
   }
 

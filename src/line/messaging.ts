@@ -11,27 +11,33 @@ const getClient = (channelId: string): messagingApi.MessagingApiClient | null =>
   return new messagingApi.MessagingApiClient({ channelAccessToken: channelConfig.channelAccessToken });
 };
 
-const sendTargetedMessages = async (userIds: string[], messages: messagingApi.Message[], channelId: string = DEFAULT_CHANNEL_ID) => {
+const sendTargetedMessages = async (userIds: string[], messages: messagingApi.Message[], channelId: string = DEFAULT_CHANNEL_ID): Promise<boolean> => {
   const client = getClient(channelId);
   if (!client) {
     appLogger.warn('line_client_missing_for_targeted_send', { channelId, userCount: userIds.length });
-    return;
+    return false;
   }
 
-  // LINE multicast API accepts up to 500 user IDs at a time
   const chunks = [];
   for (let i = 0; i < userIds.length; i += 500) {
       chunks.push(userIds.slice(i, i + 500));
   }
 
+  let ok = true;
   for (const chunk of chunks) {
       try {
-          await client.multicast({ to: chunk, messages });
+          if (chunk.length === 1) {
+            await client.pushMessage({ to: chunk[0], messages });
+          } else {
+            await client.multicast({ to: chunk, messages });
+          }
           appLogger.info('line_multicast_sent', { channelId, userCount: chunk.length });
       } catch (error) {
+          ok = false;
           appLogger.error('line_multicast_failed', { channelId, error: String(error) });
       }
   }
+  return ok;
 };
 
 export const sendTargetedMessage = async (userIds: string[], text: string, channelId: string = DEFAULT_CHANNEL_ID) => {

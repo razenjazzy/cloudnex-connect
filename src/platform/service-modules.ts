@@ -1,3 +1,5 @@
+import { getCommandGridPayload } from '../line/command-grid';
+
 export type ServiceModuleStore = 'firestore' | 'odoo' | 'mongo' | 'line' | 'none';
 
 export type ServiceModule = {
@@ -24,7 +26,7 @@ export const SERVICE_MODULES: ServiceModule[] = [
     status: 'live',
     entry: 'src/line/handlers/verification.ts',
     commands: ['VERIFY START', 'VERIFY OTP', 'VERIFY STATUS', 'ADMIN ENABLE', 'MY DATA', 'DELETE MY DATA'],
-    demoTalkTrack: 'First message shows PDPA + home. VERIFY START by phone binds LINE to an Odoo partner; ADMIN ENABLE still requires the allowlist.',
+    demoTalkTrack: 'VERIFY STATUS is identity, not admin. ADMIN ENABLE fails closed unless LINE id is on ADMIN_USER_ID and Odoo reports admin capability.',
   },
   {
     id: 'commerce',
@@ -124,7 +126,7 @@ export const SERVICE_MODULES: ServiceModule[] = [
     status: 'live',
     entry: 'src/line/handlers/admin.ts',
     commands: ['ADMIN VERIFY', 'ADMIN ENABLE', 'ADMIN CONFIG', 'ADMIN CHANNEL', 'ADMIN ACCESS', 'ADMIN AUDIT ROTATE'],
-    demoTalkTrack: 'Allowlist plus Odoo admin capability. ADMIN CONFIG edits channel services through the existing CHANNEL SERVICES command.',
+    demoTalkTrack: 'Allowlist plus Odoo admin capability. ADMIN ENABLE is Sales OA only; Customer OA cannot grant admin.',
   },
   {
     id: 'sales',
@@ -149,14 +151,14 @@ export const SERVICE_MODULES: ServiceModule[] = [
 ];
 
 export const DEMO_DAY_SCRIPT: string[] = [
-  'Open /demo — first LINE-equivalent chat message shows home menu.',
-  'Refresh connections: LINE, Firestore, Odoo. Mongo is optional and unused for ERP.',
-  'Run Full Simulation Flow: pricing + Odoo journey (partner, product, quotation readback).',
-  'Web chat: FORM QUOTE CREATE or PRODUCT FIND — same resolveCommandReply as LINE.',
-  'Send PRODUCT FIND via /webhook-test (read-only in production).',
-  'Show QUOTE LIST / journey card actions if Odoo has the draft.',
-  'Ops: /healthz, /readyz, GET /ops/platform. Optional /api-docs and GraphQL — not LINE.',
-  'Close: identity chain LINE → odooVerified → ADMIN_USER_ID → Odoo admin capability.',
+  'Open /demo, paste DEMO_CONTROL_TOKEN, click Login Session. Then Refresh Connections.',
+  'Connections: LINE, Firestore, Odoo. Mongo may be not configured — that is fine.',
+  'Web chat first message: PDPA + home. Same resolveCommandReply as POST /webhook.',
+  'FORM QUOTE CREATE (or Try create a quote). Identity VERIFY on LINE; Action Verify on the write.',
+  'Run Full Simulation Flow: partner, product, quotation readback.',
+  'Role privilege: VERIFY STATUS is not admin. ADMIN ENABLE needs ADMIN_USER_ID then Odoo admin capability.',
+  'Optional: PRODUCT FIND App via /webhook-test. Ops: /readyz, /ops/platform, /api-docs, GraphQL — not LINE.',
+  'Close: LINE identity → Firestore profile → odooVerified → ADMIN_USER_ID → Odoo admin → role=admin. Fail closed.',
 ];
 
 export const getServiceModules = (): ServiceModule[] => SERVICE_MODULES;
@@ -167,6 +169,7 @@ export const getDemoPlatformPayload = () => ({
   generatedAt: new Date().toISOString(),
   modules: getServiceModules(),
   demoDayScript: getDemoDayScript(),
+  commandGrid: getCommandGridPayload(),
   stores: {
     firestore: 'LINE identity, PDPA, pendingFlow, group-buy sessions, audit, chat history',
     odoo: 'Partners, products, quotations — via getErpAdapter() only',

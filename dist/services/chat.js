@@ -21,6 +21,39 @@
  *   CLAWFRAMEWORK_ENABLED=true  → enables bridge subprocess
  *   NODE_ENV === 'production'   → bridge is NEVER used (hard guard)
  */
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -168,7 +201,7 @@ const functionDeclarations = [
     },
     {
         name: 'createOrder',
-        description: 'Create an order for the user.',
+        description: 'Create a draft Odoo sales quotation (sale.order in draft) when the customer asks for a quote or to place an order.',
         parametersJsonSchema: {
             type: 'object',
             properties: {
@@ -212,7 +245,7 @@ const heuristicFallback = async (userText, isThai, agentName) => {
 // ---------------------------------------------------------------------------
 // processGeminiResponse — handle Gemini parts and function calls
 // ---------------------------------------------------------------------------
-const processGeminiResponse = async (response, userId, isThai, agentName) => {
+const processGeminiResponse = async (response, userId, isThai, agentName, channelId) => {
     const parts = (response?.candidates?.[0]?.content?.parts || []);
     const messages = [];
     let aiTextResponse = '';
@@ -248,13 +281,27 @@ const processGeminiResponse = async (response, userId, isThai, agentName) => {
                     const quotation = await (0, sales_1.createQuotationFromLine)(partnerName, profile.phone || '', odooProduct.name, qty, profile.odooPartnerId);
                     const total = quotation?.total ?? (odooProduct.list_price * qty);
                     aiTextResponse += quotation
-                        ? `[Quotation ${quotation.orderName} for ${qty}x ${odooProduct.name}]`
+                        ? `[Draft quotation ${quotation.orderName} for ${qty}x ${odooProduct.name}]`
                         : `[Order summary for ${qty}x ${odooProduct.name}]`;
                     messages.push((0, templates_1.createOrderSummaryFlexMessage)(total, isThai ? 'th' : 'en', quotation?.orderId));
                     if (quotation) {
                         messages.push({ type: 'text', text: isThai
-                                ? `${agentName} สร้างใบเสนอราคาใน Odoo แล้ว เลขที่ ${quotation.orderName}`
-                                : `${agentName} created an Odoo quotation: ${quotation.orderName}` });
+                                ? `${agentName} สร้างใบเสนอราคาฉบับร่างใน Odoo แล้ว เลขที่ ${quotation.orderName}`
+                                : `${agentName} created a draft Odoo quotation: ${quotation.orderName}` });
+                        if (channelId) {
+                            const { getSaleOrderById } = await Promise.resolve().then(() => __importStar(require('./odoo')));
+                            const { notifyQuoteParties } = await Promise.resolve().then(() => __importStar(require('../line/quote-notify')));
+                            const order = await getSaleOrderById(quotation.orderId);
+                            if (order) {
+                                await notifyQuoteParties({
+                                    order,
+                                    channelId,
+                                    actorUserId: userId,
+                                    notifyCustomer: false,
+                                    notifySales: true,
+                                });
+                            }
+                        }
                     }
                 }
                 else {
@@ -280,7 +327,7 @@ const processGeminiResponse = async (response, userId, isThai, agentName) => {
 // ---------------------------------------------------------------------------
 // Main export — processChatMessage
 // ---------------------------------------------------------------------------
-const processChatMessage = async (userId, userText, language) => {
+const processChatMessage = async (userId, userText, language, channelId) => {
     const agentName = (0, channels_1.getAgentName)(language);
     const isThai = language === 'th';
     // AI disabled globally — skip straight to heuristic
@@ -327,7 +374,7 @@ const processChatMessage = async (userId, userText, language) => {
             }
             if (!response)
                 throw lastError || new Error('No response from GenAI');
-            const { messages, aiTextResponse } = await processGeminiResponse(response, userId, isThai, agentName);
+            const { messages, aiTextResponse } = await processGeminiResponse(response, userId, isThai, agentName, channelId);
             ai_circuit_breaker_1.geminiCircuit.recordSuccess();
             if (messages.length === 0) {
                 await (0, firestore_1.saveConversationMessage)(userId, 'model', 'Fallback.');

@@ -136,6 +136,14 @@ export const oaChatDeepLink = (channelId: string): string | undefined => {
   return `https://line.me/R/ti/p/${id}`;
 };
 
+/** Opens the OA chat with a prefilled command after add-friend. */
+export const oaPrefillDeepLink = (channelId: string, text: string): string | undefined => {
+  const raw = resolveBasicId(channelId);
+  if (!raw) return undefined;
+  const id = raw.startsWith('@') ? raw : `@${raw}`;
+  return `https://line.me/R/oaMessage/${id}/?text=${encodeURIComponent(text)}`;
+};
+
 const channelServiceOverrideKey = (channelId: string): string => `channelServices:${channelId}`;
 
 /**

@@ -56,6 +56,7 @@ export type FlowFieldSpec = {
    * separate value/label distinction needed.
    */
   loadOptions?: (collected?: Record<string, string>) => Promise<string[]>;
+  skipWhen?: (collected: Record<string, string>) => boolean;
   loadDefault?: () => Promise<string | undefined>;
   widget?: 'text' | 'list' | 'date' | 'toggle';
   /**
@@ -114,7 +115,7 @@ export const FLOW_SPECS: Record<FlowKey, FlowSpec> = {
     labelTh: 'ยืนยันตัวตน',
     labelEn: 'Verify your account',
     fields: [
-      { key: 'phone', promptTh: 'เบอร์โทรที่ผูกกับ Odoo?', promptEn: 'Phone number on file in Odoo?', validate: isPhoneLike },
+      { key: 'phone', promptTh: 'เบอร์โทรที่ผูกกับบัญชี?', promptEn: 'Phone number on your account?', validate: isPhoneLike },
     ],
     buildFinalCommand: (c) => `VERIFY START ${c.phone}`,
   },
@@ -273,8 +274,8 @@ export const FLOW_SPECS: Record<FlowKey, FlowSpec> = {
     labelEn: 'Send quotation',
     fields: [
       { key: 'channel', promptTh: 'ส่งทาง LINE, EMAIL หรือ BOTH?', promptEn: 'Send via LINE, EMAIL, or BOTH?', validate: (value) => /^(LINE|EMAIL|BOTH)$/i.test(value.trim()), loadOptions: async () => ['LINE', 'EMAIL', 'BOTH'] },
-      { key: 'email', promptTh: 'อีเมลลูกค้า (SKIP ถ้าส่ง LINE อย่างเดียว)?', promptEn: "Customer email (SKIP if LINE only)?", optional: true, validate: isEmailLike },
-      { key: 'template', promptTh: 'แก้ไขข้อความอีเมล (SKIP เพื่อใช้ต้นฉบับ)?', promptEn: 'Edit the email body (SKIP to keep the template)?', optional: true, validate: isNonEmpty },
+      { key: 'email', promptTh: 'อีเมลลูกค้า (เลือกที่บันทึกไว้หรือพิมพ์ใหม่)?', promptEn: 'Customer email (use the saved address or type a new one)?', optional: true, validate: isEmailLike, loadOptions: async (collected) => collected?.savedEmail ? [collected.savedEmail] : [], skipWhen: (c) => (c.channel || '').toUpperCase() === 'LINE' },
+      { key: 'template', promptTh: 'แก้ไขข้อความ (SKIP เพื่อใช้ต้นฉบับ)?', promptEn: 'Edit the message (SKIP to keep the template)?', optional: true, validate: isNonEmpty },
     ],
     buildFinalCommand: (c) => `QUOTE SEND CONFIRM ${c.orderId} ${(c.channel || 'BOTH').toUpperCase()}${c.email ? ` ${c.email}` : ''}${c.template ? ` | ${c.template}` : ''}`,
   },
@@ -286,8 +287,8 @@ export const FLOW_SPECS: Record<FlowKey, FlowSpec> = {
     labelEn: 'Send invoice',
     fields: [
       { key: 'channel', promptTh: 'ส่งทาง LINE, EMAIL หรือ BOTH?', promptEn: 'Send via LINE, EMAIL, or BOTH?', validate: (value) => /^(LINE|EMAIL|BOTH)$/i.test(value.trim()), loadOptions: async () => ['LINE', 'EMAIL', 'BOTH'] },
-      { key: 'email', promptTh: 'อีเมลลูกค้า (SKIP ถ้าส่ง LINE อย่างเดียว)?', promptEn: "Customer email (SKIP if LINE only)?", optional: true, validate: isEmailLike },
-      { key: 'template', promptTh: 'แก้ไขข้อความอีเมล (SKIP เพื่อใช้ต้นฉบับ)?', promptEn: 'Edit the email body (SKIP to keep the template)?', optional: true, validate: isNonEmpty },
+      { key: 'email', promptTh: 'อีเมลลูกค้า (เลือกที่บันทึกไว้หรือพิมพ์ใหม่)?', promptEn: 'Customer email (use the saved address or type a new one)?', optional: true, validate: isEmailLike, loadOptions: async (collected) => collected?.savedEmail ? [collected.savedEmail] : [], skipWhen: (c) => (c.channel || '').toUpperCase() === 'LINE' },
+      { key: 'template', promptTh: 'แก้ไขข้อความ (SKIP เพื่อใช้ต้นฉบับ)?', promptEn: 'Edit the message (SKIP to keep the template)?', optional: true, validate: isNonEmpty },
     ],
     buildFinalCommand: (c) => `QUOTE INVOICE SEND CONFIRM ${c.orderId} ${(c.channel || 'BOTH').toUpperCase()}${c.email ? ` ${c.email}` : ''}${c.template ? ` | ${c.template}` : ''}`,
   },

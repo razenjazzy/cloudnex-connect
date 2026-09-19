@@ -134,9 +134,11 @@ describe('parseOrderIdAndProductName', () => {
 });
 
 describe('sendChannelSummary', () => {
-  it('does not claim LINE sent when the customer is not an OA friend', () => {
-    expect(sendChannelSummary('en', { customerLineId: null, emailed: false }, 'line')).toMatch(/Add friend/i);
-    expect(sendChannelSummary('en', { customerLineId: null, emailed: true }, 'both')).toMatch(/email/i);
-    expect(sendChannelSummary('en', { customerLineId: 'U1', emailed: false }, 'line')).toMatch(/Waiting for customer approval/i);
+  it('tells the seller LINE send succeeded even before the customer is a Customer OA friend', () => {
+    expect(sendChannelSummary('en', { customerLineId: null, emailed: false, lineQueued: true }, 'line')).toMatch(/Waiting for customer approval/i);
+    expect(sendChannelSummary('en', { customerLineId: null, emailed: true, lineQueued: true }, 'both')).toMatch(/LINE and by email/i);
+    expect(sendChannelSummary('en', { customerLineId: 'U1', emailed: false, lineQueued: false }, 'line')).toMatch(/Waiting for customer approval/i);
+    expect(sendChannelSummary('en', { customerLineId: null, emailed: false, lineQueued: false }, 'line')).toMatch(/LINE was not delivered/i);
+    expect(sendChannelSummary('en', { customerLineId: null, emailed: false }, 'line')).toMatch(/LINE was not delivered/i);
   });
 });

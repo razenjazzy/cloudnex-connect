@@ -128,5 +128,9 @@ export type ErpAdapter = {
   getDeliveryStatus: (orderId: number) => Promise<ErpDeliveryStatus | null>;
   getDailySnapshot: () => Promise<ErpDailySnapshotRow[]>;
   getDailySummary: () => Promise<string | null>;
+  lookupProduct: (productId: number) => Promise<ErpProduct | null>;
+  lookupCustomerByName: (name: string) => Promise<ErpPartner | null>;
+  findPaymentTermId: (query: string) => Promise<number | null>;
+  getOrderLinks: (orderId: number) => Promise<{ portal?: string; pdf?: string }>;
   permissionFor: (action: ErpWriteAction) => ErpPermission;
 };

@@ -1,5 +1,6 @@
 import type { ChannelContext } from '../line/channels';
 import { getPlatformConfig, setPlatformConfig } from './firestore';
+import { auditWrite } from './write-audit';
 import type { ServiceKey } from './service-catalog';
 
 export const FEATURE_TOGGLES_CONFIG_KEY = 'salesFeatureTogglesV1';
@@ -163,5 +164,14 @@ export const replaceFeatureToggles = async (
 
   cache = next;
   await persistCache();
+  auditWrite({
+    action: 'sales_feature_toggle',
+    outcome: 'success',
+    actorUserId: 'config',
+    detail: Object.entries(patch)
+      .filter(([, value]) => typeof value === 'boolean')
+      .map(([key, value]) => `${key}:${value ? 'on' : 'off'}`)
+      .join(','),
+  });
   return { toggles: describeAllFeatureToggles(channel), refused };
 };

@@ -55,10 +55,10 @@ describe('rich menu SVG type', () => {
     expect(svg).toContain('>Products &amp; Quotes<');
     expect(svg).toContain('stroke-width="10"');
     expect(svg).toContain('#A97A2B');
-    expect(svg).toContain('#E3F0EE');
+    expect(svg).toContain('#FFFFFF');
     const th = readFileSync('assets/rich-menu/menu-th.svg', 'utf8');
     expect(th).toContain('>หน้าหลัก<');
-    expect(th).toContain('#E3F0EE');
+    expect(th).toContain('#FFFFFF');
   });
 });
 
@@ -117,51 +117,45 @@ describe('trayVariantForCommand', () => {
 
 describe('native tray Language / Verify fills', () => {
   const GOLD = '#A97A2B';
-  const TEAL_TINT = '#E3F0EE';
-  const tileFills = (svg: string) => [...svg.matchAll(/<rect x="\d+" y="\d+"[^>]*fill="(#[A-F0-9]+)"/g)].map(m => m[1]);
+  const IDLE = '#FFFFFF';
+  const tileFills = (svg: string) => [...svg.matchAll(/<rect x="[^"]+" y="[^"]+"[^>]*fill="(#[A-F0-9]+)"/g)].map(m => m[1]);
   /** Same rules as scripts/generate-rich-menu.mjs tileFill. */
   const tileFill = (id: string, activeId: string | null, lang: 'en' | 'th', sessionOn: boolean) => {
     if (id === activeId) return 'teal';
-    if (id === 'verify') return sessionOn ? 'gold' : 'tealTint';
-    if (id === 'language') return lang === 'en' ? 'gold' : 'tealTint';
-    return 'tealTint';
+    if (id === 'verify') return sessionOn ? 'gold' : 'idle';
+    if (id === 'language') return lang === 'en' ? 'gold' : 'idle';
+    return 'idle';
   };
 
-  it('golds Language on English rest and uses regular teal for Verify', () => {
+  it('golds Language on English rest and leaves Verify idle (no teal)', () => {
     const fills = tileFills(readFileSync('assets/rich-menu/menu-en.svg', 'utf8'));
     expect(fills).toHaveLength(6);
-    expect(fills[1]).toBe(TEAL_TINT);
+    expect(fills[1]).toBe(IDLE);
     expect(fills[5]).toBe(GOLD);
   });
 
-  it('uses regular teal for Language on Thai rest', () => {
+  it('uses no teal for Language on Thai rest', () => {
     const fills = tileFills(readFileSync('assets/rich-menu/menu-th.svg', 'utf8'));
-    expect(fills[5]).toBe(TEAL_TINT);
-    expect(fills[1]).toBe(TEAL_TINT);
+    expect(fills[5]).toBe(IDLE);
+    expect(fills[1]).toBe(IDLE);
   });
 
   it('keeps Language and Verify independent: tap darkens only that tile', () => {
-    // Language: gold (EN) → dark teal tap → light teal (TH) → dark teal tap → gold (EN)
     expect(tileFill('language', null, 'en', false)).toBe('gold');
-    expect(tileFill('verify', null, 'en', false)).toBe('tealTint');
+    expect(tileFill('verify', null, 'en', false)).toBe('idle');
     expect(tileFill('language', 'language', 'en', false)).toBe('teal');
-    expect(tileFill('verify', 'language', 'en', false)).toBe('tealTint');
-    expect(tileFill('language', null, 'th', false)).toBe('tealTint');
-    expect(tileFill('verify', null, 'th', false)).toBe('tealTint');
+    expect(tileFill('verify', 'language', 'en', false)).toBe('idle');
+    expect(tileFill('language', null, 'th', false)).toBe('idle');
+    expect(tileFill('verify', null, 'th', false)).toBe('idle');
     expect(tileFill('language', 'language', 'th', false)).toBe('teal');
-    expect(tileFill('verify', 'language', 'th', false)).toBe('tealTint');
-    expect(tileFill('language', null, 'en', false)).toBe('gold');
-
-    // Verify: regular teal → dark teal tap → gold → dark teal tap → light teal
-    expect(tileFill('verify', null, 'en', false)).toBe('tealTint');
-    expect(tileFill('language', null, 'en', false)).toBe('gold');
+    expect(tileFill('verify', 'language', 'th', false)).toBe('idle');
     expect(tileFill('verify', 'verify', 'en', false)).toBe('teal');
     expect(tileFill('language', 'verify', 'en', false)).toBe('gold');
     expect(tileFill('verify', null, 'en', true)).toBe('gold');
     expect(tileFill('language', null, 'en', true)).toBe('gold');
     expect(tileFill('verify', 'verify', 'en', true)).toBe('teal');
     expect(tileFill('language', 'verify', 'en', true)).toBe('gold');
-    expect(tileFill('verify', null, 'en', false)).toBe('tealTint');
+    expect(tileFill('verify', null, 'en', false)).toBe('idle');
     expect(tileFill('language', null, 'en', false)).toBe('gold');
     expect(richMenuIdForLanguage('en', {
       LINE_RICH_MENU_JSON: JSON.stringify({

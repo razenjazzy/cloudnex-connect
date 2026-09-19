@@ -52,3 +52,6 @@ jobs:
 
       - name: Public health
         run: curl -fsS https://amardhaka.io/healthz
+
+      - name: Staging live gate
+        run: bash ./scripts/validate-staging.sh https://amardhaka.io
