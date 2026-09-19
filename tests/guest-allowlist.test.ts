@@ -10,6 +10,7 @@ describe('isGuestAllowedCommand', () => {
     expect(isGuestAllowedCommand('SERVICE LIST')).toBe(true);
     expect(isGuestAllowedCommand('SERVICE READ SVC-PREMIUM')).toBe(true);
     expect(isGuestAllowedCommand('FORM QUOTE CREATE FROM CARD 11')).toBe(true);
+    expect(isGuestAllowedCommand('FORM CUSTOMER REGISTER')).toBe(true);
     expect(isGuestAllowedCommand('NAV HOME')).toBe(true);
     expect(isGuestAllowedCommand('NAV DIRECTORY')).toBe(false);
     expect(isGuestAllowedCommand('FORM PRODUCT FIND', { flow: 'PRODUCT_FIND' })).toBe(true);

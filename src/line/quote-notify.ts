@@ -109,26 +109,28 @@ export const notifyQuoteParties = async (input: {
   const lineQueued = Boolean(notifyCustomer && viaLine && !customerLineId && partner?.phone);
   if (lineQueued && partner?.phone) {
     await saveQuoteInvite(partner.phone, input.order.id, customerChannelId);
-    const salesFriendId = await findLineUserIdByPhone(partner.phone, salesChannelId, true);
-    if (salesFriendId && salesFriendId !== input.actorUserId) {
-      const language = await getUserLanguage(salesFriendId);
-      const inviteUri = oaPrefillDeepLink(customerChannelId, `QUOTE STATUS ${input.order.id}`)
-        || oaChatDeepLink(customerChannelId);
-      if (inviteUri) {
-        await sendTargetedFlexMessage(
-          [salesFriendId],
-          createBotTextFlexMessage({
-            title: t('addFriend', language),
-            body: language === 'en'
-              ? `Your quotation ${input.order.name} is ready on Cloudnex Customer. Open that chat to receive it.`
-              : `ใบเสนอราคา ${input.order.name} พร้อมแล้วที่ Cloudnex Customer เปิดแชทนั้นเพื่อรับใบเสนอราคา`,
-            language,
-            tone: 'success',
-            linkAction: { label: t('addFriend', language), uri: inviteUri },
-          }),
-          salesChannelId,
-        );
-      }
+    const inviteUri = oaPrefillDeepLink(customerChannelId, `QUOTE STATUS ${input.order.id}`)
+      || oaChatDeepLink(customerChannelId);
+    const extraSalesId = await findLineUserIdByPhone(partner.phone, salesChannelId, true);
+    const inviteRecipients = [...new Set([
+      ...await salesNotifyUserIds(),
+      extraSalesId,
+    ].filter((id): id is string => Boolean(id) && id !== input.actorUserId))];
+    if (inviteUri && inviteRecipients.length) {
+      const language = await getUserLanguage(inviteRecipients[0]);
+      await sendTargetedFlexMessage(
+        inviteRecipients,
+        createBotTextFlexMessage({
+          title: t('addFriend', language),
+          body: language === 'en'
+            ? `Share Cloudnex Customer with ${partner.name || 'this customer'} so they can open quotation ${input.order.name}.`
+            : `ส่งลิงก์ Cloudnex Customer ให้ ${partner.name || 'ลูกค้า'} เพื่อเปิดใบเสนอราคา ${input.order.name}`,
+          language,
+          tone: 'success',
+          linkAction: { label: t('addFriend', language), uri: inviteUri },
+        }),
+        salesChannelId,
+      );
     }
   }
 

@@ -35,7 +35,7 @@ import { resolveServiceForCommand } from '../services/service-catalog';
 import { FLOW_SPECS, getFlowByStartCommand } from '../services/guided-forms';
 import { createBotTextFlexMessage, createFormPromptFlexMessage, createOptionalSummaryFlexMessage, createServiceHomeFlexMessage } from './templates';
 import { getAvailableServices } from '../services/service-catalog';
-import { ChannelContext, DEFAULT_CHANNEL_ID, getBrandTitle } from './channels';
+import { ChannelContext, DEFAULT_CHANNEL_ID, CUSTOMER_CHANNEL_ID, getBrandTitle } from './channels';
 import { linkUserRichMenu, trayVariantForCommand } from './rich-menu';
 import { clearSalesLogin, hasActiveSalesSession, salesSessionExpired } from '../services/sales-session';
 import type { FlowSpec } from '../services/guided-forms';
@@ -46,7 +46,7 @@ import { checkMessagesAgainstLineLimits } from './message-limits';
 import { bindPostbackData } from './postback';
 import { withSpan } from '../observability/tracing';
 import { appLogger } from '../services/logger';
-import { isQuoteStaff, selfQuoteIdentity, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary } from './quote-access';
+import { applyChannelPersona, isQuoteStaff, selfQuoteIdentity, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary } from './quote-access';
 import { evaluateCommandGrid, isGuestAllowedCommand } from './command-grid';
 import { getErpAdapter } from '../erp/registry';
 
@@ -116,16 +116,17 @@ export const buildHomeMenuMessage = (
 };
 
 export const homeMenuFromContext = (ctx: Pick<CommandReplyContext, 'userLanguage' | 'agentName' | 'channel' | 'profile'>): messagingApi.Message => {
-  const staff = isQuoteStaff(ctx.profile);
-  const identity = !staff && ctx.profile.odooVerified && (ctx.profile.displayName || ctx.profile.phone)
-    ? { name: ctx.profile.displayName, phone: ctx.profile.phone }
+  const profile = applyChannelPersona(ctx.profile, ctx.channel?.channelId);
+  const staff = isQuoteStaff(profile);
+  const identity = !staff && profile.odooVerified && (profile.displayName || profile.phone)
+    ? { name: profile.displayName, phone: profile.phone }
     : undefined;
   return buildHomeMenuMessage(
     ctx.userLanguage,
     ctx.agentName,
     ctx.channel,
-    ctx.profile.role === 'admin',
-    hasActiveSalesSession(ctx.profile),
+    profile.role === 'admin',
+    hasActiveSalesSession(profile),
     identity,
     staff,
   );
@@ -513,8 +514,12 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
 
   const formCollected: Record<string, string> = {
     ...(flowSpec.key === 'QUOTE_CREATE' && !isQuoteStaff(profile) ? selfQuoteIdentity(profile) : {}),
-    ...(profile.phone ? { savedPhone: profile.phone } : {}),
-    ...(profile.displayName ? { displayName: profile.displayName } : {}),
+    ...(flowSpec.key !== 'VERIFY' || ctx.channel?.channelId !== CUSTOMER_CHANNEL_ID
+      ? {
+        ...(profile.phone ? { savedPhone: profile.phone } : {}),
+        ...(profile.displayName ? { displayName: profile.displayName } : {}),
+      }
+      : {}),
   };
   await setUserPendingFlow(userId, {
     flow: flowSpec.key,
@@ -558,6 +563,7 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
     await clearSalesLogin(userId);
     ctx.profile = { ...ctx.profile, odooVerified: false, salesSessionExpiresAt: undefined };
   }
+  ctx.profile = applyChannelPersona(ctx.profile, ctx.channel?.channelId);
   const { profile } = ctx;
   const trimmed = ctx.text.trim();
   const upperText = trimmed.toUpperCase();
@@ -569,7 +575,7 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
 
   // Step 1: Guided form intercept
   if (profile.pendingFlow) {
-    if (!profile.odooVerified && profile.pendingFlow.flow !== 'VERIFY' && profile.pendingFlow.flow !== 'PRODUCT_FIND') {
+    if (!profile.odooVerified && profile.pendingFlow.flow !== 'VERIFY' && profile.pendingFlow.flow !== 'PRODUCT_FIND' && profile.pendingFlow.flow !== 'CUSTOMER_REGISTER') {
       await setUserPendingFlow(userId, null);
     } else {
       const result = await handleGuidedFormStep(ctx);
@@ -623,12 +629,12 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
   if (!grid.ok) {
     const channelDenied = grid.reason === 'channel';
     return [text(tr(userLanguage,
-      channelDenied
-        ? `${agentName} คำสั่งนี้ใช้ได้เฉพาะ Official Account ฝ่ายขาย`
-        : `${agentName} คำสั่งนี้ต้องการสิทธิ์ที่สูงกว่า`,
-      channelDenied
-        ? `${agentName} this command is only available on the Sales Official Account.`
-        : `${agentName} you do not have permission for this command.`,
+       channelDenied
+         ? `${agentName} คำสั่งนี้ใช้ไม่ได้บน Official Account นี้`
+         : `${agentName} คำสั่งนี้ต้องการสิทธิ์ที่สูงกว่า`,
+       channelDenied
+         ? `${agentName} this command is not available on this Official Account.`
+         : `${agentName} you do not have permission for this command.`,
     ), userLanguage)];
   }
 

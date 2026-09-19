@@ -13,7 +13,7 @@ import {
 } from './firestore';
 import { getPartnerById, getPartnerByPhone } from './odoo/partners';
 import { findOdooSalesTierByPartnerId } from './odoo/admin';
-import { DEFAULT_CHANNEL_ID, getAgentName, resolveChannelConfig } from '../line/channels';
+import { DEFAULT_CHANNEL_ID, CUSTOMER_CHANNEL_ID, getAgentName, resolveChannelConfig } from '../line/channels';
 import { sendTargetedMessage, sendTargetedFlexMessage } from '../line/messaging';
 import { createBotTextFlexMessage } from '../line/templates';
 import { appLogger } from './logger';
@@ -123,6 +123,8 @@ export type StartVerificationResult = {
   /** Present only once a challenge was actually created — render as a real uri-action button, never as raw text (Flex text isn't linkified or selectable). */
   link?: string;
   linkLabel?: string;
+  /** Customer OA: this phone is not an Odoo contact yet — collect name/phone. */
+  needsRegister?: boolean;
 };
 
 export const startOdooUserVerification = async (input: StartVerificationInput): Promise<StartVerificationResult> => {
@@ -133,6 +135,16 @@ export const startOdooUserVerification = async (input: StartVerificationInput): 
 
   const partner = await getPartnerByPhone(phone);
   if (!partner) {
+    if (input.channelId === CUSTOMER_CHANNEL_ID) {
+      return {
+        needsRegister: true,
+        message: tr(
+          input.language,
+          `${input.agentName} ไม่พบบุคคลนี้ใน Odoo กรอกชื่อและเบอร์เพื่อสมัครลูกค้าใหม่ หรือให้ฝ่ายขายเพิ่มผู้ติดต่อก่อน`,
+          `${input.agentName} no Odoo contact matches ${phone}. Register as a new customer, or ask sales to add your contact first.`,
+        ),
+      };
+    }
     return {
       message: tr(
         input.language,
@@ -192,12 +204,26 @@ export const startOdooUserVerification = async (input: StartVerificationInput): 
   return {
     message: tr(
       input.language,
-        `${input.agentName} เริ่มการยืนยันแล้ว\n- ชื่อใน Odoo: ${partner.name}\n- เบอร์ที่พนักงานขายบันทึก: ${phone}\n\nแตะปุ่มด้านล่างเพื่อยืนยันทันที`,
-        `${input.agentName} started verification\n- Odoo contact: ${partner.name}\n- Phone the salesperson set: ${phone}\n\nTap the button below to verify now.`,
+        `${input.agentName} เริ่มการยืนยันแล้ว\n- ชื่อใน Odoo: ${partner.name}\n- เบอร์: ${phone}\n\nแตะปุ่มด้านล่างเพื่อยืนยันทันที`,
+        `${input.agentName} started verification\n- Odoo contact: ${partner.name}\n- Phone: ${phone}\n\nTap the button below to verify now.`,
     ),
     link,
     linkLabel,
   };
+};
+
+const finalizeVerifiedIdentity = async (
+  userId: string,
+  partnerId: number,
+  channelId?: string,
+): Promise<'salesperson' | 'sales_manager' | undefined> => {
+  if (channelId === CUSTOMER_CHANNEL_ID) {
+    await setUserSalesTier(userId, undefined);
+    return undefined;
+  }
+  const salesTier = await bindSalesTierIfOdooSalesUser(userId, partnerId);
+  if (salesTier) await startSalesSession(userId);
+  return salesTier;
 };
 
 type VerifyOtpInput = {
@@ -239,8 +265,7 @@ export const verifyOdooUserByOtp = async (input: VerifyOtpInput): Promise<string
     return tr(input.language, `${input.agentName} ยืนยันสำเร็จ แต่บันทึกสถานะยืนยันไม่สำเร็จ`, `${input.agentName} verification succeeded but failed to persist verification status.`);
   }
 
-  const salesTier = await bindSalesTierIfOdooSalesUser(input.userId, consumed.data.partnerId);
-  await startSalesSession(input.userId);
+  const salesTier = await finalizeVerifiedIdentity(input.userId, consumed.data.partnerId, consumed.data.channelId);
   const { deliverPendingQuoteInvites } = await import('../line/quote-notify');
   await deliverPendingQuoteInvites(input.userId, consumed.data.channelId || DEFAULT_CHANNEL_ID);
 
@@ -282,8 +307,7 @@ export const verifyOdooUserByToken = async (token: string): Promise<{ ok: boolea
     return { ok: false, message: 'Verification succeeded, but failed to persist verification status.' };
   }
 
-  const salesTier = await bindSalesTierIfOdooSalesUser(consumed.data.userId, consumed.data.partnerId);
-  await startSalesSession(consumed.data.userId);
+  const salesTier = await finalizeVerifiedIdentity(consumed.data.userId, consumed.data.partnerId, consumed.data.channelId);
   const { deliverPendingQuoteInvites } = await import('../line/quote-notify');
   await deliverPendingQuoteInvites(consumed.data.userId, consumed.data.channelId || DEFAULT_CHANNEL_ID);
 

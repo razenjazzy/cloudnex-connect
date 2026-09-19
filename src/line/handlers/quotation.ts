@@ -270,7 +270,7 @@ const quoteStatusHandler: CommandHandler = {
     const order = await getSaleOrderById(orderId);
     if (!order) return [notFoundReply(userLanguage)];
 
-    const profile = await syncStaffProfile(ctx.userId, ctx.profile);
+    const profile = await syncStaffProfile(ctx.userId, ctx.profile, ctx.channel?.channelId);
     const orderPartnerId = Array.isArray(order.partner_id) ? order.partner_id[0] : undefined;
     if (!canViewOrderAsCustomer(profile, orderPartnerId)) {
       return [botText(t('quoteNotYours', userLanguage), userLanguage)];
@@ -289,7 +289,7 @@ const quoteConfirmHandler: CommandHandler = {
   match: (u) => u.startsWith('QUOTE CONFIRM'),
   handle: async (ctx) => {
     const { userLanguage, userId, channel, requestId, text } = ctx;
-    const profile = await syncStaffProfile(userId, ctx.profile);
+    const profile = await syncStaffProfile(userId, ctx.profile, ctx.channel?.channelId);
     if (!isQuoteStaff(profile)) return [staffOnlyReply(userLanguage)];
 
     const orderId = parseOrderId(text, 'QUOTE CONFIRM');
@@ -335,7 +335,7 @@ const quoteSendOptionsHandler: CommandHandler = {
   match: (u) => u.startsWith('QUOTE SEND OPTIONS'),
   handle: async (ctx) => {
     const { userLanguage, text } = ctx;
-    const profile = await syncStaffProfile(ctx.userId, ctx.profile);
+    const profile = await syncStaffProfile(ctx.userId, ctx.profile, ctx.channel?.channelId);
     if (!isQuoteStaff(profile)) return [staffOnlyReply(userLanguage)];
     const orderId = parseOrderId(text, 'QUOTE SEND OPTIONS');
     if (!orderId) return [notFoundReply(userLanguage)];
@@ -352,7 +352,7 @@ const quoteSendHandler: CommandHandler = {
   match: (u) => u.startsWith('QUOTE SEND') && !u.startsWith('QUOTE SEND CONFIRM') && !u.startsWith('QUOTE SEND OPTIONS'),
   handle: async (ctx) => {
     const { userLanguage, text } = ctx;
-    const profile = await syncStaffProfile(ctx.userId, ctx.profile);
+    const profile = await syncStaffProfile(ctx.userId, ctx.profile, ctx.channel?.channelId);
     if (!isQuoteStaff(profile)) return [staffOnlyReply(userLanguage)];
     const orderId = parseOrderId(text, 'QUOTE SEND');
     if (!orderId) return [notFoundReply(userLanguage)];
@@ -368,7 +368,7 @@ const quoteSendConfirmHandler: CommandHandler = {
   match: (u) => u.startsWith('QUOTE SEND CONFIRM'),
   handle: async (ctx) => {
     const { userLanguage, userId, channel, requestId, text } = ctx;
-    const profile = await syncStaffProfile(userId, ctx.profile);
+    const profile = await syncStaffProfile(userId, ctx.profile, ctx.channel?.channelId);
     if (!isQuoteStaff(profile)) return [staffOnlyReply(userLanguage)];
 
     const parsed = parseOrderIdAndOptionalEmail(text, 'QUOTE SEND CONFIRM');
@@ -432,7 +432,7 @@ const quoteMoreHandler: CommandHandler = {
   match: (u) => u.startsWith('QUOTE MORE'),
   handle: async (ctx) => {
     const { userLanguage, text } = ctx;
-    const profile = await syncStaffProfile(ctx.userId, ctx.profile);
+    const profile = await syncStaffProfile(ctx.userId, ctx.profile, ctx.channel?.channelId);
     if (!isQuoteStaff(profile)) return [staffOnlyReply(userLanguage)];
     const orderId = parseOrderId(text, 'QUOTE MORE');
     if (!orderId) return [notFoundReply(userLanguage)];
@@ -447,7 +447,7 @@ const quoteLinesHandler: CommandHandler = {
   match: (u) => u.startsWith('QUOTE LINES'),
   handle: async (ctx) => {
     const { userLanguage, text } = ctx;
-    const profile = await syncStaffProfile(ctx.userId, ctx.profile);
+    const profile = await syncStaffProfile(ctx.userId, ctx.profile, ctx.channel?.channelId);
     if (!isQuoteStaff(profile)) return [staffOnlyReply(userLanguage)];
     const orderId = parseOrderId(text, 'QUOTE LINES');
     if (!orderId) return [notFoundReply(userLanguage)];
@@ -528,7 +528,7 @@ const quoteAddHandler: CommandHandler = {
   match: (u) => u.startsWith('QUOTE ADD'),
   handle: async (ctx) => {
     const { userLanguage, userId, channel, requestId, text } = ctx;
-    const profile = await syncStaffProfile(userId, ctx.profile);
+    const profile = await syncStaffProfile(userId, ctx.profile, ctx.channel?.channelId);
     if (!isQuoteStaff(profile)) return [staffOnlyReply(userLanguage)];
 
     const parsed = parseOrderIdAndProductQty(text, 'QUOTE ADD');
@@ -577,7 +577,7 @@ const quoteEditHandler: CommandHandler = {
   match: (u) => u.startsWith('QUOTE EDIT'),
   handle: async (ctx) => {
     const { userLanguage, userId, channel, requestId, text } = ctx;
-    const profile = await syncStaffProfile(userId, ctx.profile);
+    const profile = await syncStaffProfile(userId, ctx.profile, ctx.channel?.channelId);
     if (!isQuoteStaff(profile)) return [staffOnlyReply(userLanguage)];
 
     const parsed = parseOrderIdAndProductQty(text, 'QUOTE EDIT');
@@ -617,7 +617,7 @@ const quoteRemoveHandler: CommandHandler = {
   match: (u) => u.startsWith('QUOTE REMOVE'),
   handle: async (ctx) => {
     const { userLanguage, userId, channel, requestId, text } = ctx;
-    const profile = await syncStaffProfile(userId, ctx.profile);
+    const profile = await syncStaffProfile(userId, ctx.profile, ctx.channel?.channelId);
     if (!isQuoteStaff(profile)) return [staffOnlyReply(userLanguage)];
 
     const parsed = parseOrderIdAndProductName(text, 'QUOTE REMOVE');
@@ -656,7 +656,7 @@ const quoteCancelHandler: CommandHandler = {
   match: (u) => u.startsWith('QUOTE CANCEL'),
   handle: async (ctx) => {
     const { userLanguage, userId, channel, requestId, text } = ctx;
-    const profile = await syncStaffProfile(userId, ctx.profile);
+    const profile = await syncStaffProfile(userId, ctx.profile, ctx.channel?.channelId);
     if (!isQuoteStaff(profile)) return [staffOnlyReply(userLanguage)];
     // Manager-level action per Odoo's own convention — never trust which
     // buttons the client happened to render (same discipline as QUOTE
@@ -702,7 +702,7 @@ const quoteInvoiceSendHandler: CommandHandler = {
   match: (u) => u.startsWith('QUOTE INVOICE SEND') && !u.startsWith('QUOTE INVOICE SEND CONFIRM'),
   handle: async (ctx) => {
     const { userLanguage, text } = ctx;
-    const profile = await syncStaffProfile(ctx.userId, ctx.profile);
+    const profile = await syncStaffProfile(ctx.userId, ctx.profile, ctx.channel?.channelId);
     if (!isQuoteStaff(profile)) return [staffOnlyReply(userLanguage)];
     const orderId = parseOrderId(text, 'QUOTE INVOICE SEND');
     if (!orderId) return [notFoundReply(userLanguage)];
@@ -718,7 +718,7 @@ const quoteInvoiceSendConfirmHandler: CommandHandler = {
   match: (u) => u.startsWith('QUOTE INVOICE SEND CONFIRM'),
   handle: async (ctx) => {
     const { userLanguage, userId, channel, requestId, text } = ctx;
-    const profile = await syncStaffProfile(userId, ctx.profile);
+    const profile = await syncStaffProfile(userId, ctx.profile, ctx.channel?.channelId);
     if (!isQuoteStaff(profile)) return [staffOnlyReply(userLanguage)];
 
     const parsed = parseOrderIdAndOptionalEmail(text, 'QUOTE INVOICE SEND CONFIRM');
@@ -792,7 +792,7 @@ const quoteInvoiceHandler: CommandHandler = {
   match: (u) => u.startsWith('QUOTE INVOICE') && !u.startsWith('QUOTE INVOICE SEND'),
   handle: async (ctx) => {
     const { userLanguage, userId, channel, requestId, text } = ctx;
-    const profile = await syncStaffProfile(userId, ctx.profile);
+    const profile = await syncStaffProfile(userId, ctx.profile, ctx.channel?.channelId);
     if (!isQuoteStaff(profile)) return [staffOnlyReply(userLanguage)];
 
     const orderId = parseOrderId(text, 'QUOTE INVOICE');
@@ -840,7 +840,7 @@ const quoteListHandler: CommandHandler = {
   match: (u) => u === 'QUOTE LIST' || u.startsWith('QUOTE LIST '),
   handle: async (ctx) => {
     const { userLanguage, text, userId } = ctx;
-    const profile = await syncStaffProfile(userId, ctx.profile);
+    const profile = await syncStaffProfile(userId, ctx.profile, ctx.channel?.channelId);
     const rest = text.trim().replace(/^QUOTE LIST\s*/i, '').trim();
     const cursorMatch = rest.match(/^CURSOR\s+(\S+)\s*(.*)$/i);
     const offsetMatch = cursorMatch ? null : rest.match(/^OFFSET\s+(\d+)\s*(.*)$/i);
@@ -929,7 +929,7 @@ const quoteMessageHandler: CommandHandler = {
   match: (u) => u.startsWith('QUOTE MESSAGE'),
   handle: async (ctx) => {
     const { userLanguage, userId, channel, requestId, text } = ctx;
-    const profile = await syncStaffProfile(userId, ctx.profile);
+    const profile = await syncStaffProfile(userId, ctx.profile, ctx.channel?.channelId);
     if (!isQuoteStaff(profile)) return [staffOnlyReply(userLanguage)];
 
     const parsed = parseOrderIdAndMessage(text, 'QUOTE MESSAGE');
@@ -958,7 +958,7 @@ const quoteCreateMoreHandler: CommandHandler = {
   match: (u) => u.startsWith('QUOTE CREATE MORE'),
   handle: async (ctx) => {
     const { userLanguage, userId, text, agentName } = ctx;
-    const profile = await syncStaffProfile(userId, ctx.profile);
+    const profile = await syncStaffProfile(userId, ctx.profile, ctx.channel?.channelId);
     if (!isQuoteStaff(profile)) return [staffOnlyReply(userLanguage)];
     const orderId = parseOrderId(text, 'QUOTE CREATE MORE');
     if (!orderId) return [notFoundReply(userLanguage)];

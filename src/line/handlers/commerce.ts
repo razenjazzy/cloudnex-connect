@@ -103,7 +103,7 @@ const demoOrderHandler: CommandHandler = {
       getErpAdapter().getOrderLinks(order.id),
       getErpAdapter().getDeliveryStatus(found.id),
     ]);
-    const profile = await syncStaffProfile(ctx.userId, ctx.profile);
+    const profile = await syncStaffProfile(ctx.userId, ctx.profile, ctx.channel?.channelId);
     const role = quoteJourneyRole(profile);
     const orderPartnerId = Array.isArray(order.partner_id) ? order.partner_id[0] : undefined;
     if (!canViewOrderAsCustomer(profile, orderPartnerId)) {
@@ -126,7 +126,7 @@ const demoQuoteHandler: CommandHandler = {
   match: (u) => u === 'QUOTE CREATE' || (u.startsWith('QUOTE CREATE ') && !u.startsWith('QUOTE CREATE MORE')),
   handle: async (ctx) => {
     const { userLanguage, text, userId, channel, requestId } = ctx;
-    const profile = await syncStaffProfile(userId, ctx.profile);
+    const profile = await syncStaffProfile(userId, ctx.profile, ctx.channel?.channelId);
     const payload = text.trim().replace(/^QUOTE CREATE\s*/i, '').trim();
     const identity = selfQuoteIdentity(profile);
     const parsed = isQuoteStaff(profile)

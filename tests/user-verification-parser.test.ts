@@ -20,4 +20,9 @@ describe('verificationSuccessMessage', () => {
     expect(verificationSuccessMessage('en', 'Somchai', 'sales_manager')).toBe('✅ Somchai is an Odoo Sales Administrator.');
     expect(verificationSuccessMessage('en', 'Somchai')).toBe('✅ Somchai is an Odoo customer.');
   });
+
+  it('does not call a sales-admin a customer when tier is omitted', async () => {
+    const { verificationSuccessMessage } = await import('../src/services/user-verification');
+    expect(verificationSuccessMessage('en', 'Somchai', undefined)).not.toContain('Sales Administrator');
+  });
 });

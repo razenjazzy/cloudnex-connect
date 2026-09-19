@@ -52,7 +52,7 @@ const messageCustomerHandler: CommandHandler = {
   match: (u) => u.startsWith('MESSAGE CUSTOMER'),
   handle: async (ctx) => {
     const { userLanguage, userId, channel, requestId, text } = ctx;
-    const profile = await syncStaffProfile(userId, ctx.profile);
+    const profile = await syncStaffProfile(userId, ctx.profile, ctx.channel?.channelId);
     if (!isQuoteStaff(profile)) return [staffOnlyReply(userLanguage)];
 
     const parsed = parsePhoneAndMessage(text, 'MESSAGE CUSTOMER');

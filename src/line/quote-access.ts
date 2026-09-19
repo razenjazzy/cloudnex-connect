@@ -1,9 +1,16 @@
+import { CUSTOMER_CHANNEL_ID } from './channels';
 import { setUserSalesTier } from '../services/firestore';
 import type { UserProfile } from '../services/firestore/types';
 import { findOdooSalesTierByPartnerId } from '../services/odoo/admin';
 
 type QuoteActor = Pick<UserProfile, 'role' | 'salesTier'>;
 type QuoteOwner = Pick<UserProfile, 'role' | 'salesTier' | 'odooPartnerId' | 'displayName' | 'phone'>;
+
+/** Customer OA never runs Sales User / Admin tools, even if the Odoo contact has a sales login. */
+export const applyChannelPersona = (profile: UserProfile, channelId?: string): UserProfile => {
+  if (channelId !== CUSTOMER_CHANNEL_ID) return profile;
+  return { ...profile, salesTier: undefined, role: 'user' };
+};
 
 /** Odoo Sales User or Sales Administrator. LINE `role=admin` is extra, not required. */
 export const isQuoteStaff = (profile: QuoteActor): boolean =>
@@ -41,8 +48,13 @@ export const canViewOrderAsCustomer = (profile: QuoteOwner, orderPartnerId: numb
 /**
  * Refresh Odoo login vs customer onto the Firestore profile. A linked
  * res.users is Sales staff; a contact with no login stays a customer.
+ * Customer OA never stores a sales tier.
  */
-export const syncStaffProfile = async (userId: string, profile: UserProfile): Promise<UserProfile> => {
+export const syncStaffProfile = async (userId: string, profile: UserProfile, channelId?: string): Promise<UserProfile> => {
+  if (channelId === CUSTOMER_CHANNEL_ID) {
+    if (profile.salesTier) await setUserSalesTier(userId, undefined);
+    return applyChannelPersona(profile, channelId);
+  }
   if (!profile.odooPartnerId) return profile;
   const salesTier = await findOdooSalesTierByPartnerId(profile.odooPartnerId);
   if (salesTier !== profile.salesTier) await setUserSalesTier(userId, salesTier);

@@ -16,6 +16,8 @@ describe('sales session', () => {
     expect(hasActiveSalesSession({ odooVerified: true, salesSessionExpiresAt: later })).toBe(true);
     expect(hasActiveSalesSession({ odooVerified: false, salesTier: 'salesperson', salesSessionExpiresAt: later })).toBe(false);
     expect(hasActiveSalesSession({ odooVerified: true, salesTier: 'salesperson' })).toBe(false);
+    expect(hasActiveSalesSession({ odooVerified: true })).toBe(true);
+    expect(salesSessionExpired({ odooVerified: true, salesSessionExpiresAt: new Date(Date.now() - 1000).toISOString() })).toBe(false);
   });
 
   it('treats a past expiry as expired so VERIFY can turn regular', () => {

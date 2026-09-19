@@ -40,7 +40,7 @@ const salesFeaturesListHandler: CommandHandler = {
   name: 'sales-features-list',
   match: (u) => u === 'SALES FEATURES' || u === 'SALES FEATURE',
   handle: async (ctx) => {
-    const profile = await syncStaffProfile(ctx.userId, ctx.profile);
+    const profile = await syncStaffProfile(ctx.userId, ctx.profile, ctx.channel?.channelId);
     if (!canManageQuoteLines(profile)) return [adminOnlyReply(ctx.userLanguage)];
     await ensureFeatureTogglesLoaded();
     return [listMessage(ctx.userLanguage, ctx.channel)];
@@ -51,7 +51,7 @@ const salesFeatureToggleHandler: CommandHandler = {
   name: 'sales-feature-toggle',
   match: (u) => u.startsWith('SALES FEATURE ') && u !== 'SALES FEATURE',
   handle: async (ctx) => {
-    const profile = await syncStaffProfile(ctx.userId, ctx.profile);
+    const profile = await syncStaffProfile(ctx.userId, ctx.profile, ctx.channel?.channelId);
     if (!canManageQuoteLines(profile)) return [adminOnlyReply(ctx.userLanguage)];
 
     const parts = ctx.text.trim().split(/\s+/);

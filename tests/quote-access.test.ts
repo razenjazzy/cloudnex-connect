@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canViewOrderAsCustomer, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary, isQuoteStaff, selfQuoteIdentity } from '../src/line/quote-access';
+import { applyChannelPersona, canViewOrderAsCustomer, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary, isQuoteStaff, selfQuoteIdentity } from '../src/line/quote-access';
 
 describe('canViewOrderAsCustomer', () => {
   it('lets staff view any partner', () => {
@@ -21,6 +21,20 @@ describe('selfQuoteIdentity', () => {
       phone: '0812345678',
     });
     expect(isQuoteStaff({ role: 'user' })).toBe(false);
+  });
+
+  it('strips sales admin on Customer OA', () => {
+    const stripped = applyChannelPersona({
+      language: 'en',
+      role: 'admin',
+      odooVerified: true,
+      marketingOptIn: false,
+      salesTier: 'sales_manager',
+      displayName: 'Somchai',
+    }, 'customer');
+    expect(stripped.salesTier).toBeUndefined();
+    expect(stripped.role).toBe('user');
+    expect(isQuoteStaff(stripped)).toBe(false);
   });
 });
 
