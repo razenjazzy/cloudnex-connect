@@ -1,6 +1,7 @@
 import type { CommandHandler } from './index';
+import { messagingApi } from '@line/bot-sdk';
 import { createBotTextFlexMessage, createFormPromptFlexMessage, createQuotationEditFlexMessage, createQuotationJourneyFlexMessage, createQuotationListFlexMessage, createQuotationMoreFlexMessage } from '../templates';
-import { DEFAULT_CHANNEL_ID, getBrandTitle } from '../channels';
+import { DEFAULT_CHANNEL_ID, getBrandTitle, customerNotifyChannelId } from '../channels';
 import {
   getSaleOrderById,
   getSaleOrderPortalLink,
@@ -28,9 +29,10 @@ import { notifyQuoteParties, resolveCustomerLineUserId, type QuoteSendChannel } 
 import { getErpAdapter } from '../../erp/registry';
 import { decodeQuoteListCursor, encodeQuoteListCursor } from '../quote-list-cursor';
 import { FLOW_SPECS } from '../../services/guided-forms';
-import { canManageQuoteLines, isQuoteStaff, quoteJourneyRole, syncStaffProfile } from '../quote-access';
+import { canManageQuoteLines, canViewOrderAsCustomer, isQuoteStaff, quoteJourneyRole, syncStaffProfile } from '../quote-access';
+import { commerceFollowUpMessages } from '../commerce-followup';
+import { LINE_LIMITS } from '../message-limits';
 import { appLogger } from '../../services/logger';
-import { hasActiveSalesSession } from '../../services/sales-session';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -94,6 +96,14 @@ const notFoundReply = (language: UserLanguage) => botText(t('quoteNotFound', lan
 const getOrderLinks = async (orderId: number): Promise<{ portalLink?: string; pdfLink?: string }> => {
   const [portalLink, pdfLink] = await Promise.all([getSaleOrderPortalLink(orderId), getSaleOrderPdfLink(orderId)]);
   return { portalLink: portalLink || undefined, pdfLink: pdfLink || undefined };
+};
+
+const withCommerceMenu = async (
+  ctx: Parameters<typeof commerceFollowUpMessages>[0],
+  messages: messagingApi.Message[],
+): Promise<messagingApi.Message[]> => {
+  const room = LINE_LIMITS.MAX_MESSAGES_PER_REPLY - messages.length;
+  return [...messages, ...(await commerceFollowUpMessages(ctx, room))];
 };
 
 // Exported for direct unit testing (same rationale as command-validators.ts's
@@ -191,17 +201,22 @@ const parseOrderIdAndMessage = (text: string, prefix: string): { orderId: number
 // to receive the quotation.
 export const sendChannelSummary = (
   language: UserLanguage,
-  result: { customerLineId: string | null; emailed: boolean },
+  result: { customerLineId: string | null; emailed: boolean; lineQueued?: boolean },
   wanted: QuoteSendChannel,
 ): string => {
-  const lineOk = Boolean(result.customerLineId);
+  const lineOk = Boolean(result.customerLineId) || result.lineQueued === true;
   const emailOk = result.emailed;
-  if (wanted === 'line' && !lineOk) return t('quoteNotLinked', language);
-  if (wanted === 'email' && !emailOk) return t('noPartnerEmail', language);
-  if (!lineOk && !emailOk) return t('quoteNotLinked', language);
-  if (lineOk && emailOk) return `${t('sentViaBoth', language)} ${tr(language, 'รอการอนุมัติจากลูกค้า', 'Waiting for customer approval.')}`;
-  if (lineOk) return `${t('quoteSentToAdmin', language)} ${tr(language, 'รอการอนุมัติจากลูกค้า', 'Waiting for customer approval.')}`;
-  return `${t('sentViaEmail', language)} ${tr(language, 'รอการอนุมัติจากลูกค้า', 'Waiting for customer approval.')}`;
+  const waiting = tr(language, 'รอการอนุมัติจากลูกค้า', 'Waiting for customer approval.');
+  if (wanted === 'email') {
+    return emailOk ? `${t('sentViaEmail', language)} ${waiting}` : t('noPartnerEmail', language);
+  }
+  if (wanted === 'line') {
+    return lineOk ? `${t('quoteSentToAdmin', language)} ${waiting}` : t('quoteLineNotDelivered', language);
+  }
+  if (lineOk && emailOk) return `${t('sentViaBoth', language)} ${waiting}`;
+  if (emailOk) return `${t('sentViaEmail', language)} ${waiting}`;
+  if (lineOk) return `${t('quoteSentToAdmin', language)} ${waiting}`;
+  return t('quoteLineNotDelivered', language);
 };
 
 const startQuoteSendFlow = async (
@@ -211,7 +226,7 @@ const startQuoteSendFlow = async (
   partnerEmail?: string,
 ) => {
   const flowSpec = FLOW_SPECS[kind];
-  const collected = { orderId: String(orderId), ...(partnerEmail ? { email: partnerEmail } : {}) };
+  const collected = { orderId: String(orderId), ...(partnerEmail ? { savedEmail: partnerEmail } : {}) };
   await setUserPendingFlow(ctx.userId, {
     flow: flowSpec.key,
     stepIndex: 0,
@@ -249,6 +264,10 @@ const quoteStatusHandler: CommandHandler = {
     if (!order) return [notFoundReply(userLanguage)];
 
     const profile = await syncStaffProfile(ctx.userId, ctx.profile);
+    const orderPartnerId = Array.isArray(order.partner_id) ? order.partner_id[0] : undefined;
+    if (!canViewOrderAsCustomer(profile, orderPartnerId)) {
+      return [botText(t('quoteNotYours', userLanguage), userLanguage)];
+    }
     const { portalLink, pdfLink } = await getOrderLinks(orderId);
     return [createQuotationJourneyFlexMessage(order, staffCardOptions(profile, { portalLink, pdfLink }, order), userLanguage)];
   },
@@ -269,7 +288,7 @@ const quoteConfirmHandler: CommandHandler = {
     const ok = await getErpAdapter().confirmOrder(orderId);
     recordAuditEvent({ action: 'quote_confirm', outcome: ok ? 'success' : 'failure', actorUserId: userId, channelId: channel?.channelId, requestId, targetId: String(orderId) });
     if (!ok) {
-      return [botText(tr(userLanguage, 'ยืนยันคำสั่งซื้อไม่สำเร็จ กรุณาลองใหม่', 'Failed to confirm the order. Please try again.'), userLanguage)];
+      return withCommerceMenu(ctx, [botText(tr(userLanguage, 'ยืนยันคำสั่งซื้อไม่สำเร็จ กรุณาลองใหม่', 'Failed to confirm the order. Please try again.'), userLanguage)]);
     }
 
     // The order state change already succeeded in Odoo at this point (ok
@@ -290,13 +309,13 @@ const quoteConfirmHandler: CommandHandler = {
       .catch(err => console.warn('quote-confirm: customer notify failed (non-fatal):', err));
 
     const { portalLink, pdfLink } = await getOrderLinks(orderId);
-    return [
+    return withCommerceMenu(ctx, [
       botText(
         tr(userLanguage, 'ยืนยันใบเสนอราคาแล้ว หน้าอนุมัติของลูกค้าพร้อมเปิด', 'Quotation confirmed. The customer quote page is ready to approve.'),
         userLanguage,
       ),
       createQuotationJourneyFlexMessage(order, staffCardOptions(profile, { portalLink, pdfLink }, order), userLanguage),
-    ];
+    ]);
   },
 };
 
@@ -378,7 +397,7 @@ const quoteSendConfirmHandler: CommandHandler = {
     });
     recordAuditEvent({
       action: 'quote_send',
-      outcome: result.customerLineId || result.emailed ? 'success' : 'failure',
+      outcome: result.customerLineId || result.emailed || result.lineQueued ? 'success' : 'failure',
       actorUserId: userId,
       channelId: channel?.channelId,
       requestId,
@@ -386,7 +405,7 @@ const quoteSendConfirmHandler: CommandHandler = {
       detail: `${sendChannel}:${result.customerLineId ? 'line' : 'no_line'}:${result.emailed ? 'email' : 'no_email'}`,
     });
 
-    return [
+    return withCommerceMenu(ctx, [
       botText(
         sendChannelSummary(userLanguage, result, sendChannel),
         userLanguage,
@@ -394,7 +413,7 @@ const quoteSendConfirmHandler: CommandHandler = {
         result.inviteUri ? { label: t('addFriend', userLanguage), uri: result.inviteUri } : undefined,
       ),
       createQuotationJourneyFlexMessage(sentOrder, staffCardOptions(profile, { portalLink, pdfLink }, sentOrder), userLanguage),
-    ];
+    ]);
   },
 };
 
@@ -451,12 +470,8 @@ const quoteApproveHandler: CommandHandler = {
 
     const ok = await getErpAdapter().confirmOrder(orderId);
     if (!ok) {
-      // Success is audited via the approval_requested/approved/completed
-      // chain below (Track A2's own audit record, not a second store) — but
-      // a failed confirmOrder never reaches that chain, so it needs its own
-      // event here or a failed approval attempt would be entirely unaudited.
       recordAuditEvent({ action: 'quote_approve', outcome: 'failure', actorUserId: userId, channelId: channel?.channelId, requestId: ctx.requestId, targetId: String(orderId) });
-      return [botText(tr(userLanguage, 'อนุมัติไม่สำเร็จ กรุณาลองใหม่', 'Approval failed. Please try again.'), userLanguage)];
+      return withCommerceMenu(ctx, [botText(tr(userLanguage, 'อนุมัติไม่สำเร็จ กรุณาลองใหม่', 'Approval failed. Please try again.'), userLanguage)]);
     }
 
     const adminUserId = process.env.ADMIN_USER_ID?.trim();
@@ -479,7 +494,7 @@ const quoteApproveHandler: CommandHandler = {
     }
     const confirmed = (await getSaleOrderById(orderId)) || order;
     const { portalLink, pdfLink } = await getOrderLinks(orderId);
-    notifyQuoteParties({
+    await notifyQuoteParties({
       order: confirmed,
       channelId: channel?.channelId,
       actorUserId: userId,
@@ -487,10 +502,10 @@ const quoteApproveHandler: CommandHandler = {
       salesIntro: t('quoteApprovedStaff', userLanguage),
     }).catch(err => console.warn('quote-approve: sales notify failed (non-fatal):', err));
 
-    return [
+    return withCommerceMenu(ctx, [
       botText(t('quoteApproved', userLanguage), userLanguage),
       createQuotationJourneyFlexMessage(confirmed, { role: 'customer', portalLink, pdfLink }, userLanguage),
-    ];
+    ]);
   },
 };
 
@@ -649,7 +664,7 @@ const quoteCancelHandler: CommandHandler = {
     const ok = await getErpAdapter().cancelQuote(orderId);
     recordAuditEvent({ action: 'quote_cancel', outcome: ok ? 'success' : 'failure', actorUserId: userId, channelId: channel?.channelId, requestId, targetId: String(orderId) });
     if (!ok) {
-      return [botText(tr(userLanguage, 'ยกเลิกใบเสนอราคาไม่สำเร็จ กรุณาลองใหม่', 'Failed to cancel the quotation. Please try again.'), userLanguage)];
+      return withCommerceMenu(ctx, [botText(tr(userLanguage, 'ยกเลิกใบเสนอราคาไม่สำเร็จ กรุณาลองใหม่', 'Failed to cancel the quotation. Please try again.'), userLanguage)]);
     }
 
     const order = await getSaleOrderById(orderId);
@@ -665,11 +680,10 @@ const quoteCancelHandler: CommandHandler = {
       .catch(err => console.warn('quote-cancel: customer notify failed (non-fatal):', err));
 
     const { portalLink, pdfLink } = await getOrderLinks(orderId);
-    const { buildHomeMenuMessage } = await import('../command-router');
-    return [
+    return withCommerceMenu(ctx, [
+      botText(tr(userLanguage, 'ยกเลิกใบเสนอราคาแล้ว', 'Quotation cancelled.'), userLanguage),
       createQuotationJourneyFlexMessage(order, staffCardOptions(profile, { portalLink, pdfLink }, order), userLanguage),
-      buildHomeMenuMessage(userLanguage, getBrandTitle(userLanguage), channel, profile.role === 'admin', hasActiveSalesSession(profile)),
-    ];
+    ]);
   },
 };
 
@@ -740,7 +754,7 @@ const quoteInvoiceSendConfirmHandler: CommandHandler = {
 
     recordAuditEvent({
       action: 'quote_invoice',
-      outcome: result.customerLineId || result.emailed ? 'success' : 'failure',
+      outcome: result.customerLineId || result.emailed || result.lineQueued ? 'success' : 'failure',
       actorUserId: userId,
       channelId: channel?.channelId,
       requestId,
@@ -748,8 +762,7 @@ const quoteInvoiceSendConfirmHandler: CommandHandler = {
       detail: `${sendChannel}:${result.customerLineId ? 'line' : 'no_line'}:${result.emailed ? 'email' : 'no_email'}`,
     });
 
-    const { buildHomeMenuMessage } = await import('../command-router');
-    return [
+    return withCommerceMenu(ctx, [
       botText(
         sendChannelSummary(userLanguage, result, sendChannel),
         userLanguage,
@@ -757,8 +770,7 @@ const quoteInvoiceSendConfirmHandler: CommandHandler = {
         result.inviteUri ? { label: t('addFriend', userLanguage), uri: result.inviteUri } : undefined,
       ),
       createQuotationJourneyFlexMessage(invoicedOrder, staffCardOptions(profile, { portalLink, pdfLink }, invoicedOrder), userLanguage),
-      buildHomeMenuMessage(userLanguage, getBrandTitle(userLanguage), channel, profile.role === 'admin', hasActiveSalesSession(profile)),
-    ];
+    ]);
   },
 };
 
@@ -801,7 +813,10 @@ const quoteInvoiceHandler: CommandHandler = {
       .catch(err => console.warn('quote-invoice: notify failed (non-fatal):', err));
 
     const { portalLink, pdfLink } = await getOrderLinks(orderId);
-    return [createQuotationJourneyFlexMessage(order, staffCardOptions(profile, { portalLink, pdfLink }, order), userLanguage)];
+    return withCommerceMenu(ctx, [
+      botText(tr(userLanguage, 'สร้างใบแจ้งหนี้แล้ว', 'Invoice created.'), userLanguage),
+      createQuotationJourneyFlexMessage(order, staffCardOptions(profile, { portalLink, pdfLink }, order), userLanguage),
+    ]);
   },
 };
 
@@ -844,6 +859,9 @@ const quoteListHandler: CommandHandler = {
 
     let partnerId: number | undefined;
     let listMode: 'salesperson' | 'partner' | 'lookup' = 'partner';
+    if (phoneArg && /^\d{1,8}$/.test(phoneArg) && isQuoteStaff(profile)) {
+      return quoteStatusHandler.handle({ ...ctx, text: `QUOTE STATUS ${phoneArg}` });
+    }
     if (phoneArg && !phoneArg.startsWith('OFFSET') && !phoneArg.startsWith('FROM')) {
       if (!isQuoteStaff(profile)) return [staffOnlyReply(userLanguage)];
       const partner = await getPartnerByPhone(phoneArg);
@@ -918,10 +936,10 @@ const quoteMessageHandler: CommandHandler = {
     }
 
     const customerLanguage = await getUserLanguage(customerUserId);
-    await sendTargetedFlexMessage([customerUserId], botText(parsed.message, customerLanguage), channel?.channelId || DEFAULT_CHANNEL_ID);
+    await sendTargetedFlexMessage([customerUserId], botText(parsed.message, customerLanguage), customerNotifyChannelId());
 
     recordAuditEvent({ action: 'quote_message', outcome: 'success', actorUserId: userId, channelId: channel?.channelId, requestId, targetId: String(parsed.orderId) });
-    return [botText(tr(userLanguage, 'ส่งข้อความให้ลูกค้าแล้ว', 'Message sent to the customer.'), userLanguage)];
+    return withCommerceMenu(ctx, [botText(tr(userLanguage, 'ส่งข้อความให้ลูกค้าแล้ว', 'Message sent to the customer.'), userLanguage)]);
   },
 };
 

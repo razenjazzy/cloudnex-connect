@@ -1,4 +1,5 @@
 import { getPlatformConfig, setPlatformConfig } from './firestore';
+import { auditWrite } from './write-audit';
 
 export type PricingModel = {
   aiInputCostPer1MUsd: number;
@@ -125,6 +126,12 @@ export const updatePricingModel = async (patch: Partial<PricingModel>): Promise<
   });
 
   await setPlatformConfig(PRICING_CONFIG_KEY, model as unknown as Record<string, unknown>);
+  auditWrite({
+    action: 'pricing_config_update',
+    outcome: 'success',
+    actorUserId: 'config',
+    detail: Object.keys(patch).sort().join(','),
+  });
   return { ...model };
 };
 

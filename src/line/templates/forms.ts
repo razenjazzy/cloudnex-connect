@@ -1,6 +1,6 @@
 import { messagingApi } from '@line/bot-sdk';
 import { t, tFill } from '../../services/i18n';
-import { BRAND, buttonLabel, createDatePickerButton, createMessageActionButton, truncate, type ReportLanguage } from './shared';
+import { BRAND, buttonLabel, createDatePickerButton, createMessageActionButton, flexBubbleStyles, flexHeaderBox, truncate, type ReportLanguage } from './shared';
 
 export const createFormPromptFlexMessage = (params: {
   title: string;
@@ -43,25 +43,13 @@ export const createFormPromptFlexMessage = (params: {
     },
     contents: {
       type: 'bubble',
-      styles: {
-        header: { backgroundColor: BRAND.teal },
-        body: { backgroundColor: BRAND.surface },
-        footer: { backgroundColor: BRAND.surface },
-      },
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'md',
-        contents: [
-          { type: 'text', text: params.title, weight: 'bold', size: 'md', color: '#FFFFFF', wrap: true },
-          { type: 'text', text: tFill('stepOf', params.language, { current: params.stepIndex + 1, total: params.totalSteps }), size: 'xs', color: '#DDEBE9', margin: 'xs', wrap: true },
-        ],
-      },
+      styles: flexBubbleStyles,
+      header: flexHeaderBox(params.title, tFill('stepOf', params.language, { current: params.stepIndex + 1, total: params.totalSteps })),
       body: {
         type: 'box',
         layout: 'vertical',
         spacing: 'md',
-        paddingBottom: 'lg',
+        paddingAll: 'lg',
         contents: [
           {
             type: 'box',
@@ -89,6 +77,7 @@ export const createFormPromptFlexMessage = (params: {
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
+        paddingAll: 'lg',
         contents: [
           ...(params.datePickerData ? [createDatePickerButton(t('pickDate', params.language), params.datePickerData)] : []),
           ...actions.map(action => createMessageActionButton(action.label, action.text, action.text === 'CANCEL' ? 'secondary' : 'primary', action.text === 'CANCEL' ? BRAND.goldTint : BRAND.teal)),
@@ -123,25 +112,13 @@ export const createOptionalSummaryFlexMessage = (params: {
     },
     contents: {
       type: 'bubble',
-      styles: {
-        header: { backgroundColor: BRAND.teal },
-        body: { backgroundColor: BRAND.surface },
-        footer: { backgroundColor: BRAND.surface },
-      },
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'md',
-        contents: [
-          { type: 'text', text: params.title, weight: 'bold', size: 'md', color: '#FFFFFF', wrap: true },
-          { type: 'text', text: t('optionalSummaryHint', params.language), size: 'xs', color: '#DDEBE9', margin: 'xs', wrap: true },
-        ],
-      },
+      styles: flexBubbleStyles,
+      header: flexHeaderBox(params.title, t('optionalSummaryHint', params.language)),
       body: {
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
-        paddingBottom: 'lg',
+        paddingAll: 'lg',
         contents: params.fields.map(f => ({
           type: 'box' as const,
           layout: 'horizontal' as const,
@@ -185,6 +162,7 @@ export const createOptionalSummaryFlexMessage = (params: {
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
+        paddingAll: 'lg',
         contents: [createMessageActionButton(params.finalizeLabel, 'FORM FINALIZE', 'primary', BRAND.teal)],
       },
     },

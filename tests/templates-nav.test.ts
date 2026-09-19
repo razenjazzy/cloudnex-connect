@@ -67,4 +67,19 @@ describe('NAV HOME rounded boxes', () => {
     expect(first[0]?.size).toBe('lg');
     expect(first[0]?.weight).toBeUndefined();
   });
+
+  it('shows customer identity on paper, not the white card surface', () => {
+    const message = createServiceHomeFlexMessage(
+      [{ key: 'commerce', label: 'Products & Quotes' }],
+      'en',
+      'Sora',
+      false,
+      { name: 'Somchai', phone: '0812345678' },
+    );
+    const bubble = message.contents as { body?: { paddingAll?: string; contents?: Array<Record<string, unknown>> } };
+    expect(bubble.body?.paddingAll).toBe('lg');
+    expect(bubble.body?.contents?.[0]?.backgroundColor).toBe(BRAND.paper);
+    expect(JSON.stringify(bubble.body?.contents?.[0])).toContain('Somchai');
+    expect(bubble.body?.contents?.[1]?.backgroundColor).toBe(BRAND.teal);
+  });
 });

@@ -38,6 +38,8 @@ export const buildWorkflowAudit = async () => {
             workflowFeatures: {
                 groupBuyLifecycle: true,
                 odooVerificationOtpAndLink: true,
+                writeApprovalPipeline: true,
+                configTraceability: true,
                 pricingControlModel: true,
                 demoRunbookPanel: true,
                 sharedRateLimitReady: runtimeChecks.rateLimiter.ok,

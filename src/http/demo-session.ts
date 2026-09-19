@@ -2,16 +2,8 @@ import express from 'express';
 import { getPlatformConfig, setPlatformConfig } from '../services/firestore';
 import { parseCookieValue, safeTokenMatch, verifyDemoSessionTokenWithSecrets } from '../services/demo-session';
 import { getBearerToken } from './middleware';
-import {
-    allowDemoHeaderTokenFallbackInProd,
-    demoControlToken,
-    demoSessionConfigKey,
-    demoSessionCookieName,
-    demoSessionTtlMinutes,
-    initialDemoSessionSecret,
-    isDemoControlEnabled,
-    isProduction,
-} from './env';
+import { allowDemoHeaderTokenFallbackInProd, demoControlToken, demoSessionConfigKey, demoSessionCookieName, demoSessionTtlMinutes, initialDemoSessionSecret, isDemoControlEnabled, isProduction } from './env';
+import { auditWrite } from '../services/write-audit';
 
 // Module-scope singleton state — same shape and mutation pattern as the
 // pre-split src/index.ts (rotate replaces the active secret and keeps the
@@ -122,6 +114,12 @@ export const rotateDemoSessionSecret = async (
 
     activeDemoSessionSecret = newSecret;
     await persistDemoSessionState();
+    auditWrite({
+      action: 'demo_session_rotate',
+      outcome: 'success',
+      actorUserId: 'ops',
+      detail: `graceMinutes=${previousDemoSessionSecret ? Math.max(0, Math.round((previousDemoSessionSecret.expiresAtMs - Date.now()) / 60000)) : 0}`,
+    });
 
     return {
         ok: true,

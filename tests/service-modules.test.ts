@@ -28,6 +28,9 @@ describe('service modules catalog', () => {
     const payload = getDemoPlatformPayload();
     expect(payload.modules).toHaveLength(SERVICE_MODULES.length);
     expect(payload.demoDayScript.length).toBeGreaterThanOrEqual(8);
+    expect(payload.demoDayScript[0]).toMatch(/Login Session/i);
+    expect(payload.demoDayScript.join(' ')).toMatch(/ADMIN ENABLE/);
+    expect(payload.commandGrid.some((row: { id: string }) => row.id === 'admin-enable')).toBe(true);
     expect(payload.stores.mongo).toMatch(/Never users/i);
   });
 });

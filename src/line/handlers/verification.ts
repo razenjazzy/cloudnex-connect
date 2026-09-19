@@ -3,7 +3,7 @@ import { startOdooUserVerification, verifyOdooUserByOtp } from '../../services/u
 import { createBotTextFlexMessage } from '../templates';
 import type { UserLanguage } from '../../services/firestore';
 import { syncStaffProfile } from '../quote-access';
-import { buildHomeMenuMessage } from '../command-router';
+import { homeMenuFromContext } from '../command-router';
 import { clearSalesLogin } from '../../services/sales-session';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
@@ -64,7 +64,7 @@ const verifyOtpHandler: CommandHandler = {
     ctx.trayRest = { language: userLanguage, salesSessionActive: true };
     return [
       card,
-      buildHomeMenuMessage(userLanguage, agentName, ctx.channel, ctx.profile.role === 'admin', true),
+      homeMenuFromContext({ ...ctx, profile: { ...ctx.profile, odooVerified: true } }),
     ];
   },
 };
@@ -81,11 +81,11 @@ const verifyStatusHandler: CommandHandler = {
       body: tr(
         userLanguage,
         profile.odooVerified
-          ? `${agentName} บัญชี Odoo ของคุณยืนยันแล้ว (${synced.salesTier === 'sales_manager' ? 'ผู้ดูแลฝ่ายขาย' : synced.salesTier === 'salesperson' ? 'ผู้ใช้ฝ่ายขาย' : 'ลูกค้า'})${synced.odooVerifiedAt ? ` เมื่อ ${synced.odooVerifiedAt}` : ''}`
-          : `${agentName} บัญชี Odoo ของคุณยังไม่ยืนยัน`,
+          ? `${agentName} บัญชีของคุณยืนยันแล้ว (${synced.salesTier === 'sales_manager' ? 'ผู้ดูแลฝ่ายขาย' : synced.salesTier === 'salesperson' ? 'ผู้ใช้ฝ่ายขาย' : 'ลูกค้า'})${synced.odooVerifiedAt ? ` เมื่อ ${synced.odooVerifiedAt}` : ''}`
+          : `${agentName} บัญชียังไม่ยืนยัน`,
         profile.odooVerified
-          ? `${agentName} your Odoo account is verified as ${synced.salesTier === 'sales_manager' ? 'Sales Administrator' : synced.salesTier === 'salesperson' ? 'Sales User' : 'customer'}${synced.odooVerifiedAt ? ` at ${synced.odooVerifiedAt}` : ''}`
-          : `${agentName} your Odoo account is not verified yet`,
+          ? `${agentName} your account is verified as ${synced.salesTier === 'sales_manager' ? 'Sales Administrator' : synced.salesTier === 'salesperson' ? 'Sales User' : 'customer'}${synced.odooVerifiedAt ? ` at ${synced.odooVerifiedAt}` : ''}`
+          : `${agentName} your account is not verified yet`,
       ),
       language: userLanguage,
       tone: 'info',
@@ -98,7 +98,7 @@ const verifySignoutHandler: CommandHandler = {
   name: 'verify-signout',
   match: (u) => u === 'VERIFY SIGNOUT',
   handle: async (ctx) => {
-    const { userLanguage, userId, agentName, channel, profile } = ctx;
+    const { userLanguage, userId, agentName, profile } = ctx;
     await clearSalesLogin(userId);
     ctx.trayRest = { language: userLanguage, salesSessionActive: false };
     return [
@@ -108,7 +108,7 @@ const verifySignoutHandler: CommandHandler = {
         language: userLanguage,
         tone: 'success',
       }),
-      buildHomeMenuMessage(userLanguage, agentName, channel, profile.role === 'admin', false),
+      homeMenuFromContext({ ...ctx, profile: { ...profile, odooVerified: false, salesSessionExpiresAt: undefined } }),
     ];
   },
 };

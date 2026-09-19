@@ -87,7 +87,12 @@ export const registerDemoRoutes = (app: Express): void => {
         });
     });
 
-    app.get('/demo', requireDemoControlAccess, (_req, res) => {
+    // The HTML shell must stay reachable without a session so presenters can
+    // paste DEMO_CONTROL_TOKEN and POST /demo/session/login. JSON APIs stay gated.
+    app.get('/demo', (_req, res) => {
+        if (!isDemoControlEnabled) {
+            return res.status(404).json({ error: 'Demo control panel is disabled.' });
+        }
         res.type('html').send(buildDemoPage());
     });
 

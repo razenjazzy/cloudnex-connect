@@ -9,6 +9,7 @@ describe('isGuestAllowedCommand', () => {
     expect(isGuestAllowedCommand('PRODUCT FIND App')).toBe(true);
     expect(isGuestAllowedCommand('SERVICE LIST')).toBe(true);
     expect(isGuestAllowedCommand('NAV HOME')).toBe(true);
+    expect(isGuestAllowedCommand('NAV DIRECTORY')).toBe(false);
     expect(isGuestAllowedCommand('FORM PRODUCT FIND', { flow: 'PRODUCT_FIND' })).toBe(true);
   });
 

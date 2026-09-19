@@ -31,23 +31,29 @@ let tealStrong = NSColor(srgbRed: 0x06 / 255, green: 0x3F / 255, blue: 0x3D / 25
 let tealTint = NSColor(srgbRed: 0xE3 / 255, green: 0xF0 / 255, blue: 0xEE / 255, alpha: 1)
 let gold = NSColor(srgbRed: 0xA9 / 255, green: 0x7A / 255, blue: 0x2B / 255, alpha: 1)
 let goldTint = NSColor(srgbRed: 0xF4 / 255, green: 0xE9 / 255, blue: 0xD4 / 255, alpha: 1)
+let idle = NSColor.white
 let canvas = NSColor(srgbRed: 0xF3 / 255, green: 0xF5 / 255, blue: 0xF4 / 255, alpha: 1)
 let radius: CGFloat = 28
-let pad: CGFloat = 20
+let gutter: CGFloat = 28
+let cols = 3
+let rows = 2
 let fontSize: CGFloat = 48
 let iconStroke: CGFloat = 10
 
 func fillColor(_ name: String?) -> NSColor {
   switch name {
-  case "teal": return teal
+  case "teal": return tealStrong
+  case "gold": return gold
   case "goldTint": return goldTint
-  default: return tealTint
+  case "tealTint": return tealTint
+  default: return idle
   }
 }
 
 func inkColor(_ name: String?) -> NSColor {
   switch name {
   case "teal": return .white
+  case "gold": return .white
   case "goldTint": return gold
   default: return tealStrong
   }
@@ -187,13 +193,16 @@ let font = NSFont.systemFont(ofSize: fontSize, weight: .semibold)
 let paragraph = NSMutableParagraphStyle()
 paragraph.alignment = .center
 paragraph.lineBreakMode = .byWordWrapping
+let tileW = (CGFloat(width) - gutter * CGFloat(cols + 1)) / CGFloat(cols)
+let tileH = (CGFloat(height) - gutter * CGFloat(rows + 1)) / CGFloat(rows)
 
-for area in layout.areas {
-  let x = CGFloat(area.bounds.x)
-  let flippedY = CGFloat(height - area.bounds.y - area.bounds.height)
-  let w = CGFloat(area.bounds.width)
-  let h = CGFloat(area.bounds.height)
-  let tile = NSRect(x: x + pad, y: flippedY + pad, width: w - pad * 2, height: h - pad * 2)
+for (index, area) in layout.areas.enumerated() {
+  let col = index % cols
+  let row = index / cols
+  let tileX = gutter + CGFloat(col) * (tileW + gutter)
+  let tileYTop = gutter + CGFloat(row) * (tileH + gutter)
+  let flippedY = CGFloat(height) - tileYTop - tileH
+  let tile = NSRect(x: tileX, y: flippedY, width: tileW, height: tileH)
   fillColor(area.fill).setFill()
   roundedRect(tile, radius).fill()
   let ink = inkColor(area.fill)

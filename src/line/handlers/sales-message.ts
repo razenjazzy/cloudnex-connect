@@ -8,9 +8,11 @@ import {
   type UserLanguage,
 } from '../../services/firestore';
 import { sendTargetedFlexMessage } from '../messaging';
-import { DEFAULT_CHANNEL_ID } from '../channels';
+import { customerNotifyChannelId } from '../channels';
 import { isQuoteStaff, syncStaffProfile } from '../quote-access';
 import { resolveCustomerLineUserId } from '../quote-notify';
+import { commerceFollowUpMessages } from '../commerce-followup';
+import { LINE_LIMITS } from '../message-limits';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -81,10 +83,13 @@ const messageCustomerHandler: CommandHandler = {
     }
 
     const customerLanguage = await getUserLanguage(customerUserId);
-    await sendTargetedFlexMessage([customerUserId], botText(parsed.message, customerLanguage), channel?.channelId || DEFAULT_CHANNEL_ID);
+    await sendTargetedFlexMessage([customerUserId], botText(parsed.message, customerLanguage), customerNotifyChannelId());
 
     recordAuditEvent({ action: 'sales_message', outcome: 'success', actorUserId: userId, channelId: channel?.channelId, requestId, targetId: customerUserId });
-    return [botText(tr(userLanguage, 'ส่งข้อความแล้ว', 'Message sent.'), userLanguage, 'success')];
+    return [
+      botText(tr(userLanguage, 'ส่งข้อความแล้ว', 'Message sent.'), userLanguage, 'success'),
+      ...(await commerceFollowUpMessages(ctx, LINE_LIMITS.MAX_MESSAGES_PER_REPLY - 1)),
+    ];
   },
 };
 

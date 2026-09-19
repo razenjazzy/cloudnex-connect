@@ -172,3 +172,22 @@ export const truncate = (value: string, maxLength: number): string => {
   const chars = Array.from(value.trim());
   return chars.length > maxLength ? `${chars.slice(0, maxLength - 3).join('')}...` : value.trim();
 };
+
+export const flexBubbleStyles = {
+  header: { backgroundColor: BRAND.teal },
+  body: { backgroundColor: BRAND.surface },
+  footer: { backgroundColor: BRAND.surface },
+} as const;
+
+/** Teal header used on every Cloudnex bubble: title + optional caption. */
+export const flexHeaderBox = (title: string, subtitle?: string): messagingApi.FlexBox => ({
+  type: 'box',
+  layout: 'vertical',
+  paddingAll: 'md',
+  contents: [
+    { type: 'text', text: title, weight: 'bold', size: 'md', color: '#FFFFFF', wrap: true },
+    ...(subtitle
+      ? [{ type: 'text' as const, text: subtitle, size: 'xs' as const, color: '#DDEBE9', margin: 'xs' as const, wrap: true }]
+      : []),
+  ],
+});

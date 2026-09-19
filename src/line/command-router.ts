@@ -46,7 +46,7 @@ import { bindPostbackData } from './postback';
 import { withSpan } from '../observability/tracing';
 import { appLogger } from '../services/logger';
 import { isQuoteStaff, selfQuoteIdentity } from './quote-access';
-import { isGuestAllowedCommand } from './guest-commands';
+import { evaluateCommandGrid, isGuestAllowedCommand } from './command-grid';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -102,13 +102,31 @@ export const buildHomeMenuMessage = (
   channel: ChannelContext | undefined,
   isAdmin: boolean,
   salesSessionActive = false,
+  identity?: { name?: string; phone?: string },
+  isStaff = isAdmin,
 ): messagingApi.Message => {
-  const availableServices = getAvailableServices(channel, isAdmin);
+  const availableServices = getAvailableServices(channel, isAdmin, isStaff);
   const menuItems = [
     { key: 'VERIFY', label: tr(language, 'ยืนยันตัวตน', 'Verify account') },
     ...availableServices.map(svc => ({ key: svc.key, label: language === 'en' ? svc.labelEn : svc.labelTh })),
   ];
-  return createServiceHomeFlexMessage(menuItems, language, agentName, salesSessionActive);
+  return createServiceHomeFlexMessage(menuItems, language, agentName, salesSessionActive, identity);
+};
+
+export const homeMenuFromContext = (ctx: Pick<CommandReplyContext, 'userLanguage' | 'agentName' | 'channel' | 'profile'>): messagingApi.Message => {
+  const staff = isQuoteStaff(ctx.profile);
+  const identity = !staff && (ctx.profile.displayName || ctx.profile.phone)
+    ? { name: ctx.profile.displayName, phone: ctx.profile.phone }
+    : undefined;
+  return buildHomeMenuMessage(
+    ctx.userLanguage,
+    ctx.agentName,
+    ctx.channel,
+    ctx.profile.role === 'admin',
+    hasActiveSalesSession(ctx.profile),
+    identity,
+    staff,
+  );
 };
 
 // ---------------------------------------------------------------------------
@@ -134,8 +152,8 @@ const buildFormPromptMessage = async (
     : undefined;
   const savedPhoneNote = field.key === 'phone' && options?.[0]
     ? tr(language,
-      `เบอร์ใน Odoo: ${options[0]}`,
-      `Saved in Odoo: ${options[0]}`,
+      `เบอร์ที่บันทึกไว้: ${options[0]}`,
+      `Saved on file: ${options[0]}`,
     )
     : undefined;
   return createFormPromptFlexMessage({
@@ -181,7 +199,14 @@ const applyFieldDefaults = async (flowSpec: FlowSpec, collected: Record<string, 
 const nextUnfilledIndex = (flowSpec: FlowSpec, collected: Record<string, string>, fromIndex: number): number => {
   const stop = flowSpec.optionalSummaryStartIndex ?? flowSpec.fields.length;
   let i = fromIndex;
-  while (i < stop && collected[flowSpec.fields[i].key]) i += 1;
+  while (i < stop) {
+    const field = flowSpec.fields[i];
+    if (field.skipWhen?.(collected) || collected[field.key]) {
+      i += 1;
+      continue;
+    }
+    break;
+  }
   return i;
 };
 
@@ -237,7 +262,7 @@ const handleGuidedFormStep = async (ctx: CommandReplyContext): Promise<messaging
     await setUserPendingFlow(userId, null);
     return [
       text(tr(userLanguage, `${agentName} ยกเลิกแบบฟอร์มแล้ว`, `${agentName} form cancelled.`)),
-      buildHomeMenuMessage(userLanguage, agentName, ctx.channel, profile.role === 'admin', hasActiveSalesSession(profile)),
+      homeMenuFromContext(ctx),
     ];
   }
 
@@ -413,6 +438,14 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
     ), userLanguage)];
   }
 
+  if (flowSpec.key === 'ORDER_STATUS' && !isQuoteStaff(profile)) {
+    return resolveCommandReply({ ...ctx, text: 'QUOTE LIST' });
+  }
+
+  if (flowSpec.key === 'PRODUCT_FIND' && !isQuoteStaff(profile)) {
+    return resolveCommandReply({ ...ctx, text: 'PRODUCT FIND' });
+  }
+
   if (flowSpec.key === 'QUOTE_CREATE' && !isQuoteStaff(profile)) {
     if (!profile.odooPartnerId) {
       return [text(tr(userLanguage,
@@ -425,9 +458,12 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
   }
 
   if (flowSpec.key === 'VERIFY' && hasActiveSalesSession(profile)) {
+    const staff = isQuoteStaff(profile);
     return [createBotTextFlexMessage({
       title: tr(userLanguage, 'ปิดเซสชันยืนยัน?', 'End verification session?'),
-      body: tr(userLanguage, 'แตะยืนยันเพื่อออกจากเซสชัน Sales หรือยกเลิกเพื่อใช้งานต่อ', 'Confirm to sign out of the sales session, or cancel to keep it on.'),
+      body: staff
+        ? tr(userLanguage, 'แตะยืนยันเพื่อออกจากเซสชัน Sales หรือยกเลิกเพื่อใช้งานต่อ', 'Confirm to sign out of the sales session, or cancel to keep it on.')
+        : tr(userLanguage, 'แตะยืนยันเพื่อออกจากบัญชีลูกค้าบน LINE นี้ หรือยกเลิกเพื่อใช้งานต่อ', 'Confirm to sign out of this customer account, or cancel to keep it on.'),
       language: userLanguage,
       tone: 'warning',
       actions: [
@@ -460,7 +496,7 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
 // Main dispatch — resolveCommandReply
 // ---------------------------------------------------------------------------
 
-export { isGuestAllowedCommand } from './guest-commands';
+export { isGuestAllowedCommand } from './command-grid';
 
 const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messagingApi.Message[]> => {
   const { userId, userLanguage, agentName } = ctx;
@@ -500,7 +536,7 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
         { label: tr(userLanguage, 'ข้อมูลของฉัน', 'My data'), text: 'MY DATA', style: 'primary' },
         { label: tr(userLanguage, 'ลบข้อมูล', 'Delete my data'), text: 'DELETE MY DATA', style: 'secondary' },
       ]),
-      buildHomeMenuMessage(userLanguage, agentName, ctx.channel, profile.role === 'admin', false),
+      homeMenuFromContext(ctx),
     ];
   }
 
@@ -526,6 +562,19 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
     return [text(tr(userLanguage,
       `${agentName} คำสั่งนี้ถูกปิดใช้งาน`,
       `${agentName} this command is disabled.`,
+    ), userLanguage)];
+  }
+
+  const grid = evaluateCommandGrid(upperText, ctx);
+  if (!grid.ok) {
+    const channelDenied = grid.reason === 'channel';
+    return [text(tr(userLanguage,
+      channelDenied
+        ? `${agentName} คำสั่งนี้ใช้ได้เฉพาะ Official Account ฝ่ายขาย`
+        : `${agentName} คำสั่งนี้ต้องการสิทธิ์ที่สูงกว่า`,
+      channelDenied
+        ? `${agentName} this command is only available on the Sales Official Account.`
+        : `${agentName} you do not have permission for this command.`,
     ), userLanguage)];
   }
 

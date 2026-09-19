@@ -1,7 +1,7 @@
 import { messagingApi } from '@line/bot-sdk';
 import { t } from '../../services/i18n';
 import { getAgentName } from '../channels';
-import { BRAND, createMessageActionButton, createResultIconBox, createUriActionButton, formatMoney, truncate, type ReportLanguage } from './shared';
+import { BRAND, createMessageActionButton, createResultIconBox, createUriActionButton, flexBubbleStyles, flexHeaderBox, formatMoney, truncate, type ReportLanguage } from './shared';
 
 export const createBotTextFlexMessage = (params: {
   title: string;
@@ -51,25 +51,13 @@ export const createBotTextFlexMessage = (params: {
     } : {}),
     contents: {
       type: 'bubble',
-      styles: {
-        header: { backgroundColor: BRAND.teal },
-        body: { backgroundColor: BRAND.surface },
-        footer: { backgroundColor: BRAND.surface },
-      },
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'md',
-        contents: [
-          { type: 'text', text: titlePrefix, color: '#FFFFFF', weight: 'bold', size: 'md', wrap: true },
-          { type: 'text', text: params.title, color: '#DDEBE9', size: 'xs', margin: 'xs', wrap: true },
-        ],
-      },
+      styles: flexBubbleStyles,
+      header: flexHeaderBox(titlePrefix, params.title),
       body: {
         type: 'box',
         layout: 'vertical',
         spacing: 'md',
-        paddingBottom: 'lg',
+        paddingAll: 'lg',
         contents: [
           {
             type: 'box',
@@ -98,6 +86,7 @@ export const createBotTextFlexMessage = (params: {
         type: 'box',
         layout: 'vertical',
         spacing: 'sm',
+        paddingAll: 'lg',
         contents: [
           ...(params.linkAction ? [createUriActionButton(params.linkAction.label, params.linkAction.uri, 'primary', BRAND.teal)] : []),
           ...(params.actions?.length
@@ -139,22 +128,16 @@ export const createDailyReportFlexMessage = (reportData: any, insights: string, 
     altText: language === 'en' ? 'Daily sales and inventory report' : 'สรุปรายงานยอดขายและสต็อกประจำวัน',
     contents: {
       type: 'bubble',
-      styles: {
-        header: { backgroundColor: BRAND.teal },
-        body: { backgroundColor: BRAND.surface },
-      },
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'md',
-        contents: [
-          { type: 'text', text: language === 'en' ? `Daily report by ${agentName}` : `รายงานประจำวันโดย ${agentName}`, weight: 'bold', size: 'md', color: '#FFFFFF', wrap: true },
-          { type: 'text', text: language === 'en' ? 'Sales, revenue, and stock at a glance' : 'สรุปยอดขาย รายได้ และสต็อกสินค้า', size: 'xs', color: '#DDEBE9', margin: 'xs', wrap: true },
-        ],
-      },
+      styles: flexBubbleStyles,
+      header: flexHeaderBox(
+        language === 'en' ? `Daily report by ${agentName}` : `รายงานประจำวันโดย ${agentName}`,
+        language === 'en' ? 'Sales, revenue, and stock at a glance' : 'สรุปยอดขาย รายได้ และสต็อกสินค้า',
+      ),
       body: {
         type: 'box',
         layout: 'vertical',
+        spacing: 'md',
+        paddingAll: 'lg',
         contents: [
           { type: 'text', text: insights, wrap: true, size: 'sm', color: BRAND.ink },
           ...(rows.length ? [{ type: 'separator', margin: 'md' } as const] : []),

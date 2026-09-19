@@ -1,12 +1,14 @@
-import { createQuotationJourneyFlexMessage } from './templates';
-import { oaChatDeepLink, customerNotifyChannelId, salesNotifyChannelId } from './channels';
+import { createBotTextFlexMessage, createQuotationJourneyFlexMessage } from './templates';
+import { oaChatDeepLink, oaPrefillDeepLink, customerNotifyChannelId, salesNotifyChannelId } from './channels';
 import { sendTargetedFlexMessage, sendTargetedMessage } from './messaging';
 import { getPartnerById, getSaleOrderById, getSaleOrderPdfLink, getSaleOrderPortalLink } from '../services/odoo';
 import type { OdooSaleOrder } from '../services/odoo/types';
 import { findVerifiedUserIdByPartnerId, findLineUserIdByPhone, getUserLanguage, getUserProfile, listVerifiedSalesLineUserIds, persistQuoteInvite, consumeQuoteInvites } from '../services/firestore';
+import { canViewOrderAsCustomer } from './quote-access';
 import { getErpAdapter } from '../erp/registry';
 import type { ErpDeliveryStatus } from '../erp/adapter';
 import { phoneMatchVariants } from '../services/phone-match';
+import { t } from '../services/i18n';
 
 export type QuoteSendChannel = 'line' | 'email' | 'both';
 
@@ -49,11 +51,14 @@ const salesNotifyUserIds = async (): Promise<string[]> => {
 export const resolveCustomerLineUserId = async (partner: { id: number; phone?: string } | null): Promise<string | null> => {
   if (!partner) return null;
   const customerChannel = customerNotifyChannelId();
-  if (partner.phone) {
-    const byPhone = await findLineUserIdByPhone(partner.phone, customerChannel);
-    if (byPhone) return byPhone;
-  }
-  return findVerifiedUserIdByPartnerId(partner.id, customerChannel);
+  const byPartner = await findVerifiedUserIdByPartnerId(partner.id, customerChannel, true);
+  if (byPartner) return byPartner;
+  if (!partner.phone) return null;
+  const byPhone = await findLineUserIdByPhone(partner.phone, customerChannel, true);
+  if (!byPhone) return null;
+  const profile = await getUserProfile(byPhone);
+  if (!profile.odooVerified || profile.odooPartnerId !== partner.id) return null;
+  return byPhone;
 };
 
 const getOrderLinks = async (orderId: number) => {
@@ -79,7 +84,7 @@ export const notifyQuoteParties = async (input: {
   email?: { to: string; subject: string; body: string };
   salesIntro?: string;
   delivery?: ErpDeliveryStatus;
-}): Promise<{ customerLineId: string | null; emailed: boolean; salesPushed: number; inviteUri?: string }> => {
+}): Promise<{ customerLineId: string | null; emailed: boolean; salesPushed: number; inviteUri?: string; lineQueued: boolean }> => {
   const notifyCustomer = input.notifyCustomer !== false;
   const notifySales = input.notifySales !== false;
   const viaLine = input.viaLine !== false;
@@ -87,20 +92,44 @@ export const notifyQuoteParties = async (input: {
   const salesChannelId = salesNotifyChannelId();
 
   const partner = input.order.partner_id ? await getPartnerById(input.order.partner_id[0]) : null;
-  const customerLineId = notifyCustomer && viaLine ? await resolveCustomerLineUserId(partner) : null;
+  const candidateCustomerId = notifyCustomer && viaLine ? await resolveCustomerLineUserId(partner) : null;
   const links = await getOrderLinks(input.order.id);
 
-  if (notifyCustomer && viaLine && !customerLineId && partner?.phone) {
-    await saveQuoteInvite(partner.phone, input.order.id, customerChannelId);
-  }
-
-  if (customerLineId && customerLineId !== input.actorUserId) {
-    const language = await getUserLanguage(customerLineId);
-    await sendTargetedFlexMessage(
-      [customerLineId],
+  let customerLineId: string | null = null;
+  if (candidateCustomerId && candidateCustomerId !== input.actorUserId) {
+    const language = await getUserLanguage(candidateCustomerId);
+    const pushed = await sendTargetedFlexMessage(
+      [candidateCustomerId],
       createQuotationJourneyFlexMessage(input.order, { role: 'customer', ...links, ...(input.delivery ? { delivery: input.delivery } : {}) }, language),
       customerChannelId,
     );
+    if (pushed) customerLineId = candidateCustomerId;
+  }
+
+  const lineQueued = Boolean(notifyCustomer && viaLine && !customerLineId && partner?.phone);
+  if (lineQueued && partner?.phone) {
+    await saveQuoteInvite(partner.phone, input.order.id, customerChannelId);
+    const salesFriendId = await findLineUserIdByPhone(partner.phone, salesChannelId, true);
+    if (salesFriendId && salesFriendId !== input.actorUserId) {
+      const language = await getUserLanguage(salesFriendId);
+      const inviteUri = oaPrefillDeepLink(customerChannelId, `QUOTE STATUS ${input.order.id}`)
+        || oaChatDeepLink(customerChannelId);
+      if (inviteUri) {
+        await sendTargetedFlexMessage(
+          [salesFriendId],
+          createBotTextFlexMessage({
+            title: t('addFriend', language),
+            body: language === 'en'
+              ? `Your quotation ${input.order.name} is ready on Cloudnex Customer. Open that chat to receive it.`
+              : `ใบเสนอราคา ${input.order.name} พร้อมแล้วที่ Cloudnex Customer เปิดแชทนั้นเพื่อรับใบเสนอราคา`,
+            language,
+            tone: 'success',
+            linkAction: { label: t('addFriend', language), uri: inviteUri },
+          }),
+          salesChannelId,
+        );
+      }
+    }
   }
 
   const salesIds = notifySales
@@ -124,10 +153,11 @@ export const notifyQuoteParties = async (input: {
   }
 
   return {
-    customerLineId: customerLineId && customerLineId !== input.actorUserId ? customerLineId : null,
+    customerLineId,
     emailed,
     salesPushed: salesIds.length,
-    inviteUri: notifyCustomer && viaLine && !customerLineId ? oaChatDeepLink(customerChannelId) : undefined,
+    lineQueued,
+    inviteUri: lineQueued ? (oaPrefillDeepLink(customerChannelId, `QUOTE STATUS ${input.order.id}`) || oaChatDeepLink(customerChannelId)) : undefined,
   };
 };
 
@@ -140,6 +170,11 @@ export const deliverPendingQuoteInvites = async (userId: string, channelId: stri
   for (const invite of pending) {
     const order = await getSaleOrderById(invite.orderId);
     if (!order) continue;
+    const orderPartnerId = Array.isArray(order.partner_id) ? order.partner_id[0] : undefined;
+    if (!canViewOrderAsCustomer(profile, orderPartnerId)) {
+      await saveQuoteInvite(profile.phone, invite.orderId, invite.channelId || channelId);
+      continue;
+    }
     const links = await getOrderLinks(order.id);
     await sendTargetedFlexMessage(
       [userId],

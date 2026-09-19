@@ -11,8 +11,8 @@ import {
   findProductByQuery,
   getPartnerByPhone,
   pingOdoo,
-  seedOdooSampleSalesData,
 } from './odoo';
+import { seedOdooSampleSalesDataWithAudit } from './seed-odoo';
 
 type UiLanguage = AppLanguage;
 
@@ -124,7 +124,7 @@ const safePingOdoo = async (): Promise<string> => {
 
 const safeSeedOdoo = async (): Promise<string> => {
   try {
-    return await seedOdooSampleSalesData();
+    return await seedOdooSampleSalesDataWithAudit('demo');
   } catch (error) {
     return `Odoo seed failed: ${String(error)}`;
   }

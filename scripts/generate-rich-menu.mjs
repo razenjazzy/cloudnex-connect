@@ -11,20 +11,20 @@ import { spawnSync } from 'node:child_process';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const TEAL = '#0B6E6A';
 const TEAL_STRONG = '#063F3D';
 const TEAL_TINT = '#E3F0EE';
 const GOLD = '#A97A2B';
 const GOLD_TINT = '#F4E9D4';
-const fills = { teal: TEAL, tealTint: TEAL_TINT, gold: GOLD, goldTint: GOLD_TINT };
-const inks = { teal: '#FFFFFF', tealTint: TEAL_STRONG, gold: '#FFFFFF', goldTint: GOLD };
+const IDLE = '#FFFFFF';
+const fills = { teal: TEAL_STRONG, tealTint: TEAL_TINT, gold: GOLD, goldTint: GOLD_TINT, idle: IDLE };
+const inks = { teal: '#FFFFFF', tealTint: TEAL_STRONG, gold: '#FFFFFF', goldTint: GOLD, idle: TEAL_STRONG };
 
-/** Language fill follows EN/TH only. Verify fill follows sales session only. Tap darkens that one tile. */
+/** Rest: white (no teal). Language gold while English. Verify gold while session on. Tap: dark teal. */
 const tileFill = (area, activeId, lang, sessionOn) => {
   if (area.id === activeId) return 'teal';
-  if (area.id === 'verify') return sessionOn ? 'gold' : 'tealTint';
-  if (area.id === 'language') return lang === 'en' ? 'gold' : 'tealTint';
-  return 'tealTint';
+  if (area.id === 'verify') return sessionOn ? 'gold' : 'idle';
+  if (area.id === 'language') return lang === 'en' ? 'gold' : 'idle';
+  return 'idle';
 };
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -33,7 +33,9 @@ mkdirSync(outDir, { recursive: true });
 const layout = JSON.parse(readFileSync(join(outDir, 'layout.json'), 'utf8'));
 const WIDTH = layout.size.width;
 const HEIGHT = layout.size.height;
-const PAD = 20;
+const COLS = 3;
+const ROWS = 2;
+const GUTTER = 28;
 const RADIUS = 28;
 const FONT_SIZE = 48;
 const STROKE = 10;
@@ -90,21 +92,22 @@ const buildSvg = (lang, spec) => `<?xml version="1.0" encoding="UTF-8"?>
       text-anchor: middle;
     }
   </style>
-  ${spec.areas.map(area => {
-    const { x, y, width: w, height: h } = area.bounds;
-    const fillKey = area.fill || 'tealTint';
-    const fill = fills[fillKey] || TEAL_TINT;
+  ${spec.areas.map((area, i) => {
+    const col = i % COLS;
+    const row = Math.floor(i / COLS);
+    const tileW = (WIDTH - GUTTER * (COLS + 1)) / COLS;
+    const tileH = (HEIGHT - GUTTER * (ROWS + 1)) / ROWS;
+    const tileX = GUTTER + col * (tileW + GUTTER);
+    const tileY = GUTTER + row * (tileH + GUTTER);
+    const fillKey = area.fill || 'idle';
+    const fill = fills[fillKey] || IDLE;
     const ink = inks[fillKey] || TEAL_STRONG;
-    const tileX = x + PAD;
-    const tileY = y + PAD;
-    const tileW = w - PAD * 2;
-    const tileH = h - PAD * 2;
-    const cx = x + w / 2;
-    const iconY = y + h * 0.42;
+    const cx = tileX + tileW / 2;
+    const iconY = tileY + tileH * 0.42;
     const label = escapeXml(lang === 'th' ? area.labelTh : area.labelEn);
     return `<rect x="${tileX}" y="${tileY}" width="${tileW}" height="${tileH}" rx="${RADIUS}" fill="${fill}"/>
     ${iconSvg(area.icon, cx, iconY, ink)}
-    <text class="label" fill="${ink}" x="${cx}" y="${y + h * 0.78}">${label}</text>`;
+    <text class="label" fill="${ink}" x="${cx}" y="${tileY + tileH * 0.78}">${label}</text>`;
   }).join('\n  ')}
 </svg>
 `;
@@ -134,4 +137,4 @@ for (const lang of ['en', 'th']) {
   }
 }
 
-console.log(`svg + png written (${FONT_SIZE}px, radius ${RADIUS}, pad ${PAD}, active variants)`);
+console.log(`svg + png written (${FONT_SIZE}px, radius ${RADIUS}, gutter ${GUTTER}, active variants)`);

@@ -135,6 +135,7 @@ jobs:
           GOOGLE_CLOUD_LOCATION: ${{ secrets.GOOGLE_CLOUD_LOCATION }}
           CLOUD_RUN_SECRETS: ${{ secrets.CLOUD_RUN_SECRETS }}
           PRODUCTION_APPROVED: 'true'
+          STAGING_VALIDATED: 'true'
         run: npm run preflight:prod
 
       - name: Authenticate to Google Cloud
@@ -153,6 +154,7 @@ jobs:
           CLOUD_RUN_SERVICE_NAME: ${{ secrets.CLOUD_RUN_SERVICE_NAME }}
           CLOUD_RUN_SECRETS: ${{ secrets.CLOUD_RUN_SECRETS }}
           PRODUCTION_APPROVED: 'true'
+          STAGING_VALIDATED: 'true'
         run: npm run deploy:prod
 
       - name: Smoke-check production

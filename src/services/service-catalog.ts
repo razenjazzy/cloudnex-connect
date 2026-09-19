@@ -8,6 +8,8 @@ export type ServiceCommand = {
   labelTh: string;
   labelEn: string;
   requiresAdmin?: boolean;
+  /** Staff = Odoo salesperson/admin on Sales OA. Customer = shopper on Customer OA. Unset = both. */
+  audience?: 'staff' | 'customer';
 };
 
 export type ServiceDefinition = {
@@ -46,11 +48,12 @@ export const SERVICE_CATALOG: ServiceDefinition[] = [
     labelTh: 'สินค้าและใบเสนอราคา',
     labelEn: 'Products & Quotes',
     commands: [
-      { text: 'FORM PRODUCT FIND', labelTh: 'ค้นหาสินค้า', labelEn: 'Find a product' },
-      { text: 'FORM QUOTE CREATE', labelTh: 'สร้างใบเสนอราคา', labelEn: 'Create a quote' },
-      { text: 'FORM ORDER STATUS', labelTh: 'เช็คสถานะออเดอร์', labelEn: 'Check an order' },
-      { text: 'QUOTE LIST', labelTh: 'ใบเสนอราคาของฉัน', labelEn: 'My quotations' },
-      { text: 'FORM MESSAGE CUSTOMER', labelTh: 'ส่งข้อความหาลูกค้า (แอดมิน)', labelEn: 'Message a customer (admin)', requiresAdmin: true },
+      { text: 'FORM PRODUCT FIND', labelTh: 'ค้นหาสินค้า', labelEn: 'Find a product', audience: 'staff' },
+      { text: 'FORM QUOTE CREATE', labelTh: 'สร้างใบเสนอราคา', labelEn: 'Create a quote', audience: 'staff' },
+      { text: 'FORM ORDER STATUS', labelTh: 'ค้นหาออเดอร์', labelEn: 'Look up an order', audience: 'staff' },
+      { text: 'QUOTE LIST', labelTh: 'ใบเสนอราคา', labelEn: 'Quotations', audience: 'staff' },
+      { text: 'QUOTE LIST', labelTh: 'ใบเสนอราคาของฉัน', labelEn: 'My quotations', audience: 'customer' },
+      { text: 'FORM MESSAGE CUSTOMER', labelTh: 'ส่งข้อความหาลูกค้า (แอดมิน)', labelEn: 'Message a customer (admin)', requiresAdmin: true, audience: 'staff' },
     ],
   },
   {
@@ -199,8 +202,13 @@ export const isServiceEnabledForChannel = (service: ServiceKey, channel?: Channe
   return channelAllows && isLiveOverrideEnabled(service);
 };
 
-export const getVisibleCommands = (service: ServiceDefinition, isAdmin: boolean): ServiceCommand[] => {
-  return service.commands.filter(c => (!c.requiresAdmin || isAdmin) && !isCommandDisabled(c.text.toUpperCase()));
+export const getVisibleCommands = (service: ServiceDefinition, isAdmin: boolean, isStaff = isAdmin): ServiceCommand[] => {
+  return service.commands.filter(c => {
+    if (c.requiresAdmin && !isAdmin) return false;
+    if (c.audience === 'staff' && !isStaff) return false;
+    if (c.audience === 'customer' && isStaff) return false;
+    return !isCommandDisabled(c.text.toUpperCase());
+  });
 };
 
 /**
@@ -208,8 +216,13 @@ export const getVisibleCommands = (service: ServiceDefinition, isAdmin: boolean)
  * a service that's entirely admin-gated (e.g. reporting) simply doesn't
  * appear for a non-admin, rather than showing an empty action menu.
  */
-export const getAvailableServices = (channel: ChannelContext | undefined, isAdmin: boolean): ServiceDefinition[] => {
-  return SERVICE_CATALOG.filter(svc =>
-    isServiceConfigured(svc.key) && isServiceEnabledForChannel(svc.key, channel) && getVisibleCommands(svc, isAdmin).length > 0
-  );
+export const getAvailableServices = (
+  channel: ChannelContext | undefined,
+  isAdmin: boolean,
+  isStaff = isAdmin,
+): ServiceDefinition[] => {
+  return SERVICE_CATALOG.filter(svc => {
+    if (!isStaff && svc.key !== 'commerce') return false;
+    return isServiceConfigured(svc.key) && isServiceEnabledForChannel(svc.key, channel) && getVisibleCommands(svc, isAdmin, isStaff).length > 0;
+  });
 };

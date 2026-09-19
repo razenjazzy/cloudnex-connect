@@ -2,7 +2,7 @@ export const DEMO_PAGE_MARKUP = `
   <div class="shell">
     <section class="hero">
       <div class="panel hero-copy">
-        <div class="eyebrow">CNS Platform Control Panel · 5 Sep 2026</div>
+        <div class="eyebrow">CNS Platform Control Panel · 19 Sep 2026</div>
         <h1>Walk LINE → Firestore → Odoo in one panel. Mongo and GraphQL stay optional ops add-ons.</h1>
         <p>Same resolveCommandReply as the Official Account. Chat, journey runner, and connection checks are the live demo path.</p>
         <div class="token-row">
@@ -16,10 +16,11 @@ export const DEMO_PAGE_MARKUP = `
         </div>
       </div>
       <div class="panel hero-side">
+        <div class="chip">0. Login Session (token)</div>
         <div class="chip">1. Connections (LINE, Firestore, Odoo)</div>
         <div class="chip">2. Web chat = real router</div>
         <div class="chip">3. FORM QUOTE CREATE → Odoo</div>
-        <div class="chip">4. Journey seed + quote readback</div>
+        <div class="chip">4. Journey + role (VERIFY vs ADMIN)</div>
         <div class="chip">5. Ops: /api-docs and /graphql</div>
       </div>
     </section>
@@ -48,12 +49,13 @@ export const DEMO_PAGE_MARKUP = `
         <h2>Full-Step Runbook</h2>
         <p>Guided sequence for showcase or UAT dry-run.</p>
         <ul class="timeline">
-          <li>1. Refresh connections: LINE, Firestore, Odoo. Mongo is optional.</li>
+          <li>0. Paste DEMO_CONTROL_TOKEN, click Login Session, then Refresh Connections.</li>
+          <li>1. Connections: LINE, Firestore, Odoo. Mongo is optional.</li>
           <li>2. First web-chat message opens PDPA + home (same as LINE).</li>
           <li>3. FORM QUOTE CREATE writes a real Odoo quotation.</li>
           <li>4. Run Full Simulation Flow for partner/product/quote readback.</li>
-          <li>5. Ops only: /api-docs and /graphql with tokens — not the LINE path.</li>
-          <li>6. Close on identity chain: LINE → odooVerified → ADMIN_USER_ID → Odoo admin.</li>
+          <li>5. Role privilege: VERIFY STATUS is identity. ADMIN ENABLE still needs allowlist + Odoo admin.</li>
+          <li>6. Ops only: /api-docs and /graphql with tokens — not the LINE path.</li>
         </ul>
         <p class="warn">For production launch: protect demo endpoints behind OPS token or internal network policy.</p>
         <pre id="runbook-output">Runbook has not executed yet.</pre>

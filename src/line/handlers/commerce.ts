@@ -1,28 +1,21 @@
 import type { CommandHandler } from './index';
 import {
   createProductCardFlexMessage,
-  createProductPickerFlexMessage,
+  createProductCarouselFlexMessage,
   createQuotationJourneyFlexMessage,
   createBotTextFlexMessage,
   formatMoney,
 } from '../templates';
 import { parseDemoQuotePayload, parseSelfQuotePayload } from '../command-validators';
-import {
-  findPaymentTermByName,
-  findProductByQuery,
-  getProductById,
-  getPartnerByName,
-  getPartnerByPhone,
-  getSaleOrderById,
-  getSaleOrderPortalLink,
-  getSaleOrderPdfLink,
-  seedOdooSampleSalesData,
-} from '../../services/odoo';
+import { seedOdooSampleSalesDataWithAudit } from '../../services/seed-odoo';
+import { getSaleOrderById } from '../../services/odoo/sales';
 import { recordAuditEvent, setLastProductContext } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
 import { t } from '../../services/i18n';
 import { canManageQuoteLines, canViewOrderAsCustomer, isQuoteStaff, quoteJourneyRole, selfQuoteIdentity, syncStaffProfile } from '../quote-access';
 import { notifyQuoteParties } from '../quote-notify';
+import { commerceFollowUpMessages } from '../commerce-followup';
+import { LINE_LIMITS } from '../message-limits';
 import { getErpAdapter } from '../../erp/registry';
 import { getPlatformStatus } from '../../platform/status';
 
@@ -52,17 +45,21 @@ const demoProductHandler: CommandHandler = {
     const { userLanguage, text, userId } = ctx;
     const query = text.trim().replace(/^PRODUCT FIND\s*/i, '').trim();
     if (!query) {
+      if (!isQuoteStaff(ctx.profile)) {
+        const catalog = await getErpAdapter().searchProducts('', 10);
+        if (catalog.length) return [createProductCarouselFlexMessage(catalog, userLanguage)];
+      }
       const { resolveCommandReply } = await import('../command-router');
       return resolveCommandReply({ ...ctx, text: 'FORM PRODUCT FIND' });
     }
-    const products = await getErpAdapter().searchProducts(query, 5);
+    const products = await getErpAdapter().searchProducts(query, 10);
     if (!products.length) {
       return [botText(tr(userLanguage, `ไม่พบสินค้าที่ตรงกับ "${query}"`, `No product matched "${query}".`), userLanguage, [
         { label: tr(userLanguage, 'ค้นหาอีกครั้ง', 'Search again'), text: 'FORM PRODUCT FIND', style: 'primary' },
       ])];
     }
     if (products.length > 1) {
-      return [createProductPickerFlexMessage(products, userLanguage)];
+      return [createProductCarouselFlexMessage(products, userLanguage)];
     }
     const product = products[0];
     await setLastProductContext(userId, {
@@ -83,6 +80,7 @@ const demoOrderHandler: CommandHandler = {
     const orderRef = text.trim().replace(/^ORDER STATUS\s*/i, '').trim();
     if (!orderRef) {
       const { resolveCommandReply } = await import('../command-router');
+      if (!isQuoteStaff(ctx.profile)) return resolveCommandReply({ ...ctx, text: 'QUOTE LIST' });
       return resolveCommandReply({ ...ctx, text: 'FORM ORDER STATUS' });
     }
     const found = await getErpAdapter().getOrderStatus(orderRef);
@@ -101,9 +99,8 @@ const demoOrderHandler: CommandHandler = {
       state: found.state,
       amount_total: found.amountTotal || 0,
     };
-    const [portalLink, pdfLink, delivery] = await Promise.all([
-      getSaleOrderPortalLink(order.id).then(v => v || undefined),
-      getSaleOrderPdfLink(order.id).then(v => v || undefined),
+    const [links, delivery] = await Promise.all([
+      getErpAdapter().getOrderLinks(order.id),
       getErpAdapter().getDeliveryStatus(found.id),
     ]);
     const profile = await syncStaffProfile(ctx.userId, ctx.profile);
@@ -116,8 +113,8 @@ const demoOrderHandler: CommandHandler = {
       role,
       salesTier: profile.salesTier,
       canManageLines: canManageQuoteLines(profile),
-      portalLink,
-      pdfLink,
+      portalLink: links.portal,
+      pdfLink: links.pdf,
       ...(delivery ? { delivery } : {}),
     }, userLanguage)];
   },
@@ -151,9 +148,10 @@ const demoQuoteHandler: CommandHandler = {
 
     const { productName, qty, customerName, phone, customerReference, discountPercent, validityDate, note, paymentTerm, productId: parsedProductId } = parsed;
 
+    const erp = getErpAdapter();
     const product = parsedProductId
-      ? await getProductById(parsedProductId)
-      : await findProductByQuery(productName);
+      ? await erp.lookupProduct(parsedProductId)
+      : (await erp.searchProducts(productName, 1))[0];
     if (!product) {
       return [botText(tr(userLanguage,
         `ไม่พบสินค้าที่ตรงกับ "${productName}"`,
@@ -168,12 +166,12 @@ const demoQuoteHandler: CommandHandler = {
     // createQuotationFromLine's findOrCreatePartner blindly create/match a
     // bystander contact by name+phone. Unverified/new customers (the
     // common case) fall through to today's behavior unchanged.
-    const namedPartner = isQuoteStaff(profile) ? await getPartnerByName(customerName) : null;
+    const namedPartner = isQuoteStaff(profile) ? await getErpAdapter().lookupCustomerByName(customerName) : null;
     if (namedPartner && phone && namedPartner.phone !== phone) {
       await getErpAdapter().updateCustomer(namedPartner.id, { phone });
     }
     const existingPartner = isQuoteStaff(profile)
-      ? (namedPartner || await getPartnerByPhone(phone))
+      ? (namedPartner || await getErpAdapter().lookupCustomer(phone))
       : null;
     const partnerId = isQuoteStaff(profile) ? existingPartner?.id : profile.odooPartnerId;
 
@@ -183,8 +181,8 @@ const demoQuoteHandler: CommandHandler = {
     let paymentTermId: number | undefined;
     let paymentTermNotFound = false;
     if (paymentTerm) {
-      const term = await findPaymentTermByName(paymentTerm);
-      if (term) paymentTermId = term.id;
+      const termId = await getErpAdapter().findPaymentTermId(paymentTerm);
+      if (termId) paymentTermId = termId;
       else paymentTermNotFound = true;
     }
 
@@ -222,17 +220,14 @@ const demoQuoteHandler: CommandHandler = {
       ])];
     }
 
-    const [portalLink, pdfLink] = await Promise.all([
-      getSaleOrderPortalLink(quotation.id).then(v => v || undefined),
-      getSaleOrderPdfLink(quotation.id).then(v => v || undefined),
-    ]);
+    const links = await getErpAdapter().getOrderLinks(quotation.id);
     const role = quoteJourneyRole(profile);
     const card = createQuotationJourneyFlexMessage(order, {
       role,
       salesTier: profile.salesTier,
       canManageLines: canManageQuoteLines(profile),
-      portalLink,
-      pdfLink,
+      portalLink: links.portal,
+      pdfLink: links.pdf,
     }, userLanguage);
 
     notifyQuoteParties({ order, channelId: channel?.channelId, actorUserId: userId, notifyCustomer: false })
@@ -245,10 +240,11 @@ const demoQuoteHandler: CommandHandler = {
           `Payment term "${paymentTerm}" not found — created the quote with Odoo's default payment term instead.`,
         ), userLanguage),
         card,
+        ...(await commerceFollowUpMessages(ctx, LINE_LIMITS.MAX_MESSAGES_PER_REPLY - 2)),
       ];
     }
 
-    return [card];
+    return [card, ...(await commerceFollowUpMessages(ctx, LINE_LIMITS.MAX_MESSAGES_PER_REPLY - 1))];
   },
 };
 
@@ -284,14 +280,14 @@ const demoSeedHandler: CommandHandler = {
   name: 'commerce-seed-sample-data',
   match: (u) => u === 'SEED SAMPLE DATA',
   handle: async (ctx) => {
-    const { userLanguage, profile } = ctx;
+    const { userLanguage, profile, userId } = ctx;
     if (profile.role !== 'admin') {
       return [botText(tr(userLanguage,
         'คำสั่งนี้สำหรับแอดมินเท่านั้น กรุณาใช้ ADMIN VERIFY และ ADMIN ENABLE ก่อน',
         'This command is admin-only. Run ADMIN VERIFY and ADMIN ENABLE first.',
       ), userLanguage)];
     }
-    const status = await seedOdooSampleSalesData();
+    const status = await seedOdooSampleSalesDataWithAudit(userId, ctx.channel?.channelId, ctx.requestId);
     return [botText(status, userLanguage)];
   },
 };

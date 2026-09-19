@@ -12,7 +12,7 @@ Persona names: **Sora** (EN), **โซระ** (TH). Guide/home titles: **CloudN
 
 1. `https://amardhaka.io/healthz` and `/readyz` are 200.
 2. **Cloudnex Sales** webhook: `POST https://amardhaka.io/webhook/sales`. **Cloudnex Customer** webhook: `POST https://amardhaka.io/webhook/customer` with `LINE_CHANNEL_CUSTOMER_*`. Quotes/invoices push to Cloudnex Customer; sales staff stay on Cloudnex Sales. A customer asking for a quote or order creates a **draft** `sale.order`. Flex title stays CloudNex Connect.
-3. Compact tray is live (2×3: Home, Verify, Products & Quotes, Order Status, Help, Language). Gold is only on **Language** while English and on **Verify** while the sales session is on. After a generate/upload, set `LINE_RICH_MENU_EN`, `LINE_RICH_MENU_TH`, and `LINE_RICH_MENU_JSON` (includes `*-verified` ids) on the VPS `.env`, then recreate. Also `LINE_AGENT_NAME_EN=Sora` and `LINE_AGENT_NAME_TH=โซระ` or omit for the same defaults. `SALES_SESSION_TTL_HOURS` defaults to 24.
+3. Compact tray is live (2×3: Home, Verify, Products & Quotes, Order Status, Help, Language). Rest tiles are **white (no teal)**. **Language is gold** while English and **white** while Thai. **Verify is gold** while the session is on and **white** while not. A tap fills that tile **dark teal**. Equal gutter around and between tiles. After generate/upload, set `LINE_RICH_MENU_EN`, `LINE_RICH_MENU_TH`, and `LINE_RICH_MENU_JSON` on the VPS `.env`, then recreate.
 4. Sales onboard: add **Cloudnex Sales** as a friend, then **VERIFY**. Capture account language is English (or tap Language until English). Existing Firestore `language: th` stays Thai until Language is tapped.
 
 ---
@@ -23,8 +23,8 @@ Capture on **Cloudnex Customer** (`@724tneri`). No staff name/phone fields. No A
 
 | # | Command | You should see | File |
 |---|---|---|---|
-| C0 | Add friend + first message | PDPA + Flex home. Tray Language/Verify (same gold-teal rules as Sales) | `journey/c0-customer-home.png` |
-| C1 | Guest `NAV commerce` or Find product | Catalog/picker works **before** VERIFY. Creating a quote still asks to VERIFY | `journey/c1-guest-catalog.png` |
+| C0 | Add friend + first message | PDPA + Flex home. After VERIFY, name and phone show on the home card (not editable). Tray Language/Verify (same gold / idle / dark-teal rules as Sales) | `journey/c0-customer-home.png` |
+| C1 | Guest `NAV commerce` or Find product | Product **carousel** before VERIFY. Creating a quote still asks to VERIFY | `journey/c1-guest-catalog.png` |
 | C2 | `FORM VERIFY` with Odoo partner phone | Session + `odooPartnerId`. No sales-staff OTP chain | `journey/c2-customer-verify.png` |
 | C3 | `FORM QUOTE CREATE` (product + qty only) | Draft card. Copy: sales will send this quote. Footer **Home** + **QUOTE LIST**. Sales OA gets the staff card | `journey/c3-self-quote-draft.png` |
 | C4 | After Sales **Send LINE** | Customer Flex `sent` + Approve. Confirm/invoice/cancel also push here. Not a friend: Add friend `@724tneri` | `journey/c4-customer-sent.png` |
@@ -37,9 +37,9 @@ Capture on **Cloudnex Customer** (`@724tneri`). No staff name/phone fields. No A
 | # | Command | You should see | File |
 |---|---|---|---|
 | A1 | First message (any text) from a new user, or `NAV HOME` | PDPA notice (first contact only) + Flex home titled CloudNex Connect: Sora | `journey/a1-home-en.png` |
-| A2 | Open chat-bar **Menu** | Compact 2×3. **Language gold** (English). **Verify regular/light teal** (not verified). Other tiles regular. | `journey/a2-tray-en.png` |
-| A3a | Tray **Language** only | Independent of Verify. EN rest **gold** → tap **dark teal** + `LANG` → success **light teal** (Thai) → tap **dark teal** → success **gold** (English). Verify tile does not change. | `journey/a3-language.png` |
-| A3b | Tray **Verify** only | Independent of Language. Unverified rest **regular teal** → tap **dark teal** + `FORM VERIFY` (stays dark through OTP/confirm) → success **gold** until unverify or TTL → tap **dark teal** + confirm sign-out → success **light teal**. Language tile does not change. | `journey/a3-verify.png` |
+| A2 | Open chat-bar **Menu** | Compact 2×3. **Language gold** (English). **Verify white** (not verified). Other tiles white, equal gap. | `journey/a2-tray-en.png` |
+| A3a | Tray **Language** only | EN rest **gold** → tap **dark teal** → Thai rest **no teal** → tap **dark teal** → English **gold**. Verify does not change. | `journey/a3-language.png` |
+| A3b | Tray **Verify** only | Unverified rest **no teal** → tap **dark teal** + `FORM VERIFY` → success **gold** → tap **dark teal** + sign-out → **no teal**. Language does not change. | `journey/a3-verify.png` |
 | A4 | `NAV commerce` (tray Products & Quotes) | Service action list: find product, create quote, order status, my quotations | `journey/a4-products-quotes.png` |
 | A5 | `FORM ORDER STATUS` (tray Order Status) | Order-status form prompt | `journey/a5-order-status.png` |
 | A6 | `GUIDE` (tray Help) | Guide categories; header CloudNex Connect: Sora | `journey/a6-help-guide.png` |
@@ -58,7 +58,7 @@ Capture on **Cloudnex Sales** for a LINE user who has **VERIFY** as an Odoo Sale
 | B4 | Customer phone | `Tap an option below…` then only **Saved in Odoo: &lt;phone&gt;**. Phone chips. After this phone is set, send later stores an OA-friend invite | `journey/b4-quote-phone.png` |
 | B5 | Optional summary | Equal rows: label left, **value right bold**. Filled rows use a **green rounded-square tick** with a gap before the label | `journey/b5-quote-optional.png` |
 | B6 | **Create now** (Action Verify on create) | **Quotation** card. Body: **Confirm \| Send**. Footer: **View Quote \| Download**, **More**, **Home** | `journey/b6-quote-draft.png` |
-| B7 | **Send** | Guided form: LINE / EMAIL / BOTH, then email if needed, then edit template (portal URL included). Action Verify on confirm-send. Staff: sent via method + **waiting for approval** + quote card. No NAV HOME. If the customer is not an OA friend: **Add friend** + email, not “LINE sent”. | `journey/b8-quote-sent-admin.png` |
+| B7 | **Send** | Guided form: LINE / EMAIL / BOTH, then email if needed, then edit template (portal URL included). Action Verify on confirm-send. Staff: **sent** + waiting for approval + quote card (instant success). Customer OA receives the card immediately when they are a friend; otherwise Sales OA sends Add Cloudnex Customer and the card is delivered on follow / `QUOTE STATUS`. | `journey/b8-quote-sent-admin.png` |
 | B8 | Same order, **customer** OA card (after they add Cloudnex Customer) | Body **Confirm** (when sent). Footer **Home** + **My quotations** (plus View Quote \| Download when links exist). Draft: waiting-for-sales copy. No Confirm/Send/More | `journey/b9-quote-sent-customer.png` |
 | B9 | Staff **More** | More card: **Edit Quote**, Send Email, Cancel (Sales Admin only), Message customer, Create More, Back | `journey/b10-quote-more.png` |
 | B10 | **Edit Quote** | **Edit Quote** card: each line Edit item / Remove; footer Add item + Back | `journey/b11-quote-edit.png` |

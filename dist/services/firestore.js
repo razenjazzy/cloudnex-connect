@@ -14,8 +14,8 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.attachGroupBuyOdooOrder = exports.listGroupBuysByCreator = exports.getGroupBuyById = exports.createGroupBuy = exports.consumeActionOtpChallengeByToken = exports.consumeActionOtpChallenge = exports.createActionOtpChallenge = exports.consumeOdooVerificationByToken = exports.consumeOdooVerificationByOtp = exports.createOdooVerificationChallenge = exports.deleteAuditEventsByIds = exports.listAuditEventsOlderThan = exports.listRecentAuditEvents = exports.listRecentAuditEventsPage = exports.recordAuditEvent = exports.transitionStoredApproval = exports.getApprovalRecord = exports.saveApprovalRecord = exports.setPlatformConfig = exports.getPlatformConfig = exports.listVerifiedSalesLineUserIds = exports.findVerifiedUserIdByPartnerId = exports.findLineUserIdByPhone = exports.findVerifiedUserIdByPhone = exports.setSalesSessionExpiresAt = exports.setUserOdooVerificationStatus = exports.setUserContactPhone = exports.setUserOdooPartner = exports.setUserSalesTier = exports.setUserRole = exports.setLastQuoteListFrom = exports.setLastProductContext = exports.setUserPendingFlow = exports.recordChatFeedback = exports.filterMarketingOptedInUserIds = exports.deleteUserProfile = exports.setMarketingOptIn = exports.setLastActionOtpAt = exports.markConsentNoticeShown = exports.getUserProfile = exports.setUserLanguage = exports.getUserLanguage = exports.saveReportLog = exports.markUserFirstContact = exports.setEscalationState = exports.getEscalationState = exports.saveConversationMessage = exports.getConversationHistory = exports.updateUserScore = exports.checkFirestoreReady = void 0;
-exports.cancelGroupBuy = exports.confirmGroupBuy = exports.joinGroupBuy = void 0;
+exports.createGroupBuy = exports.consumeQuoteInvites = exports.persistQuoteInvite = exports.consumeActionOtpChallengeByToken = exports.consumeActionOtpChallenge = exports.createActionOtpChallenge = exports.consumeOdooVerificationByToken = exports.consumeOdooVerificationByOtp = exports.createOdooVerificationChallenge = exports.deleteAuditEventsByIds = exports.listAuditEventsOlderThan = exports.listRecentAuditEvents = exports.listRecentAuditEventsPage = exports.recordAuditEvent = exports.transitionStoredApproval = exports.getApprovalRecord = exports.saveApprovalRecord = exports.setPlatformConfig = exports.getPlatformConfig = exports.listVerifiedSalesLineUserIds = exports.findVerifiedUserIdByPartnerId = exports.findLineUserIdByPhone = exports.findVerifiedUserIdByPhone = exports.setLastChannelId = exports.setSalesSessionExpiresAt = exports.setUserOdooVerificationStatus = exports.setUserContactPhone = exports.setUserOdooPartner = exports.setUserSalesTier = exports.setUserRole = exports.setLastQuoteListFrom = exports.setLastProductContext = exports.setUserPendingFlow = exports.recordChatFeedback = exports.filterMarketingOptedInUserIds = exports.deleteUserProfile = exports.setMarketingOptIn = exports.setLastActionOtpAt = exports.markConsentNoticeShown = exports.getUserProfile = exports.setUserLanguage = exports.getUserLanguage = exports.saveReportLog = exports.markUserFirstContact = exports.setEscalationState = exports.getEscalationState = exports.saveConversationMessage = exports.getConversationHistory = exports.updateUserScore = exports.checkFirestoreReady = void 0;
+exports.cancelGroupBuy = exports.confirmGroupBuy = exports.joinGroupBuy = exports.attachGroupBuyOdooOrder = exports.listGroupBuysByCreator = exports.getGroupBuyById = void 0;
 const firestore_1 = require("@google-cloud/firestore");
 const app_config_1 = require("./app-config");
 const logger_1 = require("./logger");
@@ -369,69 +369,101 @@ exports.setUserOdooPartner = userProfileRepository.setOdooPartner;
 exports.setUserContactPhone = userProfileRepository.setContactPhone;
 exports.setUserOdooVerificationStatus = userProfileRepository.setVerificationStatus;
 exports.setSalesSessionExpiresAt = userProfileRepository.setSalesSessionExpiresAt;
+exports.setLastChannelId = userProfileRepository.setLastChannelId;
 const phoneVariantsOverlap = (left, right) => {
     const a = (0, phone_match_1.phoneMatchVariants)(left);
     const b = new Set((0, phone_match_1.phoneMatchVariants)(right));
     return a.some(value => b.has(value));
 };
-const findUserIdByPhone = async (phone, verifiedOnly) => {
+const findUserIdByPhone = async (phone, verifiedOnly, preferredChannelId, requirePreferredChannel = false) => {
     const variants = (0, phone_match_1.phoneMatchVariants)(phone);
     if (!variants.length)
         return null;
+    const pickPreferred = (ids) => {
+        if (!ids.length)
+            return null;
+        if (preferredChannelId) {
+            const match = ids.find(row => row.lastChannelId === preferredChannelId);
+            if (match)
+                return match.id;
+            if (requirePreferredChannel)
+                return null;
+        }
+        return ids[0].id;
+    };
     const database = getDb();
     if (database) {
         try {
             let query = database.collection('users').where('phone', 'in', variants);
             if (verifiedOnly)
                 query = query.where('odooVerified', '==', true);
-            const snap = await query.limit(1).get();
-            if (!snap.empty)
-                return snap.docs[0].id;
+            const snap = await query.limit(10).get();
+            return pickPreferred(snap.docs.map(doc => ({
+                id: doc.id,
+                lastChannelId: typeof doc.data().lastChannelId === 'string' ? doc.data().lastChannelId : undefined,
+            })));
         }
         catch (error) {
             logFirestoreError(verifiedOnly ? 'findVerifiedUserIdByPhone' : 'findLineUserIdByPhone', error);
         }
     }
+    const cached = [];
     for (const [userId, entry] of userStateCache.entries()) {
         if (!entry.state.phone)
             continue;
         if (verifiedOnly && !entry.state.odooVerified)
             continue;
-        if (phoneVariantsOverlap(phone, entry.state.phone))
-            return userId;
+        if (phoneVariantsOverlap(phone, entry.state.phone)) {
+            cached.push({ id: userId, lastChannelId: entry.state.lastChannelId });
+        }
     }
-    return null;
+    return pickPreferred(cached);
 };
 /** Odoo-verified LINE user (staff). */
 const findVerifiedUserIdByPhone = async (phone) => findUserIdByPhone(phone, true);
 exports.findVerifiedUserIdByPhone = findVerifiedUserIdByPhone;
 /** Any LINE user who shared this phone — including receive-only customers. */
-const findLineUserIdByPhone = async (phone) => findUserIdByPhone(phone, false);
+const findLineUserIdByPhone = async (phone, preferredChannelId, requirePreferredChannel = false) => findUserIdByPhone(phone, false, preferredChannelId, requirePreferredChannel);
 exports.findLineUserIdByPhone = findLineUserIdByPhone;
-const findVerifiedUserIdByPartnerId = async (partnerId) => {
+const findVerifiedUserIdByPartnerId = async (partnerId, preferredChannelId, requirePreferredChannel = false) => {
     if (!Number.isFinite(partnerId) || partnerId <= 0)
         return null;
+    const pickPreferred = (ids) => {
+        if (!ids.length)
+            return null;
+        if (preferredChannelId) {
+            const match = ids.find(row => row.lastChannelId === preferredChannelId);
+            if (match)
+                return match.id;
+            if (requirePreferredChannel)
+                return null;
+        }
+        return ids[0].id;
+    };
     const database = getDb();
     if (database) {
         try {
             const snap = await database.collection('users')
                 .where('odooPartnerId', '==', partnerId)
                 .where('odooVerified', '==', true)
-                .limit(1)
+                .limit(10)
                 .get();
-            if (!snap.empty)
-                return snap.docs[0].id;
+            return pickPreferred(snap.docs.map(doc => ({
+                id: doc.id,
+                lastChannelId: typeof doc.data().lastChannelId === 'string' ? doc.data().lastChannelId : undefined,
+            })));
         }
         catch (error) {
             logFirestoreError('findVerifiedUserIdByPartnerId', error);
         }
     }
+    const cached = [];
     for (const [userId, entry] of userStateCache.entries()) {
         if (!entry.state.odooVerified || entry.state.odooPartnerId !== partnerId)
             continue;
-        return userId;
+        cached.push({ id: userId, lastChannelId: entry.state.lastChannelId });
     }
-    return null;
+    return pickPreferred(cached);
 };
 exports.findVerifiedUserIdByPartnerId = findVerifiedUserIdByPartnerId;
 /** LINE users who VERIFY as an Odoo Sales User or Sales Administrator. */
@@ -592,6 +624,40 @@ const actionOtpStore = (0, action_otp_store_1.createActionOtpStore)({
 exports.createActionOtpChallenge = actionOtpStore.create;
 exports.consumeActionOtpChallenge = actionOtpStore.consume;
 exports.consumeActionOtpChallengeByToken = actionOtpStore.consumeByToken;
+const inviteDocId = (phone) => phone.replace(/[^\d+]/g, '') || 'unknown';
+const persistQuoteInvite = async (phone, orderId, channelId) => {
+    await withFirestoreWrite('persistQuoteInvite', async (database) => {
+        const id = inviteDocId(phone);
+        const ref = database.collection('quoteInvites').doc(id);
+        const existing = await ref.get();
+        const orders = Array.isArray(existing.data()?.orders) ? existing.data().orders : [];
+        if (!orders.some(item => item.orderId === orderId))
+            orders.push({ orderId, channelId });
+        await ref.set({ phone, orders, updatedAt: new Date().toISOString() }, { merge: true });
+    });
+};
+exports.persistQuoteInvite = persistQuoteInvite;
+const consumeQuoteInvites = async (phone) => {
+    return withFirestoreRead('consumeQuoteInvites', [], async (database) => {
+        const found = [];
+        for (const key of (0, phone_match_1.phoneMatchVariants)(phone)) {
+            const ref = database.collection('quoteInvites').doc(inviteDocId(key));
+            const snap = await ref.get();
+            const orders = Array.isArray(snap.data()?.orders) ? snap.data().orders : [];
+            found.push(...orders);
+            if (snap.exists)
+                await ref.delete();
+        }
+        const seen = new Set();
+        return found.filter(item => {
+            if (seen.has(item.orderId))
+                return false;
+            seen.add(item.orderId);
+            return true;
+        });
+    });
+};
+exports.consumeQuoteInvites = consumeQuoteInvites;
 exports.createGroupBuy = groupBuyStore.create;
 exports.getGroupBuyById = groupBuyStore.getById;
 exports.listGroupBuysByCreator = groupBuyStore.listByCreator;

@@ -446,7 +446,12 @@ const phoneVariantsOverlap = (left: string, right: string): boolean => {
     return a.some(value => b.has(value));
 };
 
-const findUserIdByPhone = async (phone: string, verifiedOnly: boolean, preferredChannelId?: string): Promise<string | null> => {
+const findUserIdByPhone = async (
+    phone: string,
+    verifiedOnly: boolean,
+    preferredChannelId?: string,
+    requirePreferredChannel = false,
+): Promise<string | null> => {
     const variants = phoneMatchVariants(phone);
     if (!variants.length) return null;
 
@@ -455,6 +460,7 @@ const findUserIdByPhone = async (phone: string, verifiedOnly: boolean, preferred
         if (preferredChannelId) {
             const match = ids.find(row => row.lastChannelId === preferredChannelId);
             if (match) return match.id;
+            if (requirePreferredChannel) return null;
         }
         return ids[0].id;
     };
@@ -490,10 +496,18 @@ export const findVerifiedUserIdByPhone = async (phone: string): Promise<string |
     findUserIdByPhone(phone, true);
 
 /** Any LINE user who shared this phone — including receive-only customers. */
-export const findLineUserIdByPhone = async (phone: string, preferredChannelId?: string): Promise<string | null> =>
-    findUserIdByPhone(phone, false, preferredChannelId);
+export const findLineUserIdByPhone = async (
+    phone: string,
+    preferredChannelId?: string,
+    requirePreferredChannel = false,
+): Promise<string | null> =>
+    findUserIdByPhone(phone, false, preferredChannelId, requirePreferredChannel);
 
-export const findVerifiedUserIdByPartnerId = async (partnerId: number, preferredChannelId?: string): Promise<string | null> => {
+export const findVerifiedUserIdByPartnerId = async (
+    partnerId: number,
+    preferredChannelId?: string,
+    requirePreferredChannel = false,
+): Promise<string | null> => {
     if (!Number.isFinite(partnerId) || partnerId <= 0) return null;
 
     const pickPreferred = (ids: Array<{ id: string; lastChannelId?: string }>): string | null => {
@@ -501,6 +515,7 @@ export const findVerifiedUserIdByPartnerId = async (partnerId: number, preferred
         if (preferredChannelId) {
             const match = ids.find(row => row.lastChannelId === preferredChannelId);
             if (match) return match.id;
+            if (requirePreferredChannel) return null;
         }
         return ids[0].id;
     };

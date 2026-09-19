@@ -1,5 +1,5 @@
 import express from 'express';
-import { buildCspHeader, buildSwaggerCspHeader } from '../utils/html';
+import { buildCspHeader, buildDemoCspHeader, buildSwaggerCspHeader } from '../utils/html';
 import { isGuideCommand } from '../line/command-guide';
 import { recordHttpRequest } from '../services/kpi';
 import { appLogger } from '../services/logger';
@@ -11,6 +11,10 @@ export const jsonParser = express.json({ limit: process.env.MAX_JSON_BODY || '64
 export const cspMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (req.path === '/api-docs' || req.path.startsWith('/api-docs/')) {
         res.setHeader('Content-Security-Policy', buildSwaggerCspHeader());
+        return next();
+    }
+    if (req.path === '/demo') {
+        res.setHeader('Content-Security-Policy', buildDemoCspHeader());
         return next();
     }
     res.setHeader('Content-Security-Policy', buildCspHeader());

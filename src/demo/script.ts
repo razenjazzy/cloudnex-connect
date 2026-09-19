@@ -15,11 +15,19 @@ export const DEMO_PAGE_SCRIPT = `
       return headers;
     };
 
+    const formatFetchError = (data) => {
+      const message = data && data.error ? String(data.error) : pretty(data);
+      if (/Demo session is required/i.test(message)) {
+        return 'Login required: paste DEMO_CONTROL_TOKEN, click Login Session, then retry.';
+      }
+      return message;
+    };
+
     const getJson = async (url) => {
       const response = await fetch(url, { headers: buildHeaders(), credentials: 'same-origin' });
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(pretty(data));
+        throw new Error(formatFetchError(data));
       }
       return data;
     };
@@ -352,7 +360,7 @@ export const DEMO_PAGE_SCRIPT = `
     });
     document.getElementById('login-token').addEventListener('click', () => {
       loginDemoSession()
-        .then(() => runWorkflowAudit())
+        .then(() => bootstrapDemoPanel())
         .catch((error) => {
           document.getElementById('runbook-output').textContent = String(error);
         });
@@ -415,8 +423,9 @@ export const DEMO_PAGE_SCRIPT = `
       ['Products & Quotes: Find a product', 'FORM PRODUCT FIND'],
       ['Create a quote', 'FORM QUOTE CREATE'],
       ['Check an order', 'FORM ORDER STATUS'],
+      ['Identity: VERIFY STATUS', 'VERIFY STATUS'],
+      ['Role: ADMIN ENABLE', 'ADMIN ENABLE'],
       ['Browse catalog', 'SERVICE LIST'],
-      ['Group-Buy status', 'STATUS GROUPBUY'],
     ];
 
     function renderChatMenu(open) {

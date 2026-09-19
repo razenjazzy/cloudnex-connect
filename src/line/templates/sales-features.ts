@@ -1,5 +1,5 @@
 import { messagingApi } from '@line/bot-sdk';
-import { BRAND, createMessageActionButton, truncate, type ReportLanguage } from './shared';
+import { BRAND, createMessageActionButton, flexBubbleStyles, flexHeaderBox, truncate, type ReportLanguage } from './shared';
 import { getBrandTitle } from '../channels';
 import type { FeatureToggleDescription } from '../../services/feature-toggles';
 
@@ -18,25 +18,13 @@ export const createSalesFeatureTogglesFlexMessage = (params: {
     altText: truncate(`${getBrandTitle(language)}: ${title}`, 380),
     contents: {
       type: 'bubble',
-      styles: {
-        header: { backgroundColor: BRAND.teal },
-        body: { backgroundColor: BRAND.surface },
-        footer: { backgroundColor: BRAND.surface },
-      },
-      header: {
-        type: 'box',
-        layout: 'vertical',
-        paddingAll: 'md',
-        contents: [
-          { type: 'text', text: getBrandTitle(language), color: '#FFFFFF', weight: 'bold', size: 'md', wrap: true },
-          { type: 'text', text: title, color: '#DDEBE9', size: 'xs', margin: 'xs', wrap: true },
-        ],
-      },
+      styles: flexBubbleStyles,
+      header: flexHeaderBox(getBrandTitle(language), title),
       body: {
         type: 'box',
         layout: 'vertical',
         spacing: 'md',
-        paddingBottom: 'lg',
+        paddingAll: 'lg',
         contents: [
           ...(notice ? [{
             type: 'box' as const,
@@ -70,7 +58,7 @@ export const createSalesFeatureTogglesFlexMessage = (params: {
                 row.effective ? tr(language, 'ปิดบริการ', 'Turn off') : tr(language, 'เปิดบริการ', 'Turn on'),
                 `SALES FEATURE ${row.key} ${next}`,
                 row.effective ? 'secondary' : 'primary',
-                row.effective ? BRAND.gold : BRAND.teal,
+                row.effective ? BRAND.goldTint : BRAND.teal,
               ));
             }
             return {
@@ -88,8 +76,9 @@ export const createSalesFeatureTogglesFlexMessage = (params: {
       footer: {
         type: 'box',
         layout: 'vertical',
+        paddingAll: 'lg',
         contents: [
-          createMessageActionButton(tr(language, 'หน้าหลัก', 'Home'), 'NAV HOME', 'secondary', BRAND.tealTint),
+          createMessageActionButton(tr(language, 'หน้าหลัก', 'Home'), 'NAV HOME', 'secondary', BRAND.goldTint),
         ],
       },
     },
