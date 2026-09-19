@@ -151,14 +151,14 @@ export const SERVICE_MODULES: ServiceModule[] = [
 ];
 
 export const DEMO_DAY_SCRIPT: string[] = [
-  'Open /demo, paste DEMO_CONTROL_TOKEN, click Login Session. Then Refresh Connections.',
-  'Connections: LINE, Firestore, Odoo. Mongo may be not configured — that is fine.',
-  'Web chat first message: PDPA + home. Same resolveCommandReply as POST /webhook.',
-  'FORM QUOTE CREATE (or Try create a quote). Identity VERIFY on LINE; Action Verify on the write.',
-  'Run Full Simulation Flow: partner, product, quotation readback.',
-  'Role privilege: VERIFY STATUS is not admin. ADMIN ENABLE needs ADMIN_USER_ID then Odoo admin capability.',
-  'Optional: PRODUCT FIND App via /webhook-test. Ops: /readyz, /ops/platform, /api-docs, GraphQL — not LINE.',
-  'Close: LINE identity → Firestore profile → odooVerified → ADMIN_USER_ID → Odoo admin → role=admin. Fail closed.',
+  'Open /demo. Paste DEMO_CONTROL_TOKEN, Login Session, then Refresh Connections (LINE, Firestore, Odoo).',
+  'Web chat first message: PDPA + home menu. Same resolveCommandReply as POST /webhook.',
+  'FORM QUOTE CREATE writes a real Odoo sale.order when Odoo is up.',
+  'Run Full Simulation Flow — seed and quote readback.',
+  '/api-docs and /graphql are ops add-ons, not the LINE path.',
+  'Close: LINE identity → Firestore profile → odooVerified → ADMIN_USER_ID → Odoo admin capability. Fail closed.',
+  'FORM VERIFY phone chips the LINE session / Odoo contact number — tap to verify.',
+  'Verify success names the Odoo partner: “<name> is an Odoo Sales User.”',
 ];
 
 export const getServiceModules = (): ServiceModule[] => SERVICE_MODULES;

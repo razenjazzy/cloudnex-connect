@@ -143,9 +143,7 @@ export const createQuotationJourneyFlexMessage = (
           : createMessageActionButton(t('sendInvoice', language), `QUOTE INVOICE SEND ${order.id}`, 'secondary', BRAND.tealTint));
     }
   } else if (!isCancelled && isSent) {
-    bodyActions.push(options.portalLink
-      ? createUriActionButton(t('confirm', language), options.portalLink, 'primary', BRAND.teal)
-      : createMessageActionButton(t('confirm', language), `QUOTE APPROVE ${order.id}`, 'primary', BRAND.teal));
+    bodyActions.push(createMessageActionButton(t('confirm', language), `QUOTE APPROVE ${order.id}`, 'primary', BRAND.teal));
   } else if (!isCancelled && isDraft) {
     bodyActions.push({
       type: 'box',

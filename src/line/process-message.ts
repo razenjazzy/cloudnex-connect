@@ -3,7 +3,7 @@ import type { Readable } from 'node:stream';
 import { classifyIntent, transcribeAudioToText } from '../services/vertexai';
 import { resolveCommandReply, type CommandReplyContext } from './command-router';
 import { resolvePostbackToText } from './postback';
-import { getEscalationState, getUserLanguage, getUserProfile, setLastChannelId, updateUserScore } from '../services/firestore';
+import { getEscalationState, getUserLanguage, getUserProfile, setLastChannelId, setUserDisplayName, updateUserScore } from '../services/firestore';
 import { ChannelConfig, getAgentName } from './channels';
 import type { ChannelContext } from './channels';
 import { appLogger } from '../services/logger';
@@ -128,6 +128,17 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
     const client = new messagingApi.MessagingApiClient({ channelAccessToken: input.channelConfig.channelAccessToken });
     const userLanguage = await getUserLanguage(input.conversationId);
     const profile = await getUserProfile(input.conversationId);
+    if (!profile.displayName) {
+      try {
+        const lineProfile = await client.getProfile(input.conversationId);
+        if (lineProfile.displayName) {
+          await setUserDisplayName(input.conversationId, lineProfile.displayName);
+          profile.displayName = lineProfile.displayName;
+        }
+      } catch (error) {
+        appLogger.warn('line_profile_fetch_failed', { error: String(error), requestId: input.requestId });
+      }
+    }
     if (profile.lastChannelId !== input.channelConfig.channelId) {
       await setLastChannelId(input.conversationId, input.channelConfig.channelId);
     }

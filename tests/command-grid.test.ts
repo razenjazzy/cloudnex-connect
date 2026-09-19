@@ -13,8 +13,11 @@ const profile = (overrides: Partial<UserProfile>): UserProfile => ({
 describe('command grid', () => {
   it('keeps guest catalog browse and blocks guest quotes', () => {
     expect(isGuestAllowedCommand('NAV COMMERCE')).toBe(true);
+    expect(isGuestAllowedCommand('NAV CATALOG')).toBe(true);
+    expect(isGuestAllowedCommand('SERVICE READ SVC-PREMIUM')).toBe(true);
     expect(isGuestAllowedCommand('NAV DIRECTORY')).toBe(false);
     expect(isGuestAllowedCommand('FORM QUOTE CREATE')).toBe(false);
+    expect(isGuestAllowedCommand('FORM QUOTE CREATE FROM CARD 11')).toBe(true);
     expect(isGuestAllowedCommand('ADMIN ENABLE')).toBe(false);
   });
 

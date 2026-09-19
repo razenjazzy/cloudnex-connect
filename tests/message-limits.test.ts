@@ -6,6 +6,7 @@ import {
   createFormPromptFlexMessage,
   createOrderSummaryFlexMessage,
   createProductCardFlexMessage,
+  createProductCarouselFlexMessage,
   createServiceActionFlexMessage,
   createServiceHomeFlexMessage,
 } from '../src/line/templates';
@@ -64,6 +65,10 @@ describe('templates.ts builders stay within LINE limits', () => {
 
   it('createProductCardFlexMessage — long product name', () => {
     expect(checkMessageAgainstLineLimits(createProductCardFlexMessage(LONG_NAME, 999, 1))).toEqual([]);
+  });
+
+  it('createProductCarouselFlexMessage — long product name', () => {
+    expect(checkMessageAgainstLineLimits(createProductCarouselFlexMessage([{ name: LONG_NAME, price: 1, quantity: 1 }], 'en'))).toEqual([]);
   });
 
   it('createServiceActionFlexMessage — long service label', () => {

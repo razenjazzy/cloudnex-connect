@@ -16,9 +16,18 @@ const loadCustomerPhoneOptions = async (collected?: Record<string, string>): Pro
     ? await getPartnerByName(collected.customerName)
     : null;
   const partners = await listPartners(12);
-  const phones = [named?.phone, ...partners.map(partner => partner.phone)]
+  const phones = [collected?.savedPhone, named?.phone, ...partners.map(partner => partner.phone)]
     .filter((phone): phone is string => Boolean(phone));
   return dedupeNames(phones);
+};
+
+export const loadVerifyPhoneOptions = async (collected?: Record<string, string>): Promise<string[]> => {
+  const named = collected?.displayName?.trim()
+    ? await getPartnerByName(collected.displayName).catch(() => null)
+    : null;
+  const phones = [collected?.savedPhone, named?.phone]
+    .filter((phone): phone is string => Boolean(phone?.trim()));
+  return dedupeNames(phones.map(phone => phone.trim()));
 };
 
 export type FlowKey =
@@ -115,7 +124,7 @@ export const FLOW_SPECS: Record<FlowKey, FlowSpec> = {
     labelTh: 'ยืนยันตัวตน',
     labelEn: 'Verify your account',
     fields: [
-      { key: 'phone', promptTh: 'เบอร์โทรที่ผูกกับบัญชี?', promptEn: 'Phone number on your account?', validate: isPhoneLike },
+      { key: 'phone', promptTh: 'เบอร์โทรที่ผูกกับบัญชี?', promptEn: 'Phone number on your account?', validate: isPhoneLike, loadOptions: loadVerifyPhoneOptions },
     ],
     buildFinalCommand: (c) => `VERIFY START ${c.phone}`,
   },

@@ -8,6 +8,8 @@ describe('isGuestAllowedCommand', () => {
     expect(isGuestAllowedCommand('FORM PRODUCT FIND')).toBe(true);
     expect(isGuestAllowedCommand('PRODUCT FIND App')).toBe(true);
     expect(isGuestAllowedCommand('SERVICE LIST')).toBe(true);
+    expect(isGuestAllowedCommand('SERVICE READ SVC-PREMIUM')).toBe(true);
+    expect(isGuestAllowedCommand('FORM QUOTE CREATE FROM CARD 11')).toBe(true);
     expect(isGuestAllowedCommand('NAV HOME')).toBe(true);
     expect(isGuestAllowedCommand('NAV DIRECTORY')).toBe(false);
     expect(isGuestAllowedCommand('FORM PRODUCT FIND', { flow: 'PRODUCT_FIND' })).toBe(true);
@@ -15,6 +17,7 @@ describe('isGuestAllowedCommand', () => {
 
   it('still requires VERIFY for quote and order commands', () => {
     expect(isGuestAllowedCommand('FORM QUOTE CREATE')).toBe(false);
+    expect(isGuestAllowedCommand('FORM QUOTE CREATE FROM CARD 11')).toBe(true);
     expect(isGuestAllowedCommand('QUOTE CREATE App,1')).toBe(false);
     expect(isGuestAllowedCommand('QUOTE LIST')).toBe(false);
     expect(isGuestAllowedCommand('ORDER STATUS SO0001')).toBe(false);

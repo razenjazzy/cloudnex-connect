@@ -67,7 +67,7 @@ const demoProductHandler: CommandHandler = {
       productName: product.name,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     });
-    return [createProductCardFlexMessage(product.name, product.price || 0, product.quantity || 0, userLanguage)];
+    return [createProductCardFlexMessage(product.name, product.price || 0, product.quantity || 0, userLanguage, product.id)];
   },
 };
 
@@ -232,6 +232,18 @@ const demoQuoteHandler: CommandHandler = {
 
     notifyQuoteParties({ order, channelId: channel?.channelId, actorUserId: userId, notifyCustomer: false })
       .catch(err => console.warn('quote-create: sales notify failed (non-fatal):', err));
+
+    if (!isQuoteStaff(profile)) {
+      return paymentTermNotFound
+        ? [
+            botText(tr(userLanguage,
+              `ไม่พบเงื่อนไขการชำระเงิน "${paymentTerm}" สร้างใบเสนอราคาแล้วโดยใช้เงื่อนไขเริ่มต้น`,
+              `Payment term "${paymentTerm}" not found — created the quote with Odoo's default payment term instead.`,
+            ), userLanguage),
+            card,
+          ]
+        : [card];
+    }
 
     if (paymentTermNotFound) {
       return [

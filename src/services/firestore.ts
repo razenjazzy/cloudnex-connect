@@ -435,6 +435,7 @@ export const setUserSalesTier = userProfileRepository.setSalesTier;
 
 export const setUserOdooPartner = userProfileRepository.setOdooPartner;
 export const setUserContactPhone = userProfileRepository.setContactPhone;
+export const setUserDisplayName = userProfileRepository.setDisplayName;
 
 export const setUserOdooVerificationStatus = userProfileRepository.setVerificationStatus;
 export const setSalesSessionExpiresAt = userProfileRepository.setSalesSessionExpiresAt;

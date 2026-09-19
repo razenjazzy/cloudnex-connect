@@ -44,7 +44,14 @@ export const createProductPickerFlexMessage = (
   },
 });
 
-export const createProductCardFlexMessage = (productName: string, price: number, stock: number, language: ReportLanguage = 'en'): messagingApi.FlexMessage => {
+export const createProductCardFlexMessage = (
+  productName: string,
+  price: number,
+  stock: number,
+  language: ReportLanguage = 'en',
+  productId?: number,
+): messagingApi.FlexMessage => {
+  const quoteText = productId ? `FORM QUOTE CREATE FROM CARD ${productId}` : 'FORM QUOTE CREATE FROM CARD';
   return {
     type: 'flex',
     altText: truncate(language === 'en' ? `Product: ${productName}` : `สินค้า: ${productName}`, 390),
@@ -98,7 +105,7 @@ export const createProductCardFlexMessage = (productName: string, price: number,
         spacing: 'sm',
         paddingAll: 'lg',
         contents: [
-          createMessageActionButton(t('createQuote', language), 'FORM QUOTE CREATE FROM CARD', 'primary', BRAND.teal),
+          createMessageActionButton(t('createQuote', language), quoteText, 'primary', BRAND.teal),
           {
             type: 'box',
             layout: 'horizontal',
@@ -114,16 +121,84 @@ export const createProductCardFlexMessage = (productName: string, price: number,
   };
 };
 
-export const createProductCarouselFlexMessage = (
-  products: { name: string; price?: number; quantity?: number }[],
+export type CatalogCarouselItem = { id?: number; name: string; sku?: string; price?: number; quantity?: number };
+
+const createProductCatalogBubble = (
+  product: CatalogCarouselItem,
   language: ReportLanguage,
+  viewText: string,
+): messagingApi.FlexBubble => {
+  const quoteText = product.id
+    ? `FORM QUOTE CREATE FROM CARD ${product.id}`
+    : viewText;
+  return {
+    type: 'bubble',
+    size: 'kilo',
+    styles: flexBubbleStyles,
+    header: flexHeaderBox(truncate(product.name, 40), product.sku || t('productCatalog', language)),
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      spacing: 'md',
+      paddingAll: 'lg',
+      contents: [
+        {
+          type: 'box',
+          layout: 'horizontal',
+          spacing: 'sm',
+          contents: [
+            {
+              type: 'box',
+              layout: 'vertical',
+              flex: 1,
+              backgroundColor: BRAND.tealTint,
+              cornerRadius: BRAND.radius,
+              paddingAll: 'sm',
+              contents: [
+                { type: 'text', text: t('price', language), size: 'xs', color: BRAND.inkSoft },
+                { type: 'text', text: formatMoney(product.price || 0, language), size: 'sm', color: BRAND.tealStrong, weight: 'bold', wrap: true },
+              ],
+            },
+            {
+              type: 'box',
+              layout: 'vertical',
+              flex: 1,
+              backgroundColor: BRAND.goldTint,
+              cornerRadius: BRAND.radius,
+              paddingAll: 'sm',
+              contents: [
+                { type: 'text', text: t('stock', language), size: 'xs', color: BRAND.inkSoft },
+                { type: 'text', text: String(product.quantity || 0), size: 'sm', color: BRAND.ink, weight: 'bold', wrap: true },
+              ],
+            },
+          ],
+        },
+      ],
+    },
+    footer: {
+      type: 'box',
+      layout: 'vertical',
+      spacing: 'sm',
+      paddingAll: 'lg',
+      contents: [
+        createMessageActionButton(t('createQuote', language), quoteText, 'primary', BRAND.teal),
+        createMessageActionButton(t('viewProduct', language), viewText, 'secondary', BRAND.tealTint),
+      ],
+    },
+  };
+};
+
+export const createProductCarouselFlexMessage = (
+  products: CatalogCarouselItem[],
+  language: ReportLanguage,
+  viewFor?: (item: CatalogCarouselItem) => string,
 ): messagingApi.FlexMessage => ({
   type: 'flex',
-  altText: language === 'en' ? `${products.length} products` : `สินค้า ${products.length} รายการ`,
+  altText: truncate(language === 'en' ? `${products.length} products` : `สินค้า ${products.length} รายการ`, 390),
   contents: {
     type: 'carousel',
     contents: products.slice(0, 10).map(product =>
-      (createProductCardFlexMessage(product.name, product.price || 0, product.quantity || 0, language).contents as messagingApi.FlexBubble),
+      createProductCatalogBubble(product, language, (viewFor || (item => `PRODUCT FIND ${item.name}`))(product)),
     ),
   },
 });

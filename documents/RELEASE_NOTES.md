@@ -1,52 +1,34 @@
-# Release notes — v1.0.0
+# Release notes — v5.0.1
 
-**Date:** 2026-09-06  
-**Package version:** `1.0.0` (already set in `package.json`)  
-**Git tag (local, after cut):** `v1.0.0`
+**Date:** 2026-09-19  
+**Package version:** `5.0.1`  
+**Lane:** staging VPS (`APP_ENV=staging`, `https://amardhaka.io`)  
+**Commit title:** `Release: v5.0.1 - Odoo Line OA v3 Staging - Deploy`
 
-Initial production cut of **cns-line-oa**: LINE Official Account → Firestore identity → one `resolveCommandReply` → Flex. ERP only via `getErpAdapter()`.
+Cloudnex Connect LINE OA v3 staging wrap. Architecture unchanged: webhook HMAC → Firestore → one `resolveCommandReply` → Flex.
 
-## What shipped
+## Concrete surface
 
-### Features
+| Surface | Role |
+|---|---|
+| `POST /webhook`, `/webhook/sales`, `/webhook/customer` | LINE bot |
+| `GET /demo` | Presenter HTML; APIs session-gated |
+| `GET /healthz`, `/readyz` | Live lane snapshot |
+| `/api-docs`, `POST /graphql` | Ops only |
+| Odoo | Partners, products, `sale.order` via `getErpAdapter()` |
+| Firestore | LINE identity, VERIFY, pendingFlow |
+| Mongo | Optional embeddings only |
 
-- **Quotation workflow:** Odoo Confirm → Send → Invoice on the journey card, including `invoice_status` and `amount_invoiced`.
-- **LINE Flex UI:** One visual language (list rows, footer CTAs, chips). Tappable next step; no Material widgets (LINE cannot host those).
-- **Pagination:** Opaque cursor (`date_order,id`) for My quotations, replacing offset as the Next 5 path. Offset still accepted for old in-chat buttons.
+## Walk (no new features)
 
-### Security
+Customer OA: home identity after VERIFY → catalog carousel → product+qty quote → wait for sales → Confirm (`QUOTE APPROVE`) → Sales Order.  
+Sales OA: create/send/confirm/invoice/cancel → status + card.  
+Demo: Refresh Connections → web chat PDPA → `FORM QUOTE CREATE` → Full Simulation Flow.
 
-- 15-minute TTL bound postbacks (`kind|userId|exp`).
-- Authenticated admin chain unchanged (fail closed).
-- Confirm/Send/Approve stay server-authorized. Product create uses product id, not a CSV fragment of the name.
+## Out of scope (explicit)
 
-### UX fixes
+Production deploy, screenshot UAT signoff, LIFF, payments, a second router, `src/app/core`.
 
-- Recovery is always a button: PDPA, voice fail, missing product, quote reload fail.
-- Seeded quote-from-product-card skips re-asking the product name.
+## v1.0.0
 
-## Out of scope (v2 roadmap)
-
-- Register payment
-- Deliveries / pickings
-- Credit notes
-- CRM
-- LIFF mini-app
-- Unbounded `fields_get`
-
-## Staging check (do this before push)
-
-Set `APP_ENV=staging` (Railway image uses `NODE_ENV=production`). Walk:
-
-`Home → product → quote qty → Confirm/Send → OTP Verify → list Next 5`
-
-See `documents/ENVIRONMENTS.md` and `documents/RAILWAY_STAGING.md`.
-
-## Push (not run in this cut)
-
-```bash
-git push origin main
-git push origin v1.0.0
-```
-
-Wait for confirmation before those commands. CI/CD starts on push.
+2026-09-06 initial production cut. Full history is in git and `CHANGELOG.md`.

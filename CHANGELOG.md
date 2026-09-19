@@ -1,5 +1,28 @@
 # Changelog
 
+## v5.0.1 — Odoo LINE OA v3 staging (2026-09-19)
+
+Staging cut of Cloudnex Connect on `https://amardhaka.io`. No new product domains. Dual OA, catalog carousels, customer C0–C5 / staff send-approve-invoice, demo talk track.
+
+### Platform (frozen)
+
+- LINE HMAC webhook → Firestore profile → one `resolveCommandReply` → Flex.
+- ERP only via `getErpAdapter()`. No LINE on GraphQL. No users/Odoo in Mongo.
+- Admin fail-closed: LINE → `odooVerified` → `ADMIN_USER_ID` → Odoo admin capability → `role=admin`.
+- Production still requires `STAGING_VALIDATED` + `PRODUCTION_APPROVED`.
+
+### This cut
+
+- Guest product/service kilo carousel; Quote is `FORM QUOTE CREATE FROM CARD <id>`; VERIFY stashes the SKU.
+- Customer quote is product + qty; draft waits for sales send; Confirm is `QUOTE APPROVE` on LINE.
+- Staff finals (send, confirm, invoice, cancel) are status Flex + journey card; Home on the card.
+- Home shows Odoo name/phone after VERIFY. Success copy: “\<name\> is an Odoo Sales User.”
+- `FORM VERIFY` chips LINE-session / Odoo-contact phone. Talk track on `/demo`.
+
+### Not in this cut (no new scope)
+
+- Production Cloud Run, credential rotation, on-device screenshot book, LIFF phone API, payments.
+
 ## v1.0.0 — Initial Release (2026-09-06)
 
 Production cut of the Cloudnex LINE Official Account bot for Odoo sales.

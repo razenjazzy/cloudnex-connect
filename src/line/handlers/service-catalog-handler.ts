@@ -1,5 +1,5 @@
 import type { CommandHandler } from './index';
-import { createBotTextFlexMessage, formatMoney } from '../templates';
+import { createBotTextFlexMessage, createProductCardFlexMessage, createProductCarouselFlexMessage, formatMoney } from '../templates';
 import { parseServiceCreatePayload, parseServiceUpdatePayload } from '../command-validators';
 import { getErpAdapter } from '../../erp/registry';
 import { recordAuditEvent } from '../../services/firestore';
@@ -35,10 +35,7 @@ const serviceListHandler: CommandHandler = {
     if (!services.length) {
       return [botText(tr(userLanguage, 'ยังไม่มีบริการเปิดให้บริการตอนนี้ค่ะ', 'No services are available yet.'), userLanguage)];
     }
-    return [botText(tr(userLanguage,
-      `รายการบริการ\n${services.map(s => `- ${s.name} (${s.sku || '-'}) — ${formatMoney(s.price, 'th')}`).join('\n')}`,
-      `Our services\n${services.map(s => `- ${s.name} (${s.sku || '-'}) — ${formatMoney(s.price, 'en')}`).join('\n')}`,
-    ), userLanguage)];
+    return [createProductCarouselFlexMessage(services, userLanguage, item => `SERVICE READ ${item.sku || item.name}`)];
   },
 };
 
@@ -57,10 +54,7 @@ const serviceReadHandler: CommandHandler = {
     if (!item) {
       return [botText(tr(userLanguage, `ไม่พบบริการ ${identifier}`, `Service ${identifier} not found.`), userLanguage)];
     }
-    return [botText(tr(userLanguage,
-      `${item.name}\n- รหัส: ${item.sku || '-'}\n- ราคา: ${formatMoney(item.price, 'th')}`,
-      `${item.name}\n- Code: ${item.sku || '-'}\n- Price: ${formatMoney(item.price, 'en')}`,
-    ), userLanguage)];
+    return [createProductCardFlexMessage(item.name, item.price, item.quantity || 0, userLanguage, item.id)];
   },
 };
 

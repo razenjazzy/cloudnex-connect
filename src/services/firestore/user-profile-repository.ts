@@ -223,6 +223,18 @@ export const createUserProfileRepository = (dependencies: RepositoryDependencies
         return result;
     },
 
+    setDisplayName: async (userId: string, displayName: string) => {
+        const name = displayName.trim();
+        if (!name) return { ok: true as const };
+        const previous = dependencies.getPrevious(userId);
+        dependencies.mergeCached(userId, { displayName: name });
+        const result = await dependencies.write('setUserDisplayName', async database => {
+            await database.collection('users').doc(userId).set({ displayName: name }, { merge: true });
+        });
+        if (!result.ok) dependencies.restorePrevious(userId, previous);
+        return result;
+    },
+
     setVerificationStatus: async (userId: string, verified: boolean, verifiedAt?: string) => {
         const previous = dependencies.getPrevious(userId);
         const patch = { odooVerified: verified, ...(verifiedAt ? { odooVerifiedAt: verifiedAt } : {}) };
