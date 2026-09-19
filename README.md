@@ -130,11 +130,11 @@ Leave unset unless provisioned: `LINE_WEBHOOK_ASYNC`, `CLAWFRAMEWORK_ENABLED`, `
 
 Full tap order, filenames, and freeze rules: **[documents/USER_JOURNEY.md](documents/USER_JOURNEY.md)**. Recapture after UI changes; LINE does not update old cards.
 
-**Setup:** friend the OA → English default → tray 2×3 (Home, Verify, Products & Quotes, Order Status, Help, Language). Gold is **Language** while English is on, and **Verify** while a sales VERIFY session is on (`SALES_SESSION_TTL_HOURS`). Publish trays with `npm run rich-menu:generate` then `npm run rich-menu:upload` on a laptop; set `LINE_RICH_MENU_EN` / `_TH` / `_JSON` on the VPS. The image host does not publish LINE rich menus.
+**Setup:** friend the OA → English default → tray 2×3 (**Home | Products & Quotes | Language** / **Verify | Order Status | Help**). Gold is **Language** while English is on, and **Verify** while a sales VERIFY session is on (`SALES_SESSION_TTL_HOURS`). Publish trays with `npm run rich-menu:generate` then `npm run rich-menu:upload` on a laptop; set `LINE_RICH_MENU_EN` / `_TH` / `_JSON` and `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` on the VPS. The image host does not publish LINE rich menus.
 
 **Staff (verified sales):** Products & Quotes → Create quote (chips under the composer) → Action Verify on create → card with **Confirm | Send**, footer **View Quote | Download**, **More**, **Home**. Send is a guided form (channel, template, email). LINE is skipped until the customer is an OA friend (Add-friend URL). Staff wait for approval; NAV HOME only after **Send Invoice** or cancel. Confirm after action-verify opens the Odoo portal when the action is a portal command; Send returns to chat with the next Flex.
 
-**Customer:** Confirm / View Quote / Download (portal URIs). No Send, More, or Home. After sale: Invoice link on the customer card.
+**Customer:** Confirm / View Quote / Download (portal URIs). No Send or More. Footer **Home** + **My quotations**. After sale: Invoice link on the customer card.
 
 Captured stills currently in-repo:
 
@@ -241,7 +241,8 @@ Handlers today: action-otp, navigation, admin, verification, language, help, com
 | `PUBLIC_BASE_URL` | Origin for `/verify/*` links |
 | `LINE_CHANNEL_*` | Sales OA secret, token, optional numeric id, `@basicId` |
 | `LINE_CHANNEL_CUSTOMER_*` | Customer OA; required on staging/production |
-| `LINE_RICH_MENU_EN/TH/JSON` | Tray ids from upload script |
+| `LINE_RICH_MENU_EN/TH/JSON` | Sales OA tray ids from upload script |
+| `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` | Customer OA tray ids (same layout) |
 | `SALES_SESSION_TTL_HOURS` | Gold VERIFY session; default 24 |
 | `ADMIN_USER_ID` | Comma-separated `U…` ids; fail closed if empty |
 | `ENABLED_SERVICES` / `_SERVICES` | Hard ceiling; live toggles cannot enable a key env omitted |

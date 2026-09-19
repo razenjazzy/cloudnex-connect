@@ -141,9 +141,9 @@ LINE size **2500×843** (not the tall 2500×1686 canvas). Tokens:
 - Verify gold **only** on `*-verified` PNGs (sales session on). Tap Verify again, TTL, or unfollow → regular
 - Home / Products & Quotes / Order Status / Help are never gold. Current screen = `teal`
 - After a tray tap LINE links `menu-{lang}-{id}.png` or `menu-{lang}-{id}-verified.png` via `LINE_RICH_MENU_JSON`
-- Layout 2×3, icon above text: Home (`NAV HOME`), Verify, Products & Quotes
-  (`NAV commerce`), Order Status (`FORM ORDER STATUS`), Help (`GUIDE`),
-  Language
+- Layout 2×3, icon above text: Home (`NAV HOME`), Products & Quotes
+  (`NAV commerce`), Language (`LANG`); Verify (`FORM VERIFY`), Order Status
+  (`FORM ORDER STATUS`), Help (`GUIDE`)
 - Languages: `menu-en.png` + `menu-th.png`, plus `*-verified.png` when the
   sales session is on. Default is English (Language gold, Verify regular).
   `LANG` and session state link `LINE_RICH_MENU_TH` / `LINE_RICH_MENU_EN`
@@ -152,8 +152,9 @@ LINE size **2500×843** (not the tall 2500×1686 canvas). Tokens:
 
 Regenerate with `npm run rich-menu:generate`. Publish with
 `npm run rich-menu:upload` on a laptop, then set the new
-`LINE_RICH_MENU_JSON` (and EN/TH ids) on Railway. Railway does not publish
-the tray; it only stores the rich-menu ids. Upload does not delete older menus.
+`LINE_RICH_MENU_JSON` (and EN/TH ids) plus `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON`
+on the VPS. The host does not publish the tray; it only stores the rich-menu
+ids. Upload does not delete older menus.
 
 **Freeze:** do not restyle this tray until `documents/USER_JOURNEY.md` is
 signed off with screenshots.
