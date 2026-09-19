@@ -107,7 +107,7 @@ After a tray layout change (`assets/rich-menu/layout.json`), from a machine with
 node --env-file=.env scripts/upload-rich-menu.mjs
 ```
 
-Paste the printed `LINE_RICH_MENU_JSON` / `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` into the VPS `.env` and restart compose. Leave `LINE_WEBHOOK_ASYNC=false` unless Redis and `RUN_BULLMQ_WORKER=true` are running.
+Paste the printed `LINE_RICH_MENU_JSON` / `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` into the VPS `.env` and restart compose. Staging compose starts Redis and sets `LINE_WEBHOOK_ASYNC=true` + `RUN_BULLMQ_WORKER=true` (overrides `.env`). Do not enable async on a host without Redis.
 
 ## 7. Smoke
 

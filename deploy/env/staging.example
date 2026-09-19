@@ -55,6 +55,7 @@ ENABLE_API_DOCS=true
 ALLOW_DEMO_HEADER_TOKEN_FALLBACK=false
 
 RATE_LIMIT_STORE=memory
+# Compose injects Redis + LINE_WEBHOOK_ASYNC=true; this line is ignored when the container uses environment:.
 LINE_WEBHOOK_ASYNC=false
 OPS_JOBS_ASYNC=false
 RUN_BULLMQ_WORKER=false

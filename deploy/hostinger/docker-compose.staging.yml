@@ -1,11 +1,27 @@
 # Staging on Hostinger VPS. Env file is on the server only — never commit secrets.
 # Runtime image is pulled from Docker Hub (built on laptop/CI). The VPS does not npm ci.
+# `environment:` overrides .env so LINE async cannot stay false while Redis is in this file.
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: cloudnex-connect-staging-redis
+    restart: unless-stopped
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 8
+    # No host ports — LINE queue only.
+
   cloudnex-connect:
     image: ${DOCKER_IMAGE:-razenjazzy/cloudnex-connect:staging}
     pull_policy: always
     container_name: cloudnex-connect-staging
     restart: unless-stopped
+    depends_on:
+      redis:
+        condition: service_healthy
     env_file:
       - /opt/cloudnex-connect/.env
     environment:
@@ -18,9 +34,10 @@ services:
       ENABLE_GRAPHQL: "true"
       ENABLE_API_DOCS: "true"
       CLAWFRAMEWORK_ENABLED: "false"
-      LINE_WEBHOOK_ASYNC: "false"
+      REDIS_URL: redis://redis:6379
+      LINE_WEBHOOK_ASYNC: "true"
       OPS_JOBS_ASYNC: "false"
-      RUN_BULLMQ_WORKER: "false"
+      RUN_BULLMQ_WORKER: "true"
       MONGO_VECTOR_ENABLED: "false"
       RATE_LIMIT_STORE: memory
     ports:

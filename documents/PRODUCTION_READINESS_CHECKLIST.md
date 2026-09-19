@@ -13,7 +13,7 @@ Cloud Run (`release.yml`) is optional `workflow_dispatch` only. Railway variable
 - [x] `deploy/docker/Dockerfile` (root `Dockerfile` symlink) copies `dist/` and `skills/`, runs `node dist/index.js`, healthchecks `/healthz`.
 - [x] VPS `.env` (not in git) has `APP_ENV=staging`, Sales + Customer LINE keys, Firestore JSON, Odoo, `ADMIN_USER_ID`, `OPS_API_TOKEN`, `PUBLIC_BASE_URL=https://amardhaka.io`.
 - [x] Staging demo flags: `ENABLE_DEMO_CONTROL_PANEL`, `ENABLE_WEBHOOK_TEST` (+ tokens), GraphQL / API docs on for this lane.
-- [x] `LINE_WEBHOOK_ASYNC` is false (no Redis worker).
+- [x] Staging compose runs Redis + in-process BullMQ worker (`LINE_WEBHOOK_ASYNC=true`, `RUN_BULLMQ_WORKER=true`, `REDIS_URL=redis://redis:6379`). Production example stays async-off until Redis is provisioned.
 - [x] After deploy: `/healthz` 200, `/readyz` 200 (`service: cloudnex-connect`, `appEnv: staging`).
 - [x] LINE webhooks: `POST https://amardhaka.io/webhook/sales` (Cloudnex Sales `@938qytwi`) and `POST https://amardhaka.io/webhook/customer` (Cloudnex Customer `@724tneri`). `POST /webhook` uses default Sales credentials.
 - [x] Compact rich menus published on both OAs (ids in VPS `LINE_RICH_MENU_*` and `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON`).

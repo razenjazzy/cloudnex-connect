@@ -51,17 +51,25 @@ if [ "$REMOTE_LOCK" != "$EXPECTED_LOCK" ]; then
 fi
 bash "$REMOTE_DIR/scripts/check-line-channels.sh" "$REMOTE_DIR/.env"
 cd "$REMOTE_DIR"
-docker rm -f cns-line-oa-staging cloudnex-connect-staging >/dev/null 2>&1 || true
+docker rm -f cns-line-oa-staging cloudnex-connect-staging cloudnex-connect-staging-redis >/dev/null 2>&1 || true
 echo "[deploy] docker pull ${IMAGE}"
 docker pull "$IMAGE"
 DOCKER_IMAGE="$IMAGE" docker compose -f deploy/hostinger/docker-compose.staging.yml --env-file .env up -d --force-recreate --no-build --pull always
-for i in 1 2 3 4 5 6 7 8 9 10; do
-  if curl -fsS http://127.0.0.1:8080/healthz >/dev/null; then
+echo "[deploy] waiting for /healthz (Node listen after recreate)"
+ok=0
+for _ in $(seq 1 30); do
+  if curl -fsS --max-time 2 http://127.0.0.1:8080/healthz >/dev/null 2>&1; then
+    ok=1
     break
   fi
   sleep 2
 done
-curl -fsS http://127.0.0.1:8080/healthz
+if [ "$ok" != 1 ]; then
+  echo "[deploy] /healthz did not become ready" >&2
+  docker logs --tail 80 cloudnex-connect-staging >&2 || true
+  exit 1
+fi
+curl -fsS --max-time 5 http://127.0.0.1:8080/healthz
 echo
-curl -fsS http://127.0.0.1:8080/readyz | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('ready') is True, d; print('ready', d.get('flags',{}).get('appEnv'), 'lineCustomer', d.get('flags',{}).get('lineCustomerConfigured'))"
+curl -fsS --max-time 10 http://127.0.0.1:8080/readyz | python3 -c "import json,sys; d=json.load(sys.stdin); assert d.get('ready') is True, d; print('ready', d.get('flags',{}).get('appEnv'), 'lineCustomer', d.get('flags',{}).get('lineCustomerConfigured'))"
 REMOTE

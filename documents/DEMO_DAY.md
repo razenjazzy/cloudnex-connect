@@ -23,7 +23,7 @@ Firestore holds LINE identity, PDPA, guided-form `pendingFlow`, group-buy sessio
 7. On LINE, **FORM VERIFY**: the phone field chips the number already on the LINE session (and the Odoo contact matching the LINE display name). Tap the chip, then OTP / magic link.
 8. After VERIFY, the success card uses the Odoo partner name: **“Somchai is an Odoo Sales User.”** (or Sales Administrator / customer). Not a generic “verification completed.”
 
-**Async LINE (BullMQ) stays off** unless Redis and a long-lived worker are running. Do not enable it on scale-to-zero for this demo. Staging compose already sets `LINE_WEBHOOK_ASYNC=false` and `RUN_BULLMQ_WORKER=false`.
+**Async LINE (BullMQ)** is on for Hostinger staging (Redis + worker in `docker-compose.staging.yml`) so LINE gets HTTP 200 before `replyMessage`. Do not enable async on scale-to-zero Cloud Run without a queue.
 
 ## Commands worth typing live
 
