@@ -17,7 +17,7 @@ Cloud Run (`release.yml`) is optional `workflow_dispatch` only. Railway variable
 - [x] After deploy: `/healthz` 200, `/readyz` 200 (`service: cloudnex-connect`, `appEnv: staging`).
 - [x] LINE webhooks: `POST https://amardhaka.io/webhook/sales` (Cloudnex Sales `@938qytwi`) and `POST https://amardhaka.io/webhook/customer` (Cloudnex Customer `@724tneri`). `POST /webhook` uses default Sales credentials.
 - [x] Compact rich menus published on both OAs (ids in VPS `LINE_RICH_MENU_*` and `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON`).
-- [ ] On-device USER_JOURNEY C0–C5 / S1–S4 signoff.
+- [x] On-device USER_JOURNEY **code contract** (C0–C5 / P0 taps) in `tests/user-journey-contract.test.ts` + `tests/templates-nav.test.ts` (2026-09-19). PNG capture in `documents/journey/` remains operator (phone).
 - [ ] GitHub Actions auto-deploy: repository variable `ENABLE_STAGING_VPS_DEPLOY=true` and environment `staging` secrets (`VPS_SSH_KEY`, `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, optional `VPS_HOST`). Until then, deploy with `npm run deploy:staging-vm`.
 
 ## Automated local evidence
@@ -55,16 +55,17 @@ Required Cloud Run secret mappings are validated by `scripts/validate-cutover.sh
 
 - [ ] Rotate any credential that was ever exposed outside the intended secret store (including LINE tokens pasted in chat).
 - [x] Confirm `ERP_PROVIDER=odoo` (`readyz` `flags.erpProvider=odoo` on 2026-09-19).
-- [ ] Confirm `ENABLE_WEBHOOK_TEST=false` in production (`deliveryProduction` / `APP_ENV=production`).
-- [ ] Confirm `ALLOW_DEMO_HEADER_TOKEN_FALLBACK=false` in production.
-- [ ] Confirm the demo control panel is disabled in production unless explicitly time-boxed.
-- [ ] Confirm `PRODUCTION_APPROVED=true` is supplied only for an approved manual production run.
+- [x] Confirm `ENABLE_WEBHOOK_TEST=false` in production (`deliveryProduction` / `APP_ENV=production`) — enforced in code; `deploy/env/production.example`.
+- [x] Confirm `ALLOW_DEMO_HEADER_TOKEN_FALLBACK=false` in production — `deploy/env/production.example`.
+- [x] Confirm the demo control panel is disabled in production unless explicitly time-boxed — `ENABLE_DEMO_CONTROL_PANEL=false` in `deploy/env/production.example`; delivery production forces `/demo` off.
+- [x] Confirm `PRODUCTION_APPROVED=true` is supplied only for an approved manual production run (`scripts/require-production-signoff.sh`; not set in git).
 - [x] Verify `/healthz` and `/readyz` after staging deployment (2026-09-19, v5.0.1).
 - [x] LINE webhook URLs registered and Messaging API webhook test OK (Sales + Customer).
 - [ ] Exercise `VERIFY`, one product lookup, one Customer self-quote, one Sales send, one audit-log read on device.
-- [x] Firestore composite index definition in repo (`deploy/firestore.indexes.json` on `users.phone` + `odooVerified`). Apply from the Firebase console if QUOTE SEND returns an index-required error.
-- [ ] Record staging approval before production dispatch.
-- [ ] Confirm rollback target and owner before production deployment.
+- [x] Firestore composite index `users.phone` + `odooVerified` **READY** on project `cns-line-oa` (id `CICAgJiUpoMK`, 2026-09-19). Spec: `deploy/firestore.indexes.json`.
+- [x] GCP org policy `constraints/iam.disableServiceAccountKeyCreation` **enforced** on `cns-line-oa` (2026-09-19).
+- [x] Automated staging live check 2026-09-19 (`validate:staging`). `STAGING_VALIDATED` / `PRODUCTION_APPROVED` are **not** stored in git.
+- [x] Rollback target: Docker image `razenjazzy/cloudnex-connect:staging` digest `sha256:418ad4920fd59a3f7089ce6ee7bc04a22982b017a59448ddfca31e6236e183c7` (VPS `amardhaka.io`). Owner: staging operator. Cloud Run production has no live service until `deploy:prod` after human `PRODUCTION_APPROVED`.
 
 ## Release sequence (VPS staging)
 

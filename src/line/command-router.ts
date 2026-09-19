@@ -117,7 +117,7 @@ export const buildHomeMenuMessage = (
 
 export const homeMenuFromContext = (ctx: Pick<CommandReplyContext, 'userLanguage' | 'agentName' | 'channel' | 'profile'>): messagingApi.Message => {
   const staff = isQuoteStaff(ctx.profile);
-  const identity = !staff && (ctx.profile.displayName || ctx.profile.phone)
+  const identity = !staff && ctx.profile.odooVerified && (ctx.profile.displayName || ctx.profile.phone)
     ? { name: ctx.profile.displayName, phone: ctx.profile.phone }
     : undefined;
   return buildHomeMenuMessage(

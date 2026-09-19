@@ -85,10 +85,7 @@ deferred or not-yet-verified pieces.
   cleaned up earlier this project. If the runtime-safe file list ever needs
   to change, edit `.dockerignore`/`Dockerfile` directly — that's the one
   enforced boundary, not a second script.
-- **Re-enable the org policy** `constraints/iam.disableServiceAccountKeyCreation`
-  on the `cns-line-oa` GCP project. It was disabled to mint the Firestore
-  service-account key for Railway and never re-locked:
-  `gcloud resource-manager org-policies enable-enforce constraints/iam.disableServiceAccountKeyCreation --project=cns-line-oa`
+- ~~**Re-enable the org policy** `constraints/iam.disableServiceAccountKeyCreation`~~ — **closed 2026-09-19:** `enforced: true` on project `cns-line-oa`.
 - ~~**GitHub Actions `release.yml`** (GCP Cloud Run staging-preflight) has
   been failing since before this session~~ — **root cause diagnosed and
   closed 2026-09-05**: the user pasted the actual failing step's output,
