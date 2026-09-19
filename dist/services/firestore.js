@@ -14,8 +14,8 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createGroupBuy = exports.consumeQuoteInvites = exports.persistQuoteInvite = exports.consumeActionOtpChallengeByToken = exports.consumeActionOtpChallenge = exports.createActionOtpChallenge = exports.consumeOdooVerificationByToken = exports.consumeOdooVerificationByOtp = exports.createOdooVerificationChallenge = exports.deleteAuditEventsByIds = exports.listAuditEventsOlderThan = exports.listRecentAuditEvents = exports.listRecentAuditEventsPage = exports.recordAuditEvent = exports.transitionStoredApproval = exports.getApprovalRecord = exports.saveApprovalRecord = exports.setPlatformConfig = exports.getPlatformConfig = exports.listVerifiedSalesLineUserIds = exports.findVerifiedUserIdByPartnerId = exports.findLineUserIdByPhone = exports.findVerifiedUserIdByPhone = exports.setLastChannelId = exports.setSalesSessionExpiresAt = exports.setUserOdooVerificationStatus = exports.setUserContactPhone = exports.setUserOdooPartner = exports.setUserSalesTier = exports.setUserRole = exports.setLastQuoteListFrom = exports.setLastProductContext = exports.setUserPendingFlow = exports.recordChatFeedback = exports.filterMarketingOptedInUserIds = exports.deleteUserProfile = exports.setMarketingOptIn = exports.setLastActionOtpAt = exports.markConsentNoticeShown = exports.getUserProfile = exports.setUserLanguage = exports.getUserLanguage = exports.saveReportLog = exports.markUserFirstContact = exports.setEscalationState = exports.getEscalationState = exports.saveConversationMessage = exports.getConversationHistory = exports.updateUserScore = exports.checkFirestoreReady = void 0;
-exports.cancelGroupBuy = exports.confirmGroupBuy = exports.joinGroupBuy = exports.attachGroupBuyOdooOrder = exports.listGroupBuysByCreator = exports.getGroupBuyById = void 0;
+exports.claimQuoteCreateLock = exports.consumeActionOtpChallengeByToken = exports.consumeActionOtpChallenge = exports.createActionOtpChallenge = exports.consumeOdooVerificationByToken = exports.consumeOdooVerificationByOtp = exports.getPendingOdooVerificationChallenge = exports.createOdooVerificationChallenge = exports.deleteAuditEventsByIds = exports.listAuditEventsOlderThan = exports.listRecentAuditEvents = exports.listRecentAuditEventsPage = exports.recordAuditEvent = exports.transitionStoredApproval = exports.getApprovalRecord = exports.saveApprovalRecord = exports.setPlatformConfig = exports.getPlatformConfig = exports.listVerifiedSalesLineUserIds = exports.findVerifiedUserIdByPartnerId = exports.findLineUserIdByPhone = exports.findVerifiedUserIdByPhone = exports.setLastChannelId = exports.setSalesSessionExpiresAt = exports.setUserOdooVerificationStatus = exports.setUserDisplayName = exports.setUserContactPhone = exports.setUserOdooPartner = exports.setUserSalesTier = exports.setUserRole = exports.setLastQuoteListFrom = exports.setLastProductContext = exports.setUserPendingFlow = exports.recordChatFeedback = exports.filterMarketingOptedInUserIds = exports.deleteUserProfile = exports.setMarketingOptIn = exports.setLastActionOtpAt = exports.markConsentNoticeShown = exports.getUserProfile = exports.setUserLanguage = exports.getUserLanguage = exports.saveReportLog = exports.markUserFirstContact = exports.setEscalationState = exports.getEscalationState = exports.saveConversationMessage = exports.getConversationHistory = exports.updateUserScore = exports.checkFirestoreReady = void 0;
+exports.cancelGroupBuy = exports.confirmGroupBuy = exports.joinGroupBuy = exports.attachGroupBuyOdooOrder = exports.listGroupBuysByCreator = exports.getGroupBuyById = exports.createGroupBuy = exports.consumeQuoteInvites = exports.persistQuoteInvite = exports.releaseQuoteCreateLock = exports.completeQuoteCreateLock = void 0;
 const firestore_1 = require("@google-cloud/firestore");
 const app_config_1 = require("./app-config");
 const logger_1 = require("./logger");
@@ -367,6 +367,7 @@ exports.setUserRole = userProfileRepository.setRole;
 exports.setUserSalesTier = userProfileRepository.setSalesTier;
 exports.setUserOdooPartner = userProfileRepository.setOdooPartner;
 exports.setUserContactPhone = userProfileRepository.setContactPhone;
+exports.setUserDisplayName = userProfileRepository.setDisplayName;
 exports.setUserOdooVerificationStatus = userProfileRepository.setVerificationStatus;
 exports.setSalesSessionExpiresAt = userProfileRepository.setSalesSessionExpiresAt;
 exports.setLastChannelId = userProfileRepository.setLastChannelId;
@@ -524,6 +525,25 @@ exports.listRecentAuditEvents = listRecentAuditEvents;
 exports.listAuditEventsOlderThan = auditStore.listOlderThan;
 exports.deleteAuditEventsByIds = auditStore.deleteByIds;
 exports.createOdooVerificationChallenge = verificationStore.create;
+const getPendingOdooVerificationChallenge = async (userId) => {
+    const now = Date.now();
+    const pickNewest = (rows) => rows
+        .filter(challenge => challenge.userId === userId && challenge.status === 'pending' && Date.parse(challenge.expiresAt) > now)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] || null;
+    const database = getDb();
+    if (!database) {
+        return pickNewest(Array.from(inMemoryVerificationChallenges.values()));
+    }
+    try {
+        const prior = await database.collection('odooVerifications').where('userId', '==', userId).get();
+        const rows = prior.docs.map(doc => toOdooVerificationChallenge(doc.id, (doc.data() || {})));
+        return pickNewest(rows);
+    }
+    catch {
+        return pickNewest(Array.from(inMemoryVerificationChallenges.values()));
+    }
+};
+exports.getPendingOdooVerificationChallenge = getPendingOdooVerificationChallenge;
 exports.consumeOdooVerificationByOtp = verificationConsumer.consumeOtp;
 exports.consumeOdooVerificationByToken = verificationTokenConsumer.consume;
 // ---------------------------------------------------------------------------
@@ -625,6 +645,54 @@ exports.createActionOtpChallenge = actionOtpStore.create;
 exports.consumeActionOtpChallenge = actionOtpStore.consume;
 exports.consumeActionOtpChallengeByToken = actionOtpStore.consumeByToken;
 const inviteDocId = (phone) => phone.replace(/[^\d+]/g, '') || 'unknown';
+const quoteLockDocId = (key) => key.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 700);
+const claimQuoteCreateLock = async (key, ttlMs = 20_000) => {
+    const database = getDb();
+    if (!database)
+        return { ok: true, notConfigured: true };
+    const ref = database.collection('quoteCreateLocks').doc(quoteLockDocId(key));
+    try {
+        return await database.runTransaction(async (transaction) => {
+            const snap = await transaction.get(ref);
+            const now = Date.now();
+            const data = snap.data();
+            if (data && Number(data.expiresAtMs) > now) {
+                return { ok: false, orderName: data.orderName };
+            }
+            transaction.set(ref, {
+                key,
+                createdAtMs: now,
+                expiresAtMs: now + ttlMs,
+                updatedAt: new Date().toISOString(),
+            });
+            return { ok: true };
+        });
+    }
+    catch (error) {
+        logFirestoreError('claimQuoteCreateLock', error);
+        return { ok: false };
+    }
+};
+exports.claimQuoteCreateLock = claimQuoteCreateLock;
+const completeQuoteCreateLock = async (key, orderName, ttlMs = 20_000) => {
+    await withFirestoreWrite('completeQuoteCreateLock', async (database) => {
+        const now = Date.now();
+        await database.collection('quoteCreateLocks').doc(quoteLockDocId(key)).set({
+            key,
+            orderName,
+            createdAtMs: now,
+            expiresAtMs: now + ttlMs,
+            updatedAt: new Date().toISOString(),
+        }, { merge: true });
+    });
+};
+exports.completeQuoteCreateLock = completeQuoteCreateLock;
+const releaseQuoteCreateLock = async (key) => {
+    await withFirestoreWrite('releaseQuoteCreateLock', async (database) => {
+        await database.collection('quoteCreateLocks').doc(quoteLockDocId(key)).delete();
+    });
+};
+exports.releaseQuoteCreateLock = releaseQuoteCreateLock;
 const persistQuoteInvite = async (phone, orderId, channelId) => {
     await withFirestoreWrite('persistQuoteInvite', async (database) => {
         const id = inviteDocId(phone);

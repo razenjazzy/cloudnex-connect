@@ -178,7 +178,7 @@ export const findProductsByQuery = async (query: string, limit = 5): Promise<Odo
     uid,
     'product.product',
     'search_read',
-    [[['name', 'ilike', normalizedQuery]]],
+    [[['sale_ok', '=', true], ['name', 'ilike', normalizedQuery]]],
     {
       fields: ['id', 'name', 'list_price', 'qty_available', 'default_code'],
       limit,
@@ -205,7 +205,7 @@ export const listProducts = async (limit = 10): Promise<OdooProduct[]> => {
     uid,
     'product.product',
     'search_read',
-    [[]],
+    [[['sale_ok', '=', true]]],
     {
       fields: ['id', 'name', 'list_price', 'qty_available', 'default_code'],
       limit,

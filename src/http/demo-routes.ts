@@ -149,7 +149,10 @@ export const registerDemoRoutes = (app: Express): void => {
                 requestId: String(res.getHeader('x-request-id') || '') || undefined,
             };
             const botMessages = await resolveCommandReply(ctx);
-            const { queueTrayRestAfterReply } = await import('../line/rich-menu');
+            const { linkUserRichMenu, queueTrayRestAfterReply } = await import('../line/rich-menu');
+            if (ctx.trayHighlight) {
+              void linkUserRichMenu(userId, ctx.userLanguage, 'default', ctx.trayHighlight, Boolean(ctx.trayRest?.salesSessionActive));
+            }
             queueTrayRestAfterReply(userId, ctx.trayRest);
 
             // Flatten the LINE messages into a minimal chat transcript the widget

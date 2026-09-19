@@ -12,6 +12,8 @@ describe('isGuestAllowedCommand', () => {
     expect(isGuestAllowedCommand('FORM QUOTE CREATE FROM CARD 11')).toBe(true);
     expect(isGuestAllowedCommand('FORM CUSTOMER REGISTER')).toBe(true);
     expect(isGuestAllowedCommand('NAV HOME')).toBe(true);
+    expect(isGuestAllowedCommand('FORM ORDER STATUS')).toBe(true);
+    expect(isGuestAllowedCommand('FORM VERIFY')).toBe(true);
     expect(isGuestAllowedCommand('NAV DIRECTORY')).toBe(false);
     expect(isGuestAllowedCommand('FORM PRODUCT FIND', { flow: 'PRODUCT_FIND' })).toBe(true);
   });
@@ -22,6 +24,6 @@ describe('isGuestAllowedCommand', () => {
     expect(isGuestAllowedCommand('QUOTE CREATE App,1')).toBe(false);
     expect(isGuestAllowedCommand('QUOTE LIST')).toBe(false);
     expect(isGuestAllowedCommand('ORDER STATUS SO0001')).toBe(false);
-    expect(isGuestAllowedCommand('FORM ORDER STATUS')).toBe(false);
+    expect(isGuestAllowedCommand('FORM ORDER STATUS')).toBe(true);
   });
 });

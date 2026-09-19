@@ -121,7 +121,7 @@ export const createProductCardFlexMessage = (
   };
 };
 
-export type CatalogCarouselItem = { id?: number; name: string; sku?: string; price?: number; quantity?: number };
+export type CatalogCarouselItem = { id?: number; name: string; sku?: string; price?: number; quantity?: number; imageUrl?: string };
 
 const createProductCatalogBubble = (
   product: CatalogCarouselItem,
@@ -131,10 +131,20 @@ const createProductCatalogBubble = (
   const quoteText = product.id
     ? `FORM QUOTE CREATE FROM CARD ${product.id}`
     : viewText;
+  const imageUrl = product.imageUrl?.startsWith('https://') ? product.imageUrl : undefined;
   return {
     type: 'bubble',
     size: 'kilo',
     styles: flexBubbleStyles,
+    ...(imageUrl ? {
+      hero: {
+        type: 'image' as const,
+        url: imageUrl,
+        size: 'full' as const,
+        aspectRatio: '20:13',
+        aspectMode: 'cover' as const,
+      },
+    } : {}),
     header: flexHeaderBox(truncate(product.name, 40), product.sku || t('productCatalog', language)),
     body: {
       type: 'box',

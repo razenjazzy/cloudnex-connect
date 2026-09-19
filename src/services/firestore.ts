@@ -614,6 +614,26 @@ export const deleteAuditEventsByIds = auditStore.deleteByIds;
 
 export const createOdooVerificationChallenge = verificationStore.create;
 
+export const getPendingOdooVerificationChallenge = async (userId: string): Promise<OdooVerificationChallenge | null> => {
+    const now = Date.now();
+    const pickNewest = (rows: OdooVerificationChallenge[]): OdooVerificationChallenge | null =>
+        rows
+            .filter(challenge => challenge.userId === userId && challenge.status === 'pending' && Date.parse(challenge.expiresAt) > now)
+            .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0] || null;
+
+    const database = getDb();
+    if (!database) {
+        return pickNewest(Array.from(inMemoryVerificationChallenges.values()));
+    }
+    try {
+        const prior = await database.collection('odooVerifications').where('userId', '==', userId).get();
+        const rows = prior.docs.map(doc => toOdooVerificationChallenge(doc.id, (doc.data() || {}) as Record<string, unknown>));
+        return pickNewest(rows);
+    } catch {
+        return pickNewest(Array.from(inMemoryVerificationChallenges.values()));
+    }
+};
+
 export const consumeOdooVerificationByOtp = verificationConsumer.consumeOtp;
 
 export const consumeOdooVerificationByToken = verificationTokenConsumer.consume;
@@ -728,6 +748,56 @@ export const consumeActionOtpChallenge = actionOtpStore.consume;
 export const consumeActionOtpChallengeByToken = actionOtpStore.consumeByToken;
 
 const inviteDocId = (phone: string): string => phone.replace(/[^\d+]/g, '') || 'unknown';
+
+const quoteLockDocId = (key: string): string => key.replace(/[^A-Za-z0-9_-]/g, '_').slice(0, 700);
+
+export const claimQuoteCreateLock = async (
+    key: string,
+    ttlMs = 20_000,
+): Promise<{ ok: boolean; orderName?: string; notConfigured?: boolean }> => {
+    const database = getDb();
+    if (!database) return { ok: true, notConfigured: true };
+    const ref = database.collection('quoteCreateLocks').doc(quoteLockDocId(key));
+    try {
+        return await database.runTransaction(async transaction => {
+            const snap = await transaction.get(ref);
+            const now = Date.now();
+            const data = snap.data() as { expiresAtMs?: number; orderName?: string } | undefined;
+            if (data && Number(data.expiresAtMs) > now) {
+                return { ok: false, orderName: data.orderName };
+            }
+            transaction.set(ref, {
+                key,
+                createdAtMs: now,
+                expiresAtMs: now + ttlMs,
+                updatedAt: new Date().toISOString(),
+            });
+            return { ok: true };
+        });
+    } catch (error) {
+        logFirestoreError('claimQuoteCreateLock', error);
+        return { ok: false };
+    }
+};
+
+export const completeQuoteCreateLock = async (key: string, orderName: string, ttlMs = 20_000): Promise<void> => {
+    await withFirestoreWrite('completeQuoteCreateLock', async database => {
+        const now = Date.now();
+        await database.collection('quoteCreateLocks').doc(quoteLockDocId(key)).set({
+            key,
+            orderName,
+            createdAtMs: now,
+            expiresAtMs: now + ttlMs,
+            updatedAt: new Date().toISOString(),
+        }, { merge: true });
+    });
+};
+
+export const releaseQuoteCreateLock = async (key: string): Promise<void> => {
+    await withFirestoreWrite('releaseQuoteCreateLock', async database => {
+        await database.collection('quoteCreateLocks').doc(quoteLockDocId(key)).delete();
+    });
+};
 
 export const persistQuoteInvite = async (phone: string, orderId: number, channelId: string): Promise<void> => {
   await withFirestoreWrite('persistQuoteInvite', async database => {

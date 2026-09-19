@@ -6,14 +6,36 @@ import { getOutgoingPickingForOrder } from '../services/odoo/delivery';
 import type { OdooProduct } from '../services/odoo/types';
 import type { ErpAdapter, ErpCustomerUpdate, ErpPartner, ErpPermission, ErpProduct, ErpProviderName, ErpQuoteDraft, ErpQuotationOptions, ErpService, ErpServiceUpdate, ErpWriteAction } from './adapter';
 
-const toErpProduct = (product: OdooProduct): ErpProduct => ({
-  id: product.id,
-  name: product.name,
-  sku: product.default_code,
-  price: product.list_price,
-  quantity: product.qty_available,
-  currency: 'THB',
-});
+const productImageUrl = (productId: number): string | undefined => {
+  const base = (process.env.ODOO_URL || '').trim().replace(/\/$/, '');
+  if (!base.startsWith('https://')) return undefined;
+  return `${base}/web/image/product.product/${productId}/image_128`;
+};
+
+const toErpProduct = (product: OdooProduct): ErpProduct => {
+  const imageUrl = product.image_url || productImageUrl(product.id);
+  return {
+    id: product.id,
+    name: product.name,
+    sku: product.default_code,
+    price: product.list_price,
+    quantity: product.qty_available,
+    currency: 'THB',
+    ...(imageUrl ? { imageUrl } : {}),
+  };
+};
+
+let productCatalogCache: { at: number; items: ErpProduct[] } | null = null;
+const PRODUCT_CATALOG_CACHE_MS = 30_000;
+
+export const peekCachedProducts = (limit = 10): ErpProduct[] | null => {
+  if (!productCatalogCache || Date.now() - productCatalogCache.at >= PRODUCT_CATALOG_CACHE_MS) return null;
+  return productCatalogCache.items.slice(0, limit);
+};
+
+export const seedProductCatalogCacheForTests = (items: ErpProduct[], at = Date.now()): void => {
+  productCatalogCache = { at, items };
+};
 
 const permissionForAction = (action: ErpWriteAction): ErpPermission => {
   switch (action) {
@@ -54,11 +76,17 @@ export const odooAdapter: ErpAdapter = {
   },
   async searchProducts(query: string, limit = 10): Promise<ErpProduct[]> {
     const normalized = query.trim().toLowerCase();
+    if (!normalized && productCatalogCache && Date.now() - productCatalogCache.at < PRODUCT_CATALOG_CACHE_MS) {
+      return productCatalogCache.items.slice(0, limit);
+    }
     const products = normalized
       ? await findProductsByQuery(normalized, limit)
       : await listProducts(limit);
-    return products.map(toErpProduct);
+    const mapped = products.map(toErpProduct);
+    if (!normalized) productCatalogCache = { at: Date.now(), items: mapped };
+    return mapped;
   },
+  peekCachedProducts,
   async listServices(limit = 10): Promise<ErpService[]> {
     const services = await listServiceCatalogItems(limit);
     return services.map(toErpService);

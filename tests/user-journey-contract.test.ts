@@ -16,12 +16,17 @@ describe('USER_JOURNEY C0–C5 source contract', () => {
   it('C1: guest commerce NAV and product find use the kilo carousel', () => {
     expect(nav).toContain("key === 'commerce'");
     expect(nav).toContain('commerceFollowUpMessages');
+    expect(nav).toContain('deferCatalogMiss');
     expect(followup).toContain('createProductCarouselFlexMessage');
+    expect(followup).toContain('peekCachedProducts');
     expect(commerce).toContain('createProductCarouselFlexMessage(catalog, userLanguage)');
   });
 
   it('C3: guests must VERIFY before quote; customers skip optional summary', () => {
     expect(router).toContain('FORM QUOTE CREATE FROM CARD');
+    expect(router).toContain('setLastProductContext');
+    expect(router).toContain('resumeQuoteFromLastProduct');
+    expect(router).toContain('Using: ${product.productName}');
     expect(commerce).toContain('Verify your account before creating a quote.');
     expect(commerce).toContain('parseSelfQuotePayload');
   });

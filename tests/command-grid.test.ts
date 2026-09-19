@@ -21,6 +21,7 @@ describe('command grid', () => {
     expect(isGuestAllowedCommand('ADMIN ENABLE')).toBe(false);
     expect(isGuestAllowedCommand('FORM CUSTOMER REGISTER')).toBe(true);
     expect(isGuestAllowedCommand('CUSTOMER REGISTER Somchai,0812345678')).toBe(true);
+    expect(isGuestAllowedCommand('FORM ORDER STATUS')).toBe(true);
   });
 
   it('blocks admin enable on Customer OA and allows it on Sales', () => {

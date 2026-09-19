@@ -24,6 +24,7 @@ export type ErpProduct = {
   price?: number;
   quantity?: number;
   currency?: string;
+  imageUrl?: string;
 };
 
 export type ErpService = {
@@ -129,6 +130,8 @@ export type ErpAdapter = {
   getDailySnapshot: () => Promise<ErpDailySnapshotRow[]>;
   getDailySummary: () => Promise<string | null>;
   lookupProduct: (productId: number) => Promise<ErpProduct | null>;
+  /** Warm catalog for LINE tray replies — never hits Odoo. */
+  peekCachedProducts?: (limit?: number) => ErpProduct[] | null;
   lookupCustomerByName: (name: string) => Promise<ErpPartner | null>;
   findPaymentTermId: (query: string) => Promise<number | null>;
   getOrderLinks: (orderId: number) => Promise<{ portal?: string; pdf?: string }>;

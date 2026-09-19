@@ -126,8 +126,10 @@ const deliverMessages = async (
 export const processLineMessageJob = async (input: LineMessageJobInput): Promise<unknown> => {
   return withSpan('line.processMessage', { 'line.user_id': input.conversationId, 'http.request_id': input.requestId || '' }, async () => {
     const client = new messagingApi.MessagingApiClient({ channelAccessToken: input.channelConfig.channelAccessToken });
-    const userLanguage = await getUserLanguage(input.conversationId);
-    const profile = await getUserProfile(input.conversationId);
+    const [userLanguage, profile] = await Promise.all([
+      getUserLanguage(input.conversationId),
+      getUserProfile(input.conversationId),
+    ]);
     if (!profile.displayName) {
       try {
         const lineProfile = await client.getProfile(input.conversationId);
@@ -200,10 +202,31 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
       channel: input.channel,
       isGroupContext: input.isGroupContext,
     };
+    const trayGeneration = `${input.receivedAt}:${input.requestId || ''}`;
+    ctx.trayGeneration = trayGeneration;
+    const { noteTrayGeneration, pushDeferredCommerceCatalog } = await import('./commerce-followup');
+    noteTrayGeneration(input.conversationId, trayGeneration);
     const messages = await resolveCommandReply(ctx);
     const delivered = await deliverMessages(client, input, messages);
-    const { queueTrayRestAfterReply } = await import('./rich-menu');
+    const { linkUserRichMenu, queueTrayRestAfterReply } = await import('./rich-menu');
+    if (ctx.trayHighlight && !input.isGroupContext) {
+      void linkUserRichMenu(
+        input.conversationId,
+        ctx.userLanguage,
+        input.channelConfig.channelId,
+        ctx.trayHighlight,
+        Boolean(ctx.trayRest?.salesSessionActive),
+      );
+    }
     queueTrayRestAfterReply(input.conversationId, ctx.trayRest, input.channelConfig.channelId);
+    if (ctx.pendingCatalogPush && !input.isGroupContext) {
+      void pushDeferredCommerceCatalog({
+        userId: input.conversationId,
+        generation: trayGeneration,
+        userLanguage: ctx.userLanguage,
+        channelId: input.channelConfig.channelId,
+      });
+    }
     return delivered;
   });
 };
