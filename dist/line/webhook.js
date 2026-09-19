@@ -47,6 +47,8 @@ exports.handleWebhook = [
                 if (env_1.isLineWebhookAsync && !(0, queue_1.isQueueBackendReady)()) {
                     logger_1.appLogger.error('line_webhook_async_without_redis', { requestId });
                 }
+                // Fast ACK only with Redis+worker (LINE_WEBHOOK_ASYNC). Do not 200 before
+                // replyMessage on Cloud Run without a queue — the process can freeze.
                 if (useAsync) {
                     await Promise.all(jobs.map((job) => (0, queue_1.enqueueLineEvent)({
                         channelId: channelConfig.channelId,

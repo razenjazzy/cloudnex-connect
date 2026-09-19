@@ -30,6 +30,7 @@ export const COMMAND_GRID: CommandGridEntry[] = [
   { id: 'nav-catalog', prefix: 'NAV CATALOG', labelEn: 'Catalog', labelTh: 'บริการ', category: 'navigation', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'nav-verify', prefix: 'NAV VERIFY', labelEn: 'Verify', labelTh: 'ยืนยันตัวตน', category: 'identity', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'form-verify', prefix: 'FORM VERIFY', labelEn: 'Verify form', labelTh: 'ฟอร์มยืนยัน', category: 'identity', roles: ['guest', 'customer', 'staff', 'admin'] },
+  { id: 'form-order-status', prefix: 'FORM ORDER STATUS', labelEn: 'Order status', labelTh: 'สถานะออเดอร์', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'form-customer-register', prefix: 'FORM CUSTOMER REGISTER', labelEn: 'New customer', labelTh: 'สมัครลูกค้าใหม่', category: 'identity', roles: ['guest', 'customer'], channels: [CUSTOMER_CHANNEL_ID] },
   { id: 'customer-register', prefix: 'CUSTOMER REGISTER', labelEn: 'New customer', labelTh: 'สมัครลูกค้าใหม่', category: 'identity', roles: ['guest', 'customer'], channels: [CUSTOMER_CHANNEL_ID] },
   { id: 'verify', prefix: 'VERIFY', labelEn: 'Verify', labelTh: 'ยืนยันตัวตน', category: 'identity', roles: ['guest', 'customer', 'staff', 'admin'] },

@@ -2,8 +2,9 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const quotation = readFileSync('src/line/handlers/quotation.ts', 'utf8');
-const router = readFileSync('src/line/command-router.ts', 'utf8');
 const verification = readFileSync('src/line/handlers/verification.ts', 'utf8');
+const verifyMenu = readFileSync('src/line/verify-menu.ts', 'utf8');
+const router = readFileSync('src/line/command-router.ts', 'utf8');
 
 const sliceHandler = (source: string, name: string, nextName: string) => {
   const start = source.indexOf(`name: '${name}'`);
@@ -44,11 +45,10 @@ describe('quote journey home and approve', () => {
 
 describe('unverify confirm copy', () => {
   it('asks before VERIFY SIGNOUT and does not clear the session on FORM VERIFY', () => {
-    expect(router).toContain('End verification session?');
-    expect(router).toContain('Confirm to sign out of the sales session, or cancel to keep it on.');
-    expect(router).toContain('ปิดเซสชันยืนยัน?');
-    expect(router).toContain("text: 'VERIFY SIGNOUT'");
-    expect(router).toContain("text: 'NAV HOME'");
+    expect(router).toContain('resolveVerifyMenuMessages');
+    expect(verifyMenu).toContain("text: 'VERIFY SIGNOUT'");
+    expect(verifyMenu).toContain("text: 'NAV HOME'");
+    expect(verifyMenu).toContain('Sign out');
     expect(verification).toContain("u === 'VERIFY SIGNOUT'");
     expect(verification).toContain('clearSalesLogin');
   });

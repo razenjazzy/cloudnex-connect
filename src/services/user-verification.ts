@@ -3,6 +3,7 @@ import {
   consumeOdooVerificationByOtp,
   consumeOdooVerificationByToken,
   createOdooVerificationChallenge,
+  getPendingOdooVerificationChallenge,
   getUserLanguage,
   getUserProfile,
   recordAuditEvent,
@@ -18,6 +19,7 @@ import { sendTargetedMessage, sendTargetedFlexMessage } from '../line/messaging'
 import { createBotTextFlexMessage } from '../line/templates';
 import { appLogger } from './logger';
 import { startSalesSession } from './sales-session';
+import { maskPhoneForLog, resolveVerificationPhase } from './verification-lifecycle';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -125,12 +127,33 @@ export type StartVerificationResult = {
   linkLabel?: string;
   /** Customer OA: this phone is not an Odoo contact yet — collect name/phone. */
   needsRegister?: boolean;
+  reused?: boolean;
 };
 
 export const startOdooUserVerification = async (input: StartVerificationInput): Promise<StartVerificationResult> => {
   const phone = normalizePhone(input.rawPhone);
   if (!phone) {
     return { message: tr(input.language, `วิธีใช้: VERIFY START <เบอร์โทร>`, `Usage: VERIFY START <phone>`) };
+  }
+
+  const existing = await getPendingOdooVerificationChallenge(input.userId);
+  const phase = resolveVerificationPhase({
+    odooVerified: false,
+    phone,
+    pending: existing,
+  });
+  if (existing && existing.phone === phone && phase === 'RATE_LIMITED') {
+    const link = `${buildBaseUrl(input.fallbackBaseUrl)}/verify/odoo?token=${encodeURIComponent(existing.linkToken)}`;
+    return {
+      reused: true,
+      link,
+      linkLabel: tr(input.language, 'ยืนยันตอนนี้', 'Verify now'),
+      message: tr(
+        input.language,
+        `${input.agentName} มีรหัสยืนยันที่ยังใช้ได้สำหรับเบอร์นี้ รออย่างน้อย 1 นาทีก่อนขอรหัสใหม่ หรือแตะปุ่มด้านล่าง`,
+        `${input.agentName} a verification code for this number is already active. Wait at least 1 minute before requesting a new code, or tap the button below.`,
+      ),
+    };
   }
 
   const partner = await getPartnerByPhone(phone);
@@ -196,7 +219,7 @@ export const startOdooUserVerification = async (input: StartVerificationInput): 
 
   appLogger.info('verification_otp_generated', {
     userId: input.userId,
-    phone,
+    phone: maskPhoneForLog(phone),
     partnerId: partner.id,
     challengeId: created.data.id,
   });

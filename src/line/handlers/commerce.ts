@@ -18,6 +18,7 @@ import { commerceFollowUpMessages } from '../commerce-followup';
 import { LINE_LIMITS } from '../message-limits';
 import { getErpAdapter } from '../../erp/registry';
 import { getPlatformStatus } from '../../platform/status';
+import { beginQuoteCreate, completeQuoteCreate, failQuoteCreate, quoteCreateLockKey } from '../../services/quote-idempotency';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -46,8 +47,17 @@ const demoProductHandler: CommandHandler = {
     const query = text.trim().replace(/^PRODUCT FIND\s*/i, '').trim();
     if (!query) {
       if (!isQuoteStaff(ctx.profile)) {
-        const catalog = await getErpAdapter().searchProducts('', 10);
-        if (catalog.length) return [createProductCarouselFlexMessage(catalog, userLanguage)];
+        try {
+          const catalog = await getErpAdapter().searchProducts('', 10);
+          if (catalog.length) return [createProductCarouselFlexMessage(catalog, userLanguage)];
+          return [botText(tr(userLanguage, 'ยังไม่มีสินค้าให้แสดง กรุณาค้นหาด้วยชื่อสินค้า', 'No products to show yet. Search by product name.'), userLanguage, [
+            { label: tr(userLanguage, 'ค้นหาสินค้า', 'Search products'), text: 'FORM PRODUCT FIND', style: 'primary' },
+          ])];
+        } catch {
+          return [botText(tr(userLanguage, 'โหลดสินค้าจาก Odoo ไม่สำเร็จ กรุณาลองใหม่', 'Could not load products from Odoo. Please try again.'), userLanguage, [
+            { label: tr(userLanguage, 'ลองอีกครั้ง', 'Try again'), text: 'PRODUCT FIND', style: 'primary' },
+          ])];
+        }
       }
       const { resolveCommandReply } = await import('../command-router');
       return resolveCommandReply({ ...ctx, text: 'FORM PRODUCT FIND' });
@@ -174,6 +184,18 @@ const demoQuoteHandler: CommandHandler = {
       ? (namedPartner || await getErpAdapter().lookupCustomer(phone))
       : null;
     const partnerId = isQuoteStaff(profile) ? existingPartner?.id : profile.odooPartnerId;
+    const lockKey = quoteCreateLockKey({ userId, productId: product.id, qty, requestId });
+    const lock = await beginQuoteCreate(lockKey);
+    if (!lock.ok) {
+      return [botText(tr(userLanguage,
+        lock.orderName
+          ? `ใบเสนอราคานี้กำลังถูกสร้างหรือสร้างแล้ว (${lock.orderName})`
+          : 'กำลังสร้างใบเสนอราคาอยู่ กรุณารอสักครู่ ไม่ต้องแตะซ้ำ',
+        lock.orderName
+          ? `This quote is already being created (${lock.orderName}).`
+          : 'A quote is already being created. Please wait — do not tap again.',
+      ), userLanguage)];
+    }
 
     // Optional field, resolved (not just validated) here — a miss never
     // blocks the quote, it just proceeds without a payment term set
@@ -196,6 +218,7 @@ const demoQuoteHandler: CommandHandler = {
       productId: product.id,
     });
     if (!quotation) {
+      failQuoteCreate(lockKey);
       // Product genuinely exists, so this is a real failure (partner
       // creation, sale.order create, etc.) — logged server-side by
       // createQuotationFromLine itself; tell the user it's not their input.
@@ -205,6 +228,8 @@ const demoQuoteHandler: CommandHandler = {
         "Found the product, but couldn't create the quote due to a system error. Please try again, or contact an admin if it keeps happening.",
       ), userLanguage)];
     }
+
+    completeQuoteCreate(lockKey, quotation.name);
 
     recordAuditEvent({ action: 'quote_create', outcome: 'success', actorUserId: userId, channelId: channel?.channelId, requestId, targetId: quotation.name });
 

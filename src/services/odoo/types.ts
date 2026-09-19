@@ -4,6 +4,7 @@ export type OdooProduct = {
   list_price: number;
   qty_available: number;
   default_code?: string;
+  image_url?: string;
 };
 
 export type OdooSaleOrderLine = {

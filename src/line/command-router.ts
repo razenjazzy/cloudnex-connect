@@ -35,8 +35,8 @@ import { resolveServiceForCommand } from '../services/service-catalog';
 import { FLOW_SPECS, getFlowByStartCommand } from '../services/guided-forms';
 import { createBotTextFlexMessage, createFormPromptFlexMessage, createOptionalSummaryFlexMessage, createServiceHomeFlexMessage } from './templates';
 import { getAvailableServices } from '../services/service-catalog';
-import { ChannelContext, DEFAULT_CHANNEL_ID, CUSTOMER_CHANNEL_ID, getBrandTitle } from './channels';
-import { linkUserRichMenu, trayVariantForCommand } from './rich-menu';
+import { ChannelContext, CUSTOMER_CHANNEL_ID, getBrandTitle } from './channels';
+import { trayVariantForCommand } from './rich-menu';
 import { clearSalesLogin, hasActiveSalesSession, salesSessionExpired } from '../services/sales-session';
 import type { FlowSpec } from '../services/guided-forms';
 import { COMMAND_HANDLERS } from './handlers/index';
@@ -68,6 +68,11 @@ export type CommandReplyContext = {
   actionOtpReplay?: boolean;
   /** Set by Language/Verify success handlers; linked after LINE reply so tap can show dark teal first. */
   trayRest?: { language: UserLanguage; salesSessionActive: boolean };
+  /** Native tray cell to highlight after the LINE reply is sent — never block the reply on this. */
+  trayHighlight?: import('./rich-menu').RichMenuVariant;
+  /** Push Odoo product carousel after reply when the catalog cache was cold. */
+  pendingCatalogPush?: boolean;
+  trayGeneration?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -395,6 +400,26 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
     ), userLanguage)];
   }
 
+  if (upperText === 'FORM VERIFY') {
+    const { resolveVerifyMenuMessages } = await import('./verify-menu');
+    return resolveVerifyMenuMessages(ctx);
+  }
+
+  if (upperText === 'FORM VERIFY MANUAL') {
+    const flowSpec = FLOW_SPECS.VERIFY;
+    const formCollected: Record<string, string> = {
+      ...(profile.phone ? { savedPhone: profile.phone } : {}),
+      ...(profile.displayName ? { displayName: profile.displayName } : {}),
+    };
+    await setUserPendingFlow(userId, {
+      flow: flowSpec.key,
+      stepIndex: 0,
+      collected: formCollected,
+      expiresAt: buildFlowExpiry(),
+    });
+    return [await buildFormPromptMessage(userLanguage, agentName, flowSpec, 0, userId, undefined, undefined, formCollected, profile)];
+  }
+
   const fromCard = /^FORM QUOTE CREATE FROM CARD(?:\s+(\d+))?$/i.exec(ctx.text.trim());
   if (fromCard) {
     const cardProductId = fromCard[1] ? Number(fromCard[1]) : undefined;
@@ -478,6 +503,14 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
   }
 
   if (flowSpec.key === 'ORDER_STATUS' && !isQuoteStaff(profile)) {
+    if (!profile.odooVerified) {
+      return [text(tr(userLanguage,
+        `${agentName} ยืนยันตัวตนก่อนดูสถานะออเดอร์ของคุณ`,
+        `${agentName} verify your account to see your order status.`,
+      ), userLanguage, undefined, [
+        { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
+      ])];
+    }
     return resolveCommandReply({ ...ctx, text: 'QUOTE LIST' });
   }
 
@@ -494,22 +527,6 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
         { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
       ])];
     }
-  }
-
-  if (flowSpec.key === 'VERIFY' && hasActiveSalesSession(profile)) {
-    const staff = isQuoteStaff(profile);
-    return [createBotTextFlexMessage({
-      title: tr(userLanguage, 'ปิดเซสชันยืนยัน?', 'End verification session?'),
-      body: staff
-        ? tr(userLanguage, 'แตะยืนยันเพื่อออกจากเซสชัน Sales หรือยกเลิกเพื่อใช้งานต่อ', 'Confirm to sign out of the sales session, or cancel to keep it on.')
-        : tr(userLanguage, 'แตะยืนยันเพื่อออกจากบัญชีลูกค้าบน LINE นี้ หรือยกเลิกเพื่อใช้งานต่อ', 'Confirm to sign out of this customer account, or cancel to keep it on.'),
-      language: userLanguage,
-      tone: 'warning',
-      actions: [
-        { label: tr(userLanguage, 'ยืนยันออก', 'Sign out'), text: 'VERIFY SIGNOUT', style: 'primary' },
-        { label: tr(userLanguage, 'ยกเลิก', 'Cancel'), text: 'NAV HOME', style: 'secondary' },
-      ],
-    })];
   }
 
   const formCollected: Record<string, string> = {
@@ -570,7 +587,8 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
   const sessionOn = hasActiveSalesSession(profile);
   const trayVariant = trayVariantForCommand(trimmed);
   if (trayVariant && !ctx.isGroupContext) {
-    await linkUserRichMenu(userId, userLanguage, ctx.channel?.channelId || DEFAULT_CHANNEL_ID, trayVariant, sessionOn);
+    ctx.trayHighlight = trayVariant;
+    ctx.trayRest = ctx.trayRest || { language: userLanguage, salesSessionActive: sessionOn };
   }
 
   // Step 1: Guided form intercept
@@ -673,18 +691,7 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
  */
 export const resolveCommandReply = async (ctx: CommandReplyContext): Promise<messagingApi.Message[]> => {
   return withSpan('line.resolveCommandReply', { 'line.user_id': ctx.userId, 'http.request_id': ctx.requestId || '' }, async () => {
-    const trayVariant = trayVariantForCommand(ctx.text.trim());
     const messages = await dispatchCommandReply(ctx);
-    if (trayVariant && trayVariant !== 'verify' && trayVariant !== 'language' && !ctx.isGroupContext) {
-      const latest = await getUserProfile(ctx.userId);
-      await linkUserRichMenu(
-        ctx.userId,
-        latest.language || ctx.userLanguage,
-        ctx.channel?.channelId || DEFAULT_CHANNEL_ID,
-        'default',
-        hasActiveSalesSession(latest),
-      );
-    }
     const violations = checkMessagesAgainstLineLimits(messages);
     if (violations.length) {
       appLogger.error('line_limits_violation', { requestId: ctx.requestId, violations });

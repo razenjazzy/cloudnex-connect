@@ -6,10 +6,10 @@
   "chatBarTextTh": "เมนู",
   "areas": [
     { "id": "home", "bounds": { "x": 0, "y": 0, "width": 833, "height": 421 }, "action": { "type": "message", "text": "NAV HOME" }, "labelEn": "Home", "labelTh": "หน้าหลัก", "icon": "home" },
-    { "id": "verify", "bounds": { "x": 833, "y": 0, "width": 833, "height": 421 }, "action": { "type": "message", "text": "FORM VERIFY" }, "labelEn": "Verify", "labelTh": "ยืนยันตัวตน", "icon": "verify" },
-    { "id": "commerce", "bounds": { "x": 1666, "y": 0, "width": 834, "height": 421 }, "action": { "type": "message", "text": "NAV commerce" }, "labelEn": "Products & Quotes", "labelTh": "สินค้าและใบเสนอราคา", "icon": "bag" },
-    { "id": "orders", "bounds": { "x": 0, "y": 421, "width": 833, "height": 422 }, "action": { "type": "message", "text": "FORM ORDER STATUS" }, "labelEn": "Order Status", "labelTh": "สถานะออเดอร์", "icon": "grid" },
-    { "id": "help", "bounds": { "x": 833, "y": 421, "width": 833, "height": 422 }, "action": { "type": "message", "text": "GUIDE" }, "labelEn": "Help", "labelTh": "ช่วยเหลือ", "icon": "help" },
-    { "id": "language", "bounds": { "x": 1666, "y": 421, "width": 834, "height": 422 }, "action": { "type": "message", "text": "LANG" }, "labelEn": "Language", "labelTh": "ภาษา", "icon": "globe" }
+    { "id": "commerce", "bounds": { "x": 833, "y": 0, "width": 833, "height": 421 }, "action": { "type": "message", "text": "NAV commerce" }, "labelEn": "Products & Quotes", "labelTh": "สินค้าและใบเสนอราคา", "icon": "bag" },
+    { "id": "language", "bounds": { "x": 1666, "y": 0, "width": 834, "height": 421 }, "action": { "type": "message", "text": "LANG" }, "labelEn": "Language", "labelTh": "ภาษา", "icon": "globe" },
+    { "id": "verify", "bounds": { "x": 0, "y": 421, "width": 833, "height": 422 }, "action": { "type": "message", "text": "FORM VERIFY" }, "labelEn": "Verify", "labelTh": "ยืนยันตัวตน", "icon": "verify" },
+    { "id": "orders", "bounds": { "x": 833, "y": 421, "width": 833, "height": 422 }, "action": { "type": "message", "text": "FORM ORDER STATUS" }, "labelEn": "Order Status", "labelTh": "สถานะออเดอร์", "icon": "grid" },
+    { "id": "help", "bounds": { "x": 1666, "y": 421, "width": 834, "height": 422 }, "action": { "type": "message", "text": "GUIDE" }, "labelEn": "Help", "labelTh": "ช่วยเหลือ", "icon": "help" }
   ]
 }

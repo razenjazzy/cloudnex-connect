@@ -50,7 +50,7 @@ const verifyStartHandler: CommandHandler = {
         tone: 'warning',
         actions: [
           { label: tr(userLanguage, 'สมัครลูกค้าใหม่', 'New customer'), text: 'FORM CUSTOMER REGISTER', style: 'primary' },
-          { label: tr(userLanguage, 'เบอร์อื่น', 'Another phone'), text: 'FORM VERIFY', style: 'secondary' },
+          { label: tr(userLanguage, 'เบอร์อื่น', 'Another phone'), text: 'FORM VERIFY MANUAL', style: 'secondary' },
         ],
       })];
     }

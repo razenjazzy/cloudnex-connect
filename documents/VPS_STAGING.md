@@ -101,6 +101,14 @@ certbot --nginx -d amardhaka.io -d www.amardhaka.io
 
 `POST /webhook` still uses default Sales credentials.
 
+After a tray layout change (`assets/rich-menu/layout.json`), from a machine with LINE tokens:
+
+```bash
+node --env-file=.env scripts/upload-rich-menu.mjs
+```
+
+Paste the printed `LINE_RICH_MENU_JSON` / `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` into the VPS `.env` and restart compose. Leave `LINE_WEBHOOK_ASYNC=false` unless Redis and `RUN_BULLMQ_WORKER=true` are running.
+
 ## 7. Smoke
 
 - `GET https://amardhaka.io/healthz` — `service` is `cloudnex-connect`

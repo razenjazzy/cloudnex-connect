@@ -155,7 +155,7 @@ const findProductsByQuery = async (query, limit = 5) => {
     const uid = await (0, client_1.loginRead)(config);
     if (!uid)
         return [];
-    const rows = await (0, client_1.executeKwRead)(config, uid, 'product.product', 'search_read', [[['name', 'ilike', normalizedQuery]]], {
+    const rows = await (0, client_1.executeKwRead)(config, uid, 'product.product', 'search_read', [[['sale_ok', '=', true], ['name', 'ilike', normalizedQuery]]], {
         fields: ['id', 'name', 'list_price', 'qty_available', 'default_code'],
         limit,
     });
@@ -174,7 +174,7 @@ const listProducts = async (limit = 10) => {
     const uid = await (0, client_1.loginRead)(config);
     if (!uid)
         return [];
-    const rows = await (0, client_1.executeKwRead)(config, uid, 'product.product', 'search_read', [[]], {
+    const rows = await (0, client_1.executeKwRead)(config, uid, 'product.product', 'search_read', [[['sale_ok', '=', true]]], {
         fields: ['id', 'name', 'list_price', 'qty_available', 'default_code'],
         limit,
         order: 'write_date desc',

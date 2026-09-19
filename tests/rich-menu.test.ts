@@ -14,22 +14,22 @@ describe('native LINE rich menu layout', () => {
     expect(layout.size).toEqual({ width: 2500, height: 843 });
     expect(layout.areas.map(area => area.action.text)).toEqual([
       'NAV HOME',
-      'FORM VERIFY',
       'NAV commerce',
+      'LANG',
+      'FORM VERIFY',
       'FORM ORDER STATUS',
       'GUIDE',
-      'LANG',
     ]);
     expect(layout.areas.map(area => area.labelEn)).toEqual([
       'Home',
-      'Verify',
       'Products & Quotes',
+      'Language',
+      'Verify',
       'Order Status',
       'Help',
-      'Language',
     ]);
     expect(layout.areas.every(area => !area.fill)).toBe(true);
-    expect(layout.areas.map(area => area.id)).toEqual(['home', 'verify', 'commerce', 'orders', 'help', 'language']);
+    expect(layout.areas.map(area => area.id)).toEqual(['home', 'commerce', 'language', 'verify', 'orders', 'help']);
   });
 
   it('uses sentence-case i18n labels', () => {
@@ -37,11 +37,11 @@ describe('native LINE rich menu layout', () => {
     expect(layout.chatBarTextTh).toBe('เมนู');
     expect(layout.areas.map(area => area.labelTh)).toEqual([
       'หน้าหลัก',
-      'ยืนยันตัวตน',
       'สินค้าและใบเสนอราคา',
+      'ภาษา',
+      'ยืนยันตัวตน',
       'สถานะออเดอร์',
       'ช่วยเหลือ',
-      'ภาษา',
     ]);
   });
 });
@@ -130,14 +130,14 @@ describe('native tray Language / Verify fills', () => {
   it('golds Language on English rest and leaves Verify idle (no teal)', () => {
     const fills = tileFills(readFileSync('assets/rich-menu/menu-en.svg', 'utf8'));
     expect(fills).toHaveLength(6);
-    expect(fills[1]).toBe(IDLE);
-    expect(fills[5]).toBe(GOLD);
+    expect(fills[2]).toBe(GOLD);
+    expect(fills[3]).toBe(IDLE);
   });
 
   it('uses no teal for Language on Thai rest', () => {
     const fills = tileFills(readFileSync('assets/rich-menu/menu-th.svg', 'utf8'));
-    expect(fills[5]).toBe(IDLE);
-    expect(fills[1]).toBe(IDLE);
+    expect(fills[2]).toBe(IDLE);
+    expect(fills[3]).toBe(IDLE);
   });
 
   it('keeps Language and Verify independent: tap darkens only that tile', () => {

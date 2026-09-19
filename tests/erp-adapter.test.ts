@@ -4,7 +4,7 @@ import { addSaleOrderLine, cancelSaleOrder, confirmSaleOrder, createInvoiceForSa
 import { createPartnerFromLine, deletePartnerFromLine, getPartnerByName, getPartnerByPhone, updatePartnerFromLine } from '../src/services/odoo/partners';
 import { getOutgoingPickingForOrder } from '../src/services/odoo/delivery';
 import { getDailySalesSnapshot } from '../src/services/odoo/reporting';
-import { odooAdapter } from '../src/erp/odoo-adapter';
+import { odooAdapter, seedProductCatalogCacheForTests } from '../src/erp/odoo-adapter';
 import { getErpAdapter } from '../src/erp/registry';
 
 vi.mock('../src/services/odoo/catalog', () => ({
@@ -90,6 +90,17 @@ describe('Odoo ERP adapter', () => {
     mockedListProducts.mockResolvedValue([]);
     await expect(odooAdapter.searchProducts('   ')).resolves.toEqual([]);
     expect(mockedListProducts).toHaveBeenCalled();
+  });
+
+  it('peeks the warm catalog cache without a second Odoo list', async () => {
+    seedProductCatalogCacheForTests([], Date.now() - 120_000);
+    mockedListProducts.mockResolvedValue([{ id: 1, name: 'Widget Pro', default_code: 'WP-1', list_price: 125, qty_available: 8 }]);
+    await odooAdapter.searchProducts('', 10);
+    mockedListProducts.mockClear();
+    expect(odooAdapter.peekCachedProducts?.(10)).toEqual([
+      { id: 1, name: 'Widget Pro', sku: 'WP-1', price: 125, quantity: 8, currency: 'THB' },
+    ]);
+    expect(mockedListProducts).not.toHaveBeenCalled();
   });
 
   it('returns every match when a search term is ambiguous, instead of only the first', async () => {

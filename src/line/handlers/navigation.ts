@@ -44,7 +44,7 @@ const navServiceHandler: CommandHandler = {
       userLanguage,
     );
     if (key === 'commerce') {
-      const follow = await commerceFollowUpMessages(ctx, 2);
+      const follow = await commerceFollowUpMessages(ctx, 2, { deferCatalogMiss: true });
       if (follow.length) return follow;
     }
     if (key === 'catalog') {
