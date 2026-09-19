@@ -65,7 +65,7 @@ Required Cloud Run secret mappings are validated by `scripts/validate-cutover.sh
 - [x] Firestore composite index `users.phone` + `odooVerified` **READY** on project `cns-line-oa` (id `CICAgJiUpoMK`, 2026-09-19). Spec: `deploy/firestore.indexes.json`.
 - [x] GCP org policy `constraints/iam.disableServiceAccountKeyCreation` **enforced** on `cns-line-oa` (2026-09-19).
 - [x] Automated staging live check 2026-09-19 (`validate:staging`). `STAGING_VALIDATED` / `PRODUCTION_APPROVED` are **not** stored in git.
-- [x] Rollback target: Docker image `razenjazzy/cloudnex-connect:staging` digest `sha256:418ad4920fd59a3f7089ce6ee7bc04a22982b017a59448ddfca31e6236e183c7` (VPS `amardhaka.io`). Owner: staging operator. Cloud Run production has no live service until `deploy:prod` after human `PRODUCTION_APPROVED`.
+- [x] Rollback target: Docker image `razenjazzy/cloudnex-connect:staging` digest `sha256:e50637d55db5b1b8edad4ed1c69cdb2aadaaa85568ff096e0f7e331aded78154` (commit `e0197d99`, VPS `amardhaka.io`). Owner: staging operator. Cloud Run production has no live service until `deploy:prod` after human `PRODUCTION_APPROVED`.
 
 ## Release sequence (VPS staging)
 
