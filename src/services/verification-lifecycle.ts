@@ -27,8 +27,11 @@ export const resolveVerificationPhase = (input: {
   now?: number;
   cooldownMs?: number;
   lastError?: 'invalid_otp' | 'expired' | 'locked' | 'error';
+  /** True while consumeOdooVerificationByOtp is in flight — never log the code. */
+  otpCheckInFlight?: boolean;
 }): VerificationPhase => {
   if (input.odooVerified) return 'VERIFIED';
+  if (input.otpCheckInFlight) return 'VERIFYING';
   if (input.lastError === 'locked') return 'FAILED';
   if (input.lastError === 'error') return 'ERROR';
   const now = input.now ?? Date.now();

@@ -262,6 +262,19 @@ export const verifyOdooUserByOtp = async (input: VerifyOtpInput): Promise<string
     return tr(input.language, `วิธีใช้: VERIFY OTP <รหัส 6 หลัก>`, `Usage: VERIFY OTP <6-digit-code>`);
   }
 
+  const pending = await getPendingOdooVerificationChallenge(input.userId);
+  const phase = resolveVerificationPhase({
+    odooVerified: false,
+    phone: pending?.phone,
+    pending,
+    otpCheckInFlight: true,
+  });
+  appLogger.info('verification_otp_check', {
+    userId: input.userId,
+    phone: maskPhoneForLog(pending?.phone || ''),
+    phase,
+  });
+
   const consumed = await consumeOdooVerificationByOtp({ userId: input.userId, otpCode: code });
   if (!consumed.ok || !consumed.data) {
     const reason = consumed.error || '';

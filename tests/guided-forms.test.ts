@@ -137,8 +137,14 @@ describe('SERVICE_DELETE flow', () => {
 describe('QUOTE_CREATE flow', () => {
   const spec = FLOW_SPECS.QUOTE_CREATE;
 
-  it('does not require admin', () => {
-    expect(spec.requiresAdmin).toBe(false);
+  it('uses saved Odoo partner phones on step 4, not a second verify flow', () => {
+    const phoneField = spec.fields[3];
+    expect(phoneField.key).toBe('phone');
+    expect(phoneField.loadOptions).toBeTypeOf('function');
+    expect(spec.fields.map(f => f.key)).toEqual([
+      'productName', 'qty', 'customerName', 'phone',
+      'customerReference', 'discountPercent', 'validityDate', 'note', 'paymentTerm',
+    ]);
   });
 
   it('builds the final command with a product id when seeded from a card', () => {

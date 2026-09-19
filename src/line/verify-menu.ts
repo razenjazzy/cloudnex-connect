@@ -49,6 +49,22 @@ export const resolveVerifyMenuMessages = async (ctx: CommandReplyContext): Promi
         : ''), 'success', actions)];
   }
 
+  if (phase === 'VERIFYING') {
+    return [card(ctx, tr(userLanguage,
+      `${agentName} กำลังตรวจสอบรหัสยืนยัน`,
+      `${agentName} is checking your verification code.`,
+    ), 'info')];
+  }
+
+  if (phase === 'ERROR' || phase === 'CANCELLED') {
+    return [card(ctx, tr(userLanguage,
+      `${agentName} การยืนยันไม่สำเร็จ กรุณาลองใหม่`,
+      `${agentName} verification did not finish. Please try again.`,
+    ), 'warning', [
+      { label: tr(userLanguage, 'ยืนยันตอนนี้', 'Verify now'), text: 'FORM VERIFY MANUAL', style: 'primary' },
+    ])];
+  }
+
   if (phase === 'RATE_LIMITED') {
     const shown = pending?.phone || phone;
     return [card(ctx, tr(userLanguage,

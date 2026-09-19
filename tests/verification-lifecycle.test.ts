@@ -50,6 +50,15 @@ describe('verification lifecycle', () => {
     })).toBe('EXPIRED');
   });
 
+  it('returns VERIFYING while an OTP check is in flight', () => {
+    expect(resolveVerificationPhase({
+      odooVerified: false,
+      pending,
+      now: 1_000 + 10_000,
+      otpCheckInFlight: true,
+    })).toBe('VERIFYING');
+  });
+
   it('never logs a full phone number', () => {
     expect(maskPhoneForLog('+66812345678')).toBe('***5678');
     expect(maskPhoneForLog('12')).toBe('****');
@@ -67,6 +76,12 @@ describe('verification start reuse (source)', () => {
     expect(limited).toBeGreaterThan(-1);
     expect(created).toBeGreaterThan(limited);
     expect(src).toContain('reused: true');
+    expect(src).toContain('otpCheckInFlight: true');
+    expect(src).toContain('maskPhoneForLog');
+    const otpHandler = src.indexOf('export const verifyOdooUserByOtp');
+    const sliceOtp = src.slice(otpHandler, otpHandler + 1400);
+    expect(sliceOtp).toContain("phase,");
+    expect(sliceOtp).not.toContain('OTP:');
   });
 });
 
