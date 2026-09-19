@@ -50,6 +50,7 @@
     "test:validators": "vitest run tests/command-validators.test.ts",
     "rich-menu:generate": "node scripts/generate-rich-menu.mjs",
     "rich-menu:upload": "node scripts/upload-rich-menu.mjs",
+    "journey:stills": "ts-node --transpile-only scripts/export-journey-stills.ts",
     "lint": "eslint src tests"
   },
   "keywords": [],

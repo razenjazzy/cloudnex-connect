@@ -19,6 +19,7 @@ yarn-error.log*
 .mcp.json
 clawframework
 .venv
+tmp/
 .backup/
 .build-info.txt
 build_log.txt
