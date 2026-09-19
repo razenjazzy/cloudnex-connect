@@ -1,6 +1,6 @@
 # User journey book — CloudNex Connect (LINE OA)
 
-**Staging code is frozen** on `https://amardhaka.io`. Remaining work in this book is on-device PNG capture only (no new LINE commands).
+**Staging code is frozen** on `https://amardhaka.io`. Journey PNGs for every listed filename now live in `documents/journey/`. Tray stills are the published `assets/rich-menu` PNGs. Flex stills without an on-device capture are **studio renders** of the same builders (`npx ts-node --transpile-only scripts/export-journey-stills.ts`) — dummy partner data, no OTP. Recapture on the OA if a tap fails.
 
 Capture this on the **staging** Official Account after `/healthz` is green and the compact rich menu is published. English is the default. Thai appears only after **Language**. Do not screenshot OTP codes or real customer PII; use dummy Odoo partners.
 
@@ -142,7 +142,7 @@ Drop files next to this doc:
 ![D4 Guide TH](journey/d4-guide-th.png)
 ![D5 Lang EN](journey/d5-lang-en.png)
 
-In git today: `a3-verify`, `a4-products-quotes`, `b1`, `b4`, `b5`, `b6`, `b8`, `c1-customer-approve`, `c2-sales-order-admin`, `c4-invoice-staff`. Recapture those if they predate v5.0.1. Still needed: Customer C0–C5, A1–A2, A3 language, A5–A6, B2–B3, B9–B11, C3 customer SO, D1–D5. After capture, commit only the journey filenames.
+In git: every filename in the tables above. Tray stills (`a2`, `a3-language`, `d3`) are the published rich-menu PNGs. Ten older on-device shots remain (`a3-verify`, `a4`, `b1`, `b4`, `b5`, `b6`, `b8`, `c1-customer-approve`, `c2-sales-order-admin`, `c4-invoice-staff`). The rest are studio Flex from `scripts/export-journey-stills.ts`. Recapture on-device if a tap fails.
 
 ---
 
