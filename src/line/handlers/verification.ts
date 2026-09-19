@@ -1,10 +1,14 @@
 import type { CommandHandler } from './index';
 import { startOdooUserVerification, verificationSuccessMessage, verifyOdooUserByOtp } from '../../services/user-verification';
 import { createBotTextFlexMessage } from '../templates';
-import { getUserProfile, type UserLanguage } from '../../services/firestore';
+import { getUserProfile, setUserOdooPartner, type UserLanguage } from '../../services/firestore';
 import { syncStaffProfile } from '../quote-access';
 import { homeMenuFromContext, resumeQuoteFromLastProduct } from '../command-router';
 import { clearSalesLogin } from '../../services/sales-session';
+import { parseUserCreatePayload } from '../command-validators';
+import { getErpAdapter } from '../../erp/registry';
+import { getPartnerByPhone } from '../../services/odoo/partners';
+import { CUSTOMER_CHANNEL_ID } from '../channels';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -38,6 +42,18 @@ const verifyStartHandler: CommandHandler = {
       fallbackBaseUrl: baseUrl,
       channelId: channel?.channelId,
     });
+    if (result.needsRegister) {
+      return [createBotTextFlexMessage({
+        title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+        body: result.message,
+        language: userLanguage,
+        tone: 'warning',
+        actions: [
+          { label: tr(userLanguage, 'สมัครลูกค้าใหม่', 'New customer'), text: 'FORM CUSTOMER REGISTER', style: 'primary' },
+          { label: tr(userLanguage, 'เบอร์อื่น', 'Another phone'), text: 'FORM VERIFY', style: 'secondary' },
+        ],
+      })];
+    }
     // The link (when present) must render as a real uri-action button —
     // Flex text isn't auto-linkified or selectable, so a raw URL in the
     // body was previously an inert, uncopyable string.
@@ -75,7 +91,7 @@ const verifyStatusHandler: CommandHandler = {
   match: (u) => u === 'VERIFY STATUS',
   handle: async (ctx) => {
     const { userLanguage, profile, agentName, userId } = ctx;
-    const synced = await syncStaffProfile(userId, profile);
+    const synced = await syncStaffProfile(userId, profile, ctx.channel?.channelId);
     return [createBotTextFlexMessage({
       title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
       body: profile.odooVerified
@@ -85,6 +101,34 @@ const verifyStatusHandler: CommandHandler = {
       tone: profile.odooVerified ? 'success' : 'info',
       actions: [{ label: tr(userLanguage, 'ยืนยันอีกครั้ง', 'Verify again'), text: 'FORM VERIFY' }],
     })];
+  },
+};
+
+const customerRegisterHandler: CommandHandler = {
+  name: 'customer-register',
+  match: (u) => u.startsWith('CUSTOMER REGISTER'),
+  handle: async (ctx) => {
+    const { userLanguage, userId, text, channel } = ctx;
+    if (channel?.channelId !== CUSTOMER_CHANNEL_ID) {
+      return [botText(tr(userLanguage,
+        'สมัครลูกค้าบน Cloudnex Customer ฝ่ายขายเพิ่มผู้ติดต่อด้วย USER CREATE',
+        'Register as a customer on Cloudnex Customer. Staff add contacts with USER CREATE on Sales.',
+      ), userLanguage)];
+    }
+    const payload = text.trim().replace(/^CUSTOMER REGISTER\s*/i, '').trim();
+    const parsed = parseUserCreatePayload(payload);
+    if (!parsed) {
+      const { resolveCommandReply } = await import('../command-router');
+      return resolveCommandReply({ ...ctx, text: 'FORM CUSTOMER REGISTER' });
+    }
+    const existing = await getPartnerByPhone(parsed.phone).catch(() => null);
+    const partner = existing || await getErpAdapter().createCustomer(parsed.name, parsed.phone, parsed.email);
+    if (!partner) {
+      return [botText(tr(userLanguage, 'บันทึกลูกค้าใน Odoo ไม่สำเร็จ', 'Could not save this customer in Odoo.'), userLanguage)];
+    }
+    await setUserOdooPartner(userId, partner.id, partner.name, partner.phone || parsed.phone);
+    const { resolveCommandReply } = await import('../command-router');
+    return resolveCommandReply({ ...ctx, text: `VERIFY START ${parsed.phone}` });
   },
 };
 
@@ -108,6 +152,7 @@ const verifySignoutHandler: CommandHandler = {
 };
 
 export const verificationHandlers: CommandHandler[] = [
+  customerRegisterHandler,
   verifySignoutHandler,
   verifyStartHandler,
   verifyOtpHandler,

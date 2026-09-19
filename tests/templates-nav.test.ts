@@ -122,4 +122,25 @@ describe('customer home after VERIFY', () => {
     expect(json).not.toContain('LINE Guest');
     expect(json).not.toContain('0810000000');
   });
+
+  it('does not treat a sales-admin login as staff on Customer OA', async () => {
+    const { homeMenuFromContext } = await import('../src/line/command-router');
+    const message = homeMenuFromContext({
+      userLanguage: 'en',
+      agentName: 'Sora',
+      channel: { channelId: 'customer', enabledServices: null },
+      profile: {
+        language: 'en',
+        role: 'admin',
+        odooVerified: true,
+        marketingOptIn: false,
+        salesTier: 'sales_manager',
+        displayName: 'Somchai',
+        phone: '0812345678',
+      },
+    });
+    const json = JSON.stringify(message);
+    expect(json).toContain('Somchai');
+    expect(json).toContain('0812345678');
+  });
 });

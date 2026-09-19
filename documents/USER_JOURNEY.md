@@ -27,7 +27,7 @@ Capture on **Cloudnex Customer** (`@724tneri`). No staff name/phone fields. No A
 |---|---|---|---|
 | C0 | Add friend + first message | PDPA + Flex home. After VERIFY, name and phone show on the home card (not editable). Tray Language/Verify (same gold / idle / dark-teal rules as Sales) | `journey/c0-customer-home.png` |
 | C1 | Guest `NAV commerce` or Find product | Product **carousel** before VERIFY. Creating a quote still asks to VERIFY | `journey/c1-guest-catalog.png` |
-| C2 | `FORM VERIFY` with Odoo partner phone | Session + `odooPartnerId`. No sales-staff OTP chain | `journey/c2-customer-verify.png` |
+| C2 | `FORM VERIFY` with Odoo partner phone, or **New customer** if the phone is unknown | Existing contact: OTP + home with Odoo name/phone (never Sales User/Admin). New: name, phone, email → Odoo contact → VERIFY. No sales-staff OTP chain | `journey/c2-customer-verify.png` |
 | C3 | `FORM QUOTE CREATE` (product + qty only) | Draft card. Copy: sales will send this quote. Footer **Home** + **QUOTE LIST**. Sales OA gets the staff card | `journey/c3-self-quote-draft.png` |
 | C4 | After Sales **Send LINE** | Customer Flex `sent` + Approve. Confirm/invoice/cancel also push here. Not a friend: Add friend `@724tneri` | `journey/c4-customer-sent.png` |
 | C5 | `QUOTE LIST` / `ORDER STATUS` | Own SOs only. Another partner’s SO: not-yours copy. After pick validate: Delivery chip (state, tracking text, responsible — no carrier API) | `journey/c5-my-quotes.png` |

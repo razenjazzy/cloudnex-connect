@@ -45,7 +45,8 @@ export type FlowKey =
   | 'QUOTE_SEND'
   | 'INVOICE_SEND'
   | 'MESSAGE_CUSTOMER'
-  | 'VERIFY';
+  | 'VERIFY'
+  | 'CUSTOMER_REGISTER';
 
 export type FlowFieldSpec = {
   key: string;
@@ -127,6 +128,19 @@ export const FLOW_SPECS: Record<FlowKey, FlowSpec> = {
       { key: 'phone', promptTh: 'เบอร์โทรที่ผูกกับบัญชี?', promptEn: 'Phone number on your account?', validate: isPhoneLike, loadOptions: loadVerifyPhoneOptions },
     ],
     buildFinalCommand: (c) => `VERIFY START ${c.phone}`,
+  },
+  CUSTOMER_REGISTER: {
+    key: 'CUSTOMER_REGISTER',
+    startCommand: 'FORM CUSTOMER REGISTER',
+    requiresAdmin: false,
+    labelTh: 'สมัครลูกค้าใหม่',
+    labelEn: 'New customer',
+    fields: [
+      { key: 'name', promptTh: 'ชื่อของคุณ?', promptEn: 'Your name?', validate: isNonEmpty },
+      { key: 'phone', promptTh: 'เบอร์โทร?', promptEn: 'Phone number?', validate: isPhoneLike },
+      { key: 'email', promptTh: 'อีเมล (พิมพ์ SKIP เพื่อข้าม)', promptEn: 'Email (type SKIP to skip)', optional: true, validate: isEmailLike },
+    ],
+    buildFinalCommand: (c) => `CUSTOMER REGISTER ${c.name},${c.phone}${c.email ? `,${c.email}` : ''}`,
   },
   USER_CREATE: {
     key: 'USER_CREATE',

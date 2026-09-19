@@ -9,7 +9,8 @@ const nav = readFileSync('src/line/handlers/navigation.ts', 'utf8');
 
 describe('USER_JOURNEY C0–C5 source contract', () => {
   it('C0: home identity only after odooVerified', () => {
-    expect(router).toContain('!staff && ctx.profile.odooVerified && (ctx.profile.displayName || ctx.profile.phone)');
+    expect(router).toContain('!staff && profile.odooVerified && (profile.displayName || profile.phone)');
+    expect(router).toContain('applyChannelPersona');
   });
 
   it('C1: guest commerce NAV and product find use the kilo carousel', () => {

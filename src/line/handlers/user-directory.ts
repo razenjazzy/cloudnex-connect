@@ -3,8 +3,10 @@ import { createBotTextFlexMessage } from '../templates';
 import { parseUserCreatePayload, parseUserUpdatePayload } from '../command-validators';
 import { getPartnerByPhone } from '../../services/odoo/partners';
 import { getErpAdapter } from '../../erp/registry';
-import { recordAuditEvent, setUserOdooPartner } from '../../services/firestore';
+import { recordAuditEvent } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
+import { oaChatDeepLink, CUSTOMER_CHANNEL_ID } from '../channels';
+import { t } from '../../services/i18n';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -47,15 +49,18 @@ const userCreateHandler: CommandHandler = {
       return [botText(tr(userLanguage, 'สร้างผู้ใช้ใน Odoo ไม่สำเร็จ', 'Failed to create user in Odoo.'), userLanguage)];
     }
 
-    const partnerResult = await setUserOdooPartner(userId, partner.id, partner.name, partner.phone);
     recordAuditEvent({ action: 'user_create', outcome: 'success', actorUserId: userId, channelId: channel?.channelId, requestId, targetId: String(partner.id) });
-    if (!partnerResult.ok) {
-      return [botText(tr(userLanguage, 'สร้างผู้ใช้ใน Odoo สำเร็จ แต่บันทึกสถานะผู้ใช้ในระบบไม่สำเร็จ กรุณาลองใหม่', 'Created Odoo user, but failed to persist user state. Please try again.'), userLanguage)];
-    }
-    return [botText(tr(userLanguage,
-      `สร้างผู้ใช้ Odoo สำเร็จ\n- ID: ${partner.id}\n- ชื่อ: ${partner.name}\n- เบอร์: ${partner.phone || '-'}`,
-      `Odoo user created\n- ID: ${partner.id}\n- Name: ${partner.name}\n- Phone: ${partner.phone || '-'}`,
-    ), userLanguage)];
+    const inviteUri = oaChatDeepLink(CUSTOMER_CHANNEL_ID);
+    return [createBotTextFlexMessage({
+      title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+      body: tr(userLanguage,
+        `สร้างผู้ติดต่อ Odoo แล้ว\n- ID: ${partner.id}\n- ชื่อ: ${partner.name}\n- เบอร์: ${partner.phone || '-'}\nให้ลูกค้าเพิ่มเพื่อน Cloudnex Customer แล้ว VERIFY ด้วยเบอร์นี้`,
+        `Odoo contact created\n- ID: ${partner.id}\n- Name: ${partner.name}\n- Phone: ${partner.phone || '-'}\nAsk them to add Cloudnex Customer and VERIFY with this phone.`,
+      ),
+      language: userLanguage,
+      tone: 'success',
+      ...(inviteUri ? { linkAction: { label: t('addFriend', userLanguage), uri: inviteUri } } : {}),
+    })];
   },
 };
 

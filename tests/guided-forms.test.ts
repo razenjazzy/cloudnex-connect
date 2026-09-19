@@ -11,6 +11,7 @@ describe('getFlowByStartCommand', () => {
     expect(getFlowByStartCommand('FORM PRODUCT FIND')?.key).toBe('PRODUCT_FIND');
     expect(getFlowByStartCommand('FORM ORDER STATUS')?.key).toBe('ORDER_STATUS');
     expect(getFlowByStartCommand('FORM QUOTE CREATE')?.key).toBe('QUOTE_CREATE');
+    expect(getFlowByStartCommand('FORM CUSTOMER REGISTER')?.key).toBe('CUSTOMER_REGISTER');
   });
 
   it('returns null for an unknown form command', () => {

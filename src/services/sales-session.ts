@@ -22,7 +22,9 @@ export const hasActiveSalesSession = (
   profile: Pick<UserProfile, 'odooVerified' | 'salesSessionExpiresAt' | 'salesTier'>,
   now = Date.now(),
 ): boolean => {
-  if (!profile.odooVerified || !profile.salesSessionExpiresAt) return false;
+  if (!profile.odooVerified) return false;
+  if (!profile.salesTier) return true;
+  if (!profile.salesSessionExpiresAt) return false;
   return new Date(profile.salesSessionExpiresAt).getTime() > now;
 };
 
@@ -30,6 +32,6 @@ export const salesSessionExpired = (
   profile: Pick<UserProfile, 'salesSessionExpiresAt' | 'salesTier' | 'odooVerified'>,
   now = Date.now(),
 ): boolean => {
-  if (!profile.odooVerified || !profile.salesSessionExpiresAt) return false;
+  if (!profile.odooVerified || !profile.salesTier || !profile.salesSessionExpiresAt) return false;
   return new Date(profile.salesSessionExpiresAt).getTime() <= now;
 };

@@ -30,6 +30,8 @@ export const COMMAND_GRID: CommandGridEntry[] = [
   { id: 'nav-catalog', prefix: 'NAV CATALOG', labelEn: 'Catalog', labelTh: 'บริการ', category: 'navigation', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'nav-verify', prefix: 'NAV VERIFY', labelEn: 'Verify', labelTh: 'ยืนยันตัวตน', category: 'identity', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'form-verify', prefix: 'FORM VERIFY', labelEn: 'Verify form', labelTh: 'ฟอร์มยืนยัน', category: 'identity', roles: ['guest', 'customer', 'staff', 'admin'] },
+  { id: 'form-customer-register', prefix: 'FORM CUSTOMER REGISTER', labelEn: 'New customer', labelTh: 'สมัครลูกค้าใหม่', category: 'identity', roles: ['guest', 'customer'], channels: [CUSTOMER_CHANNEL_ID] },
+  { id: 'customer-register', prefix: 'CUSTOMER REGISTER', labelEn: 'New customer', labelTh: 'สมัครลูกค้าใหม่', category: 'identity', roles: ['guest', 'customer'], channels: [CUSTOMER_CHANNEL_ID] },
   { id: 'verify', prefix: 'VERIFY', labelEn: 'Verify', labelTh: 'ยืนยันตัวตน', category: 'identity', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'product-find-form', prefix: 'FORM PRODUCT FIND', labelEn: 'Find a product', labelTh: 'ค้นหาสินค้า', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'product-find', prefix: 'PRODUCT FIND', labelEn: 'Find a product', labelTh: 'ค้นหาสินค้า', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
@@ -79,7 +81,7 @@ export const matchCommandGrid = (upperText: string): CommandGridEntry | null => 
 };
 
 export const isGuestAllowedCommand = (upperText: string, pendingFlow?: { flow: string }): boolean => {
-  if (pendingFlow?.flow === 'VERIFY' || pendingFlow?.flow === 'PRODUCT_FIND') return true;
+  if (pendingFlow?.flow === 'VERIFY' || pendingFlow?.flow === 'PRODUCT_FIND' || pendingFlow?.flow === 'CUSTOMER_REGISTER') return true;
   const entry = matchCommandGrid(upperText);
   return Boolean(entry?.roles.includes('guest'));
 };

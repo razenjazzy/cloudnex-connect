@@ -19,6 +19,8 @@ describe('command grid', () => {
     expect(isGuestAllowedCommand('FORM QUOTE CREATE')).toBe(false);
     expect(isGuestAllowedCommand('FORM QUOTE CREATE FROM CARD 11')).toBe(true);
     expect(isGuestAllowedCommand('ADMIN ENABLE')).toBe(false);
+    expect(isGuestAllowedCommand('FORM CUSTOMER REGISTER')).toBe(true);
+    expect(isGuestAllowedCommand('CUSTOMER REGISTER Somchai,0812345678')).toBe(true);
   });
 
   it('blocks admin enable on Customer OA and allows it on Sales', () => {
@@ -28,6 +30,15 @@ describe('command grid', () => {
       reason: 'channel',
     });
     expect(evaluateCommandGrid('ADMIN ENABLE', { profile: verified, channel: { channelId: 'sales' } })).toEqual({ ok: true });
+  });
+
+  it('allows new-customer register only on Customer OA', () => {
+    const guest = profile({});
+    expect(evaluateCommandGrid('FORM CUSTOMER REGISTER', { profile: guest, channel: { channelId: 'customer' } })).toEqual({ ok: true });
+    expect(evaluateCommandGrid('CUSTOMER REGISTER A,0811111111', { profile: guest, channel: { channelId: 'sales' } })).toEqual({
+      ok: false,
+      reason: 'channel',
+    });
   });
 
   it('requires LINE admin for ADMIN CONFIG', () => {

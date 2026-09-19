@@ -122,10 +122,19 @@ const adminAccessHandler: CommandHandler = {
   handle: async (ctx) => {
     const { userLanguage, profile, agentName } = ctx;
     const isAdmin = profile.role === 'admin';
+    const tier = profile.salesTier === 'sales_manager'
+      ? 'Sales Administrator'
+      : profile.salesTier === 'salesperson'
+        ? 'Sales User'
+        : 'none';
     return [botText(tr(
       userLanguage,
-      isAdmin ? `${agentName} สิทธิ์ปัจจุบัน: แอดมิน` : `${agentName} สิทธิ์ปัจจุบัน: ผู้ใช้ทั่วไป`,
-      isAdmin ? `${agentName} current role: admin` : `${agentName} current role: standard user`,
+      isAdmin
+        ? `${agentName} สิทธิ์: แอดมิน LINE · Odoo: ${tier}\nเพิ่มลูกค้า: USER CREATE แล้วส่ง Add friend Cloudnex Customer`
+        : `${agentName} สิทธิ์: ผู้ใช้ทั่วไป · Odoo: ${tier}`,
+      isAdmin
+        ? `${agentName} role: LINE admin · Odoo: ${tier}\nAdd a customer with USER CREATE, then share Add friend for Cloudnex Customer.`
+        : `${agentName} role: standard user · Odoo: ${tier}`,
     ), userLanguage)];
   },
 };
