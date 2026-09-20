@@ -9,13 +9,16 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true
 
 # Copy package.json and package-lock.json
 COPY package*.json ./
+COPY admin/package.json admin/package-lock.json ./admin/
 
-# Install all dependencies (including devDependencies for tsc)
-RUN npm ci --ignore-scripts
+# Install all dependencies (including devDependencies for tsc / Vite)
+RUN npm ci --ignore-scripts && npm ci --ignore-scripts --prefix admin
 
 # Copy the source code
 COPY tsconfig.json ./
 COPY src ./src
+COPY admin/index.html admin/tsconfig.json admin/vite.config.ts ./admin/
+COPY admin/src ./admin/src
 RUN npm run build
 
 # Stage 2: Create the production image
@@ -34,6 +37,7 @@ RUN npm ci --omit=dev --ignore-scripts && npm cache clean --force
 
 # Copy the compiled JS files from the builder stage
 COPY --from=builder /usr/src/app/dist ./dist
+COPY --from=builder /usr/src/app/admin/dist ./admin/dist
 COPY skills ./skills
 
 # wget is used by the container HEALTHCHECK (not present on stock node:alpine).

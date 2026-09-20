@@ -3,8 +3,9 @@ import { addSaleOrderLine, cancelSaleOrder, confirmSaleOrder, createInvoiceForSa
 import { createPartnerFromLine, deletePartnerFromLine, getPartnerByName, getPartnerByPhone, updatePartnerFromLine } from '../services/odoo/partners';
 import { getDailySalesSnapshot } from '../services/odoo/reporting';
 import { getOutgoingPickingForOrder } from '../services/odoo/delivery';
-import type { OdooProduct } from '../services/odoo/types';
-import type { ErpAdapter, ErpCustomerUpdate, ErpPartner, ErpPermission, ErpProduct, ErpProviderName, ErpQuoteDraft, ErpQuotationOptions, ErpService, ErpServiceUpdate, ErpWriteAction } from './adapter';
+import { postPartnerNote, listCrmQuotations, assignSaleOrderSalesperson } from '../services/odoo';
+import type { OdooProduct, OdooSaleOrder } from '../services/odoo/types';
+import type { ErpAdapter, ErpCrmQuote, ErpCrmQuoteListOpts, ErpCustomerUpdate, ErpPartner, ErpPermission, ErpProduct, ErpProviderName, ErpQuoteDraft, ErpQuotationOptions, ErpService, ErpServiceUpdate, ErpWriteAction } from './adapter';
 
 const productImageUrl = (productId: number): string | undefined => {
   const base = (process.env.ODOO_URL || '').trim().replace(/\/$/, '');
@@ -24,6 +25,19 @@ const toErpProduct = (product: OdooProduct): ErpProduct => {
     ...(imageUrl ? { imageUrl } : {}),
   };
 };
+
+const toErpCrmQuote = (order: OdooSaleOrder): ErpCrmQuote => ({
+  id: order.id,
+  name: order.name,
+  state: order.state,
+  amountTotal: order.amount_total,
+  ...(order.partner_id?.[1] ? { partnerName: order.partner_id[1] } : {}),
+  ...(order.user_id?.[0] ? { salespersonUserId: order.user_id[0] } : {}),
+  ...(order.user_id?.[1] ? { salespersonName: order.user_id[1] } : {}),
+  ...(order.client_order_ref ? { clientOrderRef: order.client_order_ref } : {}),
+  ...(order.date_order ? { dateOrder: order.date_order } : {}),
+  ...(order.note ? { note: order.note } : {}),
+});
 
 let productCatalogCache: { at: number; items: ErpProduct[] } | null = null;
 const PRODUCT_CATALOG_CACHE_MS = 30_000;
@@ -205,6 +219,12 @@ export const odooAdapter: ErpAdapter = {
       ...(pdf ? { pdf } : {}),
     };
   },
+  postPartnerNote,
+  async listQuotations(opts?: ErpCrmQuoteListOpts): Promise<ErpCrmQuote[]> {
+    const rows = await listCrmQuotations(opts);
+    return rows.map(toErpCrmQuote);
+  },
+  assignQuotationSalesperson: assignSaleOrderSalesperson,
   permissionFor: permissionForAction,
 };
 

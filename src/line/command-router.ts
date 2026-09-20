@@ -32,8 +32,8 @@ import {
 } from '../services/firestore';
 import { isServiceConfigured, isServiceEnabledForChannel, isCommandDisabled } from '../services/service-catalog';
 import { resolveServiceForCommand } from '../services/service-catalog';
-import { FLOW_SPECS, getFlowByStartCommand } from '../services/guided-forms';
-import { createBotTextFlexMessage, createFormPromptFlexMessage, createOptionalSummaryFlexMessage, createServiceHomeFlexMessage } from './templates';
+import { FLOW_SPECS, getFlowByStartCommand, nextLinearFieldIndex } from '../services/guided-forms';
+import { createBotTextFlexMessage, createFormPromptFlexMessage, createOptionalSummaryFlexMessage, createRequiredResumeFlexMessage, createServiceHomeFlexMessage, createProductCarouselFlexMessage, createIdentityStripFlexMessage } from './templates';
 import { getAvailableServices } from '../services/service-catalog';
 import { ChannelContext, CUSTOMER_CHANNEL_ID, getBrandTitle } from './channels';
 import { trayVariantForCommand } from './rich-menu';
@@ -43,6 +43,7 @@ import { COMMAND_HANDLERS } from './handlers/index';
 import { buildKeywordGuidanceMessages } from './handlers/help';
 import { handleChatFallback } from './handlers/chat-fallback';
 import { checkMessagesAgainstLineLimits } from './message-limits';
+import { ensureNextWindowOrHome } from './journey-continue';
 import { bindPostbackData } from './postback';
 import { withSpan } from '../observability/tracing';
 import { appLogger } from '../services/logger';
@@ -114,7 +115,7 @@ export const buildHomeMenuMessage = (
 ): messagingApi.Message => {
   const availableServices = getAvailableServices(channel, isAdmin, isStaff);
   const menuItems = [
-    { key: 'VERIFY', label: tr(language, 'ยืนยันตัวตน', 'Verify account') },
+    ...(!salesSessionActive && !identity ? [{ key: 'VERIFY', label: tr(language, 'ยืนยันตัวตน', 'Verify account') }] : []),
     ...availableServices.map(svc => ({ key: svc.key, label: language === 'en' ? svc.labelEn : svc.labelTh })),
   ];
   return createServiceHomeFlexMessage(menuItems, language, agentName, salesSessionActive, identity);
@@ -123,6 +124,10 @@ export const buildHomeMenuMessage = (
 export const homeMenuFromContext = (ctx: Pick<CommandReplyContext, 'userLanguage' | 'agentName' | 'channel' | 'profile'>): messagingApi.Message => {
   const profile = applyChannelPersona(ctx.profile, ctx.channel?.channelId);
   const staff = isQuoteStaff(profile);
+  if (ctx.channel?.channelId === CUSTOMER_CHANNEL_ID) {
+    const cached = getErpAdapter().peekCachedProducts?.(10) || [];
+    if (cached.length) return createProductCarouselFlexMessage(cached, ctx.userLanguage);
+  }
   const identity = !staff && profile.odooVerified && (profile.displayName || profile.phone)
     ? { name: profile.displayName, phone: profile.phone }
     : undefined;
@@ -131,10 +136,28 @@ export const homeMenuFromContext = (ctx: Pick<CommandReplyContext, 'userLanguage
     ctx.agentName,
     ctx.channel,
     profile.role === 'admin',
-    hasActiveSalesSession(profile),
+    hasActiveSalesSession(profile) || profile.odooVerified,
     identity,
     staff,
   );
+};
+
+export const homeReplyFromContext = async (
+  ctx: Pick<CommandReplyContext, 'userId' | 'userLanguage' | 'agentName' | 'channel' | 'profile' | 'requestId'>,
+): Promise<messagingApi.Message[]> => {
+  if (ctx.channel?.channelId === CUSTOMER_CHANNEL_ID) {
+    const { commerceFollowUpMessages } = await import('./commerce-followup');
+    const follow = await commerceFollowUpMessages(ctx, 2);
+    const profile = applyChannelPersona(ctx.profile, ctx.channel.channelId);
+    const staff = isQuoteStaff(profile);
+    const identity = !staff && profile.odooVerified && (profile.displayName || profile.phone)
+      ? { name: profile.displayName, phone: profile.phone }
+      : undefined;
+    const prefix = identity ? [createIdentityStripFlexMessage(identity, ctx.userLanguage)] : [];
+    const messages = [...prefix, ...follow];
+    if (messages.length) return messages.slice(0, 5);
+  }
+  return [homeMenuFromContext(ctx)];
 };
 
 // ---------------------------------------------------------------------------
@@ -205,20 +228,6 @@ const applyFieldDefaults = async (flowSpec: FlowSpec, collected: Record<string, 
   return withDefaults;
 };
 
-const nextUnfilledIndex = (flowSpec: FlowSpec, collected: Record<string, string>, fromIndex: number): number => {
-  const stop = flowSpec.optionalSummaryStartIndex ?? flowSpec.fields.length;
-  let i = fromIndex;
-  while (i < stop) {
-    const field = flowSpec.fields[i];
-    if (field.skipWhen?.(collected) || collected[field.key]) {
-      i += 1;
-      continue;
-    }
-    break;
-  }
-  return i;
-};
-
 const skipSelfQuoteIdentityIndex = (flowSpec: FlowSpec, index: number, profile: UserProfile): number => {
   if (flowSpec.key !== 'QUOTE_CREATE' || isQuoteStaff(profile)) return index;
   let i = index;
@@ -228,6 +237,47 @@ const skipSelfQuoteIdentityIndex = (flowSpec: FlowSpec, index: number, profile: 
     i += 1;
   }
   return i;
+};
+
+const quoteRequiredEndIndex = (flowSpec: FlowSpec): number =>
+  flowSpec.optionalSummaryStartIndex ?? flowSpec.fields.length;
+
+const hasForwardRequiredPrefill = (flowSpec: FlowSpec, collected: Record<string, string>, fromIndex: number): boolean => {
+  if (flowSpec.key !== 'QUOTE_CREATE') return false;
+  const stop = quoteRequiredEndIndex(flowSpec);
+  for (let i = fromIndex; i < stop; i += 1) {
+    if (collected[flowSpec.fields[i].key]?.trim()) return true;
+  }
+  return false;
+};
+
+const firstUnfilledRequiredIndex = (flowSpec: FlowSpec, collected: Record<string, string>): number => {
+  const stop = quoteRequiredEndIndex(flowSpec);
+  for (let i = 0; i < stop; i += 1) {
+    if (flowSpec.fields[i].skipWhen?.(collected)) continue;
+    if (!collected[flowSpec.fields[i].key]?.trim()) return i;
+  }
+  return stop;
+};
+
+const buildRequiredResumeMessage = (
+  language: UserLanguage,
+  agentName: string,
+  flowSpec: FlowSpec,
+  collected: Record<string, string>,
+): messagingApi.Message => {
+  const stop = quoteRequiredEndIndex(flowSpec);
+  const fields = flowSpec.fields.slice(0, stop).map((field, index) => ({
+    index,
+    label: tr(language, field.summaryLabelTh || field.promptTh, field.summaryLabelEn || field.promptEn),
+    value: collected[field.key] || undefined,
+  }));
+  return createRequiredResumeFlexMessage({
+    title: tr(language, `${agentName} ${flowSpec.labelTh}`, `${agentName} ${flowSpec.labelEn}`),
+    fields,
+    language,
+    continueLabel: tr(language, 'ทำต่อ', 'Continue'),
+  });
 };
 
 const buildOptionalSummaryMessage = (
@@ -258,14 +308,23 @@ const handleGuidedFormStep = async (ctx: CommandReplyContext): Promise<messaging
   const { profile, userId, userLanguage, agentName } = ctx;
   const trimmed = ctx.text.trim();
   const upperText = trimmed.toUpperCase();
-  const pending = profile.pendingFlow!;
+  const pendingRaw = profile.pendingFlow!;
 
-  const flowSpec = FLOW_SPECS[pending.flow as keyof typeof FLOW_SPECS];
+  const flowSpec = FLOW_SPECS[pendingRaw.flow as keyof typeof FLOW_SPECS];
 
   if (!flowSpec) {
     await setUserPendingFlow(userId, null);
     return [];
   }
+
+  // Firestore merge used to keep summaryMode from a previous quote while
+  // stepIndex reset to 0 — the first product answer then re-showed optionals.
+  const staleSummary = Boolean(
+    pendingRaw.summaryMode
+    && (flowSpec.optionalSummaryStartIndex === undefined
+      || pendingRaw.stepIndex < flowSpec.optionalSummaryStartIndex),
+  );
+  const pending = staleSummary ? { ...pendingRaw, summaryMode: undefined } : pendingRaw;
 
   if (upperText === 'CANCEL' || upperText === 'BACK' || upperText === 'NAV HOME' || upperText === 'NAV') {
     await setUserPendingFlow(userId, null);
@@ -273,6 +332,92 @@ const handleGuidedFormStep = async (ctx: CommandReplyContext): Promise<messaging
       text(tr(userLanguage, `${agentName} ยกเลิกแบบฟอร์มแล้ว`, `${agentName} form cancelled.`)),
       homeMenuFromContext(ctx),
     ];
+  }
+
+  const openStaffResume = async (collected: Record<string, string>, stepIndex: number): Promise<messagingApi.Message[]> => {
+    await setUserPendingFlow(userId, {
+      flow: flowSpec.key,
+      stepIndex,
+      collected,
+      expiresAt: buildFlowExpiry(),
+      resumeMode: true,
+    });
+    return [buildRequiredResumeMessage(userLanguage, agentName, flowSpec, collected)];
+  };
+
+  const continueStaffResume = async (collected: Record<string, string>): Promise<messagingApi.Message[]> => {
+    const nextIndex = skipSelfQuoteIdentityIndex(flowSpec, firstUnfilledRequiredIndex(flowSpec, collected), profile);
+    if (flowSpec.optionalSummaryStartIndex !== undefined && nextIndex >= flowSpec.optionalSummaryStartIndex) {
+      const collectedWithDefaults = await applyFieldDefaults(flowSpec, collected);
+      if (customerQuoteSkipsOptionalSummary(flowSpec.key, profile)) {
+        await setUserPendingFlow(userId, null);
+        const finalCommandText = flowSpec.buildFinalCommand(collectedWithDefaults);
+        return resolveCommandReply({ ...ctx, text: finalCommandText, profile: { ...profile, pendingFlow: undefined } });
+      }
+      await setUserPendingFlow(userId, {
+        flow: flowSpec.key,
+        stepIndex: nextIndex,
+        collected: collectedWithDefaults,
+        expiresAt: buildFlowExpiry(),
+        summaryMode: true,
+      });
+      return [buildOptionalSummaryMessage(userLanguage, agentName, flowSpec, collectedWithDefaults)];
+    }
+    await setUserPendingFlow(userId, {
+      flow: flowSpec.key,
+      stepIndex: nextIndex,
+      collected,
+      expiresAt: buildFlowExpiry(),
+    });
+    return [await buildFormPromptMessage(userLanguage, agentName, flowSpec, nextIndex, userId, undefined, undefined, collected, profile)];
+  };
+
+  // --- Required-fields resume (staff QUOTE_CREATE prefill) ---
+  if (pending.resumeMode && isQuoteStaff(profile) && flowSpec.key === 'QUOTE_CREATE') {
+    if (upperText === 'FORM CHANGE') {
+      await setUserPendingFlow(userId, null);
+      return resolveCommandReply({ ...ctx, text: 'FORM QUOTE CREATE', profile: { ...profile, pendingFlow: undefined } });
+    }
+
+    if (upperText === 'FORM CONTINUE') {
+      return continueStaffResume(pending.collected);
+    }
+
+    const fieldMatch = pending.editingFieldIndex === undefined ? upperText.match(/^FORM FIELD (\d+)$/) : null;
+    if (fieldMatch) {
+      const idx = Number(fieldMatch[1]);
+      if (flowSpec.fields[idx] && idx < quoteRequiredEndIndex(flowSpec)) {
+        await setUserPendingFlow(userId, { ...pending, editingFieldIndex: idx, resumeMode: true, expiresAt: buildFlowExpiry() });
+        return [await buildFormPromptMessage(userLanguage, agentName, flowSpec, idx, userId, undefined, undefined, pending.collected, profile)];
+      }
+    }
+
+    if (pending.editingFieldIndex !== undefined) {
+      const field = flowSpec.fields[pending.editingFieldIndex];
+      const isSkip = Boolean(field.optional) && upperText === 'SKIP';
+      const value = isSkip ? '' : trimmed;
+      if (!isSkip && !field.validate(value)) {
+        return [await buildFormPromptMessage(
+          userLanguage, agentName, flowSpec, pending.editingFieldIndex, userId,
+          tr(userLanguage,
+            `ค่าที่กรอกไม่ถูกต้อง กรุณาลองใหม่\n${field.promptTh}`,
+            `That doesn't look right, please try again.\n${field.promptEn}`,
+          ),
+          undefined,
+          pending.collected,
+          profile,
+        )];
+      }
+      const collected = { ...pending.collected, [field.key]: value };
+      const { editingFieldIndex: _cleared, ...rest } = pending;
+      await setUserPendingFlow(userId, { ...rest, collected, resumeMode: true, expiresAt: buildFlowExpiry() });
+      return [buildRequiredResumeMessage(userLanguage, agentName, flowSpec, collected)];
+    }
+
+    if (upperText === 'FORM FINALIZE') {
+      return continueStaffResume(pending.collected);
+    }
+    return [buildRequiredResumeMessage(userLanguage, agentName, flowSpec, pending.collected)];
   }
 
   // --- Grouped optional-fields summary mode ---
@@ -345,9 +490,13 @@ const handleGuidedFormStep = async (ctx: CommandReplyContext): Promise<messaging
   }
 
   const collected = { ...pending.collected, [field.key]: value };
+  if (isQuoteStaff(profile) && hasForwardRequiredPrefill(flowSpec, collected, pending.stepIndex + 1)) {
+    return openStaffResume(collected, pending.stepIndex);
+  }
+
   const nextIndex = skipSelfQuoteIdentityIndex(
     flowSpec,
-    nextUnfilledIndex(flowSpec, collected, pending.stepIndex + 1),
+    nextLinearFieldIndex(flowSpec, collected, pending.stepIndex + 1),
     profile,
   );
 
@@ -393,7 +542,12 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
 
   if (!upperText.startsWith('FORM ')) return null;
 
-  if (/^FORM FIELD \d+$/.test(upperText)) {
+  if (upperText === 'FORM CHANGE') {
+    await setUserPendingFlow(userId, null);
+    return handleFormCommand({ ...ctx, text: 'FORM QUOTE CREATE', profile: { ...profile, pendingFlow: undefined } });
+  }
+
+  if (/^FORM FIELD \d+$/.test(upperText) || upperText === 'FORM CONTINUE') {
     return [text(tr(userLanguage,
       `${agentName} ฟิลด์นี้ไม่ได้เปิดอยู่ กรุณาเริ่มสร้างใบเสนอราคาใหม่`,
       `${agentName} that field is no longer open. Start Create a quote again.`,
@@ -418,6 +572,44 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
       expiresAt: buildFlowExpiry(),
     });
     return [await buildFormPromptMessage(userLanguage, agentName, flowSpec, 0, userId, undefined, undefined, formCollected, profile)];
+  }
+
+  const messageReq = /^FORM MESSAGE REQUEST(?:\s+(\d+))?$/i.exec(ctx.text.trim());
+  if (messageReq) {
+    const cardProductId = messageReq[1] ? Number(messageReq[1]) : undefined;
+    if (cardProductId && Number.isFinite(cardProductId)) {
+      const found = await getErpAdapter().lookupProduct(cardProductId);
+      if (found) {
+        await setLastProductContext(userId, {
+          productId: found.id,
+          productName: found.name,
+          expiresAt: new Date(Date.now() + (profile.odooVerified ? 10 : 120) * 60 * 1000).toISOString(),
+        });
+      }
+    }
+    if (!profile.odooVerified) {
+      return [text(tr(userLanguage,
+        `${agentName} ยืนยันตัวตนก่อนส่งข้อความถึงฝ่ายขาย`,
+        `${agentName} verify your account before messaging sales.`,
+      ), userLanguage, undefined, [
+        { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
+      ])];
+    }
+    const flowSpec = FLOW_SPECS.MESSAGE_REQUEST;
+    const product = (await getUserProfile(userId)).lastProductContext;
+    const formCollected: Record<string, string> = {
+      ...(product?.productId ? { productId: String(product.productId) } : {}),
+      ...(product?.productName ? { productName: product.productName } : {}),
+    };
+    await setUserPendingFlow(userId, {
+      flow: flowSpec.key,
+      stepIndex: 0,
+      collected: formCollected,
+      expiresAt: buildFlowExpiry(),
+    });
+    return [await buildFormPromptMessage(userLanguage, agentName, flowSpec, 0, userId, undefined, product?.productName
+      ? tr(userLanguage, `สินค้า: ${product.productName}`, `Product: ${product.productName}`)
+      : undefined, formCollected, profile)];
   }
 
   const fromCard = /^FORM QUOTE CREATE FROM CARD(?:\s+(\d+))?$/i.exec(ctx.text.trim());
@@ -467,10 +659,21 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
     }
     const qtyIndex = Math.max(flowSpec.fields.findIndex(field => field.key === 'qty'), 1);
     const identity = isQuoteStaff(profile) ? {} : selfQuoteIdentity(profile);
+    const seeded = { productName: product.productName, productId: String(product.productId), ...identity };
+    if (isQuoteStaff(profile) && hasForwardRequiredPrefill(flowSpec, seeded, qtyIndex)) {
+      await setUserPendingFlow(userId, {
+        flow: flowSpec.key,
+        stepIndex: qtyIndex,
+        collected: seeded,
+        expiresAt: buildFlowExpiry(),
+        resumeMode: true,
+      });
+      return [buildRequiredResumeMessage(userLanguage, agentName, flowSpec, seeded)];
+    }
     await setUserPendingFlow(userId, {
       flow: flowSpec.key,
       stepIndex: qtyIndex,
-      collected: { productName: product.productName, productId: String(product.productId), ...identity },
+      collected: seeded,
       expiresAt: buildFlowExpiry(),
     });
     return [await buildFormPromptMessage(
@@ -614,7 +817,7 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
         { label: tr(userLanguage, 'ข้อมูลของฉัน', 'My data'), text: 'MY DATA', style: 'primary' },
         { label: tr(userLanguage, 'ลบข้อมูล', 'Delete my data'), text: 'DELETE MY DATA', style: 'secondary' },
       ]),
-      homeMenuFromContext(ctx),
+      ...(await homeReplyFromContext(ctx)),
     ];
   }
 
@@ -691,7 +894,7 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
  */
 export const resolveCommandReply = async (ctx: CommandReplyContext): Promise<messagingApi.Message[]> => {
   return withSpan('line.resolveCommandReply', { 'line.user_id': ctx.userId, 'http.request_id': ctx.requestId || '' }, async () => {
-    const messages = await dispatchCommandReply(ctx);
+    const messages = ensureNextWindowOrHome(ctx, await dispatchCommandReply(ctx), () => homeMenuFromContext(ctx));
     const violations = checkMessagesAgainstLineLimits(messages);
     if (violations.length) {
       appLogger.error('line_limits_violation', { requestId: ctx.requestId, violations });

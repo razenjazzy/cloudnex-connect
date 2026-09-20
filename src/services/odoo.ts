@@ -41,23 +41,27 @@ const parseProduct = (row: Record<string, unknown>): OdooProduct => ({
   default_code: str(row.default_code),
 });
 
-const parseOrder = (row: Record<string, unknown>): OdooSaleOrder => {
-  const partner = Array.isArray(row.partner_id) ? row.partner_id : undefined;
-  const partnerTuple = partner && partner.length >= 2
-    ? [num(partner[0]), str(partner[1])] as [number, string]
-    : undefined;
+const parseMany2one = (value: unknown): [number, string] | undefined => {
+  if (!Array.isArray(value) || value.length < 2) return undefined;
+  const id = num(value[0]);
+  if (!id) return undefined;
+  return [id, str(value[1])];
+};
 
+const parseOrder = (row: Record<string, unknown>): OdooSaleOrder => {
   return {
     id: num(row.id),
     name: str(row.name),
     state: str(row.state),
     amount_total: num(row.amount_total),
-    partner_id: partnerTuple,
+    partner_id: parseMany2one(row.partner_id),
+    user_id: parseMany2one(row.user_id),
     date_order: str(row.date_order),
     access_token: typeof row.access_token === 'string' ? row.access_token : undefined,
     invoice_status: typeof row.invoice_status === 'string' ? row.invoice_status : undefined,
     amount_invoiced: row.amount_invoiced !== undefined ? num(row.amount_invoiced) : undefined,
     note: typeof row.note === 'string' && row.note ? row.note : undefined,
+    client_order_ref: str(row.client_order_ref) || undefined,
   };
 };
 
@@ -352,7 +356,7 @@ const listSaleOrders = async (ownerDomain: unknown[], limitOrOpts: number | Sale
     'sale.order',
     'search_read',
     [domain],
-    { fields: ['id', 'name', 'state', 'amount_total', 'partner_id', 'date_order'], order: 'date_order desc, id desc', limit, offset }
+    { fields: ['id', 'name', 'state', 'amount_total', 'partner_id', 'user_id', 'date_order', 'client_order_ref', 'note'], order: 'date_order desc, id desc', limit, offset }
   );
   return rows.map(parseOrder);
 };
@@ -368,6 +372,43 @@ export const getSaleOrdersForSalesperson = async (
   odooUserId: number,
   limitOrOpts: number | SaleOrderListOpts = 8,
 ): Promise<OdooSaleOrder[]> => listSaleOrders([['user_id', '=', odooUserId]], limitOrOpts);
+
+export type CrmQuoteListOpts = {
+  state?: string;
+  unassigned?: boolean;
+  limit?: number;
+};
+
+export const listCrmQuotations = async (opts: CrmQuoteListOpts = {}): Promise<OdooSaleOrder[]> => {
+  const domain: unknown[] = [];
+  const state = (opts.state || '').trim().toLowerCase();
+  if (state && ['draft', 'sent', 'sale'].includes(state)) domain.push(['state', '=', state]);
+  else domain.push(['state', 'in', ['draft', 'sent', 'sale']]);
+  if (opts.unassigned) domain.push(['user_id', '=', false]);
+  const limit = Math.min(Math.max(opts.limit ?? 50, 1), 100);
+  return listSaleOrders(domain, { limit });
+};
+
+/** Assign or unassign salesperson. Unassign writes false — never defaults to the XML-RPC admin uid. */
+export const assignSaleOrderSalesperson = async (
+  orderId: number,
+  salespersonUserId: number | null,
+): Promise<boolean> => {
+  if (!Number.isInteger(orderId) || orderId <= 0) return false;
+  if (salespersonUserId !== null && (!Number.isInteger(salespersonUserId) || salespersonUserId <= 0)) return false;
+  const config = getConfig();
+  if (!config) return false;
+  try {
+    const uid = await login(config);
+    if (!uid) return false;
+    const user_id = salespersonUserId === null ? false : salespersonUserId;
+    await executeKw<boolean>(config, uid, 'sale.order', 'write', [[orderId], { user_id }]);
+    return true;
+  } catch (error) {
+    console.error('assignSaleOrderSalesperson failed:', error);
+    return false;
+  }
+};
 
 /** Mirrors findProductByQuery's ilike-first-match convention, applied to account.payment.term. */
 export const findPaymentTermByName = async (query: string): Promise<{ id: number; name: string } | null> => {
@@ -688,7 +729,7 @@ export const createQuotationFromLine = async (
    * from the create payload entirely, so a caller that provides none of
    * these gets byte-for-byte today's behavior.
    */
-  extra?: { customerRef?: string; discountPercent?: number; validityDate?: string; note?: string; paymentTermId?: number; productId?: number }
+    extra?: { customerRef?: string; discountPercent?: number; validityDate?: string; note?: string; paymentTermId?: number; productId?: number; salespersonUserId?: number | false }
 ): Promise<{ orderName: string; total: number; orderId: number } | null> => {
   const config = getConfig();
   if (!config) return null;
@@ -715,6 +756,8 @@ export const createQuotationFromLine = async (
     if (extra?.validityDate) orderFields.validity_date = extra.validityDate;
     if (extra?.note) orderFields.note = extra.note;
     if (extra?.paymentTermId !== undefined) orderFields.payment_term_id = extra.paymentTermId;
+    if (extra?.salespersonUserId === false) orderFields.user_id = false;
+    else if (typeof extra?.salespersonUserId === 'number') orderFields.user_id = extra.salespersonUserId;
 
     // No reliable natural key to reconcile a sale order against before it
     // exists, so unlike partner/service creates this is not retried or
@@ -745,6 +788,26 @@ export const createQuotationFromLine = async (
   } catch (error) {
     console.error('createQuotationFromLine failed:', error);
     return null;
+  }
+};
+
+export const postPartnerNote = async (partnerId: number, body: string): Promise<boolean> => {
+  const config = getConfig();
+  if (!config) return false;
+  const uid = await login(config);
+  if (!uid) return false;
+  const safe = body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').slice(0, 2000);
+  try {
+    await executeKw(config, uid, 'mail.message', 'create', [{
+      model: 'res.partner',
+      res_id: partnerId,
+      body: `<p>${safe}</p>`,
+      message_type: 'comment',
+    }]);
+    return true;
+  } catch (error) {
+    console.error('postPartnerNote failed:', error);
+    return false;
   }
 };
 

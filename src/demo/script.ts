@@ -162,7 +162,9 @@ export const DEMO_PAGE_SCRIPT = `
           input.disabled = row.source === 'env-forced';
         }
       });
-      output.textContent = pretty(data);
+      output.textContent = (data.refused && data.refused.length)
+        ? 'Env ceiling blocked: ' + data.refused.join(', ') + '\\n' + pretty(data)
+        : pretty(data);
       return data;
     }
 

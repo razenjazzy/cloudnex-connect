@@ -248,6 +248,11 @@ describe('Odoo ERP adapter', () => {
     await expect(odooAdapter.getOrderLinks(42)).resolves.toEqual({ portal: 'https://odoo/portal', pdf: 'https://odoo/pdf' });
   });
 
+  it('exposes CRM quotation list/assign on the adapter', () => {
+    expect(typeof odooAdapter.listQuotations).toBe('function');
+    expect(typeof odooAdapter.assignQuotationSalesperson).toBe('function');
+  });
+
   it('selects Odoo by default and rejects unimplemented ERP providers', () => {
     expect(getErpAdapter()).toBe(odooAdapter);
     process.env.ERP_PROVIDER = 'sap';

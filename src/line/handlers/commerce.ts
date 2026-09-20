@@ -6,10 +6,10 @@ import {
   createBotTextFlexMessage,
   formatMoney,
 } from '../templates';
-import { parseDemoQuotePayload, parseSelfQuotePayload } from '../command-validators';
+import { parseDemoQuotePayload, parseSelfQuotePayload, parseQtyProductUtterance } from '../command-validators';
 import { seedOdooSampleSalesDataWithAudit } from '../../services/seed-odoo';
 import { getSaleOrderById } from '../../services/odoo/sales';
-import { recordAuditEvent, setLastProductContext } from '../../services/firestore';
+import { recordAuditEvent, setLastProductContext, listVerifiedSalesLineUserIds } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
 import { t } from '../../services/i18n';
 import { canManageQuoteLines, canViewOrderAsCustomer, isQuoteStaff, quoteJourneyRole, selfQuoteIdentity, syncStaffProfile } from '../quote-access';
@@ -18,6 +18,9 @@ import { commerceFollowUpMessages } from '../commerce-followup';
 import { LINE_LIMITS } from '../message-limits';
 import { getErpAdapter } from '../../erp/registry';
 import { getPlatformStatus } from '../../platform/status';
+import { CUSTOMER_CHANNEL_ID, salesNotifyChannelId } from '../channels';
+import { findOdooUserIdByPartnerId } from '../../services/odoo/admin';
+import { sendTargetedFlexMessage } from '../messaging';
 import { beginQuoteCreate, completeQuoteCreate, failQuoteCreate, quoteCreateLockKey } from '../../services/quote-idempotency';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
@@ -208,6 +211,13 @@ const demoQuoteHandler: CommandHandler = {
       else paymentTermNotFound = true;
     }
 
+    let salespersonUserId: number | false | undefined;
+    if (channel?.channelId === CUSTOMER_CHANNEL_ID || !isQuoteStaff(profile)) {
+      salespersonUserId = false;
+    } else if (profile.odooPartnerId) {
+      salespersonUserId = await findOdooUserIdByPartnerId(profile.odooPartnerId);
+    }
+
     const quotation = await getErpAdapter().createQuotation(customerName, phone, product.name, qty, {
       partnerId,
       customerRef: customerReference,
@@ -216,6 +226,7 @@ const demoQuoteHandler: CommandHandler = {
       note,
       paymentTermId,
       productId: product.id,
+      ...(salespersonUserId !== undefined ? { salespersonUserId } : {}),
     });
     if (!quotation) {
       failQuoteCreate(lockKey);
@@ -378,10 +389,80 @@ const demoSegmentHandler: CommandHandler = {
   },
 };
 
+const messageRequestConfirmHandler: CommandHandler = {
+  name: 'commerce-message-request',
+  match: (u) => u.startsWith('MESSAGE REQUEST CONFIRM'),
+  handle: async (ctx) => {
+    const { userLanguage, profile, userId, channel } = ctx;
+    if (!profile.odooVerified || !profile.odooPartnerId) {
+      return [botText(tr(userLanguage, 'ยืนยันตัวตนก่อนส่งข้อความ', 'Verify your account before messaging sales.'), userLanguage, [
+        { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
+      ])];
+    }
+    const raw = ctx.text.replace(/^MESSAGE REQUEST CONFIRM\s*/i, '');
+    const split = raw.indexOf('|');
+    const productToken = (split === -1 ? raw : raw.slice(0, split)).trim();
+    const body = (split === -1 ? '' : raw.slice(split + 1)).trim();
+    if (!body) {
+      return [botText(tr(userLanguage, 'พิมพ์ข้อความก่อนส่ง', 'Type a message first.'), userLanguage, [
+        { label: tr(userLanguage, 'ส่งข้อความ', 'Send Message'), text: 'FORM MESSAGE REQUEST', style: 'primary' },
+      ])];
+    }
+    const note = [productToken && /^\d+$/.test(productToken) ? `productId=${productToken}` : productToken, body].filter(Boolean).join('\n');
+    const posted = await getErpAdapter().postPartnerNote?.(profile.odooPartnerId, note);
+    if (!posted) {
+      return [botText(tr(userLanguage, 'ส่งข้อความไม่สำเร็จ กรุณาลองใหม่', 'Could not send the message. Please try again.'), userLanguage, [
+        { label: tr(userLanguage, 'ลองอีกครั้ง', 'Try again'), text: 'FORM MESSAGE REQUEST', style: 'primary' },
+        { label: tr(userLanguage, 'คู่มือ', 'Guide'), text: 'GUIDE', style: 'secondary' },
+      ])];
+    }
+    const salesIds = await listVerifiedSalesLineUserIds();
+    if (salesIds.length) {
+      const ping = botText(tr(userLanguage,
+        `ข้อความจากลูกค้า ${profile.displayName || userId}: ${body}`,
+        `Customer message from ${profile.displayName || userId}: ${body}`,
+      ), userLanguage);
+      sendTargetedFlexMessage(salesIds, ping, salesNotifyChannelId()).catch(() => undefined);
+    }
+    recordAuditEvent({ action: 'quote_message', outcome: 'success', actorUserId: userId, channelId: channel?.channelId, detail: String(profile.odooPartnerId) });
+    return [botText(tr(userLanguage, 'ส่งข้อความถึงฝ่ายขายแล้ว', 'Message sent to sales.'), userLanguage, [
+      { label: tr(userLanguage, 'หน้าแรก', 'Home'), text: 'NAV HOME', style: 'primary' },
+    ])];
+  },
+};
+
+const qtyProductUtteranceHandler: CommandHandler = {
+  name: 'commerce-qty-utterance',
+  match: (u, ctx) => ctx.channel?.channelId === CUSTOMER_CHANNEL_ID && Boolean(parseQtyProductUtterance(ctx.text)),
+  handle: async (ctx) => {
+    const parsed = parseQtyProductUtterance(ctx.text)!;
+    if (!ctx.profile.odooVerified) {
+      const found = (await getErpAdapter().searchProducts(parsed.productName, 1))[0];
+      if (found) {
+        await setLastProductContext(ctx.userId, {
+          productId: found.id,
+          productName: found.name,
+          expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+        });
+      }
+      return [botText(tr(ctx.userLanguage,
+        'ยืนยันตัวตนก่อนสร้างใบเสนอราคา',
+        'Verify your account before creating a quote.',
+      ), ctx.userLanguage, [
+        { label: tr(ctx.userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
+      ])];
+    }
+    const { resolveCommandReply } = await import('../command-router');
+    return resolveCommandReply({ ...ctx, text: `QUOTE CREATE ${parsed.productName},${parsed.qty}` });
+  },
+};
+
 export const commerceHandlers: CommandHandler[] = [
   demoProductHandler,
   demoOrderHandler,
   demoQuoteHandler,
+  messageRequestConfirmHandler,
+  qtyProductUtteranceHandler,
   demoOdooHandler,
   demoSeedHandler,
   demoReportHandler,

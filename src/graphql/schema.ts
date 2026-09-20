@@ -1,4 +1,4 @@
-import { GraphQLError, GraphQLObjectType, GraphQLSchema, GraphQLString, GraphQLInt, GraphQLNonNull, GraphQLScalarType, Kind } from 'graphql';
+import { GraphQLError, GraphQLObjectType, GraphQLSchema, GraphQLString, GraphQLInt, GraphQLBoolean, GraphQLNonNull, GraphQLScalarType, Kind } from 'graphql';
 import { getKpiSnapshot } from '../services/kpi';
 import { listRecentAuditEventsPage } from '../services/firestore';
 import { parseAuditLogFilters, decodeAuditCursor } from '../services/audit-query';
@@ -11,6 +11,9 @@ import { demoSessionRotateGraceDefaultMinutes, isOpsJobsAsync, appEnv } from '..
 import { enqueueOpsJob } from '../jobs/queue';
 import { getDemoPlatformPayload } from '../platform/service-modules';
 import { getPlatformStatus } from '../platform/status';
+import { getErpAdapter } from '../erp/registry';
+import { recordAuditEvent } from '../services/firestore';
+import { isOdooConfigured } from '../services/odoo';
 
 const GraphQLJSON = new GraphQLScalarType({
   name: 'JSON',
@@ -101,6 +104,30 @@ const Query = new GraphQLObjectType({
         return getPlatformStatus();
       },
     },
+    crmQuotes: {
+      type: GraphQLJSON,
+      args: {
+        state: { type: GraphQLString },
+        unassigned: { type: GraphQLBoolean },
+        limit: { type: GraphQLInt },
+      },
+      resolve: async (_src, args: { state?: string; unassigned?: boolean; limit?: number }, ctx: GraphqlContext) => {
+        requireOps(ctx);
+        if (!isOdooConfigured()) {
+          throw new GraphQLError('Odoo is unavailable', { extensions: { code: 'UNAVAILABLE' } });
+        }
+        const list = getErpAdapter().listQuotations;
+        if (!list) {
+          throw new GraphQLError('CRM quotations are not supported', { extensions: { code: 'UNAVAILABLE' } });
+        }
+        const quotes = await list({
+          state: args.state,
+          unassigned: args.unassigned,
+          limit: args.limit,
+        });
+        return { quotes, count: quotes.length };
+      },
+    },
   },
 });
 
@@ -155,6 +182,33 @@ const Mutation = new GraphQLObjectType({
           const status = await seedOdooSampleSalesDataWithAudit('graphql');
           return { ok: true, message: status };
         });
+      },
+    },
+    assignCrmQuote: {
+      type: GraphQLJSON,
+      args: {
+        id: { type: new GraphQLNonNull(GraphQLInt) },
+        salespersonUserId: { type: GraphQLInt },
+      },
+      resolve: async (_src, args: { id: number; salespersonUserId?: number | null }, ctx: GraphqlContext) => {
+        requireOps(ctx);
+        const assign = getErpAdapter().assignQuotationSalesperson;
+        if (!assign) {
+          throw new GraphQLError('CRM assign is not supported', { extensions: { code: 'UNAVAILABLE' } });
+        }
+        const salespersonUserId = args.salespersonUserId == null ? null : args.salespersonUserId;
+        const ok = await assign(args.id, salespersonUserId);
+        recordAuditEvent({
+          action: 'crm_quote_assign',
+          outcome: ok ? 'success' : 'failure',
+          actorUserId: 'ops',
+          targetId: String(args.id),
+          detail: salespersonUserId == null ? 'unassign' : 'assign',
+        });
+        if (!ok) {
+          throw new GraphQLError('Assign failed', { extensions: { code: 'UNAVAILABLE' } });
+        }
+        return { ok: true, id: args.id, salespersonUserId };
       },
     },
   },

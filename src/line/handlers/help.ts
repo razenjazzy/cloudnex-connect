@@ -1,11 +1,21 @@
 import type { CommandHandler } from './index';
-import { homeMenuFromContext } from '../command-router';
-import { buildCommandKeywordGuidance, isGuideCommand, parseGuideCategoryKey } from '../command-guide';
+import { homeMenuFromContext, homeReplyFromContext } from '../command-router';
+import { buildCommandKeywordGuidance, GUIDE_CATEGORY_ORDER, isGuideCommand, parseGuideCategoryKey, type CommandCategoryKey } from '../command-guide';
 import { createBotTextFlexMessage, createGuideCategoriesFlexMessage, createGuideCategoryFlexMessage } from '../templates';
 import { pingOdoo } from '../../services/odoo';
 import { seedOdooSampleSalesDataWithAudit } from '../../services/seed-odoo';
 import { setEscalationState } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
+import { isServiceEnabledForChannel, type ServiceKey } from '../../services/service-catalog';
+import type { ChannelContext } from '../channels';
+
+const SERVICE_GUIDE_KEYS: ServiceKey[] = ['commerce', 'directory', 'catalog', 'reporting', 'groupBuy'];
+
+const visibleGuideCategories = (channel?: ChannelContext): CommandCategoryKey[] =>
+  GUIDE_CATEGORY_ORDER.filter((key) => {
+    if (!(SERVICE_GUIDE_KEYS as string[]).includes(key)) return true;
+    return isServiceEnabledForChannel(key as ServiceKey, channel);
+  });
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -35,8 +45,7 @@ const buildJourneyMessage = (language: UserLanguage, agentName: string): string 
 const homeMenuHandler: CommandHandler = {
   name: 'help-home',
   match: (u) => ['เริ่มต้น', 'START', 'HELP', 'OPTIONS', 'MENU'].includes(u),
-  handle: async (ctx) =>
-    [homeMenuFromContext(ctx)],
+  handle: async (ctx) => homeReplyFromContext(ctx),
 };
 
 // FEATURES — list bot capabilities
@@ -132,9 +141,13 @@ const guideHandler: CommandHandler = {
   handle: async (ctx) => {
     const category = parseGuideCategoryKey(ctx.text.trim());
     if (category) {
+      const allowed = visibleGuideCategories(ctx.channel);
+      if (!allowed.includes(category)) {
+        return [botText(tr(ctx.userLanguage, `${ctx.agentName} หัวข้อนี้ไม่เปิดใช้งาน`, `${ctx.agentName} this topic is not available.`), ctx.userLanguage)];
+      }
       return [createGuideCategoryFlexMessage(category, ctx.userLanguage, ctx.agentName)];
     }
-    return [createGuideCategoriesFlexMessage(ctx.userLanguage, ctx.agentName)];
+    return [createGuideCategoriesFlexMessage(ctx.userLanguage, ctx.agentName, visibleGuideCategories(ctx.channel))];
   },
 };
 

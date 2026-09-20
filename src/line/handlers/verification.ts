@@ -1,7 +1,7 @@
 import type { CommandHandler } from './index';
 import { startOdooUserVerification, verificationSuccessMessage, verifyOdooUserByOtp } from '../../services/user-verification';
 import { createBotTextFlexMessage } from '../templates';
-import { getUserProfile, setUserOdooPartner, type UserLanguage } from '../../services/firestore';
+import { getPendingOdooVerificationChallenge, getUserProfile, setUserOdooPartner, type UserLanguage } from '../../services/firestore';
 import { syncStaffProfile } from '../quote-access';
 import { homeMenuFromContext, resumeQuoteFromLastProduct } from '../command-router';
 import { clearSalesLogin } from '../../services/sales-session';
@@ -51,6 +51,19 @@ const verifyStartHandler: CommandHandler = {
         actions: [
           { label: tr(userLanguage, 'สมัครลูกค้าใหม่', 'New customer'), text: 'FORM CUSTOMER REGISTER', style: 'primary' },
           { label: tr(userLanguage, 'เบอร์อื่น', 'Another phone'), text: 'FORM VERIFY MANUAL', style: 'secondary' },
+          { label: tr(userLanguage, 'คู่มือ', 'Guide'), text: 'GUIDE', style: 'secondary' },
+        ],
+      })];
+    }
+    if (!result.link) {
+      return [createBotTextFlexMessage({
+        title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+        body: result.message,
+        language: userLanguage,
+        tone: inferTone(result.message),
+        actions: [
+          { label: tr(userLanguage, 'เบอร์อื่น', 'Another phone'), text: 'FORM VERIFY MANUAL', style: 'primary' },
+          { label: tr(userLanguage, 'คู่มือ', 'Guide'), text: 'GUIDE', style: 'secondary' },
         ],
       })];
     }
@@ -75,8 +88,27 @@ const verifyOtpHandler: CommandHandler = {
     const { userLanguage, userId, agentName, text } = ctx;
     const otpCode = text.trim().replace(/^VERIFY OTP\s*/i, '').trim();
     const message = await verifyOdooUserByOtp({ userId, otpCode, language: userLanguage, agentName });
+    if (!/✅/.test(message)) {
+      const pending = await getPendingOdooVerificationChallenge(userId);
+      const retryPhone = (pending?.phone || '').trim();
+      return [createBotTextFlexMessage({
+        title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+        body: message,
+        language: userLanguage,
+        tone: 'error',
+        actions: retryPhone
+          ? [
+            { label: tr(userLanguage, 'ส่งรหัสอีกครั้ง', 'Resend code'), text: `VERIFY START ${retryPhone}`, style: 'primary' },
+            { label: tr(userLanguage, 'เบอร์อื่น', 'Another phone'), text: 'FORM VERIFY MANUAL', style: 'secondary' },
+            { label: tr(userLanguage, 'คู่มือ', 'Guide'), text: 'GUIDE', style: 'secondary' },
+          ]
+          : [
+            { label: tr(userLanguage, 'ยืนยันตอนนี้', 'Verify now'), text: 'FORM VERIFY MANUAL', style: 'primary' },
+            { label: tr(userLanguage, 'คู่มือ', 'Guide'), text: 'GUIDE', style: 'secondary' },
+          ],
+      })];
+    }
     const card = botText(message, userLanguage);
-    if (!/✅/.test(message)) return [card];
     ctx.trayRest = { language: userLanguage, salesSessionActive: true };
     const verified = { ...(await getUserProfile(userId)), odooVerified: true as const };
     const resume = await resumeQuoteFromLastProduct({ ...ctx, profile: verified });

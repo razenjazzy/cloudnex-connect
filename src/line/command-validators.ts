@@ -178,3 +178,15 @@ export const parseSelfQuotePayload = (
     .join(',');
   return parseDemoQuotePayload(rest);
 };
+
+/** Customer OA free text like `2 units App Premium` or `2x Care`. */
+export const parseQtyProductUtterance = (text: string): { qty: number; productName: string } | null => {
+  const trimmed = text.trim();
+  if (/^(NAV |FORM |QUOTE |VERIFY |PRODUCT |GUIDE |MESSAGE |LANG |HELP |START |BACK\b)/i.test(trimmed)) return null;
+  const match = trimmed.replace(/^\*+\s*|\s*\*+$/g, '').match(/^(\d+)\s*(?:x|×|units?|pcs?|ชิ้น)?\s+(.+)$/i);
+  if (!match) return null;
+  const qty = Number(match[1]);
+  const productName = match[2].trim();
+  if (!Number.isInteger(qty) || qty < 1 || qty > 10000 || productName.length < 2) return null;
+  return { qty, productName };
+};

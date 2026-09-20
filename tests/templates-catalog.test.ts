@@ -13,6 +13,7 @@ describe('product catalogue carousel', () => {
     expect(json).toContain('"size":"kilo"');
     expect(json).toContain('FORM QUOTE CREATE FROM CARD 11');
     expect(json).toContain('FORM QUOTE CREATE FROM CARD 12');
+    expect(json).toContain('FORM MESSAGE REQUEST 11');
     expect(json).toContain('PRODUCT FIND App Premium');
     expect(json).not.toContain('"text":"NAV HOME"');
     expect(checkMessageAgainstLineLimits(message)).toEqual([]);

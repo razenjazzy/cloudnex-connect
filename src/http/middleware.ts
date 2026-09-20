@@ -1,5 +1,5 @@
 import express from 'express';
-import { buildCspHeader, buildDemoCspHeader, buildSwaggerCspHeader } from '../utils/html';
+import { buildAdminCspHeader, buildCspHeader, buildDemoCspHeader, buildSwaggerCspHeader } from '../utils/html';
 import { isGuideCommand } from '../line/command-guide';
 import { recordHttpRequest } from '../services/kpi';
 import { appLogger } from '../services/logger';
@@ -15,6 +15,10 @@ export const cspMiddleware = (req: express.Request, res: express.Response, next:
     }
     if (req.path === '/demo') {
         res.setHeader('Content-Security-Policy', buildDemoCspHeader());
+        return next();
+    }
+    if (req.path === '/admin' || req.path.startsWith('/admin/')) {
+        res.setHeader('Content-Security-Policy', buildAdminCspHeader());
         return next();
     }
     res.setHeader('Content-Security-Policy', buildCspHeader());

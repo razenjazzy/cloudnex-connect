@@ -63,6 +63,8 @@ export type ErpQuotationOptions = {
   note?: string;
   paymentTermId?: number;
   productId?: number;
+  /** false = leave SO unassigned (Customer OA). number = that res.users. */
+  salespersonUserId?: number | false;
 };
 
 export type ErpCustomerUpdate = {
@@ -104,6 +106,25 @@ export type ErpAdapterCapabilities = {
   supportsDailyReport: boolean;
 };
 
+export type ErpCrmQuote = {
+  id: number;
+  name: string;
+  state: string;
+  amountTotal: number;
+  partnerName?: string;
+  salespersonUserId?: number;
+  salespersonName?: string;
+  clientOrderRef?: string;
+  dateOrder?: string;
+  note?: string;
+};
+
+export type ErpCrmQuoteListOpts = {
+  state?: string;
+  unassigned?: boolean;
+  limit?: number;
+};
+
 export type ErpAdapter = {
   name: ErpProviderName;
   capabilities: ErpAdapterCapabilities;
@@ -136,4 +157,7 @@ export type ErpAdapter = {
   findPaymentTermId: (query: string) => Promise<number | null>;
   getOrderLinks: (orderId: number) => Promise<{ portal?: string; pdf?: string }>;
   permissionFor: (action: ErpWriteAction) => ErpPermission;
+  postPartnerNote?: (partnerId: number, body: string) => Promise<boolean>;
+  listQuotations?: (opts?: ErpCrmQuoteListOpts) => Promise<ErpCrmQuote[]>;
+  assignQuotationSalesperson?: (orderId: number, salespersonUserId: number | null) => Promise<boolean>;
 };

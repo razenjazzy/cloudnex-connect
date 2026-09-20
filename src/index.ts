@@ -13,6 +13,7 @@ import { registerVerifyRoutes } from './http/verify-routes';
 import { registerWebhookRoutes } from './http/webhook-routes';
 import { registerJobsRoutes } from './http/jobs-routes';
 import { registerDemoRoutes } from './http/demo-routes';
+import { registerAdminPanelRoutes } from './http/admin-panel-routes';
 import { registerOpenApiRoutes } from './http/openapi-routes';
 import { registerGraphqlRoutes } from './http/graphql-routes';
 import { initTracing, shutdownTracing } from './observability/tracing';
@@ -36,6 +37,7 @@ registerVerifyRoutes(app);
 registerWebhookRoutes(app);
 registerJobsRoutes(app);
 registerDemoRoutes(app);
+registerAdminPanelRoutes(app);
 registerOpenApiRoutes(app);
 
 const SHUTDOWN_TIMEOUT_MS = Number(process.env.SHUTDOWN_TIMEOUT_MS || 10000);

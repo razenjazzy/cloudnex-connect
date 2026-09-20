@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { buildFallbackUserProfile, parseStoredUserProfile } from '../src/services/firestore/user-profile';
 
@@ -48,12 +49,10 @@ describe('Firestore user profile mapping', () => {
     expect(buildFallbackUserProfile({}, pendingFlowIsActive, 'en').salesTier).toBeUndefined();
   });
 
-  // Regression for a real reported bug: Firestore's `.set(data, {merge:
-  // true}) merges a nested map field-by-field rather than replacing it
-  // wholesale, so a write meaning to clear editingFieldIndex by simply
-  // omitting the key (rather than nulling it) left the stale index
-  // persisted -- the next guided-form answer then overwrote the *previous*
-  // field instead of the one the user actually just filled in.
+  // Nested pendingFlow maps must be replaced wholesale (set mergeFields
+  // pendingFlow). merge:true left leftover collected/summaryMode so Sales
+  // quote skipped from product (1 of 9) to the optional card. Same class
+  // of bug as omitting editingFieldIndex instead of nulling it.
   it('treats a stored null (or missing) editingFieldIndex as not-editing, and a real number as active', () => {
     const future = new Date(Date.now() + 60_000).toISOString();
     const withNull = parseStoredUserProfile({ pendingFlow: { flow: 'QUOTE_CREATE', stepIndex: 4, collected: {}, expiresAt: future, summaryMode: true, editingFieldIndex: null } }, pendingFlowIsActive);
@@ -64,5 +63,13 @@ describe('Firestore user profile mapping', () => {
 
     const editingField5 = parseStoredUserProfile({ pendingFlow: { flow: 'QUOTE_CREATE', stepIndex: 4, collected: {}, expiresAt: future, summaryMode: true, editingFieldIndex: 5 } }, pendingFlowIsActive);
     expect(editingField5.pendingFlow?.editingFieldIndex).toBe(5);
+  });
+});
+
+describe('pendingFlow writes replace the nested map', () => {
+  it('uses mergeFields pendingFlow so collected and summaryMode cannot leak across quotes', () => {
+    const source = readFileSync('src/services/firestore/user-profile-repository.ts', 'utf8');
+    expect(source).toContain("mergeFields: ['pendingFlow']");
+    expect(source).toContain('FieldValue.delete()');
   });
 });

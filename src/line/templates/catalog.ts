@@ -106,6 +106,7 @@ export const createProductCardFlexMessage = (
         paddingAll: 'lg',
         contents: [
           createMessageActionButton(t('createQuote', language), quoteText, 'primary', BRAND.teal),
+          createMessageActionButton(t('sendMessage', language), productId ? `FORM MESSAGE REQUEST ${productId}` : 'FORM MESSAGE REQUEST', 'secondary', BRAND.tealTint),
           {
             type: 'box',
             layout: 'horizontal',
@@ -192,6 +193,7 @@ const createProductCatalogBubble = (
       paddingAll: 'lg',
       contents: [
         createMessageActionButton(t('createQuote', language), quoteText, 'primary', BRAND.teal),
+        createMessageActionButton(t('sendMessage', language), product.id ? `FORM MESSAGE REQUEST ${product.id}` : 'FORM MESSAGE REQUEST', 'secondary', BRAND.tealTint),
         createMessageActionButton(t('viewProduct', language), viewText, 'secondary', BRAND.tealTint),
       ],
     },

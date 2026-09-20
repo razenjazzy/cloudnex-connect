@@ -42,4 +42,20 @@ describe('GraphQL ops schema auth', () => {
     const payload = result.data?.platformModules as { modules?: Array<{ id: string }> };
     expect(payload.modules?.some(mod => mod.id === 'commerce')).toBe(true);
   });
+
+  it('rejects crmQuotes and assignCrmQuote without an ops token', async () => {
+    const quotes = await graphql({
+      schema: graphqlSchema,
+      source: '{ crmQuotes }',
+      contextValue: { opsOk: false, adminOk: false } satisfies GraphqlContext,
+    });
+    expect(quotes.errors?.[0]?.message).toBe('Unauthorized');
+
+    const assign = await graphql({
+      schema: graphqlSchema,
+      source: 'mutation { assignCrmQuote(id: 1, salespersonUserId: 2) }',
+      contextValue: { opsOk: false, adminOk: false } satisfies GraphqlContext,
+    });
+    expect(assign.errors?.[0]?.message).toBe('Unauthorized');
+  });
 });

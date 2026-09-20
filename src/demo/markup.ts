@@ -61,6 +61,7 @@ export const DEMO_PAGE_MARKUP = `
           <li>6. Close: LINE → odooVerified → ADMIN_USER_ID → Odoo admin capability.</li>
           <li>7. FORM VERIFY chips the LINE/Odoo phone — tap, then OTP.</li>
           <li>8. Success copy: “&lt;Odoo name&gt; is an Odoo Sales User.”</li>
+          <li>9. Disable Group Buy: Sales Feature Toggles → uncheck Group Buy → Save → Open Menu.</li>
         </ul>
         <p class="warn">For production launch: protect demo endpoints behind OPS token or internal network policy.</p>
         <pre id="runbook-output">Runbook has not executed yet.</pre>
@@ -157,14 +158,14 @@ export const DEMO_PAGE_MARKUP = `
 
       <article class="panel card span-12">
         <h2>Sales Feature Toggles</h2>
-        <p>Live LINE OA kill-switches for the five ServiceKeys. Env / channel <code>ENABLED_SERVICES</code> is a hard ceiling — Save cannot turn on a key that env already omits.</p>
+        <p>Live LINE OA kill-switches. Uncheck <strong>Group Buy (Home / GUIDE)</strong> then Save. Env / channel <code>ENABLED_SERVICES</code> is a hard ceiling — Save cannot turn on a key env omitted (checkbox disabled, source env-forced). After Save, Open Menu in web chat to confirm Home.</p>
         <form id="sales-feature-toggles-form">
           <div class="three-up">
-            <label><input type="checkbox" name="commerce" checked /> commerce</label>
-            <label><input type="checkbox" name="directory" checked /> directory</label>
-            <label><input type="checkbox" name="catalog" checked /> catalog</label>
-            <label><input type="checkbox" name="reporting" checked /> reporting</label>
-            <label><input type="checkbox" name="groupBuy" checked /> groupBuy</label>
+            <label><input type="checkbox" name="commerce" checked /> Products & Quotes (commerce)</label>
+            <label><input type="checkbox" name="directory" checked /> Customers (directory)</label>
+            <label><input type="checkbox" name="catalog" checked /> Catalog (catalog)</label>
+            <label><input type="checkbox" name="reporting" checked /> Reporting (reporting)</label>
+            <label><input type="checkbox" name="groupBuy" checked /> Group Buy (Home / GUIDE)</label>
           </div>
           <div class="actions">
             <button type="button" id="load-sales-feature-toggles">Load Toggles</button>

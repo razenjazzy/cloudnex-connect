@@ -28,7 +28,11 @@ const CATEGORY_ICON: Record<CommandCategoryKey, string> = {
  * list, "smart IVR"-style. Each button sends `GUIDE <category>`, which
  * createGuideCategoryFlexMessage below renders as a drill-down card.
  */
-export const createGuideCategoriesFlexMessage = (language: ReportLanguage, _agentName: string): messagingApi.FlexMessage => ({
+export const createGuideCategoriesFlexMessage = (
+  language: ReportLanguage,
+  _agentName: string,
+  categories: CommandCategoryKey[] = GUIDE_CATEGORY_ORDER,
+): messagingApi.FlexMessage => ({
   type: 'flex',
   altText: language === 'en' ? `${getBrandTitle('en')} guide` : `คู่มือ ${getBrandTitle('th')}`,
   contents: {
@@ -43,7 +47,7 @@ export const createGuideCategoriesFlexMessage = (language: ReportLanguage, _agen
       layout: 'vertical',
       spacing: 'md',
       paddingAll: 'lg',
-      contents: GUIDE_CATEGORY_ORDER.map(category =>
+      contents: categories.map(category =>
         createTapRow(`${CATEGORY_ICON[category]} ${GUIDE_CATEGORY_LABELS[category][language]}`, `GUIDE ${category}`),
       ),
     },

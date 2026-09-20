@@ -4,6 +4,7 @@ export type PendingFlowState = {
     collected: Record<string, string>;
     expiresAt: string;
     summaryMode?: boolean;
+    resumeMode?: boolean;
     editingFieldIndex?: number;
 };
 
@@ -143,6 +144,7 @@ export type AuditAction =
     | 'quote_remove_line'
     | 'quote_invoice'
     | 'quote_message'
+    | 'crm_quote_assign'
     | 'sales_message'
     | 'sales_feature_toggle'
     | 'group_buy_odoo_order_create'

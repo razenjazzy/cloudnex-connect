@@ -1,6 +1,7 @@
 import type { UserProfile } from '../services/firestore';
 import { CUSTOMER_CHANNEL_ID, DEFAULT_CHANNEL_ID, SALES_CHANNEL_ID } from './channels';
 import { isQuoteStaff } from './quote-access';
+import { parseQtyProductUtterance } from './command-validators';
 
 export type CommandRole = 'guest' | 'customer' | 'staff' | 'admin';
 export type CommandChannel = typeof DEFAULT_CHANNEL_ID | typeof SALES_CHANNEL_ID | typeof CUSTOMER_CHANNEL_ID;
@@ -37,6 +38,8 @@ export const COMMAND_GRID: CommandGridEntry[] = [
   { id: 'product-find-form', prefix: 'FORM PRODUCT FIND', labelEn: 'Find a product', labelTh: 'ค้นหาสินค้า', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'product-find', prefix: 'PRODUCT FIND', labelEn: 'Find a product', labelTh: 'ค้นหาสินค้า', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'quote-from-card', prefix: 'FORM QUOTE CREATE FROM CARD', labelEn: 'Quote this item', labelTh: 'เสนอราคาสินค้านี้', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
+  { id: 'message-request-form', prefix: 'FORM MESSAGE REQUEST', labelEn: 'Send message', labelTh: 'ส่งข้อความ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
+  { id: 'message-request', prefix: 'MESSAGE REQUEST', labelEn: 'Send message', labelTh: 'ส่งข้อความ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'service-list', prefix: 'SERVICE LIST', labelEn: 'Browse catalog', labelTh: 'รายการบริการ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'service-read', prefix: 'SERVICE READ', labelEn: 'View a service', labelTh: 'ดูบริการ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'lang', prefix: 'LANG', labelEn: 'Language', labelTh: 'ภาษา', category: 'help', roles: ['guest', 'customer', 'staff', 'admin'] },
@@ -82,7 +85,8 @@ export const matchCommandGrid = (upperText: string): CommandGridEntry | null => 
 };
 
 export const isGuestAllowedCommand = (upperText: string, pendingFlow?: { flow: string }): boolean => {
-  if (pendingFlow?.flow === 'VERIFY' || pendingFlow?.flow === 'PRODUCT_FIND' || pendingFlow?.flow === 'CUSTOMER_REGISTER') return true;
+  if (pendingFlow?.flow === 'VERIFY' || pendingFlow?.flow === 'PRODUCT_FIND' || pendingFlow?.flow === 'CUSTOMER_REGISTER' || pendingFlow?.flow === 'MESSAGE_REQUEST') return true;
+  if (parseQtyProductUtterance(upperText)) return true;
   const entry = matchCommandGrid(upperText);
   return Boolean(entry?.roles.includes('guest'));
 };

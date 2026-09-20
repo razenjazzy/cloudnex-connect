@@ -20,7 +20,9 @@ export type OdooSaleOrder = {
   state: string;
   amount_total: number;
   partner_id?: [number, string];
+  user_id?: [number, string];
   date_order?: string;
+  client_order_ref?: string;
   access_token?: string;
   lines?: OdooSaleOrderLine[];
   invoice_status?: string;

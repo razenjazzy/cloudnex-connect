@@ -45,6 +45,7 @@ export type FlowKey =
   | 'QUOTE_SEND'
   | 'INVOICE_SEND'
   | 'MESSAGE_CUSTOMER'
+  | 'MESSAGE_REQUEST'
   | 'VERIFY'
   | 'CUSTOMER_REGISTER';
 
@@ -330,6 +331,29 @@ export const FLOW_SPECS: Record<FlowKey, FlowSpec> = {
     ],
     buildFinalCommand: (c) => `MESSAGE CUSTOMER ${c.phone} ${c.message}`,
   },
+  MESSAGE_REQUEST: {
+    key: 'MESSAGE_REQUEST',
+    startCommand: 'FORM MESSAGE REQUEST',
+    requiresAdmin: false,
+    labelTh: 'ส่งข้อความ',
+    labelEn: 'Send message',
+    fields: [
+      { key: 'body', promptTh: 'ข้อความถึงฝ่ายขาย?', promptEn: 'Message for sales?', validate: isNonEmpty },
+    ],
+    buildFinalCommand: (c) => `MESSAGE REQUEST CONFIRM ${c.productId || ''} | ${c.body}`,
+  },
+};
+
+/** Next linear field. Skip only `skipWhen` — never leftover collected keys from a prior quote. */
+export const nextLinearFieldIndex = (
+  flowSpec: FlowSpec,
+  collected: Record<string, string>,
+  fromIndex: number,
+): number => {
+  const stop = flowSpec.optionalSummaryStartIndex ?? flowSpec.fields.length;
+  let i = fromIndex;
+  while (i < stop && flowSpec.fields[i].skipWhen?.(collected)) i += 1;
+  return i;
 };
 
 const LOADERS: Record<OdooFieldLoader, () => Promise<string[]>> = {

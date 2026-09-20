@@ -45,6 +45,18 @@ export const buildDemoCspHeader = (): string =>
     "frame-ancestors 'none'",
   ].join('; ');
 
+/** React admin SPA: hashed assets from /admin/, same-origin GraphQL. */
+export const buildAdminCspHeader = (): string =>
+  [
+    "default-src 'none'",
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "font-src 'self' data:",
+    "connect-src 'self'",
+    "frame-ancestors 'none'",
+  ].join('; ');
+
 /** Swagger UI needs inline scripts/styles and data: images. Applied only on /api-docs. */
 export const buildSwaggerCspHeader = (): string =>
   [

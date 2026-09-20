@@ -168,3 +168,87 @@ export const createOptionalSummaryFlexMessage = (params: {
     },
   };
 };
+
+/** Staff quote: required fields already in pendingFlow — continue or change before optionals. */
+export const createRequiredResumeFlexMessage = (params: {
+  title: string;
+  fields: { index: number; label: string; value?: string }[];
+  language: ReportLanguage;
+  continueLabel: string;
+}): messagingApi.FlexMessage => {
+  const cancel = { label: t('cancelForm', params.language), text: 'CANCEL' };
+  return {
+    type: 'flex',
+    altText: truncate(params.title, 390),
+    quickReply: {
+      items: [
+        ...params.fields.slice(0, 11).map(f => ({
+          type: 'action' as const,
+          action: { type: 'message' as const, label: buttonLabel(`${f.value ? '☑' : '☐'} ${f.label}`), text: `FORM FIELD ${f.index}` },
+        })),
+        { type: 'action' as const, action: { type: 'message' as const, label: buttonLabel(params.continueLabel), text: 'FORM CONTINUE' } },
+        { type: 'action' as const, action: { type: 'message' as const, label: buttonLabel(cancel.label), text: cancel.text } },
+      ],
+    },
+    contents: {
+      type: 'bubble',
+      styles: flexBubbleStyles,
+      header: flexHeaderBox(params.title, t('requiredResumeHint', params.language)),
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        paddingAll: 'lg',
+        contents: params.fields.map(f => ({
+          type: 'box' as const,
+          layout: 'horizontal' as const,
+          spacing: 'md' as const,
+          backgroundColor: BRAND.paper,
+          cornerRadius: BRAND.radius,
+          paddingAll: 'md' as const,
+          action: { type: 'message' as const, text: `FORM FIELD ${f.index}` },
+          contents: [
+            {
+              type: 'text' as const,
+              text: f.value ? '✅' : ' ',
+              size: 'sm' as const,
+              flex: 0,
+              gravity: 'center' as const,
+            },
+            {
+              type: 'text' as const,
+              text: f.label,
+              size: 'sm' as const,
+              color: BRAND.inkSoft,
+              wrap: true,
+              flex: 2,
+              gravity: 'center' as const,
+            },
+            {
+              type: 'text' as const,
+              text: f.value || ' ',
+              size: 'sm' as const,
+              weight: 'bold' as const,
+              color: f.value ? BRAND.ink : BRAND.inkSoft,
+              wrap: true,
+              align: 'end' as const,
+              flex: 3,
+              gravity: 'center' as const,
+            },
+          ],
+        })),
+      },
+      footer: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'sm',
+        paddingAll: 'lg',
+        contents: [
+          createMessageActionButton(params.continueLabel, 'FORM CONTINUE', 'primary', BRAND.teal),
+          createMessageActionButton(t('changeForm', params.language), 'FORM CHANGE', 'secondary', BRAND.goldTint),
+          createMessageActionButton(cancel.label, cancel.text, 'secondary', BRAND.goldTint),
+        ],
+      },
+    },
+  };
+};

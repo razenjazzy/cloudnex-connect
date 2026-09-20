@@ -12,6 +12,37 @@ export const SERVICE_ICON: Record<string, string> = {
   groupBuy: '🤝',
 };
 
+export const createIdentityStripFlexMessage = (
+  identity: { name?: string; phone?: string },
+  language: ReportLanguage,
+): messagingApi.FlexMessage => ({
+  type: 'flex',
+  altText: truncate(identity.name || (language === 'en' ? 'Account' : 'บัญชี'), 390),
+  contents: {
+    type: 'bubble',
+    styles: flexBubbleStyles,
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      spacing: 'xs',
+      paddingAll: 'lg',
+      contents: [
+        {
+          type: 'text',
+          text: identity.name || '—',
+          size: 'sm',
+          color: BRAND.ink,
+          wrap: true,
+          weight: 'bold',
+        },
+        ...(identity.phone
+          ? [{ type: 'text' as const, text: identity.phone, size: 'xs' as const, color: BRAND.inkSoft, wrap: true }]
+          : []),
+      ],
+    },
+  },
+});
+
 export const createServiceHomeFlexMessage = (
   services: { key: string; label: string }[],
   language: ReportLanguage,

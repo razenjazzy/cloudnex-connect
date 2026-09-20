@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { FLOW_SPECS, getFlowByStartCommand, loadVerifyPhoneOptions } from '../src/services/guided-forms';
+import { FLOW_SPECS, getFlowByStartCommand, loadVerifyPhoneOptions, nextLinearFieldIndex } from '../src/services/guided-forms';
 import { pickDefaultPaymentTermName } from '../src/services/odoo/sales';
 
 describe('getFlowByStartCommand', () => {
@@ -137,6 +137,12 @@ describe('SERVICE_DELETE flow', () => {
 describe('QUOTE_CREATE flow', () => {
   const spec = FLOW_SPECS.QUOTE_CREATE;
 
+  it('does not skip qty/customer after product even if a prior quote left those keys', () => {
+    const leftover = { productName: 'Care', qty: '1', customerName: 'Old', phone: '0812345678', paymentTerm: '30 Days' };
+    expect(nextLinearFieldIndex(spec, leftover, 1)).toBe(1);
+    expect(spec.fields[1].key).toBe('qty');
+  });
+
   it('uses saved Odoo partner phones on step 4, not a second verify flow', () => {
     const phoneField = spec.fields[3];
     expect(phoneField.key).toBe('phone');
@@ -203,6 +209,8 @@ describe('QUOTE_SEND and INVOICE_SEND flows', () => {
     expect(FLOW_SPECS.INVOICE_SEND.buildFinalCommand({ orderId: '17', channel: 'BOTH', email: 'a@b.com' })).toBe('QUOTE INVOICE SEND CONFIRM 17 BOTH a@b.com');
     expect(FLOW_SPECS.QUOTE_SEND.fields.find(f => f.key === 'email')?.skipWhen?.({ channel: 'LINE' })).toBe(true);
     expect(FLOW_SPECS.QUOTE_SEND.fields.find(f => f.key === 'email')?.skipWhen?.({ channel: 'EMAIL' })).toBe(false);
+    expect(nextLinearFieldIndex(FLOW_SPECS.QUOTE_SEND, { channel: 'LINE' }, 1)).toBe(2);
+    expect(nextLinearFieldIndex(FLOW_SPECS.QUOTE_SEND, { channel: 'EMAIL' }, 1)).toBe(1);
     expect(getFlowByStartCommand('FORM INVOICE SEND')?.key).toBe('INVOICE_SEND');
   });
 });

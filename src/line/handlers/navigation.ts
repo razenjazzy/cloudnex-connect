@@ -1,6 +1,6 @@
 import { messagingApi } from '@line/bot-sdk';
 import type { CommandHandler } from './index';
-import { homeMenuFromContext } from '../command-router';
+import { homeMenuFromContext, homeReplyFromContext } from '../command-router';
 import { getServiceDefinition, getVisibleCommands, isServiceEnabledForChannel } from '../../services/service-catalog';
 import { createServiceActionFlexMessage } from '../templates';
 import { isQuoteStaff } from '../quote-access';
@@ -12,7 +12,7 @@ const tr = (language: string, th: string, en: string): string => (language === '
 const navHomeHandler: CommandHandler = {
   name: 'nav-home',
   match: (u) => u === 'NAV HOME' || u === 'NAV' || u === 'BACK',
-  handle: async (ctx) => [homeMenuFromContext(ctx)],
+  handle: async (ctx) => homeReplyFromContext(ctx),
 };
 
 // NAV <serviceKey> — show service-specific action panel

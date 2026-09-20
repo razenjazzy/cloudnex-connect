@@ -27,8 +27,8 @@ describe('USER_JOURNEY C0–C5 source contract', () => {
     expect(router).toContain('setLastProductContext');
     expect(router).toContain('resumeQuoteFromLastProduct');
     expect(router).toContain('Using: ${product.productName}');
-    expect(commerce).toContain('Verify your account before creating a quote.');
-    expect(commerce).toContain('parseSelfQuotePayload');
+    expect(router).toContain('staleSummary');
+    expect(router).toContain('nextLinearFieldIndex');
   });
 
   it('C4: customer Confirm is QUOTE APPROVE; C5 uses not-yours + delivery', () => {

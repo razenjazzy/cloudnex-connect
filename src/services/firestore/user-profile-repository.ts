@@ -1,4 +1,4 @@
-import type { Firestore } from '@google-cloud/firestore';
+import { FieldValue, type Firestore } from '@google-cloud/firestore';
 import { buildFallbackUserProfile, parseStoredUserProfile } from './user-profile';
 import type { LastProductContext, PendingFlowState, UserLanguage, UserProfile, UserRole } from './types';
 
@@ -134,19 +134,23 @@ export const createUserProfileRepository = (dependencies: RepositoryDependencies
     setPendingFlow: async (userId: string, pendingFlow: PendingFlowState | null) => {
         const previous = dependencies.getPrevious(userId);
         dependencies.mergeCached(userId, { pendingFlow: pendingFlow || undefined });
-        // Firestore's `.set(data, {merge: true})` merges a nested map
-        // field-by-field rather than replacing it wholesale — omitting
-        // editingFieldIndex here (rather than explicitly nulling it) would
-        // leave whatever was previously stored there untouched, so a
-        // caller that means to clear it (see command-router.ts's
-        // pendingWithoutEditingField) would silently have that clear
-        // dropped on the next read from a cold cache. Same null-as-clear
-        // convention setSalesTier already uses.
+        // merge:true deep-merges nested maps. A new FORM QUOTE CREATE would
+        // keep the previous quote's collected qty/name/phone and summaryMode,
+        // so answering product (step 1 of 9) jumped to the optional card.
+        // mergeFields replaces the whole pendingFlow object.
         const pendingFlowForWrite = pendingFlow
-            ? { ...pendingFlow, editingFieldIndex: pendingFlow.editingFieldIndex ?? null }
-            : pendingFlow;
+            ? {
+                flow: pendingFlow.flow,
+                stepIndex: pendingFlow.stepIndex,
+                collected: pendingFlow.collected,
+                expiresAt: pendingFlow.expiresAt,
+                editingFieldIndex: pendingFlow.editingFieldIndex ?? null,
+                ...(pendingFlow.summaryMode ? { summaryMode: true } : {}),
+                ...(pendingFlow.resumeMode ? { resumeMode: true } : {}),
+            }
+            : FieldValue.delete();
         const result = await dependencies.write('setUserPendingFlow', async database => {
-            await database.collection('users').doc(userId).set({ pendingFlow: pendingFlowForWrite }, { merge: true });
+            await database.collection('users').doc(userId).set({ pendingFlow: pendingFlowForWrite }, { mergeFields: ['pendingFlow'] });
         });
         if (!result.ok) dependencies.restorePrevious(userId, previous);
         return result;

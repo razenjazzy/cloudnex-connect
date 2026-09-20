@@ -13,7 +13,8 @@
   "scripts": {
     "start": "node dist/index.js",
     "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
-    "build": "tsc",
+    "build": "tsc && npm run build --prefix admin",
+    "build:admin": "npm run build --prefix admin",
     "cli": "node dist/cli/index.js",
     "mcp": "node dist/mcp/server.js",
     "worker": "node dist/worker.js",
