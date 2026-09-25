@@ -35,10 +35,10 @@ describe('admin session bind and reveal tokens', () => {
     delete process.env.SECRET_REVEAL_TTL_SECONDS;
   });
 
-  it('sets an httpOnly SameSite Strict actor cookie', () => {
+  it('sets an httpOnly SameSite Lax actor cookie', () => {
     const { cookie } = buildAdminActorCookie('Uadmin');
     expect(cookie).toContain('HttpOnly');
-    expect(cookie).toContain('SameSite=Strict');
+    expect(cookie).toContain('SameSite=Lax');
     expect(cookie).toContain('cloudnex_admin_actor=');
     expect(parseAdminActorCookie(cookie)).toBe('Uadmin');
   });

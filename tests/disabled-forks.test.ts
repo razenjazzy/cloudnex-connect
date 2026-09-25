@@ -43,7 +43,8 @@ describe('disabled forks', () => {
     expect(spa).toContain("page === 'advanced'");
     expect(spa).toContain('disabled');
     expect(spa).toContain('disabled={campClass === \'customers_promo\'}');
-    expect(spa).toContain('disabled={settings?.queueReady === false}');
+    expect(spa).toContain('disabled={!actor || settings?.queueReady === false}');
+    expect(spa).toContain('CopyField');
     expect(spa).toContain('/admin/api/session/me');
   });
 });

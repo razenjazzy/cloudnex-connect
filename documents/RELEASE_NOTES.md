@@ -1,3 +1,14 @@
+# Release notes — v8.0.8
+
+**Date:** 2026-09-26  
+**Package version:** `8.0.8`  
+**Lane:** staging VPS (`APP_ENV=staging`, `https://amardhaka.io`)  
+**Commit title:** `Release: v8.0.8 - Odoo Line OA v5 Staging Deploy`
+
+Inbound files upload to GCS when `GCS_MEDIA_BUCKET` is set and reply with a timed `/media` link; otherwise Flex stays fail-closed. Admin campaigns surface LINE-bind 403s, layout wraps on small screens, and JSON/text dumps are copyable fields.
+
+---
+
 # Release notes — v8.0.7
 
 **Date:** 2026-09-26  

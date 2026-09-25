@@ -83,6 +83,10 @@ export const registerAdminPanelRoutes = (app: Express): void => {
     '/admin/logs',
     '/admin/unmask',
     '/admin/platform',
+    '/admin/campaigns',
+    '/admin/identity',
+    '/admin/advanced',
+    '/admin/directory',
   ], spaFallback);
   app.get(/^\/admin\/(?!crm\/quotes|api\/).*/, spaFallback);
 };

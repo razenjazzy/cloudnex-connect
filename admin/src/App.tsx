@@ -37,6 +37,25 @@ const api = async (path: string, init: RequestInit = {}) => {
   return res;
 };
 
+const readError = async (res: Response, fallback: string): Promise<string> => {
+  try {
+    const body = await res.json() as { error?: string };
+    return body.error || fallback;
+  } catch {
+    return fallback;
+  }
+};
+
+const CopyField = ({ label, value }: { label: string; value: string }) => (
+  <div className="copy-field">
+    <div className="copy-field-bar">
+      <span>{label}</span>
+      <button type="button" className="copy" onClick={() => void navigator.clipboard.writeText(value)}>Copy</button>
+    </div>
+    <textarea readOnly value={value} rows={Math.min(10, Math.max(2, value.split('\n').length))} />
+  </div>
+);
+
 const NAV: Array<{ id: string; href: string; label: string }> = [
   { id: 'home', href: '/admin', label: 'Overview' },
   { id: 'identity', href: '/admin/identity', label: 'Identity' },
@@ -93,6 +112,23 @@ export const App = () => {
     const onPop = () => setPath(pathOf());
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
+  }, []);
+
+  useEffect(() => {
+    const existing = sessionStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(LEGACY_TOKEN_KEY);
+    if (!existing) return;
+    void (async () => {
+      const res = await api('/admin/api/settings');
+      if (res.status === 401) return;
+      setAuthed(true);
+      if (res.ok) setSettings(await res.json());
+      const me = await api('/admin/api/session/me');
+      if (me.ok) {
+        const body = await me.json() as { appEnv?: string; actorUserId?: string | null };
+        setAppEnv(body.appEnv || '—');
+        setActor(body.actorUserId || null);
+      }
+    })();
   }, []);
 
   useEffect(() => {
@@ -245,12 +281,16 @@ export const App = () => {
   return (
     <>
       <header>
-        <strong>Cloudnex Connect</strong>
-        <span className="pill">{String(settings?.appEnv || appEnv)}</span>
-        {actor ? <span className="pill">{actor}</span> : null}
+        <div className="brand">
+          <strong>Cloudnex Connect</strong>
+          <span className="pill">{String(settings?.appEnv || appEnv)}</span>
+          {actor ? <span className="pill">{actor}</span> : <span className="pill">not bound</span>}
+        </div>
+        <nav>
         {NAV.map(item => (
           <a key={item.id} className={page === item.id ? 'active' : ''} href={item.href} onClick={e => { e.preventDefault(); go(item.href); }}>{item.label}</a>
         ))}
+        </nav>
         <button className="secondary" type="button" onClick={async () => {
           await api('/admin/api/session/logout', { method: 'POST' });
           sessionStorage.removeItem(TOKEN_KEY);
@@ -259,6 +299,9 @@ export const App = () => {
       </header>
       <main>
         {error ? <p className="error">{error}</p> : null}
+        {!actor ? (
+          <p className="warn">Campaigns and secret reveal need a super-admin LINE bind. Open Identity, confirm OTP or LINE Login, then retry.</p>
+        ) : null}
         {page === 'home' ? (
           <div className="card">
             <h2>Overview</h2>
@@ -282,8 +325,8 @@ export const App = () => {
               <a href="/healthz">/healthz {health}</a>
               <a href="/readyz">/readyz {ready}</a>
               <a href="/api-docs">OpenAPI</a>
-            {platformSnap ? <pre>{JSON.stringify(platformSnap, null, 2)}</pre> : null}
             </div>
+            {platformSnap ? <CopyField label="Platform" value={JSON.stringify(platformSnap, null, 2)} /> : null}
           </div>
         ) : null}
         {page === 'identity' ? (
@@ -299,12 +342,12 @@ export const App = () => {
               <input value={bindUser} onChange={e => setBindUser(e.target.value)} placeholder="LINE user id" />
               <button type="button" onClick={async () => {
                 const res = await api('/admin/api/session/bind', { method: 'POST', body: JSON.stringify({ lineUserId: bindUser }) });
-                setError(res.ok ? '' : 'Bind failed');
+                setError(res.ok ? '' : await readError(res, 'Bind failed'));
               }}>Send code</button>
               <input value={bindOtp} onChange={e => setBindOtp(e.target.value)} placeholder="OTP" />
               <button type="button" onClick={async () => {
                 const res = await api('/admin/api/session/confirm', { method: 'POST', body: JSON.stringify({ lineUserId: bindUser, otp: bindOtp }) });
-                setError(res.ok ? '' : 'Confirm failed');
+                setError(res.ok ? '' : await readError(res, 'Confirm failed'));
                 await loadSettings();
               }}>Confirm</button>
             </div>
@@ -314,20 +357,26 @@ export const App = () => {
           <div className="card">
             <h2>Security</h2>
             <p>Credentials stay masked except a timed reveal. ADMIN_USER_ID is fail-closed.</p>
-            <pre>{JSON.stringify(webhooks, null, 2)}</pre>
+            <CopyField label="Webhooks" value={JSON.stringify(webhooks, null, 2)} />
             <button type="button" onClick={() => void loadSettings()}>Refresh</button>
+            <div className="table-wrap">
             <table>
               <thead><tr><th>Key</th><th>Value</th><th></th></tr></thead>
               <tbody>
                 {rows.map(row => (
                   <tr key={row.key}>
                     <td>{row.key}</td>
-                    <td>{row.kind === 'secret' ? (unmasked[row.key] ? `${unmasked[row.key].value} (${Math.max(0, Math.ceil((unmasked[row.key].until - Date.now()) / 1000))}s)` : (row.set ? '••••' : '—')) : (row.value || '—')}</td>
+                    <td>{row.kind === 'secret' ? (unmasked[row.key] ? (
+                      <CopyField label={row.key} value={unmasked[row.key].value} />
+                    ) : (row.set ? '••••' : '—')) : (
+                      row.value ? <CopyField label={row.key} value={row.value} /> : '—'
+                    )}</td>
                     <td>{row.kind === 'secret' && row.set ? <button type="button" onClick={() => void reveal(row.key)}>Reveal</button> : null}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
             <h3>Unmask log</h3>
             <button type="button" onClick={async () => {
               const res = await api('/admin/api/audit-log/reveals?limit=50');
@@ -449,7 +498,7 @@ export const App = () => {
               setErp(res.ok ? 'ok' : 'fail');
             }}>Refresh</button>
             <p>ERP test: {erp || '—'}</p>
-            <pre>{JSON.stringify({ lock: settings?.lock, missingRequired: settings?.missingRequired, capabilities: settings?.capabilities }, null, 2)}</pre>
+            <CopyField label="Platform settings" value={JSON.stringify({ lock: settings?.lock, missingRequired: settings?.missingRequired, capabilities: settings?.capabilities }, null, 2)} />
           </div>
         ) : null}
         {page === 'jobs' ? (
@@ -467,14 +516,15 @@ export const App = () => {
             <h2>LINE channels</h2>
             <p>Add another OA. Existing <code>POST /webhook/:channelId</code>. Overlay only when ADMIN_CONFIG_LOCK is off.</p>
             {lineForm}
-            {channelWebhook ? <p>Webhook: {channelWebhook}</p> : null}
-            <pre>{JSON.stringify(webhooks, null, 2)}</pre>
+            {channelWebhook ? <CopyField label="New channel webhook" value={channelWebhook} /> : null}
+            <CopyField label="Webhooks" value={JSON.stringify(webhooks, null, 2)} />
           </div>
         ) : null}
         {page === 'campaigns' ? (
           <div className="card">
             <h2>Campaigns</h2>
             <p>Channel → class → message → preview → test → multicast Send. Promo uses Send only (honors PROMO OFF). LINE Broadcast cannot filter opt-out; it is blocked for promo class.</p>
+            {!actor ? <p className="error">Bind super-admin on Identity first. Campaign APIs return 403 without the actor cookie.</p> : null}
             <div className="row">
               <select value={campChannel} onChange={e => setCampChannel(e.target.value)}>
                 <option value="customer">customer</option>
@@ -488,33 +538,37 @@ export const App = () => {
             </div>
             <textarea value={campText} onChange={e => setCampText(e.target.value)} rows={4} style={{ width: '100%' }} />
             <div className="row">
-              <button type="button" onClick={async () => {
+              <button type="button" disabled={!actor} onClick={async () => {
                 const res = await api('/admin/api/campaigns/preview', { method: 'POST', body: JSON.stringify(campaignBody()) });
-                const body = await res.json();
-                setCampPreview(JSON.stringify(body));
-                setError(res.ok ? '' : String((body as { error?: string }).error || 'Preview failed'));
+                const body = await res.json() as { error?: string };
+                setCampPreview(JSON.stringify(body, null, 2));
+                setError(res.ok ? '' : (body.error || 'Preview failed'));
               }}>Preview</button>
-              <button type="button" onClick={async () => {
+              <button type="button" disabled={!actor} onClick={async () => {
                 const res = await api('/admin/api/campaigns/test', { method: 'POST', body: JSON.stringify(campaignBody()) });
-                setError(res.ok ? '' : 'Test failed');
+                setError(res.ok ? '' : await readError(res, 'Test failed'));
               }}>Test (actor only)</button>
-              <button type="button" disabled={settings?.queueReady === false} onClick={async () => {
+              <button type="button" disabled={!actor || settings?.queueReady === false} onClick={async () => {
                 const res = await api('/admin/api/campaigns/send', { method: 'POST', body: JSON.stringify({ ...campaignBody(), confirm: 'SEND' }) });
-                setError(res.status === 202 || res.ok ? '' : (res.status === 503 ? 'Redis required (503)' : 'Send failed'));
+                setError(res.status === 202 || res.ok ? '' : await readError(res, res.status === 503 ? 'Redis required (503)' : 'Send failed'));
               }}>Send multicast</button>
-              <button type="button" onClick={async () => {
+              <button type="button" disabled={!actor} onClick={async () => {
                 const res = await api('/admin/api/campaigns');
+                if (!res.ok) {
+                  setError(await readError(res, 'History failed'));
+                  return;
+                }
                 const body = await res.json() as { campaigns?: Array<Record<string, unknown>> };
                 setCampHistory(body.campaigns || []);
               }}>History</button>
             </div>
-            <p>{campPreview}</p>
+            {campPreview ? <CopyField label="Campaign response" value={campPreview} /> : null}
             <h3>Broadcast (not default)</h3>
             <p>Sends to every OA friend. Blocked when class is promo — use multicast Send instead.</p>
             <input value={broadcastConfirm} onChange={e => setBroadcastConfirm(e.target.value)} placeholder="type BROADCAST" disabled={campClass === 'customers_promo'} />
-            <button type="button" disabled={campClass === 'customers_promo'} onClick={async () => {
+            <button type="button" disabled={!actor || campClass === 'customers_promo'} onClick={async () => {
               const res = await api('/admin/api/campaigns/broadcast', { method: 'POST', body: JSON.stringify({ channelId: campChannel, audienceType: campClass, text: campText, confirm: broadcastConfirm }) });
-              setError(res.ok ? '' : 'Broadcast denied or failed');
+              setError(res.ok ? '' : await readError(res, 'Broadcast denied or failed'));
             }}>Broadcast</button>
             <table>
               <thead><tr><th>Id</th><th>Status</th><th>Count</th></tr></thead>

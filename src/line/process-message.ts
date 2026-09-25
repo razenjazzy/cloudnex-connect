@@ -239,8 +239,16 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
             title: agentName, body: scanned.error, language: userLanguage, tone: 'warning',
           })]);
         }
-        const { signedMediaUrlOrNull } = await import('./media');
-        if (!signedMediaUrlOrNull()) {
+        const { storeInboundMedia } = await import('./media');
+        const storedUrl = await storeInboundMedia({
+          buffer,
+          fileName: input.fileName,
+          kind,
+          conversationId: input.conversationId,
+          channelId: input.channelConfig.channelId,
+          mediaId,
+        });
+        if (!storedUrl) {
           return deliverMessages(client, input, [createBotTextFlexMessage({
             title: agentName,
             body: tr(userLanguage, 'รับไฟล์แล้ว แต่ยังไม่ได้เก็บหรือส่งต่อ', 'File received. It was not stored or relayed.'),
@@ -248,6 +256,16 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
             tone: 'info',
           })]);
         }
+        return deliverMessages(client, input, [createBotTextFlexMessage({
+          title: agentName,
+          body: tr(userLanguage, 'รับไฟล์แล้ว กดเปิดได้ 15 นาที', 'File received. Open the link (expires in 15 minutes).'),
+          language: userLanguage,
+          tone: 'success',
+          linkAction: {
+            label: tr(userLanguage, 'เปิดไฟล์', 'Open file'),
+            uri: storedUrl,
+          },
+        })]);
       } catch (error) {
         appLogger.warn('line_media_fetch_failed', { error: String(error), requestId: input.requestId });
         return deliverMessages(client, input, [createBotTextFlexMessage({

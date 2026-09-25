@@ -31,7 +31,7 @@ export const ENV_PARAMS: EnvParam[] = [
   { key: 'LINE_AGENT_NAME_EN', requiredIn: [], note: 'English persona name; defaults to Sora' },
   { key: 'LINE_AGENT_NAME_TH', requiredIn: [], note: 'Thai persona name; defaults to โซระ' },
   { key: 'LINE_IDLE_HOME_SECONDS', requiredIn: [], note: 'Idle inbound → persona Home; default 3600. Form TTL is at least this many minutes.' },
-  { key: 'GCS_MEDIA_BUCKET', requiredIn: [], note: 'Optional GCS bucket for inbound LINE files; fail-closed Flex if unset' },
+  { key: 'GCS_MEDIA_BUCKET', requiredIn: [], note: 'GCS bucket for inbound LINE files; fail-closed Flex unless upload + PUBLIC_BASE_URL https succeed' },
   { key: 'LINE_MEDIA_MAX_BYTES', requiredIn: [], note: 'Default 10485760' },
   { key: 'CLAMAV_URL', requiredIn: [], note: 'Optional AV scan endpoint' },
   { key: 'AV_SCAN_REQUIRED', requiredIn: [], note: 'Default false; fail closed if true and scanner down' },

@@ -1,6 +1,6 @@
 {
   "name": "cloudnex-connect",
-  "version": "8.0.7",
+  "version": "8.0.8",
   "description": "LINE Official Account + Odoo for Cloudnex: Sales and Customer OAs, Firestore identity, Flex quotes, enterprise Admin (campaigns, audit, IdP), and consented messaging.",
   "main": "dist/index.js",
   "bin": {

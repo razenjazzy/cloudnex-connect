@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { extractLineMessageJobs } from '../src/line/process-message';
-import { assertInboundMediaAllowed, DEFAULT_LINE_MEDIA_MAX_BYTES, signedMediaUrlOrNull } from '../src/line/media';
+import { assertInboundMediaAllowed, DEFAULT_LINE_MEDIA_MAX_BYTES, decodeMediaToken, encodeMediaToken, signedMediaUrlOrNull, storeInboundMedia } from '../src/line/media';
 import { scanBufferIfRequired } from '../src/line/media';
 
 describe('quoted and media extract', () => {
@@ -84,11 +84,29 @@ describe('media allowlist', () => {
     expect(assertInboundMediaAllowed({ fileName: 'a.pdf', sizeBytes: 100 }).ok).toBe(true);
   });
 
-  it('does not treat GCS_MEDIA_BUCKET as a stored file', () => {
-    const prev = process.env.GCS_MEDIA_BUCKET;
-    process.env.GCS_MEDIA_BUCKET = 'some-bucket';
+  it('does not treat GCS_MEDIA_BUCKET as a stored file without upload', async () => {
+    const prevBucket = process.env.GCS_MEDIA_BUCKET;
+    delete process.env.GCS_MEDIA_BUCKET;
     expect(signedMediaUrlOrNull()).toBeNull();
-    process.env.GCS_MEDIA_BUCKET = prev;
+    expect(await storeInboundMedia({
+      buffer: Buffer.from('x'),
+      kind: 'file',
+      conversationId: 'U1',
+      channelId: 'customer',
+      mediaId: 'm1',
+      fileName: 'a.pdf',
+    })).toBeNull();
+    process.env.GCS_MEDIA_BUCKET = prevBucket;
+  });
+
+  it('issues a timed media token only for inbound objects', () => {
+    const prev = process.env.OPS_API_TOKEN;
+    process.env.OPS_API_TOKEN = 'ops-media-token-16xx';
+    const token = encodeMediaToken('line-inbound/customer/U1/m1-a.pdf');
+    expect(token).toBeTruthy();
+    expect(decodeMediaToken(token || '')).toEqual({ objectName: 'line-inbound/customer/U1/m1-a.pdf' });
+    expect(decodeMediaToken('nope')).toBeNull();
+    process.env.OPS_API_TOKEN = prev;
   });
 
   it('rejects infected mock when AV required', async () => {

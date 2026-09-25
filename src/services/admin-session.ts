@@ -43,12 +43,12 @@ export const buildAdminActorCookie = (userId: string, ttlMs = 8 * 60 * 60 * 1000
   const exp = Date.now() + ttlMs;
   const value = `${userId}.${exp}.${signActor(userId, exp)}`;
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  const cookie = `${cookieName}=${encodeURIComponent(value)}; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=${Math.floor(ttlMs / 1000)}${secure}`;
+  const cookie = `${cookieName}=${encodeURIComponent(value)}; Path=/admin; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(ttlMs / 1000)}${secure}`;
   return { value, cookie };
 };
 
 export const clearAdminActorCookie = (): string =>
-  `${cookieName}=; Path=/admin; HttpOnly; SameSite=Strict; Max-Age=0`;
+  `${cookieName}=; Path=/admin; HttpOnly; SameSite=Lax; Max-Age=0`;
 
 export const isSuperAdminActor = (userId: string, profile: { odooVerified: boolean }): boolean => {
   const supers = getSuperAdminUserIds();
