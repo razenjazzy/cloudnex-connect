@@ -34,7 +34,9 @@ export const completeActionOtpByLinkToken = async (token: string): Promise<{
   const channelId = consumed.data.channelId || DEFAULT_CHANNEL_ID;
   const channel = resolveChannelConfig(channelId);
   const { resolveCommandReply } = await import('../line/command-router');
-  const messages = await resolveCommandReply({
+  const { outcomeFlex } = await import('../line/outcome-reply');
+  const { t } = await import('./i18n');
+  let messages = await resolveCommandReply({
     text: consumed.data.pendingCommandText,
     userId: consumed.data.userId,
     userLanguage: language,
@@ -45,6 +47,14 @@ export const completeActionOtpByLinkToken = async (token: string): Promise<{
     channel: channel ? { channelId: channel.channelId, enabledServices: channel.enabledServices } : undefined,
     actionOtpReplay: true,
   });
+  if (!messages.length) {
+    messages = [outcomeFlex({
+      language,
+      tone: 'success',
+      title: language === 'en' ? 'Action verified' : 'ยืนยันแล้ว',
+      body: t('actionVerifiedContinue', language),
+    })];
+  }
 
   for (const message of messages) {
     if (message.type === 'flex') {

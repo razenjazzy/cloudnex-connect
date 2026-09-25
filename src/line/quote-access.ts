@@ -42,7 +42,9 @@ export const customerQuoteSkipsOptionalSummary = (flowKey: string, profile: Quot
 /** Non-staff may only see SOs for their linked Odoo partner. */
 export const canViewOrderAsCustomer = (profile: QuoteOwner, orderPartnerId: number | undefined): boolean => {
   if (isQuoteStaff(profile)) return true;
-  return Boolean(profile.odooPartnerId && orderPartnerId && profile.odooPartnerId === orderPartnerId);
+  const viewer = Number(profile.odooPartnerId);
+  const owner = Number(orderPartnerId);
+  return Number.isFinite(viewer) && viewer > 0 && viewer === owner;
 };
 
 /**
@@ -50,13 +52,21 @@ export const canViewOrderAsCustomer = (profile: QuoteOwner, orderPartnerId: numb
  * res.users is Sales staff; a contact with no login stays a customer.
  * Customer OA never stores a sales tier.
  */
+const STAFF_SYNC_MS = 5 * 60 * 1000;
+const staffSyncCache = new Map<string, { at: number; salesTier: UserProfile['salesTier'] }>();
+
 export const syncStaffProfile = async (userId: string, profile: UserProfile, channelId?: string): Promise<UserProfile> => {
   if (channelId === CUSTOMER_CHANNEL_ID) {
     if (profile.salesTier) await setUserSalesTier(userId, undefined);
     return applyChannelPersona(profile, channelId);
   }
   if (!profile.odooPartnerId) return profile;
+  const cached = staffSyncCache.get(userId);
+  if (cached && Date.now() - cached.at < STAFF_SYNC_MS) {
+    return { ...profile, salesTier: cached.salesTier };
+  }
   const salesTier = await findOdooSalesTierByPartnerId(profile.odooPartnerId);
+  staffSyncCache.set(userId, { at: Date.now(), salesTier });
   if (salesTier !== profile.salesTier) await setUserSalesTier(userId, salesTier);
   return { ...profile, salesTier };
 };

@@ -93,6 +93,7 @@ export const UI_STRINGS = {
   quoteApprovedStaff: { en: 'Customer approved. Next: Invoice or Send Invoice.', th: 'ลูกค้าอนุมัติแล้ว ขั้นถัดไป: ใบแจ้งหนี้ หรือ ส่งใบแจ้งหนี้' },
   quoteNotFound: { en: 'Quotation not found.', th: 'ไม่พบใบเสนอราคานี้' },
   addItem: { en: 'Add item', th: 'เพิ่มรายการ' },
+  addMore: { en: 'Add More', th: 'เพิ่มสินค้า' },
   editItem: { en: 'Edit item', th: 'แก้ไขรายการ' },
   editQuote: { en: 'Edit Quote', th: 'แก้ไขใบเสนอราคา' },
   editQuoteHint: { en: 'Tap a line to change qty. Add or remove below.', th: 'แตะรายการเพื่อแก้จำนวน เพิ่มหรือลบด้านล่าง' },
@@ -148,6 +149,58 @@ export const UI_STRINGS = {
   invoiceUpselling: { en: 'Upselling', th: 'เสนอเพิ่ม' },
   myData: { en: 'My data', th: 'ข้อมูลของฉัน' },
   deleteMyData: { en: 'Delete my data', th: 'ลบข้อมูล' },
+  quoteReceivedTitle: { en: 'Quotation received', th: 'รับใบเสนอราคาแล้ว' },
+  quoteReceivedWaitingSales: {
+    en: 'Quotation {name} was received. Waiting for sales to send it. You can add more products or open My quotations.',
+    th: 'รับใบเสนอราคา {name} แล้ว รอฝ่ายขายส่ง คุณเพิ่มสินค้าหรือเปิดใบเสนอราคาของฉันได้',
+  },
+  quoteCreatedStaffTitle: { en: 'Quotation created', th: 'สร้างใบเสนอราคาแล้ว' },
+  quoteCreatedStaffUnassigned: {
+    en: 'Quotation {name} has no salesperson. Assign in Odoo, then Confirm or Send.',
+    th: 'ใบเสนอราคา {name} ยังไม่มีพนักงานขาย มอบหมายใน Odoo แล้วกดยืนยันหรือส่ง',
+  },
+  quoteCreatedStaffNext: {
+    en: 'Quotation {name} created. Confirm or Send when ready.',
+    th: 'สร้างใบเสนอราคา {name} แล้ว กดยืนยันหรือส่งเมื่อพร้อม',
+  },
+  quoteLineAddedTitle: { en: 'Item added', th: 'เพิ่มรายการแล้ว' },
+  quoteLineAddedWaitingSales: {
+    en: 'The product was added. Waiting for sales to send this quote.',
+    th: 'เพิ่มสินค้าแล้ว รอฝ่ายขายส่งใบเสนอราคานี้',
+  },
+  quoteLineAddedStaff: {
+    en: 'The product was added. Send when the quote is ready.',
+    th: 'เพิ่มสินค้าแล้ว ส่งได้เมื่อใบเสนอราคาพร้อม',
+  },
+  quoteLineEditedTitle: { en: 'Quantity updated', th: 'อัปเดตจำนวนแล้ว' },
+  quoteLineEdited: { en: 'Line quantity was updated. Send when ready.', th: 'แก้จำนวนแล้ว ส่งได้เมื่อพร้อม' },
+  quoteLineRemovedTitle: { en: 'Item removed', th: 'ลบรายการแล้ว' },
+  quoteLineRemoved: { en: 'The line was removed. Send when ready.', th: 'ลบรายการแล้ว ส่งได้เมื่อพร้อม' },
+  quoteConfirmedTitle: { en: 'Quotation confirmed', th: 'ยืนยันใบเสนอราคาแล้ว' },
+  quoteConfirmedStaff: {
+    en: 'Confirmed as a sales order. Next: Invoice or Send Invoice (manual).',
+    th: 'ยืนยันเป็นคำสั่งขายแล้ว ขั้นถัดไป: ใบแจ้งหนี้ หรือ ส่งใบแจ้งหนี้ (ทำเอง)',
+  },
+  quoteInvoiceCreatedTitle: { en: 'Invoice created', th: 'สร้างใบแจ้งหนี้แล้ว' },
+  quoteInvoiceCreated: {
+    en: 'Invoice created. Send it when Accounting is ready.',
+    th: 'สร้างใบแจ้งหนี้แล้ว ส่งได้เมื่อบัญชีพร้อม',
+  },
+  actionVerifiedContinue: { en: 'Continuing to the next step.', th: 'ดำเนินการต่อในขั้นตอนถัดไป' },
+  otpMissingVerifyUrl: {
+    en: 'Cannot open the verify page. Set PUBLIC_BASE_URL and retry the action.',
+    th: 'เปิดหน้ายืนยันไม่ได้ ตั้ง PUBLIC_BASE_URL แล้วลองคำสั่งเดิมอีกครั้ง',
+  },
+  replyDroppedLimit: { en: 'Reply was too large', th: 'ข้อความยาวเกิน' },
+  replyDroppedLimitBody: {
+    en: 'The result was trimmed so LINE could deliver it. Open My quotations or Home.',
+    th: 'ตัดข้อความเพื่อให้ส่งได้ เปิดใบเสนอราคาของฉันหรือหน้าแรก',
+  },
+  replyDeliverFailed: { en: 'Could not show the card', th: 'แสดงการ์ดไม่สำเร็จ' },
+  replyDeliverFailedBody: {
+    en: 'The request finished. Open My quotations or Home for the next step.',
+    th: 'คำขอเสร็จแล้ว เปิดใบเสนอราคาของฉันหรือหน้าแรกสำหรับขั้นตอนถัดไป',
+  },
 } as const;
 
 export type UiStringKey = keyof typeof UI_STRINGS;

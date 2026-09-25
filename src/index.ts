@@ -44,6 +44,8 @@ const SHUTDOWN_TIMEOUT_MS = Number(process.env.SHUTDOWN_TIMEOUT_MS || 10000);
 
 const startServer = async () => {
     getErpAdapter();
+    const { warmProductCatalog } = await import('./erp/odoo-adapter');
+    warmProductCatalog();
     initTracing();
     await registerGraphqlRoutes(app);
     setRateStore(await createRateLimitStoreFromEnv(fallbackRateStore));

@@ -40,10 +40,26 @@ const toErpCrmQuote = (order: OdooSaleOrder): ErpCrmQuote => ({
 });
 
 let productCatalogCache: { at: number; items: ErpProduct[] } | null = null;
-const PRODUCT_CATALOG_CACHE_MS = 30_000;
+const PRODUCT_CATALOG_CACHE_MS = Number(process.env.PRODUCT_CATALOG_CACHE_MS || 5 * 60 * 1000);
+let catalogRefresh: Promise<void> | null = null;
+
+const refreshProductCatalog = async (limit = 10): Promise<void> => {
+  if (catalogRefresh) return catalogRefresh;
+  catalogRefresh = (async () => {
+    const products = await listProducts(limit);
+    productCatalogCache = { at: Date.now(), items: products.map(toErpProduct) };
+  })().finally(() => {
+    catalogRefresh = null;
+  });
+  return catalogRefresh;
+};
+
+export const warmProductCatalog = (): void => {
+  void refreshProductCatalog(10).catch(() => undefined);
+};
 
 export const peekCachedProducts = (limit = 10): ErpProduct[] | null => {
-  if (!productCatalogCache || Date.now() - productCatalogCache.at >= PRODUCT_CATALOG_CACHE_MS) return null;
+  if (!productCatalogCache?.items.length) return null;
   return productCatalogCache.items.slice(0, limit);
 };
 
@@ -90,15 +106,18 @@ export const odooAdapter: ErpAdapter = {
   },
   async searchProducts(query: string, limit = 10): Promise<ErpProduct[]> {
     const normalized = query.trim().toLowerCase();
-    if (!normalized && productCatalogCache && Date.now() - productCatalogCache.at < PRODUCT_CATALOG_CACHE_MS) {
-      return productCatalogCache.items.slice(0, limit);
+    if (!normalized) {
+      if (productCatalogCache?.items.length) {
+        if (Date.now() - productCatalogCache.at >= PRODUCT_CATALOG_CACHE_MS) {
+          void refreshProductCatalog(Math.max(limit, 10)).catch(() => undefined);
+        }
+        return productCatalogCache.items.slice(0, limit);
+      }
+      await refreshProductCatalog(Math.max(limit, 10));
+      return (productCatalogCache?.items || []).slice(0, limit);
     }
-    const products = normalized
-      ? await findProductsByQuery(normalized, limit)
-      : await listProducts(limit);
-    const mapped = products.map(toErpProduct);
-    if (!normalized) productCatalogCache = { at: Date.now(), items: mapped };
-    return mapped;
+    const products = await findProductsByQuery(normalized, limit);
+    return products.map(toErpProduct);
   },
   peekCachedProducts,
   async listServices(limit = 10): Promise<ErpService[]> {
@@ -184,9 +203,14 @@ export const odooAdapter: ErpAdapter = {
     } : null;
   },
   async getDeliveryStatus(orderId: number) {
-    const order = await getSaleOrderById(orderId);
-    if (!order?.name) return null;
-    return getOutgoingPickingForOrder(order.name);
+    try {
+      const order = await getSaleOrderById(orderId);
+      if (!order?.name) return null;
+      return await getOutgoingPickingForOrder(order.name);
+    } catch (error) {
+      console.warn('getDeliveryStatus failed (non-fatal):', error);
+      return null;
+    }
   },
   async getDailySnapshot() {
     return getDailySalesSnapshot();

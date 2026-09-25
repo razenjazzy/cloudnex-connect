@@ -11,6 +11,7 @@ describe('getFlowByStartCommand', () => {
     expect(getFlowByStartCommand('FORM PRODUCT FIND')?.key).toBe('PRODUCT_FIND');
     expect(getFlowByStartCommand('FORM ORDER STATUS')?.key).toBe('ORDER_STATUS');
     expect(getFlowByStartCommand('FORM QUOTE CREATE')?.key).toBe('QUOTE_CREATE');
+    expect(getFlowByStartCommand('FORM QUOTE ADD')?.key).toBe('QUOTE_ADD');
     expect(getFlowByStartCommand('FORM CUSTOMER REGISTER')?.key).toBe('CUSTOMER_REGISTER');
   });
 
@@ -199,6 +200,13 @@ describe('pickDefaultPaymentTermName', () => {
 
   it('falls back to the first named term', () => {
     expect(pickDefaultPaymentTermName([{ id: 1, name: '15 Days' }])).toBe('15 Days');
+  });
+});
+
+describe('QUOTE_ADD flow', () => {
+  it('rebuilds QUOTE ADD with product id when the chip stored one', () => {
+    expect(FLOW_SPECS.QUOTE_ADD.buildFinalCommand({ orderId: '17', productName: 'Widget', productId: '42', qty: '2' })).toBe('QUOTE ADD 17 id:42,2');
+    expect(FLOW_SPECS.QUOTE_ADD.buildFinalCommand({ orderId: '17', productName: 'Widget', qty: '2' })).toBe('QUOTE ADD 17 Widget,2');
   });
 });
 

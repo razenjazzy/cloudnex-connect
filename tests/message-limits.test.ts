@@ -10,7 +10,7 @@ import {
   createServiceActionFlexMessage,
   createServiceHomeFlexMessage,
 } from '../src/line/templates';
-import { checkMessageAgainstLineLimits, checkMessagesAgainstLineLimits, LINE_LIMITS } from '../src/line/message-limits';
+import { checkMessageAgainstLineLimits, checkMessagesAgainstLineLimits, LINE_LIMITS, trimReplyToLimit } from '../src/line/message-limits';
 
 const LONG_NAME = 'A'.repeat(500); // longer than LINE's 400-char altText cap on its own
 
@@ -45,6 +45,17 @@ describe('checkMessagesAgainstLineLimits', () => {
     const messages = Array.from({ length: 6 }, () => ({ type: 'text' as const, text: 'ok' }));
     const violations = checkMessagesAgainstLineLimits(messages);
     expect(violations).toContainEqual({ field: 'messages.length', limit: LINE_LIMITS.MAX_MESSAGES_PER_REPLY, actual: 6 });
+  });
+});
+
+describe('trimReplyToLimit', () => {
+  it('keeps the first message and drops follow-up past 5', () => {
+    const messages = Array.from({ length: 6 }, (_, i) => ({ type: 'text' as const, text: `m${i}` }));
+    const packed = trimReplyToLimit(messages);
+    expect(packed).toHaveLength(5);
+    expect(packed[0]).toEqual({ type: 'text', text: 'm0' });
+    expect(packed[4]).toEqual({ type: 'text', text: 'm4' });
+    expect(checkMessagesAgainstLineLimits(packed)).toEqual([]);
   });
 });
 

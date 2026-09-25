@@ -66,6 +66,11 @@ describe('parseOrderIdAndProductQty', () => {
       productName: 'Widget',
       qty: 2,
     });
+    expect(parseOrderIdAndProductQty('QUOTE ADD 17 id:42,2', 'QUOTE ADD')).toEqual({
+      orderId: 17,
+      productName: 'id:42',
+      qty: 2,
+    });
   });
 
   it('trims whitespace around the product name and quantity', () => {

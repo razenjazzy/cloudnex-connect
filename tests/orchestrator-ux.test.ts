@@ -63,13 +63,23 @@ describe('source contracts', () => {
     expect(router).toContain('hasActiveSalesSession(profile) || profile.odooVerified');
     expect(router).toContain('CUSTOMER_CHANNEL_ID');
     expect(router).toContain('createProductCarouselFlexMessage');
+    expect(router).toContain('fitReply');
   });
 
   it('customer quotes leave salesperson unassigned', () => {
     const odoo = readFileSync('src/services/odoo.ts', 'utf8');
     const commerce = readFileSync('src/line/handlers/commerce.ts', 'utf8');
     expect(odoo).toContain('orderFields.user_id = false');
+    expect(odoo).toContain("write', [[orderId], { user_id: false }]");
     expect(commerce).toContain('salespersonUserId = false');
+  });
+
+  it('QUOTE STATUS without an id lists the customer quotes', () => {
+    const quotation = readFileSync('src/line/handlers/quotation.ts', 'utf8');
+    expect(quotation).toContain("text: 'QUOTE LIST'");
+    expect(quotation).toContain('safeJourneyExtras');
+    expect(quotation).toContain('FORM QUOTE ADD');
+    expect(quotation).toContain('withOutcome');
   });
 
   it('verify unknown-phone cards include GUIDE', () => {

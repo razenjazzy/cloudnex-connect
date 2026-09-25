@@ -45,6 +45,7 @@ describe('USER_JOURNEY Sales P0 taps', () => {
     expect(more).toContain('QUOTE LINES');
     expect(more).toContain('QUOTE EDIT');
     expect(more).toContain('QUOTE REMOVE');
+    expect(more).toContain('FORM QUOTE ADD');
     expect(more).toContain('QUOTE ADD');
     expect(quotation).toContain("name: 'quote-invoice'");
     expect(quotation).toContain("name: 'quote-cancel'");

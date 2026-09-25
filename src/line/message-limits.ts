@@ -58,3 +58,7 @@ export const checkMessagesAgainstLineLimits = (messages: messagingApi.Message[])
   }
   return violations;
 };
+
+/** Keep index 0. Drop follow-up from the end. */
+export const trimReplyToLimit = (messages: messagingApi.Message[]): messagingApi.Message[] =>
+  messages.slice(0, LINE_LIMITS.MAX_MESSAGES_PER_REPLY);

@@ -17,6 +17,8 @@ describe('form prompt options', () => {
     const body = JSON.stringify(message.contents);
     expect(body).not.toContain('App Premium');
     expect(json).toContain('Tap an option below');
+    expect(json).toContain('NAV HOME');
+    expect(json).toContain('CANCEL');
   });
 
   it('shows Saved in Odoo as the only extra phone note', () => {
@@ -147,6 +149,7 @@ describe('quotation journey state actions', () => {
     expect(bubble.footer?.contents).toHaveLength(3);
     expect(JSON.stringify(bubble.body)).toContain('QUOTE CONFIRM 17');
     expect(JSON.stringify(bubble.body)).toContain('QUOTE SEND 17');
+    expect(JSON.stringify(bubble.body)).toContain('FORM QUOTE ADD 17');
     expect(JSON.stringify(bubble.body)).toContain('"spacing":"md"');
     expect(JSON.stringify(bubble.body)).not.toContain('QUOTE MORE');
     expect(JSON.stringify(bubble.footer?.contents?.[0])).toContain('View Quote');
@@ -193,6 +196,7 @@ describe('quotation journey state actions', () => {
     expect(json).toContain('https://example.com/q');
     expect(json).toContain('Confirm');
     expect(json).toContain('QUOTE APPROVE 17');
+    expect(json).toContain('FORM QUOTE ADD 17');
     expect(json).toContain('View Quote');
     expect(json).toContain('Download');
     expect(json).not.toContain('Download PDF');
@@ -229,6 +233,7 @@ describe('quotation journey state actions', () => {
       'en',
     ));
     expect(json).toContain('Sales will send this quote');
+    expect(json).toContain('FORM QUOTE ADD 17');
     expect(json).toContain('NAV HOME');
     expect(json).toContain('QUOTE LIST');
     expect(json).not.toContain('QUOTE CONFIRM');

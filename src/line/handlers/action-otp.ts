@@ -12,6 +12,8 @@ import { isOtpGatedCommand } from '../../services/service-catalog';
 import { isQuoteStaff } from '../quote-access';
 import type { UserProfile } from '../../services/firestore';
 import { auditWrite, commandPrefixForAudit } from '../../services/write-audit';
+import { t } from '../../services/i18n';
+import { fitReply, outcomeFlex } from '../outcome-reply';
 
 export const isGatedMutation = isOtpGatedCommand;
 
@@ -39,6 +41,7 @@ export const shouldGateActionOtp = (
   if (!ctx.profile.odooVerified) return false;
   if (!isGatedMutation(upperText)) return false;
   if (upperText.startsWith('QUOTE CREATE') && !isQuoteStaff(ctx.profile)) return false;
+  if (upperText.startsWith('QUOTE ADD') && !isQuoteStaff(ctx.profile)) return false;
   return !ctx.actionOtpReplay;
 };
 
@@ -86,6 +89,14 @@ const actionOtpGateHandler: CommandHandler = {
 
     const origin = (process.env.PUBLIC_BASE_URL?.trim() || baseUrl || '').replace(/\/$/, '');
     const link = origin ? `${origin}/verify/action?token=${encodeURIComponent(linkToken)}` : '';
+    if (!link) {
+      return [outcomeFlex({
+        language: userLanguage,
+        tone: 'error',
+        title: tr(userLanguage, 'ยืนยันไม่สำเร็จ', 'Verification failed'),
+        body: t('otpMissingVerifyUrl', userLanguage),
+      })];
+    }
     return [createBotTextFlexMessage({
       title: tr(userLanguage, 'ยืนยันก่อนดำเนินการ', 'Confirm before continuing'),
       body: tr(userLanguage,
@@ -169,15 +180,18 @@ const actionVerifyHandler: CommandHandler = {
     // re-fetching from Firestore, same "just-written value" shortcut every
     // other handler here already takes after its own writes.
     const replayed = await resolveCommandReply({ ...ctx, actionOtpReplay: true, text: consumed.data.pendingCommandText });
-    return [
-      botText(
-        tr(userLanguage, 'ยืนยันแล้ว', 'Action verified'),
-        tr(userLanguage, 'ดำเนินการต่อในขั้นตอนถัดไป', 'Continuing to the next step.'),
-        userLanguage,
-        'success',
-      ),
-      ...replayed,
-    ];
+    const verified = botText(
+      tr(userLanguage, 'ยืนยันแล้ว', 'Action verified'),
+      t('actionVerifiedContinue', userLanguage),
+      userLanguage,
+      'success',
+    );
+    const packed = !replayed.length
+      ? [verified]
+      : replayed[0]?.type === 'flex'
+        ? replayed
+        : [verified, ...replayed];
+    return fitReply(packed, userLanguage);
   },
 };
 

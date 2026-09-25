@@ -23,6 +23,7 @@ export const createFormPromptFlexMessage = (params: {
   const actions = [
     ...(params.optional ? [{ label: t('skip', params.language), text: 'SKIP' }] : []),
     { label: t('cancelForm', params.language), text: 'CANCEL' },
+    { label: t('home', params.language), text: 'NAV HOME' },
   ];
   const optionItems = (params.options || []).slice(0, 13 - actions.length).map(value => ({
     type: 'action' as const,
@@ -80,7 +81,7 @@ export const createFormPromptFlexMessage = (params: {
         paddingAll: 'lg',
         contents: [
           ...(params.datePickerData ? [createDatePickerButton(t('pickDate', params.language), params.datePickerData)] : []),
-          ...actions.map(action => createMessageActionButton(action.label, action.text, action.text === 'CANCEL' ? 'secondary' : 'primary', action.text === 'CANCEL' ? BRAND.goldTint : BRAND.teal)),
+          ...actions.filter(action => action.text !== 'NAV HOME').map(action => createMessageActionButton(action.label, action.text, action.text === 'CANCEL' ? 'secondary' : 'primary', action.text === 'CANCEL' ? BRAND.goldTint : BRAND.teal)),
         ],
       },
     },

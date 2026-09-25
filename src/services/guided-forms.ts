@@ -2,12 +2,17 @@ import { listProducts, listServiceCatalogItems } from './odoo/catalog';
 import { listPaymentTerms, getDefaultPaymentTermName } from './odoo/sales';
 import { listPartners, getPartnerByName } from './odoo/partners';
 import { loadOdooFieldSkills, type OdooFieldLoader } from './odoo-field-skills';
+import { peekCachedProducts } from '../erp/odoo-adapter';
 
 // Dedupe by name — Odoo can have multiple product.product records sharing a
 // display name (variants of the same template), which would otherwise show
 // the same tappable chip label twice with no way to tell them apart.
 const dedupeNames = (names: string[]): string[] => Array.from(new Set(names));
-const loadProductOptions = async (): Promise<string[]> => dedupeNames((await listProducts(12)).map(p => p.name));
+const loadProductOptions = async (): Promise<string[]> => {
+  const cached = peekCachedProducts(12);
+  if (cached?.length) return dedupeNames(cached.map(product => product.name));
+  return dedupeNames((await listProducts(12)).map(p => p.name));
+};
 const loadServiceOptions = async (): Promise<string[]> => dedupeNames((await listServiceCatalogItems(10)).map(s => s.name));
 const loadPaymentTermOptions = async (): Promise<string[]> => dedupeNames((await listPaymentTerms(12)).map(term => term.name));
 const loadCustomerNameOptions = async (): Promise<string[]> => dedupeNames((await listPartners(12)).map(partner => partner.name).filter(Boolean));
@@ -42,6 +47,7 @@ export type FlowKey =
   | 'PRODUCT_FIND'
   | 'ORDER_STATUS'
   | 'QUOTE_CREATE'
+  | 'QUOTE_ADD'
   | 'QUOTE_SEND'
   | 'INVOICE_SEND'
   | 'MESSAGE_CUSTOMER'
@@ -289,6 +295,18 @@ export const FLOW_SPECS: Record<FlowKey, FlowSpec> = {
       const productToken = c.productId && /^\d+$/.test(c.productId) ? `id:${c.productId}` : c.productName;
       return `QUOTE CREATE ${productToken},${c.qty},${c.customerName},${c.phone},${c.customerReference || ''},${c.discountPercent || ''},${c.validityDate || ''},${c.note || ''},${c.paymentTerm || ''}`;
     },
+  },
+  QUOTE_ADD: {
+    key: 'QUOTE_ADD',
+    startCommand: 'FORM QUOTE ADD',
+    requiresAdmin: false,
+    labelTh: 'เพิ่มสินค้า',
+    labelEn: 'Add a product',
+    fields: [
+      { key: 'productName', promptTh: 'ชื่อสินค้า?', promptEn: 'Product name?', validate: isNonEmpty, loadOptions: loadProductOptions },
+      { key: 'qty', promptTh: 'จำนวน?', promptEn: 'Quantity?', validate: isPositiveNumber },
+    ],
+    buildFinalCommand: (c) => `QUOTE ADD ${c.orderId} ${c.productId && /^\d+$/.test(c.productId) ? `id:${c.productId}` : c.productName},${c.qty}`,
   },
   QUOTE_SEND: {
     key: 'QUOTE_SEND',

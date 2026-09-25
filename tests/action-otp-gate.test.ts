@@ -61,6 +61,7 @@ describe('shouldGateActionOtp', () => {
 
   it('skips Action OTP when a verified customer creates their own quote', () => {
     expect(shouldGateActionOtp('QUOTE CREATE App,1,Somchai,0812345678', { profile: base({}) })).toBe(false);
+    expect(shouldGateActionOtp('QUOTE ADD 17 id:42,1', { profile: base({}) })).toBe(false);
   });
 
   it('still gates staff quote create and send confirm', () => {

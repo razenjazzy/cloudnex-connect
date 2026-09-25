@@ -770,6 +770,14 @@ export const createQuotationFromLine = async (
       [orderFields]
     );
 
+    if (extra?.salespersonUserId === false) {
+      try {
+        await executeKw<boolean>(config, uid, 'sale.order', 'write', [[orderId], { user_id: false }]);
+      } catch (error) {
+        console.warn('clear salesperson after quote create failed (non-fatal):', error);
+      }
+    }
+
     const rows = await executeKw<Record<string, unknown>[]>(
       config,
       uid,

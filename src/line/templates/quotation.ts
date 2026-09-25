@@ -158,6 +158,9 @@ export const createQuotationJourneyFlexMessage = (
   } else if (!isCancelled && isSale && options.portalLink) {
     bodyActions.push(createUriActionButton(t('invoiceField', language), options.portalLink, 'secondary', BRAND.goldTint));
   }
+  if (!isCancelled && (isDraft || isSent)) {
+    bodyActions.push(createMessageActionButton(t('addMore', language), `FORM QUOTE ADD ${order.id}`, 'secondary', BRAND.tealTint));
+  }
 
   const footerContents: messagingApi.FlexComponent[] = [];
   if (!isCancelled && (options.portalLink || options.pdfLink)) {
@@ -281,7 +284,9 @@ export const createQuotationMoreFlexMessage = (
     }
   }
   rows.push(createPrefillButton(t('messageCustomer', language), `QUOTE MESSAGE ${order.id} `, 'secondary', BRAND.tealTint));
-  rows.push(createMessageActionButton(t('createMore', language), `QUOTE CREATE MORE ${order.id}`, 'secondary', BRAND.tealTint));
+  if (canStillAct) {
+    rows.push(createMessageActionButton(t('addMore', language), `FORM QUOTE ADD ${order.id}`, 'secondary', BRAND.tealTint));
+  }
   rows.push(createMessageActionButton(t('back', language), `QUOTE STATUS ${order.id}`, 'secondary', BRAND.goldTint));
 
   return {

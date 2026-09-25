@@ -43,6 +43,7 @@ import { COMMAND_HANDLERS } from './handlers/index';
 import { buildKeywordGuidanceMessages } from './handlers/help';
 import { handleChatFallback } from './handlers/chat-fallback';
 import { checkMessagesAgainstLineLimits } from './message-limits';
+import { fitReply } from './outcome-reply';
 import { ensureNextWindowOrHome } from './journey-continue';
 import { bindPostbackData } from './postback';
 import { withSpan } from '../observability/tracing';
@@ -147,7 +148,7 @@ export const homeReplyFromContext = async (
 ): Promise<messagingApi.Message[]> => {
   if (ctx.channel?.channelId === CUSTOMER_CHANNEL_ID) {
     const { commerceFollowUpMessages } = await import('./commerce-followup');
-    const follow = await commerceFollowUpMessages(ctx, 2);
+    const follow = await commerceFollowUpMessages(ctx, 2, { deferCatalogMiss: true });
     const profile = applyChannelPersona(ctx.profile, ctx.channel.channelId);
     const staff = isQuoteStaff(profile);
     const identity = !staff && profile.odooVerified && (profile.displayName || profile.phone)
@@ -612,6 +613,32 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
       : undefined, formCollected, profile)];
   }
 
+  const addMore = /^FORM QUOTE ADD(?:\s+(\d+))?$/i.exec(ctx.text.trim());
+  if (addMore) {
+    if (ctx.isGroupContext) {
+      return [text(tr(userLanguage,
+        `${agentName} แบบฟอร์มทีละขั้นใช้ไม่ได้ในแชทกลุ่ม`,
+        `${agentName} step-by-step forms aren't available in group chats.`,
+      ), userLanguage)];
+    }
+    const orderId = addMore[1];
+    if (!orderId) {
+      return [text(tr(userLanguage,
+        `${agentName} เปิดใบเสนอราคาก่อน แล้วแตะ Add More`,
+        `${agentName} open a quote first, then tap Add More.`,
+      ), userLanguage)];
+    }
+    const flowSpec = FLOW_SPECS.QUOTE_ADD;
+    const formCollected = { orderId };
+    await setUserPendingFlow(userId, {
+      flow: flowSpec.key,
+      stepIndex: 0,
+      collected: formCollected,
+      expiresAt: buildFlowExpiry(),
+    });
+    return [await buildFormPromptMessage(userLanguage, agentName, flowSpec, 0, userId, undefined, undefined, formCollected, profile)];
+  }
+
   const fromCard = /^FORM QUOTE CREATE FROM CARD(?:\s+(\d+))?$/i.exec(ctx.text.trim());
   if (fromCard) {
     const cardProductId = fromCard[1] ? Number(fromCard[1]) : undefined;
@@ -894,7 +921,8 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
  */
 export const resolveCommandReply = async (ctx: CommandReplyContext): Promise<messagingApi.Message[]> => {
   return withSpan('line.resolveCommandReply', { 'line.user_id': ctx.userId, 'http.request_id': ctx.requestId || '' }, async () => {
-    const messages = ensureNextWindowOrHome(ctx, await dispatchCommandReply(ctx), () => homeMenuFromContext(ctx));
+    const raw = ensureNextWindowOrHome(ctx, await dispatchCommandReply(ctx), () => homeMenuFromContext(ctx));
+    const messages = fitReply(raw, ctx.userLanguage);
     const violations = checkMessagesAgainstLineLimits(messages);
     if (violations.length) {
       appLogger.error('line_limits_violation', { requestId: ctx.requestId, violations });

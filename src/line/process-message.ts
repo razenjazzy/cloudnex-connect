@@ -207,7 +207,22 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
     const { noteTrayGeneration, pushDeferredCommerceCatalog } = await import('./commerce-followup');
     noteTrayGeneration(input.conversationId, trayGeneration);
     const messages = await resolveCommandReply(ctx);
-    const delivered = await deliverMessages(client, input, messages);
+    let delivered: unknown;
+    try {
+      delivered = await deliverMessages(client, input, messages);
+    } catch (error) {
+      appLogger.error('line_reply_failed', { error: String(error), requestId: input.requestId });
+      const { outcomeFlex } = await import('./outcome-reply');
+      const { t } = await import('../services/i18n');
+      const fallback = [outcomeFlex({
+        language: userLanguage,
+        tone: 'warning',
+        title: t('replyDeliverFailed', userLanguage),
+        body: t('replyDeliverFailedBody', userLanguage),
+        actions: [{ label: t('myQuotations', userLanguage), text: 'QUOTE LIST', style: 'primary' }],
+      })];
+      delivered = await client.pushMessage({ to: input.conversationId, messages: fallback });
+    }
     const { applyTrayAfterReply } = await import('./rich-menu');
     if (!input.isGroupContext) {
       applyTrayAfterReply(

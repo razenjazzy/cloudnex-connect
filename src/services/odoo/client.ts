@@ -146,12 +146,21 @@ const jsonRpc = async <T>(config: OdooConfig, service: string, method: string, a
   });
 };
 
+const LOGIN_CACHE_MS = Number(process.env.ODOO_LOGIN_CACHE_MS || 10 * 60 * 1000);
+let loginCache: { key: string; uid: number; at: number } | null = null;
+
 export const login = async (config: OdooConfig): Promise<number> => {
-  return jsonRpc<number>(config, 'common', 'login', [
+  const key = `${config.url}|${config.db}|${config.username}`;
+  if (loginCache && loginCache.key === key && Date.now() - loginCache.at < LOGIN_CACHE_MS) {
+    return loginCache.uid;
+  }
+  const uid = await jsonRpc<number>(config, 'common', 'login', [
     config.db,
     config.username,
     config.apiKey,
   ]);
+  loginCache = { key, uid, at: Date.now() };
+  return uid;
 };
 
 export const executeKw = async <T>(

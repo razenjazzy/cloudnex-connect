@@ -11,7 +11,8 @@ import { seedOdooSampleSalesDataWithAudit } from '../../services/seed-odoo';
 import { getSaleOrderById } from '../../services/odoo/sales';
 import { recordAuditEvent, setLastProductContext, listVerifiedSalesLineUserIds } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
-import { t } from '../../services/i18n';
+import { t, tFill } from '../../services/i18n';
+import { outcomeFlex, withOutcome } from '../outcome-reply';
 import { canManageQuoteLines, canViewOrderAsCustomer, isQuoteStaff, quoteJourneyRole, selfQuoteIdentity, syncStaffProfile } from '../quote-access';
 import { notifyQuoteParties } from '../quote-notify';
 import { commerceFollowUpMessages } from '../commerce-followup';
@@ -106,15 +107,13 @@ const demoOrderHandler: CommandHandler = {
     // every other "look up then render the rich card" path in this app
     // (quoteStatusHandler etc.) — one consistent card design, not a
     // separate plain-text summary for this one entry point.
-    const order = (await getSaleOrderById(found.id)) || {
-      id: found.id,
-      name: found.name,
-      state: found.state,
-      amount_total: found.amountTotal || 0,
-    };
+    const order = await getSaleOrderById(found.id);
+    if (!order) {
+      return [botText(tr(userLanguage, `ไม่พบออเดอร์เลขที่ ${orderRef} กรุณาตรวจสอบเลขที่อ้างอิงอีกครั้งค่ะ`, `We couldn't find an order with reference ${orderRef}. Please double-check the reference number.`), userLanguage)];
+    }
     const [links, delivery] = await Promise.all([
-      getErpAdapter().getOrderLinks(order.id),
-      getErpAdapter().getDeliveryStatus(found.id),
+      getErpAdapter().getOrderLinks(order.id).catch(() => ({ portal: undefined, pdf: undefined })),
+      getErpAdapter().getDeliveryStatus(found.id).catch(() => null),
     ]);
     const profile = await syncStaffProfile(ctx.userId, ctx.profile, ctx.channel?.channelId);
     const role = quoteJourneyRole(profile);
@@ -270,29 +269,52 @@ const demoQuoteHandler: CommandHandler = {
       .catch(err => console.warn('quote-create: sales notify failed (non-fatal):', err));
 
     if (!isQuoteStaff(profile)) {
-      return paymentTermNotFound
-        ? [
-            botText(tr(userLanguage,
-              `ไม่พบเงื่อนไขการชำระเงิน "${paymentTerm}" สร้างใบเสนอราคาแล้วโดยใช้เงื่อนไขเริ่มต้น`,
-              `Payment term "${paymentTerm}" not found — created the quote with Odoo's default payment term instead.`,
-            ), userLanguage),
-            card,
-          ]
-        : [card];
-    }
-
-    if (paymentTermNotFound) {
-      return [
-        botText(tr(userLanguage,
+      const received = outcomeFlex({
+        language: userLanguage,
+        tone: 'success',
+        title: t('quoteReceivedTitle', userLanguage),
+        body: tFill('quoteReceivedWaitingSales', userLanguage, { name: quotation.name }),
+        actions: [
+          { label: t('addMore', userLanguage), text: `FORM QUOTE ADD ${quotation.id}`, style: 'primary' },
+          { label: t('myQuotations', userLanguage), text: 'QUOTE LIST', style: 'secondary' },
+        ],
+      });
+      if (paymentTermNotFound) {
+        return withOutcome(userLanguage, botText(tr(userLanguage,
           `ไม่พบเงื่อนไขการชำระเงิน "${paymentTerm}" สร้างใบเสนอราคาแล้วโดยใช้เงื่อนไขเริ่มต้น`,
           `Payment term "${paymentTerm}" not found — created the quote with Odoo's default payment term instead.`,
-        ), userLanguage),
-        card,
-        ...(await commerceFollowUpMessages(ctx, LINE_LIMITS.MAX_MESSAGES_PER_REPLY - 2)),
-      ];
+        ), userLanguage), [received, card]);
+      }
+      return withOutcome(userLanguage, received, [card]);
     }
 
-    return [card, ...(await commerceFollowUpMessages(ctx, LINE_LIMITS.MAX_MESSAGES_PER_REPLY - 1))];
+    const created = outcomeFlex({
+      language: userLanguage,
+      tone: 'success',
+      title: t('quoteCreatedStaffTitle', userLanguage),
+      body: salespersonUserId === false
+        ? tFill('quoteCreatedStaffUnassigned', userLanguage, { name: quotation.name })
+        : tFill('quoteCreatedStaffNext', userLanguage, { name: quotation.name }),
+      actions: [
+        { label: t('confirm', userLanguage), text: `QUOTE CONFIRM ${quotation.id}`, style: 'primary' },
+        { label: t('sendNow', userLanguage), text: `QUOTE SEND ${quotation.id}`, style: 'secondary' },
+      ],
+    });
+    if (paymentTermNotFound) {
+      return withOutcome(userLanguage, botText(tr(userLanguage,
+        `ไม่พบเงื่อนไขการชำระเงิน "${paymentTerm}" สร้างใบเสนอราคาแล้วโดยใช้เงื่อนไขเริ่มต้น`,
+        `Payment term "${paymentTerm}" not found — created the quote with Odoo's default payment term instead.`,
+      ), userLanguage), [
+        created,
+        card,
+        ...(await commerceFollowUpMessages(ctx, LINE_LIMITS.MAX_MESSAGES_PER_REPLY - 3)),
+      ]);
+    }
+
+    return withOutcome(userLanguage, created, [
+      card,
+      ...(await commerceFollowUpMessages(ctx, LINE_LIMITS.MAX_MESSAGES_PER_REPLY - 2)),
+    ]);
   },
 };
 
