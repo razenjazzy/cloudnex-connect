@@ -5,10 +5,17 @@ import { isGraphqlLineIngestEnabled } from '../src/http/optional-flags';
 import { graphqlSchema } from '../src/graphql/schema';
 
 describe('disabled forks', () => {
-  it('uses the same handleWebhook on /webhook-alt', () => {
+  it('gates /webhook-alt behind LINE_SECOND_WEBHOOK and reuses handleWebhook', () => {
     const src = readFileSync('src/http/webhook-routes.ts', 'utf8');
-    expect(src).toContain("app.post('/webhook-alt', webhookLimiter, handleWebhook)");
+    expect(src).toContain('isLineSecondWebhookEnabled');
+    expect(src).toContain('...handleWebhook');
     expect(src).toContain("app.post('/webhook-legacy'");
+  });
+
+  it('GraphQL ingest runs processLineMessageJob when the flag is on', () => {
+    const src = readFileSync('src/graphql/schema.ts', 'utf8');
+    expect(src).toContain('processLineMessageJob');
+    expect(src).toContain('isGraphqlLineIngestEnabled');
   });
 
   it('skips Mongo user writes when MONGO_USERS is off', async () => {
@@ -36,5 +43,7 @@ describe('disabled forks', () => {
     expect(spa).toContain("page === 'advanced'");
     expect(spa).toContain('disabled');
     expect(spa).toContain('disabled={campClass === \'customers_promo\'}');
+    expect(spa).toContain('disabled={settings?.queueReady === false}');
+    expect(spa).toContain('/admin/api/session/me');
   });
 });

@@ -154,7 +154,7 @@ Live OA + this book are the source of truth. Do not restyle Flex or the tray unl
 
 Out of scope until a new ticket: Odoo e-sign, payment capture, extra npm UI packages. Production deploy is not this cut.
 
-Implemented, **not enabled** (Admin **Advanced**, flags default false): second HMAC route `POST /webhook-alt` (same `handleWebhook`), Mongo LINE/Odoo SoR (`MONGO_USERS`), GraphQL `ingestLineEvents` (`GRAPHQL_LINE_INGEST`), group-room buttons (`LINE_GROUP_ROOMS`).
+Implemented, **not enabled** (Admin **Advanced**, flags default false): `POST /webhook-alt` 404 unless `LINE_SECOND_WEBHOOK` (same `handleWebhook`), Mongo mirror (`MONGO_USERS`; Firestore remains SoR), GraphQL `ingestLineEvents` then `processLineMessageJob` (`GRAPHQL_LINE_INGEST`), group-room files (`LINE_GROUP_ROOMS`).
 
 ---
 

@@ -12,6 +12,10 @@ describe('platform config repository', () => {
       ok: false,
       error: 'Firestore setPlatformConfig failed: key is required',
     });
+    expect(await repository.mutate('  ', () => ({ enabled: true }))).toEqual({
+      ok: false,
+      error: 'Firestore mutatePlatformConfig failed: key is required',
+    });
     expect(read).not.toHaveBeenCalled();
     expect(write).not.toHaveBeenCalled();
   });

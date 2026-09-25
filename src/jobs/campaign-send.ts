@@ -14,21 +14,25 @@ export const runCampaignSend = async (campaignId: string): Promise<void> => {
     return;
   }
   await updateCampaign(campaignId, { status: 'sending' });
-  const audience = await resolveCampaignAudience({
-    audienceType: campaign.audienceType,
-    channelId: campaign.channelId,
-    language: campaign.language === 'th' || campaign.language === 'en' ? campaign.language : undefined,
-  });
-  if (!audience.ok) {
-    await updateCampaign(campaignId, { status: 'failed', error: audience.error });
-    return;
+  let userIds = Array.isArray(campaign.userIds) ? campaign.userIds.filter(id => id.startsWith('U')) : [];
+  if (userIds.length === 0) {
+    const audience = await resolveCampaignAudience({
+      audienceType: campaign.audienceType,
+      channelId: campaign.channelId,
+      language: campaign.language === 'th' || campaign.language === 'en' ? campaign.language : undefined,
+    });
+    if (!audience.ok) {
+      await updateCampaign(campaignId, { status: 'failed', error: audience.error });
+      return;
+    }
+    userIds = audience.userIds;
   }
-  const ok = await sendTargetedMessage(audience.userIds, campaign.text, campaign.channelId);
-  const sentCount = ok ? audience.userIds.length : 0;
+  const ok = await sendTargetedMessage(userIds, campaign.text, campaign.channelId);
+  const sentCount = ok ? userIds.length : 0;
   await updateCampaign(campaignId, {
     status: ok ? 'sent' : 'partial',
     sentCount,
-    count: audience.userIds.length,
+    count: userIds.length,
     error: ok ? undefined : 'multicast failed for at least one chunk',
   });
 };

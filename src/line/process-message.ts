@@ -9,6 +9,8 @@ import type { ChannelContext } from './channels';
 import { appLogger } from '../services/logger';
 import { withSpan } from '../observability/tracing';
 import { createBotTextFlexMessage } from './templates';
+import { isLineGroupRoomsEnabled } from '../http/optional-flags';
+import { maybeWriteMongoUser } from '../services/mongo-users';
 
 const streamToBuffer = async (stream: Readable): Promise<Buffer> => {
   const chunks: Buffer[] = [];
@@ -72,7 +74,7 @@ export type ExtractedLineMessageJob = {
 
 export const extractLineMessageJobs = (events: webhook.Event[]): ExtractedLineMessageJob[] => {
   const jobs: ExtractedLineMessageJob[] = [];
-  const groupRooms = /^(1|true|yes|on)$/i.test(process.env.LINE_GROUP_ROOMS || '');
+  const groupRooms = isLineGroupRoomsEnabled();
 
   for (const event of events) {
     if (event.type === 'postback') {
@@ -106,8 +108,9 @@ export const extractLineMessageJobs = (events: webhook.Event[]): ExtractedLineMe
       quotedMessageId?: string;
       quotedMessage?: { text?: string; type?: string };
     };
-    const quotedText = typeof message.quotedMessage?.text === 'string' ? message.quotedMessage.text : undefined;
     const quotedMessageId = typeof message.quotedMessageId === 'string' ? message.quotedMessageId : undefined;
+    const nestedQuote = typeof message.quotedMessage?.text === 'string' ? message.quotedMessage.text : undefined;
+    const quotedText = nestedQuote || (quotedMessageId ? `(quoted ${quotedMessageId.slice(0, 12)})` : undefined);
     const base = {
       replyToken,
       conversationId,
@@ -180,6 +183,11 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
     if (profile.lastChannelId !== input.channelConfig.channelId) {
       await setLastChannelId(input.conversationId, input.channelConfig.channelId);
     }
+    void maybeWriteMongoUser(input.conversationId, {
+      role: profile.role,
+      odooVerified: profile.odooVerified,
+      lastChannelId: input.channelConfig.channelId,
+    });
     const agentName = getAgentName(userLanguage);
 
     let inputText = input.text?.trim() || '';

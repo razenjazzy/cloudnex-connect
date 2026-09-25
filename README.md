@@ -4,7 +4,7 @@ Cloudnex Connect is the Cloudnex LINE Official Account platform: HMAC webhooks, 
 
 TypeScript Express backend that connects LINE Official Accounts to Odoo ERP. Users work in LINE Flex cards (Thai/English). Identity lives in Firestore. Sales, partners, and products live in Odoo.
 
-**Release:** v8.0.6 — Odoo LINE OA v5 staging.  
+**Release:** v8.0.7 — Odoo LINE OA v5 staging.  
 **Runtime:** Node 22+. **Persona:** Sora / โซระ. **Package:** `cloudnex-connect`.
 
 The git root on disk is `.../Code/cloudnex-connect`. `cns-line-oa` is only a symlink. In Cursor: **File → Open Folder** and choose `cloudnex-connect` (not the symlink) so the sidebar name matches. GCP project id `cns-line-oa` is unrelated.
@@ -32,7 +32,7 @@ Odoo analog on the quote card: **Send** marks quotation sent; **Confirm** conver
 
 One LINE path. One `resolveCommandReply`. LINE Platform posts HMAC to Express. Firestore is identity SoR.
 
-Optional and **default off:** GraphQL `ingestLineEvents` (`GRAPHQL_LINE_INGEST`), Mongo LINE/Odoo store (`MONGO_USERS`), group-room UI (`LINE_GROUP_ROOMS`). `POST /webhook-alt` is the same HMAC handler on the same process (`LINE_SECOND_WEBHOOK` default false).
+Optional and **default off:** GraphQL `ingestLineEvents` (`GRAPHQL_LINE_INGEST` — same `processLineMessageJob` as HMAC), Mongo LINE/Odoo store (`MONGO_USERS`; Firestore remains SoR), group-room UI (`LINE_GROUP_ROOMS`). `POST /webhook-alt` is 404 unless `LINE_SECOND_WEBHOOK` is true (same HMAC handler).
 
 | Admin | Path |
 |---|---|

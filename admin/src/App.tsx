@@ -87,6 +87,7 @@ export const App = () => {
   const [campPreview, setCampPreview] = useState('');
   const [campHistory, setCampHistory] = useState<Array<Record<string, unknown>>>([]);
   const [broadcastConfirm, setBroadcastConfirm] = useState('');
+  const [platformSnap, setPlatformSnap] = useState<Record<string, unknown> | null>(null);
 
   useEffect(() => {
     const onPop = () => setPath(pathOf());
@@ -124,9 +125,9 @@ export const App = () => {
       setError('Unauthorized');
       return;
     }
-    setSettings(await res.json());
     setAuthed(true);
     setError('');
+    await loadSettings();
   };
 
   const loadSettings = async () => {
@@ -269,10 +270,19 @@ export const App = () => {
                 const r = await fetch('/readyz');
                 setReady(`${r.status}`);
                 await loadSettings();
+                const plat = await api('/admin/api/platform');
+                if (plat.ok) {
+                  const body = await plat.json() as { flags?: { redisConfigured?: boolean; appEnv?: string } };
+                  setPlatformSnap({
+                    redisConfigured: Boolean(body.flags?.redisConfigured),
+                    appEnv: body.flags?.appEnv || '—',
+                  });
+                }
               }}>Refresh health</button>
               <a href="/healthz">/healthz {health}</a>
               <a href="/readyz">/readyz {ready}</a>
               <a href="/api-docs">OpenAPI</a>
+            {platformSnap ? <pre>{JSON.stringify(platformSnap, null, 2)}</pre> : null}
             </div>
           </div>
         ) : null}
@@ -364,6 +374,11 @@ export const App = () => {
               <button type="button" onClick={async () => {
                 const res = await api(`/admin/crm/quotes/${assignId}`, { method: 'PUT', body: JSON.stringify({ salespersonUserId: Number(assignSales) }) });
                 setError(res.ok ? '' : 'Assign failed');
+                if (res.ok) {
+                  const list = await api('/admin/crm/quotes');
+                  const body = await list.json() as { quotes?: Quote[] };
+                  setQuotes(body.quotes || []);
+                }
               }}>Assign</button>
             </div>
           </div>
@@ -483,7 +498,7 @@ export const App = () => {
                 const res = await api('/admin/api/campaigns/test', { method: 'POST', body: JSON.stringify(campaignBody()) });
                 setError(res.ok ? '' : 'Test failed');
               }}>Test (actor only)</button>
-              <button type="button" onClick={async () => {
+              <button type="button" disabled={settings?.queueReady === false} onClick={async () => {
                 const res = await api('/admin/api/campaigns/send', { method: 'POST', body: JSON.stringify({ ...campaignBody(), confirm: 'SEND' }) });
                 setError(res.status === 202 || res.ok ? '' : (res.status === 503 ? 'Redis required (503)' : 'Send failed'));
               }}>Send multicast</button>

@@ -65,6 +65,12 @@ describe('assign and overlay channels', () => {
     expect(relay).toContain('getErpAdapter().assignQuotationSalesperson');
   });
 
+  it('inbound chips are RELAY TO the customer, not RELAY ASSIGN', () => {
+    const inbound = readFileSync('src/line/inbound-relay.ts', 'utf8');
+    expect(inbound).toContain('RELAY TO ${ctx.userId}');
+    expect(inbound).not.toContain('RELAY ASSIGN ${ctx.userId}');
+  });
+
   it('resolves overlay LINE_CHANNEL_HR_* and still rejects unknown ids', () => {
     resetRuntimeSettingsForTests({
       LINE_CHANNEL_HR_SECRET: 'hr-secret',

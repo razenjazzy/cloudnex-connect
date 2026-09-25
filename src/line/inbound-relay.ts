@@ -27,11 +27,8 @@ export const notifyAdminsOfCustomerInbound = async (ctx: CommandReplyContext): P
   const chips: { label: string; text: string }[] = [];
   for (const salesId of salesIds.slice(0, 8)) {
     const profile = await getUserProfile(salesId);
-    if (!profile.odooPartnerId) continue;
-    const odooUserId = await findOdooUserIdByPartnerId(profile.odooPartnerId);
-    if (!odooUserId) continue;
     const label = (profile.displayName || salesId).slice(0, 20);
-    chips.push({ label, text: `RELAY ASSIGN ${ctx.userId} ${odooUserId}` });
+    chips.push({ label, text: `RELAY TO ${ctx.userId}` });
   }
   const language = ctx.userLanguage;
   const overflow = chips.length > 4;

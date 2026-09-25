@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { getPlatformConfig, setPlatformConfig } from '../services/firestore';
+import { getPlatformConfig, mutatePlatformConfig, setPlatformConfig } from '../services/firestore';
 import type { CampaignAudienceType } from '../line/campaigns';
 
 export type CampaignStatus = 'queued' | 'sending' | 'sent' | 'partial' | 'failed';
@@ -16,6 +16,7 @@ export type CampaignRecord = {
   idempotencyKey?: string;
   delivery: 'multicast' | 'broadcast';
   language?: string;
+  userIds?: string[];
   createdAt: string;
   updatedAt: string;
   error?: string;
@@ -33,6 +34,20 @@ const load = async (): Promise<CampaignRecord[]> => {
 
 const save = async (items: CampaignRecord[]): Promise<void> => {
   await setPlatformConfig(KEY, { items: items.slice(0, MAX) } as unknown as Record<string, unknown>);
+};
+
+const mutateItems = async (fn: (items: CampaignRecord[]) => CampaignRecord[]): Promise<CampaignRecord[]> => {
+  let next: CampaignRecord[] = [];
+  const result = await mutatePlatformConfig<Store>(KEY, current => {
+    const items = Array.isArray(current?.items) ? current.items : [];
+    next = fn(items).slice(0, MAX);
+    return { items: next };
+  });
+  if (result.notConfigured) {
+    next = fn(await load()).slice(0, MAX);
+    await save(next);
+  }
+  return next;
 };
 
 export const listCampaigns = async (limit = 50): Promise<CampaignRecord[]> => {
@@ -59,17 +74,19 @@ export const createQueuedCampaign = async (input: Omit<CampaignRecord, 'id' | 's
     createdAt: now,
     updatedAt: now,
   };
-  const items = [record, ...(await load())].slice(0, MAX);
-  await save(items);
+  await mutateItems(items => [record, ...items]);
   return record;
 };
 
 export const updateCampaign = async (id: string, patch: Partial<CampaignRecord>): Promise<CampaignRecord | null> => {
-  const items = await load();
-  const index = items.findIndex(item => item.id === id);
-  if (index < 0) return null;
-  const next = { ...items[index], ...patch, id, updatedAt: new Date().toISOString() };
-  items[index] = next;
-  await save(items);
-  return next;
+  let updated: CampaignRecord | null = null;
+  await mutateItems(items => {
+    const index = items.findIndex(item => item.id === id);
+    if (index < 0) return items;
+    updated = { ...items[index], ...patch, id, updatedAt: new Date().toISOString() };
+    const next = [...items];
+    next[index] = updated;
+    return next;
+  });
+  return updated;
 };

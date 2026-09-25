@@ -1,6 +1,6 @@
 import express from 'express';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getPlatformConfig, getUserProfile, listRecentAuditEventsPage, listVerifiedCustomerLineUserIds, recordAuditEvent, setPlatformConfig } from '../src/services/firestore';
+import { getPlatformConfig, getUserProfile, listRecentAuditEventsPage, listVerifiedCustomerLineUserIds, mutatePlatformConfig, recordAuditEvent, setPlatformConfig } from '../src/services/firestore';
 import { sendTargetedMessage } from '../src/line/messaging';
 import { enqueueCampaignSend } from '../src/jobs/queue';
 import { resetRuntimeSettingsForTests } from '../src/services/runtime-settings';
@@ -26,6 +26,7 @@ vi.mock('../src/services/firestore', async () => {
     ...actual,
     getPlatformConfig: vi.fn(),
     setPlatformConfig: vi.fn(),
+    mutatePlatformConfig: vi.fn(),
     getUserProfile: vi.fn(),
     recordAuditEvent: vi.fn(async () => undefined),
     listRecentAuditEventsPage: vi.fn(),
@@ -43,6 +44,7 @@ vi.mock('../src/services/firestore', async () => {
 
 const mockedGetConfig = vi.mocked(getPlatformConfig);
 const mockedSetConfig = vi.mocked(setPlatformConfig);
+const mockedMutateConfig = vi.mocked(mutatePlatformConfig);
 const mockedProfile = vi.mocked(getUserProfile);
 const mockedAuditPage = vi.mocked(listRecentAuditEventsPage);
 const mockedSend = vi.mocked(sendTargetedMessage);
@@ -92,6 +94,10 @@ describe('Cloudnex Connect admin API', () => {
       store[key] = value;
       return { ok: true };
     });
+    mockedMutateConfig.mockImplementation(async (key: string, mutator: (current: never) => never) => {
+      store[key] = mutator((store[key] as never) ?? null);
+      return { ok: true };
+    });
     mockedProfile.mockResolvedValue(profile);
     mockedAuditPage.mockResolvedValue({
       events: [
@@ -125,10 +131,11 @@ describe('Cloudnex Connect admin API', () => {
   it('masks secrets on settings GET', async () => {
     const res = await fetch(`${base()}/admin/api/settings`, { headers: ops });
     expect(res.status).toBe(200);
-    const body = await res.json() as { settings: Array<{ key: string; kind: string; value?: string }> };
+    const body = await res.json() as { settings: Array<{ key: string; kind: string; value?: string }>; queueReady?: boolean };
     const secret = body.settings.find(row => row.key === 'LINE_CHANNEL_SECRET');
     expect(secret?.kind).toBe('secret');
     expect(secret?.value).toBeUndefined();
+    expect(typeof body.queueReady).toBe('boolean');
   });
 
   it('burns bootstrap after the first success', async () => {

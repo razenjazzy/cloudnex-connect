@@ -196,6 +196,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
       idp: describeAdminIdp(),
       appEnv,
       optionalFlags: describeOptionalFlags(),
+      queueReady: isQueueBackendReady(),
     });
   });
 
@@ -331,6 +332,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
       idempotencyKey: idempotencyKey || undefined,
       delivery: 'multicast',
       language: parsed.language,
+      userIds: audience.userIds,
     });
     const jobId = await enqueueCampaignSend(campaign.id, actor);
     await recordAuditEvent({

@@ -1,3 +1,14 @@
+# Release notes — v8.0.7
+
+**Date:** 2026-09-26  
+**Package version:** `8.0.7`  
+**Lane:** staging VPS (`APP_ENV=staging`, `https://amardhaka.io`)  
+**Commit title:** `Release: v8.0.7 - Odoo Line OA v5 Staging Deploy`
+
+Inbound chips use `RELAY TO U…`. `/webhook-alt` 404s unless `LINE_SECOND_WEBHOOK`. Campaign send stores recipients and updates the campaign blob in a Firestore transaction. Admin login loads `/session/me`; Send is disabled without Redis; CRM assign reloads quotes. GraphQL ingest (flag on) uses `processLineMessageJob`.
+
+---
+
 # Release notes — v8.0.6
 
 **Date:** 2026-09-26  

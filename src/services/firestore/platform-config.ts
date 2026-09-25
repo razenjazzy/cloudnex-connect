@@ -38,4 +38,30 @@ export const createPlatformConfigRepository = (dependencies: PlatformConfigDepen
             }, { merge: true });
         });
     },
+
+    mutate: async <T>(
+        key: string,
+        mutator: (current: T | null) => T,
+    ): Promise<FirestoreWriteResult> => {
+        const normalizedKey = key.trim();
+        if (!normalizedKey) {
+            return { ok: false, error: 'Firestore mutatePlatformConfig failed: key is required' };
+        }
+
+        return dependencies.write('mutatePlatformConfig', async (database) => {
+            const ref = database.collection(collectionName).doc(normalizedKey);
+            await database.runTransaction(async transaction => {
+                const snapshot = await transaction.get(ref);
+                const raw = (snapshot.data() || {}) as Record<string, unknown>;
+                const current = raw.value && typeof raw.value === 'object' ? raw.value as T : null;
+                const value = mutator(current);
+                transaction.set(ref, {
+                    key: normalizedKey,
+                    value,
+                    updatedAt: new Date().toISOString(),
+                    updatedAtServer: FieldValue.serverTimestamp(),
+                }, { merge: true });
+            });
+        });
+    },
 });

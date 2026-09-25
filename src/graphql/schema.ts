@@ -15,7 +15,9 @@ import { getErpAdapter } from '../erp/registry';
 import { recordAuditEvent } from '../services/firestore';
 import { isOdooConfigured } from '../services/odoo';
 import { parseCampaignAudienceRequest, resolveCampaignAudience } from '../line/campaigns';
-import { extractLineMessageJobs } from '../line/process-message';
+import { extractLineMessageJobs, processLineMessageJob } from '../line/process-message';
+import { DEFAULT_CHANNEL_ID, resolveChannelConfig, resolveEffectiveChannelContext } from '../line/channels';
+import { getRuntime } from '../services/runtime-settings';
 import { isGraphqlLineIngestEnabled } from '../http/optional-flags';
 
 const GraphQLJSON = new GraphQLScalarType({
@@ -237,6 +239,31 @@ const Mutation = new GraphQLObjectType({
         }
         const events = Array.isArray(args.payload?.events) ? args.payload.events : [];
         const jobs = extractLineMessageJobs(events as never);
+        const channelConfig = resolveChannelConfig(DEFAULT_CHANNEL_ID);
+        if (!channelConfig) {
+          return { ok: false, accepted: 0, error: 'Default LINE channel is not configured.' };
+        }
+        const channel = await resolveEffectiveChannelContext(channelConfig);
+        const baseUrl = (getRuntime('PUBLIC_BASE_URL') || '').replace(/\/$/, '') || 'https://example.invalid';
+        const receivedAt = Date.now();
+        await Promise.all(jobs.map(job => processLineMessageJob({
+          channelConfig,
+          channel,
+          baseUrl,
+          replyToken: job.replyToken,
+          conversationId: job.conversationId,
+          sourceType: job.sourceType,
+          text: job.text,
+          audioMessageId: job.audioMessageId,
+          quotedText: job.quotedText,
+          quotedMessageId: job.quotedMessageId,
+          imageMessageId: job.imageMessageId,
+          fileMessageId: job.fileMessageId,
+          fileName: job.fileName,
+          videoMessageId: job.videoMessageId,
+          receivedAt,
+          isGroupContext: job.isGroupContext,
+        })));
         return { ok: true, accepted: jobs.length };
       },
     },

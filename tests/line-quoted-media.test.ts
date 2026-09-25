@@ -27,6 +27,18 @@ describe('quoted and media extract', () => {
     }));
   });
 
+  it('keeps a quoted id marker when LINE omits quotedMessage.text', () => {
+    const jobs = extractLineMessageJobs([
+      {
+        type: 'message',
+        replyToken: 'r1b',
+        source: { type: 'user', userId: 'U1' },
+        message: { type: 'text', id: 'm2', text: 'follow up', quotedMessageId: 'qmLongEnough' },
+      } as never,
+    ]);
+    expect(jobs[0]?.quotedText).toBe('(quoted qmLongEnough)');
+  });
+
   it('extracts image and file ids', () => {
     const jobs = extractLineMessageJobs([
       {

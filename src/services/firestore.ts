@@ -616,6 +616,7 @@ export const listVerifiedCustomerLineUserIds = async (): Promise<string[]> => {
 
 export const getPlatformConfig = platformConfigRepository.get;
 export const setPlatformConfig = platformConfigRepository.set;
+export const mutatePlatformConfig = platformConfigRepository.mutate;
 
 const approvalStore = createApprovalStore({
     database: getDb,

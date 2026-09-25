@@ -7,12 +7,18 @@ import { getUserLanguage, getUserProfile } from '../services/firestore';
 import { safeTokenMatch } from '../services/demo-session';
 import { jsonParser, webhookLimiter, webhookTestLimiter, isReadOnlyWebhookTestCommand, toSafeLogText } from './middleware';
 import { isProduction, isWebhookTestEnabled, webhookTestToken } from './env';
+import { isLineSecondWebhookEnabled } from './optional-flags';
 
 export const registerWebhookRoutes = (app: Express): void => {
     // LINE Webhook endpoint (default channel, backward compatible)
     app.post('/webhook', webhookLimiter, handleWebhook);
     app.post('/webhook/:channelId', webhookLimiter, handleWebhook);
-    app.post('/webhook-alt', webhookLimiter, handleWebhook);
+    app.post('/webhook-alt', webhookLimiter, (req, res, next) => {
+        if (!isLineSecondWebhookEnabled()) {
+            return res.status(404).json({ error: 'LINE_SECOND_WEBHOOK is not enabled.' });
+        }
+        return next();
+    }, ...handleWebhook);
     app.post('/webhook-legacy', (_req, res) => res.status(410).json({ error: 'Use POST /webhook or POST /webhook-alt (same HMAC handler).' }));
 
     // Local test endpoint — bypasses LINE signature validation
