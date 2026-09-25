@@ -9,7 +9,7 @@ describe('native tray reply path', () => {
     const processMessage = readFileSync('src/line/process-message.ts', 'utf8');
     expect(processMessage).toContain('pendingCatalogPush');
     expect(processMessage).toContain('pushDeferredCommerceCatalog');
-    const deliverIdx = processMessage.indexOf('const delivered = await deliverMessages');
+    const deliverIdx = processMessage.indexOf('delivered = await deliverMessages');
     const linkIdx = processMessage.indexOf('applyTrayAfterReply');
     expect(deliverIdx).toBeGreaterThan(-1);
     expect(linkIdx).toBeGreaterThan(deliverIdx);
