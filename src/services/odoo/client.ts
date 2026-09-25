@@ -1,5 +1,6 @@
 import { withSpan } from '../../observability/tracing';
 import { appLogger } from '../logger';
+import { getRuntime } from '../runtime-settings';
 
 export type OdooConfig = {
   url: string;
@@ -9,10 +10,10 @@ export type OdooConfig = {
 };
 
 export const getOdooConfig = (): OdooConfig | null => {
-  const url = process.env.ODOO_URL?.trim() || '';
-  const db = process.env.ODOO_DB?.trim() || '';
-  const username = process.env.ODOO_USERNAME?.trim() || '';
-  const apiKey = process.env.ODOO_API_KEY?.trim() || '';
+  const url = getRuntime('ODOO_URL');
+  const db = getRuntime('ODOO_DB');
+  const username = getRuntime('ODOO_USERNAME');
+  const apiKey = getRuntime('ODOO_API_KEY');
 
   if (!url || !db || !username || !apiKey) return null;
   return { url, db, username, apiKey };

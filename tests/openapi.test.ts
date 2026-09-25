@@ -27,6 +27,8 @@ describe('OpenAPI / Zod parity', () => {
     expect(paths['/ops/odoo-hook']).toBeTruthy();
     expect(paths['/ops/demo-session/rotate']).toBeTruthy();
     expect(paths['/jobs/daily-report']).toBeTruthy();
+    expect(paths['/admin/api/settings']).toBeTruthy();
+    expect(paths['/webhook/{channelId}']).toBeTruthy();
     expect(document.openapi).toBe('3.1.0');
   });
 });

@@ -87,7 +87,8 @@ const Query = new GraphQLObjectType({
           parseAuditLogFilters({}),
           decodeAuditCursor(args.cursor),
         );
-        return { ...page, count: page.events.length };
+        const events = page.events.filter(event => !event.action.startsWith('secret_reveal_'));
+        return { events, nextCursor: page.nextCursor, count: events.length };
       },
     },
     platformModules: {

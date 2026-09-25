@@ -15,6 +15,7 @@
 import {
   getHealthz,
   getKpiSnapshot,
+  getOpsAuditLog,
   getReadyz,
   getWorkflowAudit,
   OpsClientError,
@@ -61,7 +62,8 @@ Read-only:
   health                          GET /healthz
   ready                           GET /readyz
   kpi                             GET /ops/kpi                    (needs OPS_API_TOKEN)
-  audit                           GET /ops/workflow-audit         (needs OPS_API_TOKEN)
+  audit [--actor <LINE userId>]   GET /ops/audit-log              (needs OPS_API_TOKEN)
+  workflow-audit                  GET /ops/workflow-audit         (needs OPS_API_TOKEN)
   chat <text> [--user <id>]       POST /webhook-test, prints the bot's reply
 
 Mutating (require --yes to actually run):
@@ -110,6 +112,16 @@ const run = async (): Promise<number> => {
       return 0;
 
     case 'audit':
+      printJson(await getOpsAuditLog(config, {
+        actor: typeof flags.actor === 'string' ? flags.actor : undefined,
+        action: typeof flags.action === 'string' ? flags.action : undefined,
+        from: typeof flags.from === 'string' ? flags.from : undefined,
+        to: typeof flags.to === 'string' ? flags.to : undefined,
+        limit: typeof flags.limit === 'string' ? flags.limit : undefined,
+      }));
+      return 0;
+
+    case 'workflow-audit':
       printJson(await getWorkflowAudit(config));
       return 0;
 

@@ -29,7 +29,8 @@ export const registerOpsRoutes = (app: Express): void => {
             parseAuditLogFilters(req.query as Record<string, unknown>),
             decodeAuditCursor(req.query.cursor),
         );
-        res.status(200).json({ ...page, count: page.events.length });
+        const events = page.events.filter(event => !event.action.startsWith('secret_reveal_'));
+        res.status(200).json({ events, nextCursor: page.nextCursor, count: events.length });
     });
 
     app.post('/ops/audit-log/rotate', requireOpsToken, jsonParser, async (_req, res) => {

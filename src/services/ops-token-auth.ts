@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { safeTokenMatch } from '../services/demo-session';
+import { safeTokenMatch } from './demo-session';
+import { getRuntime } from './runtime-settings';
 
 const getBearerToken = (authHeader: string | undefined): string => {
   if (!authHeader?.startsWith('Bearer ')) return '';
@@ -22,13 +23,13 @@ export const getOpsBearerOrHeaderToken = (req: Request): string => {
 };
 
 export const isValidOpsToken = (token: string): boolean => {
-  const opsApiToken = process.env.OPS_API_TOKEN?.trim() || '';
+  const opsApiToken = getRuntime('OPS_API_TOKEN');
   if (!opsApiToken || opsApiToken.length < 16) return false;
   return safeTokenMatch(token, opsApiToken);
 };
 
 export const isOpsTokenConfigured = (): boolean => {
-  const opsApiToken = process.env.OPS_API_TOKEN?.trim() || '';
+  const opsApiToken = getRuntime('OPS_API_TOKEN');
   return Boolean(opsApiToken && opsApiToken.length >= 16);
 };
 

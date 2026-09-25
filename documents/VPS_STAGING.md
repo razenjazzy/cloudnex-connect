@@ -65,7 +65,11 @@ Required for two OAs:
 - Sales: `LINE_CHANNEL_SECRET` / `LINE_CHANNEL_ACCESS_TOKEN` / `LINE_CHANNEL_BASIC_ID=@938qytwi` (or `LINE_CHANNEL_SALES_*`)
 - Customer: `LINE_CHANNEL_CUSTOMER_SECRET` / `_ACCESS_TOKEN` / `_BASIC_ID=@724tneri` / `_SERVICES=commerce,catalog`
 - `ADMIN_USER_ID` = Cloudnex Sales LINE user ids
+- `SUPER_ADMIN_USER_IDS` = LINE ids allowed to bind/reveal (fail closed if unset)
+- `CONNECT_BOOTSTRAP_TOKEN` from `scripts/bootstrap-cloudnex-connect.sh` (printed once)
 - `APP_ENV=staging`, `PUBLIC_BASE_URL=https://amardhaka.io`
+
+Install (one-shot): `POST https://amardhaka.io/admin/api/bootstrap` with the bootstrap token (Swagger tag `install`). Second call is 410. Google credential JSON stays a mounted file/env secret on this same path.
 
 Rotate channel secrets that were pasted in chat.
 
@@ -112,8 +116,9 @@ Paste the printed `LINE_RICH_MENU_JSON` / `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON`
 ## 7. Smoke
 
 - `GET https://amardhaka.io/healthz` — `service` is `cloudnex-connect`
-- `GET https://amardhaka.io/readyz`
-- `GET https://amardhaka.io/demo` (ops/demo tokens)
+- `GET https://amardhaka.io/readyz` (`bootstrapComplete`)
+- `GET https://amardhaka.io/admin` (OPS token; LINE bind for reveal)
+- `GET https://amardhaka.io/demo` (ops/demo tokens; testing only)
 - `GET /ops/platform` — `lineCustomerConfigured` true when Customer env is set
 
 ## 8. Repeat deploy from laptop / GitHub

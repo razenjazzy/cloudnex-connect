@@ -48,6 +48,13 @@ export const ENV_PARAMS: EnvParam[] = [
   { key: 'ENABLE_GRAPHQL', requiredIn: [], note: 'Optional ops' },
   { key: 'ENABLE_API_DOCS', requiredIn: [], note: 'Optional ops' },
   { key: 'GOOGLE_AI_STUDIO_API_KEY', requiredIn: [], note: 'Gemini without Vertex ADC' },
+  { key: 'SECRET_REVEAL_TTL_SECONDS', requiredIn: [], note: 'Unmask window; default 10, max 60' },
+  { key: 'ADMIN_CONFIG_LOCK', requiredIn: [], note: 'Default true; blocks overlay PUT' },
+  { key: 'SECRETS_ENCRYPTION_KEY', requiredIn: [], note: 'AES key for runtime overlay; required if ADMIN_CONFIG_LOCK=false' },
+  { key: 'SUPER_ADMIN_USER_IDS', requiredIn: [], note: 'LINE ids allowed to reveal secrets; fail closed if unset' },
+  { key: 'CONNECT_BOOTSTRAP_TOKEN', requiredIn: [], note: 'One-shot install token for POST /admin/api/bootstrap' },
+  { key: 'ADMIN_ALLOWED_CIDRS', requiredIn: [], note: 'Optional IPv4 CIDR allowlist for /admin' },
+  { key: 'AUDIT_RETENTION_DAYS', requiredIn: [], note: 'Hot auditLog retention; default 30' },
 ];
 
 export const auditEnvParams = (appEnv: AppEnv, env: NodeJS.ProcessEnv = process.env) => {

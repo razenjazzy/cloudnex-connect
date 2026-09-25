@@ -99,5 +99,24 @@ export const createApprovalStore = (dependencies: Dependencies) => {
             }
             return failure || { ok: false, reason: 'not_found' };
         },
+
+        listRecent: async (limit = 50): Promise<ApprovalRecord[]> => {
+            const cap = Math.min(200, Math.max(1, limit));
+            const database = dependencies.database();
+            if (!database) {
+                return [...dependencies.localRecords.values()]
+                    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+                    .slice(0, cap);
+            }
+            return dependencies.read('listRecentApprovals', [...dependencies.localRecords.values()].slice(0, cap), async db => {
+                const snap = await db.collection(collectionName).orderBy('createdAt', 'desc').limit(cap).get();
+                const rows: ApprovalRecord[] = [];
+                for (const doc of snap.docs) {
+                    const raw = doc.data();
+                    if (isApprovalRecord(raw)) rows.push(raw);
+                }
+                return rows;
+            });
+        },
     };
 };

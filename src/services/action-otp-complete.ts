@@ -3,6 +3,7 @@ import { sendTargetedFlexMessage, sendTargetedMessage } from '../line/messaging'
 import { DEFAULT_CHANNEL_ID, getBrandTitle, resolveChannelConfig } from '../line/channels';
 import { getSaleOrderPortalLink } from './odoo';
 import { appLogger } from './logger';
+import { getRuntime } from './runtime-settings';
 
 /** After action OTP, these commands should open the Odoo portal instead of the identity-verify HTML page. */
 export const portalOrderIdFromPendingCommand = (text: string): number | null => {
@@ -42,7 +43,7 @@ export const completeActionOtpByLinkToken = async (token: string): Promise<{
     userLanguage: language,
     profile,
     agentName: getBrandTitle(language),
-    baseUrl: (process.env.PUBLIC_BASE_URL || '').replace(/\/$/, ''),
+    baseUrl: (getRuntime('PUBLIC_BASE_URL') || '').replace(/\/$/, ''),
     requestId: `action-verify-${consumed.data.id}`,
     channel: channel ? { channelId: channel.channelId, enabledServices: channel.enabledServices } : undefined,
     actionOtpReplay: true,

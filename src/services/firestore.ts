@@ -597,6 +597,7 @@ export const saveApprovalRecord = (record: ApprovalRecord, auditContext: { reque
     approvalStore.save(record, auditContext.requestId);
 
 export const getApprovalRecord = approvalStore.get;
+export const listRecentApprovals = (limit = 50) => approvalStore.listRecent(limit);
 
 export const transitionStoredApproval = (
     approvalId: string,

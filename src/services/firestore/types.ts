@@ -157,7 +157,13 @@ export type AuditAction =
     | 'approval_completed'
     | 'pricing_config_update'
     | 'demo_session_rotate'
-    | 'sample_data_seed';
+    | 'sample_data_seed'
+    | 'secrets_update'
+    | 'secret_reveal_token_issued'
+    | 'secret_reveal_consumed'
+    | 'secret_reveal_denied'
+    | 'admin_session_bind'
+    | 'bootstrap_complete';
 
 export type AuditOutcome = 'success' | 'failure';
 

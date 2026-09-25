@@ -23,6 +23,7 @@ import { loadSkills } from '../services/skill-loader';
 import { getServiceModules } from './service-modules';
 import { auditEnvParams } from '../http/env-params';
 import { lineAccessTokenExpiryWarnings } from '../services/line-access-token-expiry';
+import { getEffectiveAdminUserIds, getRuntime } from '../services/runtime-settings';
 
 export type PlatformCheck = ProbeResult & { required: boolean };
 
@@ -60,18 +61,18 @@ export type PlatformFlags = {
 const envFlag = (value: string | undefined): boolean => /^(1|true|yes|on)$/i.test(value || '');
 
 const isLineConfigured = (): boolean => Boolean(
-  process.env.LINE_CHANNEL_SECRET?.trim() && process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim(),
+  getRuntime('LINE_CHANNEL_SECRET') && getRuntime('LINE_CHANNEL_ACCESS_TOKEN'),
 );
 
 const isLineCustomerConfigured = (): boolean => Boolean(
-  process.env.LINE_CHANNEL_CUSTOMER_SECRET?.trim() && process.env.LINE_CHANNEL_CUSTOMER_ACCESS_TOKEN?.trim(),
+  getRuntime('LINE_CHANNEL_CUSTOMER_SECRET') && getRuntime('LINE_CHANNEL_CUSTOMER_ACCESS_TOKEN'),
 );
 
 const isOdooConfigured = (): boolean => Boolean(
-  process.env.ODOO_URL?.trim()
-  && process.env.ODOO_DB?.trim()
-  && process.env.ODOO_USERNAME?.trim()
-  && process.env.ODOO_API_KEY?.trim(),
+  getRuntime('ODOO_URL')
+  && getRuntime('ODOO_DB')
+  && getRuntime('ODOO_USERNAME')
+  && getRuntime('ODOO_API_KEY'),
 );
 
 export const getPlatformFlags = (): PlatformFlags => ({
@@ -100,7 +101,7 @@ export const getPlatformFlags = (): PlatformFlags => ({
   clawEnabled: envFlag(process.env.CLAWFRAMEWORK_ENABLED),
   aiOff: envFlag(process.env.AI_OFF),
   opsTokenConfigured: Boolean(opsApiToken),
-  adminAllowlistConfigured: Boolean(process.env.ADMIN_USER_ID?.trim()),
+  adminAllowlistConfigured: getEffectiveAdminUserIds().size > 0,
   demoControlTokenConfigured: Boolean(demoControlToken),
   skillsLoaded: loadSkills().length,
 });

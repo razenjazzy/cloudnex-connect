@@ -55,6 +55,12 @@ const opsPaths: Record<string, OpenApiPath> = {
       parameters: [
         { name: 'limit', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 200 } },
         { name: 'cursor', in: 'query', schema: { type: 'string' } },
+        { name: 'action', in: 'query', schema: { type: 'string' } },
+        { name: 'outcome', in: 'query', schema: { type: 'string', enum: ['success', 'failure'] } },
+        { name: 'actorUserId', in: 'query', schema: { type: 'string' } },
+        { name: 'channelId', in: 'query', schema: { type: 'string' } },
+        { name: 'from', in: 'query', schema: { type: 'string', format: 'date-time' } },
+        { name: 'to', in: 'query', schema: { type: 'string', format: 'date-time' } },
       ],
       responses: {
         '200': { description: 'Paged audit events' },
@@ -100,7 +106,7 @@ const opsPaths: Record<string, OpenApiPath> = {
   },
   '/ops/odoo-hook': {
     post: {
-      tags: ['ops'],
+      tags: ['erp'],
       summary: 'Odoo picking.done or approval.stage notify (Sales OA; customer on shipped)',
       security: bearer,
       requestBody: {
@@ -150,16 +156,101 @@ const opsPaths: Record<string, OpenApiPath> = {
       responses: { '200': jsonResponse(toOpenApiSchema(jobAcceptedSchema), 'Triggered or queued') },
     },
   },
+  '/webhook': {
+    post: {
+      tags: ['line-services'],
+      summary: 'LINE HMAC webhook (default / Sales credentials)',
+      responses: { '200': { description: 'Accepted' }, '401': { description: 'Invalid signature' } },
+    },
+  },
+  '/webhook/{channelId}': {
+    post: {
+      tags: ['line-services'],
+      summary: 'LINE HMAC webhook for sales or customer',
+      parameters: [{ name: 'channelId', in: 'path', required: true, schema: { type: 'string', enum: ['sales', 'customer'] } }],
+      responses: { '200': { description: 'Accepted' }, '401': { description: 'Invalid signature' } },
+    },
+  },
+  '/admin/api/bootstrap': {
+    post: {
+      tags: ['install'],
+      summary: 'One-shot install bootstrap (CONNECT_BOOTSTRAP_TOKEN)',
+      responses: { '200': { description: 'Bootstrapped' }, '410': { description: 'Already complete' } },
+    },
+  },
+  '/admin/api/settings': {
+    get: {
+      tags: ['admin'],
+      summary: 'Redacted settings (secrets never returned)',
+      security: bearer,
+      responses: { '200': { description: 'Masked settings and webhook URL table' } },
+    },
+  },
+  '/admin/api/session/bind': {
+    post: {
+      tags: ['admin'],
+      summary: 'Send LINE OTP to bind super-admin actor cookie',
+      security: bearer,
+      responses: { '200': { description: 'OTP pushed' } },
+    },
+  },
+  '/admin/api/secrets/reveal-token': {
+    post: {
+      tags: ['admin'],
+      summary: 'Issue one-time reveal token (super admin cookie)',
+      security: bearer,
+      responses: { '200': { description: 'Token and TTL' } },
+    },
+  },
+  '/admin/api/secrets/reveal': {
+    post: {
+      tags: ['admin'],
+      summary: 'Consume one-time reveal token (returns secret once)',
+      security: bearer,
+      responses: { '200': { description: 'Secret for TTL window' }, '410': { description: 'Used or expired' } },
+    },
+  },
+  '/admin/api/session/confirm': {
+    post: {
+      tags: ['admin'],
+      summary: 'Confirm LINE OTP and set httpOnly actor cookie',
+      security: bearer,
+      responses: { '200': { description: 'Bound' } },
+    },
+  },
+  '/admin/api/audit-log': {
+    get: {
+      tags: ['admin'],
+      summary: 'Ops audit log; secret_reveal_* stripped; never includes secret values',
+      security: bearer,
+      parameters: [
+        { name: 'actorUserId', in: 'query', schema: { type: 'string' } },
+        { name: 'action', in: 'query', schema: { type: 'string' } },
+        { name: 'from', in: 'query', schema: { type: 'string', format: 'date-time' } },
+        { name: 'to', in: 'query', schema: { type: 'string', format: 'date-time' } },
+      ],
+      responses: { '200': { description: 'Operational events' } },
+    },
+  },
 };
 
 export const buildOpenApiDocument = (): Record<string, unknown> => ({
   openapi: '3.1.0',
   info: {
-    title: 'cloudnex-connect ops API',
+    title: 'Cloudnex Connect',
     version: '1.0.0',
-    description: 'Schema-driven OpenAPI generated from Zod. LINE webhooks are not documented here.',
+    description: 'LINE services, ERP adapter, ops, and Cloudnex Connect Admin. Secrets are never in response examples.',
   },
   servers: [{ url: '/' }],
+  tags: [
+    { name: 'health' },
+    { name: 'install' },
+    { name: 'line-services' },
+    { name: 'erp' },
+    { name: 'admin' },
+    { name: 'ops' },
+    { name: 'jobs' },
+  ],
   components: {
     securitySchemes: {
       bearerAuth: { type: 'http', scheme: 'bearer', description: 'OPS_API_TOKEN' },

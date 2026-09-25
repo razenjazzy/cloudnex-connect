@@ -13,6 +13,7 @@ import {
   UserLanguage,
 } from './firestore';
 import { getPartnerById, getPartnerByPhone } from './odoo/partners';
+import { getRuntime } from './runtime-settings';
 import { findOdooSalesTierByPartnerId } from './odoo/admin';
 import { DEFAULT_CHANNEL_ID, CUSTOMER_CHANNEL_ID, getAgentName, resolveChannelConfig } from '../line/channels';
 import { sendTargetedMessage, sendTargetedFlexMessage } from '../line/messaging';
@@ -62,7 +63,7 @@ export const verificationSuccessMessage = (language: UserLanguage, partnerName: 
 const normalizePhone = (value: string): string => value.replace(/[^0-9+]/g, '').trim();
 
 const buildBaseUrl = (fallbackBaseUrl?: string): string => {
-  const fromEnv = process.env.PUBLIC_BASE_URL?.trim();
+  const fromEnv = getRuntime('PUBLIC_BASE_URL');
   const candidate = fromEnv || fallbackBaseUrl || 'http://localhost:8080';
   return candidate.replace(/\/$/, '');
 };

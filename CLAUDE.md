@@ -29,7 +29,7 @@ Optional ops adapters (not the LINE path): schema-driven `/api-docs`, `POST /gra
 - `src/services/guided-forms.ts`: step-by-step guided-form field specs for multi-field commands (reconstructs the equivalent single-line command on completion; not used in group/room chats).
 - `src/services/user-verification.ts`: Odoo user verification (OTP + magic link, with attempt lockout).
 - `src/services/admin-authorization.ts`: `ADMIN_USER_ID` allowlist check used by `ADMIN ENABLE`, applied after verification and before the Odoo admin-capability check.
-- `src/services/adminAuth.ts`: admin HTTP protection.
+- `src/http/admin-api-routes.ts`: Cloudnex Connect Admin HTTP (`/admin/api`). Overlay settings, LINE bind OTP, secret reveal, CRM/ops. Same `getErpAdapter()`; no second LINE router.
 - `src/services/opsAuth.ts`: operational API protection.
 - `src/services/odoo.ts`: Odoo integration.
 - `src/services/vertexai.ts`: Gemini integration for insights, intent classification, and voice-message transcription.

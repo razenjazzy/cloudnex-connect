@@ -1,4 +1,5 @@
 import { getPlatformConfig, setPlatformConfig } from '../services/firestore';
+import { getRuntime } from '../services/runtime-settings';
 
 export type ChannelContext = {
   channelId: string;
@@ -31,8 +32,8 @@ export const salesNotifyChannelId = (): string =>
  * literal in six files).
  */
 export const getAgentName = (language: 'th' | 'en' = 'en'): string => {
-  if (language === 'th') return process.env.LINE_AGENT_NAME_TH?.trim() || 'โซระ';
-  return process.env.LINE_AGENT_NAME_EN?.trim() || 'Sora';
+  if (language === 'th') return getRuntime('LINE_AGENT_NAME_TH') || 'โซระ';
+  return getRuntime('LINE_AGENT_NAME_EN') || 'Sora';
 };
 
 export const getBrandTitle = (language: 'th' | 'en' = 'en'): string =>
@@ -49,14 +50,14 @@ const parseServiceList = (value: string | undefined): string[] | null => {
 const toEnvKey = (channelId: string): string => channelId.toUpperCase().replace(/[^A-Z0-9]/g, '_');
 
 const defaultChannelConfig = (): ChannelConfig | null => {
-  const channelSecret = process.env.LINE_CHANNEL_SECRET?.trim() || '';
-  const channelAccessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim() || '';
+  const channelSecret = getRuntime('LINE_CHANNEL_SECRET');
+  const channelAccessToken = getRuntime('LINE_CHANNEL_ACCESS_TOKEN');
   if (!channelSecret || !channelAccessToken) return null;
   return {
     channelId: DEFAULT_CHANNEL_ID,
     channelSecret,
     channelAccessToken,
-    enabledServices: parseServiceList(process.env.LINE_CHANNEL_DEFAULT_SERVICES),
+    enabledServices: parseServiceList(getRuntime('LINE_CHANNEL_DEFAULT_SERVICES') || undefined),
   };
 };
 
@@ -76,14 +77,14 @@ export const resolveChannelConfig = (channelId: string): ChannelConfig | null =>
   if (normalized === DEFAULT_CHANNEL_ID) return defaultChannelConfig();
 
   const envKey = toEnvKey(normalized);
-  const channelSecret = process.env[`LINE_CHANNEL_${envKey}_SECRET`]?.trim() || '';
-  const channelAccessToken = process.env[`LINE_CHANNEL_${envKey}_ACCESS_TOKEN`]?.trim() || '';
+  const channelSecret = getRuntime(`LINE_CHANNEL_${envKey}_SECRET`);
+  const channelAccessToken = getRuntime(`LINE_CHANNEL_${envKey}_ACCESS_TOKEN`);
   if (channelSecret && channelAccessToken) {
     return {
       channelId: normalized,
       channelSecret,
       channelAccessToken,
-      enabledServices: parseServiceList(process.env[`LINE_CHANNEL_${envKey}_SERVICES`]),
+      enabledServices: parseServiceList(getRuntime(`LINE_CHANNEL_${envKey}_SERVICES`) || undefined),
     };
   }
 
@@ -93,8 +94,8 @@ export const resolveChannelConfig = (channelId: string): ChannelConfig | null =>
     return {
       ...fallback,
       channelId: SALES_CHANNEL_ID,
-      enabledServices: process.env.LINE_CHANNEL_SALES_SERVICES !== undefined
-        ? parseServiceList(process.env.LINE_CHANNEL_SALES_SERVICES)
+      enabledServices: getRuntime('LINE_CHANNEL_SALES_SERVICES')
+        ? parseServiceList(getRuntime('LINE_CHANNEL_SALES_SERVICES'))
         : fallback.enabledServices,
     };
   }
@@ -115,13 +116,13 @@ export const resolveBasicId = (channelId: string): string | undefined => {
   if (!normalized) return undefined;
 
   if (normalized === DEFAULT_CHANNEL_ID) {
-    return process.env.LINE_CHANNEL_BASIC_ID?.trim() || undefined;
+    return getRuntime('LINE_CHANNEL_BASIC_ID') || undefined;
   }
 
   const envKey = toEnvKey(normalized);
-  const namespaced = process.env[`LINE_CHANNEL_${envKey}_BASIC_ID`]?.trim();
+  const namespaced = getRuntime(`LINE_CHANNEL_${envKey}_BASIC_ID`);
   if (namespaced) return namespaced;
-  if (normalized === SALES_CHANNEL_ID) return process.env.LINE_CHANNEL_BASIC_ID?.trim() || undefined;
+  if (normalized === SALES_CHANNEL_ID) return getRuntime('LINE_CHANNEL_BASIC_ID') || undefined;
   return undefined;
 };
 

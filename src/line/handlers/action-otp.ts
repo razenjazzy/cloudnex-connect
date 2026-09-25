@@ -14,6 +14,7 @@ import type { UserProfile } from '../../services/firestore';
 import { auditWrite, commandPrefixForAudit } from '../../services/write-audit';
 import { t } from '../../services/i18n';
 import { fitReply, outcomeFlex } from '../outcome-reply';
+import { getRuntime } from '../../services/runtime-settings';
 
 export const isGatedMutation = isOtpGatedCommand;
 
@@ -87,7 +88,7 @@ const actionOtpGateHandler: CommandHandler = {
       detail: commandPrefixForAudit(originalText),
     });
 
-    const origin = (process.env.PUBLIC_BASE_URL?.trim() || baseUrl || '').replace(/\/$/, '');
+    const origin = (getRuntime('PUBLIC_BASE_URL') || baseUrl || '').replace(/\/$/, '');
     const link = origin ? `${origin}/verify/action?token=${encodeURIComponent(linkToken)}` : '';
     if (!link) {
       return [outcomeFlex({

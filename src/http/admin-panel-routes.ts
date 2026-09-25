@@ -1,27 +1,14 @@
 import path from 'node:path';
 import fs from 'node:fs';
-import express, { type Express, type NextFunction, type Request, type Response } from 'express';
+import express, { type Express, type Request, type Response } from 'express';
 import { getErpAdapter } from '../erp/registry';
 import { isOdooConfigured } from '../services/odoo';
 import { recordAuditEvent } from '../services/firestore';
-import { getOpsBearerOrHeaderToken, isOpsTokenConfigured, isValidOpsToken } from '../services/ops-token-auth';
 import { jsonParser } from './middleware';
-import { isDemoControlEnabled } from './env';
-import { verifyIncomingDemoSession } from './demo-session';
+import { registerAdminApiRoutes, requireAdminPanelAccess } from './admin-api-routes';
 
 const adminDist = path.resolve(__dirname, '../../admin/dist');
 const adminIndex = path.join(adminDist, 'index.html');
-
-const requireAdminPanelAccess = async (req: Request, res: Response, next: NextFunction) => {
-  if (isOpsTokenConfigured() && isValidOpsToken(getOpsBearerOrHeaderToken(req))) {
-    return next();
-  }
-  if (isDemoControlEnabled && req.get('cookie')) {
-    const { sessionAuthenticated } = await verifyIncomingDemoSession(req);
-    if (sessionAuthenticated) return next();
-  }
-  return res.status(401).json({ error: 'Unauthorized' });
-};
 
 const spaFallback = (_req: Request, res: Response) => {
   if (!fs.existsSync(adminIndex)) {
@@ -31,6 +18,8 @@ const spaFallback = (_req: Request, res: Response) => {
 };
 
 export const registerAdminPanelRoutes = (app: Express): void => {
+  registerAdminApiRoutes(app);
+
   app.get('/admin/crm/quotes', requireAdminPanelAccess, async (req, res) => {
     if (!isOdooConfigured()) {
       return res.status(503).json({ error: 'Odoo is unavailable.' });
@@ -74,6 +63,26 @@ export const registerAdminPanelRoutes = (app: Express): void => {
     app.use('/admin', express.static(adminDist, { index: false, maxAge: '1h' }));
   }
 
-  app.get(['/admin', '/admin/', '/admin/demo', '/admin/crm'], spaFallback);
-  app.get(/^\/admin\/(?!crm\/quotes).*/, spaFallback);
+  app.get([
+    '/admin',
+    '/admin/',
+    '/admin/demo',
+    '/admin/crm',
+    '/admin/login',
+    '/admin/setup',
+    '/admin/line',
+    '/admin/erp',
+    '/admin/users',
+    '/admin/privileges',
+    '/admin/approvals',
+    '/admin/settings',
+    '/admin/language',
+    '/admin/testing',
+    '/admin/jobs',
+    '/admin/audit',
+    '/admin/logs',
+    '/admin/unmask',
+    '/admin/platform',
+  ], spaFallback);
+  app.get(/^\/admin\/(?!crm\/quotes|api\/).*/, spaFallback);
 };

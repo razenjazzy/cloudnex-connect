@@ -1,0 +1,8 @@
+# Host crontab for Cloudnex Connect (no in-process Node cron).
+# Install with: crontab -e  (as root)
+
+# Hourly docker/app logrotate (30-day gzip in logrotate-cloudnex-connect.conf)
+0 * * * * /usr/sbin/logrotate /etc/logrotate.d/cloudnex-connect
+
+# Daily Firestore audit archive + delete past AUDIT_RETENTION_DAYS (default 30)
+0 3 * * * curl -fsS -X POST -H "Authorization: Bearer $OPS_API_TOKEN" https://amardhaka.io/ops/audit-log/rotate

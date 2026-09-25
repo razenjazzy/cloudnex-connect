@@ -95,6 +95,8 @@ export const webhookLimiter = createRateLimiter({ windowMs: 60_000, max: 120, la
 export const webhookTestLimiter = createRateLimiter({ windowMs: 60_000, max: 30, label: 'webhook-test' });
 export const opsJobLimiter = createRateLimiter({ windowMs: 60_000, max: 10, label: 'ops-job' });
 export const verifyLinkLimiter = createRateLimiter({ windowMs: 60_000, max: 20, label: 'verify-odoo' });
+export const adminApiLimiter = createRateLimiter({ windowMs: 60_000, max: 120, label: 'admin-api' });
+export const adminRevealLimiter = createRateLimiter({ windowMs: 15 * 60_000, max: 5, label: 'admin-reveal' });
 
 export const isReadOnlyWebhookTestCommand = (text: string): boolean => {
     const upperText = text.trim().toUpperCase();

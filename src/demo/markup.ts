@@ -2,7 +2,7 @@ export const DEMO_PAGE_MARKUP = `
   <div class="shell">
     <section class="hero">
       <div class="panel hero-copy">
-        <div class="eyebrow">CNS Platform Control Panel · 19 Sep 2026</div>
+        <div class="eyebrow">Cloudnex Connect Testing</div>
         <h1>Walk LINE → Firestore → Odoo in one panel. Mongo and GraphQL stay optional ops add-ons.</h1>
         <p>Same resolveCommandReply as the Official Account. Chat, journey runner, and connection checks are the live demo path.</p>
         <div class="token-row">

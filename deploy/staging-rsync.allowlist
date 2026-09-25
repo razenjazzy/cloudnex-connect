@@ -3,3 +3,6 @@ package-lock.json
 deploy/hostinger/docker-compose.staging.yml
 deploy/hostinger/nginx-amardhaka.conf.example
 scripts/check-line-channels.sh
+scripts/bootstrap-cloudnex-connect.sh
+deploy/hostinger/crontab.example
+deploy/hostinger/logrotate-cloudnex-connect.conf

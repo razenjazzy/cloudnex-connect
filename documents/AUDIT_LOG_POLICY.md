@@ -5,19 +5,25 @@
 Every privileged/mutating action goes through `recordAuditEvent()`
 (`src/services/firestore.ts`) into the `auditLog` Firestore collection:
 `role_grant`, `role_revoke`, `user_create/update/delete`,
-`service_create/update/delete`, `channel_config_update`, and `audit_rotate`
-(the rotation job auditing itself). Each entry records the action, outcome
-(`success`/`failure`), acting user, LINE channel, target id, and a free-text
-detail field, timestamped in UTC ISO-8601.
+`service_create/update/delete`, `channel_config_update`, `audit_rotate`,
+`secrets_update`, `secret_reveal_*`, `admin_session_bind`, and `bootstrap_complete`.
+Each entry records the action, outcome (`success`/`failure`), acting user, LINE
+channel, target id, and a free-text **detail that must never contain secret
+values**, timestamped in UTC ISO-8601.
 
-The authenticated `GET /ops/audit-log` view accepts bounded filters for
-`action`, `outcome`, `actorUserId`, `channelId`, `from`, and `to`, plus a
-`limit` capped at 200 and an opaque `cursor` for fetching the next page. Results include the optional `requestId` correlation
-field and a `nextCursor` when another page is available. Send `nextCursor`
-back as `cursor` to continue in descending event order. The same correlation
-field is retained in BigQuery during rotation. Invalid dates, unsupported
-outcomes, and invalid cursors are ignored rather than causing an unbounded or
-failing query.
+`GET /ops/audit-log` and `GET /admin/api/audit-log` (ops) accept bounded filters
+for `action`, `outcome`, `actorUserId`, `channelId`, `from`, and `to`, plus a
+`limit` capped at 200 and an opaque `cursor`. Those ops views **omit**
+`secret_reveal_*` rows. Super admin reads unmask metadata only at
+`GET /admin/api/audit-log/reveals` (actor LINE id, key **name**, outcome,
+requestId, time — never the secret). GraphQL `auditLog` also strips
+`secret_reveal_*`. CLI: `cns audit --actor <LINE userId>`.
+
+Results include the optional `requestId` correlation field and a `nextCursor`
+when another page is available. Send `nextCursor` back as `cursor` to continue
+in descending event order. The same correlation field is retained in BigQuery
+during rotation. Invalid dates, unsupported outcomes, and invalid cursors are
+ignored rather than causing an unbounded or failing query.
 
 Background jobs generate an execution ID at startup. Audit rotation stores
 that ID as its request correlation, and daily-report/segmentation lifecycle
@@ -31,11 +37,22 @@ best-effort record, not a transactional ledger.
 
 | Tier | Store | Retention | Purpose |
 |---|---|---|---|
-| Hot | Firestore `auditLog` | `AUDIT_RETENTION_DAYS` (default 90) | Fast reads for `/ops/audit-log` and the `ADMIN AUDIT ROTATE` / admin tooling surface |
+| Hot | Firestore `auditLog` | `AUDIT_RETENTION_DAYS` (default **30**) | Fast reads for `/ops/audit-log`, Cloudnex Connect Admin Logs, and `ADMIN AUDIT ROTATE` |
 | Cold | BigQuery `ops_archive.audit_log` | Indefinite | Full history, day-partitioned on `createdAt`, queryable with SQL |
 
 Firestore stays small and fast on purpose — it's not meant as a permanent
 archive. BigQuery is the permanent record.
+
+Host app logs (pino JSON, secrets redacted) use Docker `json-file` plus
+[deploy/hostinger/logrotate-cloudnex-connect.conf](../deploy/hostinger/logrotate-cloudnex-connect.conf)
+(hourly + daily gzip, 30-day retain). No in-process Node cron.
+
+## Overlay key rotation
+
+`SECRETS_ENCRYPTION_KEY` encrypts `runtimeSecretsV1`. To rotate: set the new
+key in host env, re-enter overlay values via Admin PUT while unlocked (or
+decrypt with the old key offline and persist a new blob). Never write plaintext
+overlay JSON or the encryption key into audit `detail` or pino.
 
 ## Rotation mechanics (`src/services/audit-archive.ts`)
 
@@ -66,7 +83,7 @@ Set in `.env` (see `.env.example`):
 
 | Var | Default | Meaning |
 |---|---|---|
-| `AUDIT_RETENTION_DAYS` | `90` | Age at which an event becomes eligible for archive+delete |
+| `AUDIT_RETENTION_DAYS` | `30` | Age at which an event becomes eligible for archive+delete |
 | `AUDIT_ARCHIVE_ENABLED` | `true` | Operator kill-switch — `false` pauses rotation entirely without touching infra config |
 | `AUDIT_ARCHIVE_DATASET` | `ops_archive` | BigQuery dataset for the cold copy |
 | `AUDIT_ARCHIVE_TABLE` | `audit_log` | BigQuery table for the cold copy |
@@ -89,7 +106,10 @@ Three equivalent entry points, all calling the same
     --headers="Authorization=Bearer <OPS_API_TOKEN>"
   ```
 
-  A plain crontab entry works the same way on any host:
+  A plain crontab entry works the same way on any host. Staging example:
+  [deploy/hostinger/crontab.example](../deploy/hostinger/crontab.example)
+  (`0 * * * *` logrotate, `0 3 * * *` audit rotate).
+
   `0 3 * * * curl -fsS -X POST -H "Authorization: Bearer $OPS_API_TOKEN" https://<host>/ops/audit-log/rotate`
 
 - **From LINE, by an admin:** `ADMIN AUDIT ROTATE`

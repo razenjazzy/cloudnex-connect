@@ -12,7 +12,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/graphql': 'http://127.0.0.1:8080',
-      '/admin/crm/quotes': 'http://127.0.0.1:8080',
+      '/admin': 'http://127.0.0.1:8080',
     },
   },
 });

@@ -38,7 +38,7 @@ describe('getAuditArchiveConfig', () => {
 
   it('applies safe defaults when nothing is configured', () => {
     expect(getAuditArchiveConfig()).toEqual({
-      retentionDays: 90,
+      retentionDays: 30,
       archiveEnabled: true,
       datasetId: 'ops_archive',
       tableId: 'audit_log',
@@ -66,7 +66,7 @@ describe('getAuditArchiveConfig', () => {
 
   it('rejects garbage numeric input by falling back to defaults', () => {
     process.env.AUDIT_RETENTION_DAYS = 'not-a-number';
-    expect(getAuditArchiveConfig().retentionDays).toBe(90);
+    expect(getAuditArchiveConfig().retentionDays).toBe(30);
   });
 });
 

@@ -101,6 +101,25 @@ export const getKpiSnapshot = (config: OpsClientConfig) =>
 export const getWorkflowAudit = (config: OpsClientConfig) =>
   request<Record<string, unknown>>(config, 'GET', '/ops/workflow-audit', { token: requireToken(config.opsApiToken, 'OPS_API_TOKEN') });
 
+export const getOpsAuditLog = (
+  config: OpsClientConfig,
+  filters: { actor?: string; action?: string; from?: string; to?: string; limit?: string } = {},
+) => {
+  const params = new URLSearchParams();
+  if (filters.actor) params.set('actorUserId', filters.actor);
+  if (filters.action) params.set('action', filters.action);
+  if (filters.from) params.set('from', filters.from);
+  if (filters.to) params.set('to', filters.to);
+  if (filters.limit) params.set('limit', filters.limit);
+  const query = params.toString();
+  return request<Record<string, unknown>>(
+    config,
+    'GET',
+    `/ops/audit-log${query ? `?${query}` : ''}`,
+    { token: requireToken(config.opsApiToken, 'OPS_API_TOKEN') },
+  );
+};
+
 export const getPlatformStatus = (config: OpsClientConfig) =>
   request<Record<string, unknown>>(config, 'GET', '/ops/platform', { token: requireToken(config.opsApiToken, 'OPS_API_TOKEN') });
 

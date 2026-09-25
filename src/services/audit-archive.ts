@@ -37,7 +37,7 @@ export type AuditArchiveConfig = {
 };
 
 export const getAuditArchiveConfig = (): AuditArchiveConfig => {
-  const retentionDays = Math.max(1, Math.trunc(Number(process.env.AUDIT_RETENTION_DAYS) || 90));
+  const retentionDays = Math.max(1, Math.trunc(Number(process.env.AUDIT_RETENTION_DAYS) || 30));
   // Firestore batch writes cap at 500 ops; also used as the read page size so
   // every fetched page is fully deletable in one batch.
   const batchSize = Math.min(500, Math.max(1, Math.trunc(Number(process.env.AUDIT_ROTATE_BATCH_SIZE) || 500)));

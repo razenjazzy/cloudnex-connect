@@ -6,6 +6,7 @@ import { cspMiddleware, requestLoggingMiddleware } from './http/middleware';
 import { fallbackRateStore, setRateStore } from './http/runtime-state';
 import { ensureDemoSessionStateLoaded } from './http/demo-session';
 import { ensureFeatureTogglesLoaded } from './services/feature-toggles';
+import { hydrateRuntimeSettings } from './services/runtime-settings';
 import { createRateLimitStoreFromEnv } from './services/rate-limit-store';
 import { registerHealthRoutes } from './http/health-routes';
 import { registerOpsRoutes } from './http/ops-routes';
@@ -51,6 +52,7 @@ const startServer = async () => {
     setRateStore(await createRateLimitStoreFromEnv(fallbackRateStore));
     await ensureDemoSessionStateLoaded();
     await ensureFeatureTogglesLoaded();
+    await hydrateRuntimeSettings();
     const workers = isBullmqWorkerEnabled ? startQueueWorkers() : [];
     const server = app.listen(port, () => {
         appLogger.info('server_listening', { port, appEnv, nodeEnv: process.env.NODE_ENV || 'development' });
