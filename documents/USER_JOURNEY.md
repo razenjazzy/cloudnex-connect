@@ -161,7 +161,7 @@ Implemented, **not enabled** (Admin **Advanced**, flags default false): second H
 ## Admin campaigns and chat (staging)
 
 1. Open `https://amardhaka.io/admin` with OPS token + super-admin cookie.
-2. **Campaigns:** Channel → class (promo vs transactional) → message → Preview (no LINE) → Test (actor only) → Send (`confirm: SEND`, queued). Broadcast is a separate typed `BROADCAST` confirm and cannot honor `PROMO OFF`.
+2. **Campaigns:** Channel → class (promo vs transactional) → message → Preview (no LINE) → Test (actor only) → Send (`confirm: SEND`, queued). Promo must use multicast Send (honors `PROMO OFF`). LINE Broadcast is blocked for promo class because the LINE API cannot filter opt-out.
 3. Customer swipe-reply: Sales Flex includes `Re:` quoted text or “card”.
 4. Sales chips: up to four `RELAY TO` / assign chips; **More** / `STAFF PICK` for overflow.
 5. Image/file/video: allowlist, default 10MB, optional AV; no GCS → Flex, no throw.

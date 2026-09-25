@@ -131,6 +131,10 @@ export const parseCampaignSendRequest = (body: unknown): (CampaignAudienceReques
 
 export const parseCampaignBroadcastRequest = (body: unknown): { channelId: string; text: string } | { error: string } => {
   const raw = body && typeof body === 'object' ? body as Record<string, unknown> : {};
+  const audienceType = String(raw.audienceType || '').trim();
+  if (audienceType === 'customers_promo') {
+    return { error: 'LINE Broadcast cannot honor PROMO OFF. Use multicast Send for promotional audiences.' };
+  }
   const channelId = String(raw.channelId || '').trim();
   if (!channelId) return { error: 'channelId is required.' };
   if (String(raw.confirm || '').trim() !== 'BROADCAST') return { error: 'confirm must be BROADCAST.' };

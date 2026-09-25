@@ -1,9 +1,20 @@
+# Release notes — v8.0.6
+
+**Date:** 2026-09-26  
+**Package version:** `8.0.6`  
+**Lane:** staging VPS (`APP_ENV=staging`, `https://amardhaka.io`)  
+**Commit title:** `Release: v8.0.6 - Odoo Line OA v5 Staging Deploy`
+
+Promo LINE Broadcast is rejected (multicast Send honors `PROMO OFF`). Campaign send is HTTP super-admin only (no GraphQL `sendCampaign`). Inbound files fail closed until a real signed URL exists; `GCS_MEDIA_BUCKET` is not treated as stored.
+
+---
+
 # Release notes — v8.0.5
 
 **Date:** 2026-09-26  
 **Package version:** `8.0.5`  
 **Lane:** staging VPS (`APP_ENV=staging`, `https://amardhaka.io`)  
-**Commit title:** `Release: v8.0.x - Odoo Line OA v5 Staging Deploy`
+**Commit title:** `Release: v8.0.5 - Odoo Line OA v5 Staging Deploy`
 
 Campaigns (preview/test/queued send/broadcast), quoted customer relay, sales chips, media allowlist, enterprise Admin IA, optional forks implemented but not enabled. Production deploy is not this cut.
 

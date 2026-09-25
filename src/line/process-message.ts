@@ -203,7 +203,7 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
     }
 
     if (!inputText && (input.imageMessageId || input.fileMessageId || input.videoMessageId)) {
-      const { assertInboundMediaAllowed, scanBufferIfRequired, gcsMediaBucket } = await import('./media');
+      const { assertInboundMediaAllowed, scanBufferIfRequired } = await import('./media');
       const kind = input.imageMessageId ? 'image' : input.videoMessageId ? 'video' : 'file';
       const allowed = assertInboundMediaAllowed({ fileName: input.fileName });
       if (!allowed.ok) {
@@ -231,15 +231,15 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
             title: agentName, body: scanned.error, language: userLanguage, tone: 'warning',
           })]);
         }
-        if (!gcsMediaBucket()) {
+        const { signedMediaUrlOrNull } = await import('./media');
+        if (!signedMediaUrlOrNull()) {
           return deliverMessages(client, input, [createBotTextFlexMessage({
             title: agentName,
-            body: tr(userLanguage, 'รับไฟล์แล้ว แต่ยังไม่ได้ตั้งที่เก็บไฟล์', 'File received. Media storage is not configured.'),
+            body: tr(userLanguage, 'รับไฟล์แล้ว แต่ยังไม่ได้เก็บหรือส่งต่อ', 'File received. It was not stored or relayed.'),
             language: userLanguage,
             tone: 'info',
           })]);
         }
-        inputText = `[${kind}] ${input.fileName || kind}`;
       } catch (error) {
         appLogger.warn('line_media_fetch_failed', { error: String(error), requestId: input.requestId });
         return deliverMessages(client, input, [createBotTextFlexMessage({

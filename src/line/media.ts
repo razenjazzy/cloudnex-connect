@@ -11,8 +11,6 @@ export const lineMediaMaxBytes = (): number => {
 
 export const isAvScanRequired = (): boolean => /^(1|true|yes|on)$/i.test(process.env.AV_SCAN_REQUIRED || '');
 
-export const gcsMediaBucket = (): string => (process.env.GCS_MEDIA_BUCKET || '').trim();
-
 export const assertInboundMediaAllowed = (input: {
   fileName?: string;
   mimeType?: string;
@@ -56,7 +54,5 @@ export const scanBufferIfRequired = async (buffer: Buffer): Promise<{ ok: true }
   }
 };
 
-export const signedMediaUrlOrNull = (): string | null => {
-  if (!gcsMediaBucket()) return null;
-  return null;
-};
+/** No upload implementation yet. Setting GCS_MEDIA_BUCKET must not look like success. */
+export const signedMediaUrlOrNull = (): string | null => null;

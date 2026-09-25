@@ -459,7 +459,7 @@ export const App = () => {
         {page === 'campaigns' ? (
           <div className="card">
             <h2>Campaigns</h2>
-            <p>Channel → class → message → preview → test → send. Broadcast is separate and ignores PROMO OFF.</p>
+            <p>Channel → class → message → preview → test → multicast Send. Promo uses Send only (honors PROMO OFF). LINE Broadcast cannot filter opt-out; it is blocked for promo class.</p>
             <div className="row">
               <select value={campChannel} onChange={e => setCampChannel(e.target.value)}>
                 <option value="customer">customer</option>
@@ -495,9 +495,10 @@ export const App = () => {
             </div>
             <p>{campPreview}</p>
             <h3>Broadcast (not default)</h3>
-            <input value={broadcastConfirm} onChange={e => setBroadcastConfirm(e.target.value)} placeholder="type BROADCAST" />
-            <button type="button" onClick={async () => {
-              const res = await api('/admin/api/campaigns/broadcast', { method: 'POST', body: JSON.stringify({ channelId: campChannel, text: campText, confirm: broadcastConfirm }) });
+            <p>Sends to every OA friend. Blocked when class is promo — use multicast Send instead.</p>
+            <input value={broadcastConfirm} onChange={e => setBroadcastConfirm(e.target.value)} placeholder="type BROADCAST" disabled={campClass === 'customers_promo'} />
+            <button type="button" disabled={campClass === 'customers_promo'} onClick={async () => {
+              const res = await api('/admin/api/campaigns/broadcast', { method: 'POST', body: JSON.stringify({ channelId: campChannel, audienceType: campClass, text: campText, confirm: broadcastConfirm }) });
               setError(res.ok ? '' : 'Broadcast denied or failed');
             }}>Broadcast</button>
             <table>

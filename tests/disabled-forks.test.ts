@@ -26,10 +26,15 @@ describe('disabled forks', () => {
     expect(src).not.toMatch(/X-Line-Signature/);
   });
 
+  it('does not expose GraphQL sendCampaign (HTTP super-admin send only)', () => {
+    expect(graphqlSchema.getMutationType()?.getFields().sendCampaign).toBeUndefined();
+    expect(graphqlSchema.getMutationType()?.getFields().previewCampaign).toBeTruthy();
+  });
+
   it('Admin Advanced controls are disabled', () => {
     const spa = readFileSync('admin/src/App.tsx', 'utf8');
     expect(spa).toContain("page === 'advanced'");
     expect(spa).toContain('disabled');
-    expect(spa).toContain('/admin/campaigns');
+    expect(spa).toContain('disabled={campClass === \'customers_promo\'}');
   });
 });

@@ -324,6 +324,23 @@ describe('Cloudnex Connect admin API', () => {
     });
     expect(res.status).toBe(400);
   });
+
+  it('rejects promo LINE Broadcast so PROMO OFF is not bypassed', async () => {
+    const { cookie } = buildAdminActorCookie('Usuper');
+    const res = await fetch(`${base()}/admin/api/campaigns/broadcast`, {
+      method: 'POST',
+      headers: { ...ops, 'content-type': 'application/json', cookie },
+      body: JSON.stringify({
+        channelId: 'customer',
+        audienceType: 'customers_promo',
+        text: 'sale',
+        confirm: 'BROADCAST',
+      }),
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: string };
+    expect(body.error).toMatch(/PROMO OFF/);
+  });
 });
 
 describe('OpenAPI Cloudnex Connect coverage', () => {

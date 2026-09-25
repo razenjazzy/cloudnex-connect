@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { extractLineMessageJobs } from '../src/line/process-message';
-import { assertInboundMediaAllowed, DEFAULT_LINE_MEDIA_MAX_BYTES } from '../src/line/media';
+import { assertInboundMediaAllowed, DEFAULT_LINE_MEDIA_MAX_BYTES, signedMediaUrlOrNull } from '../src/line/media';
 import { scanBufferIfRequired } from '../src/line/media';
 
 describe('quoted and media extract', () => {
@@ -70,6 +70,13 @@ describe('media allowlist', () => {
     expect(assertInboundMediaAllowed({ fileName: 'x.svg' }).ok).toBe(false);
     expect(assertInboundMediaAllowed({ sizeBytes: DEFAULT_LINE_MEDIA_MAX_BYTES + 1 }).ok).toBe(false);
     expect(assertInboundMediaAllowed({ fileName: 'a.pdf', sizeBytes: 100 }).ok).toBe(true);
+  });
+
+  it('does not treat GCS_MEDIA_BUCKET as a stored file', () => {
+    const prev = process.env.GCS_MEDIA_BUCKET;
+    process.env.GCS_MEDIA_BUCKET = 'some-bucket';
+    expect(signedMediaUrlOrNull()).toBeNull();
+    process.env.GCS_MEDIA_BUCKET = prev;
   });
 
   it('rejects infected mock when AV required', async () => {
