@@ -17,7 +17,7 @@ import {
 } from '../services/firestore';
 import { getOpsBearerOrHeaderToken, isOpsTokenConfigured, isValidOpsToken } from '../services/ops-token-auth';
 import { isValidAdminToken } from '../services/admin-token-auth';
-import { jsonParser, adminApiLimiter, adminRevealLimiter } from './middleware';
+import { jsonParser, formParser, adminApiLimiter, adminRevealLimiter } from './middleware';
 import { appEnv, isDemoControlEnabled } from './env';
 import { verifyIncomingDemoSession } from './demo-session';
 import { safeTokenMatch } from '../services/demo-session';
@@ -44,6 +44,19 @@ import {
   isSuperAdminActor,
   parseAdminActorCookie,
 } from '../services/admin-session';
+import {
+  buildLineAuthorizeUrl,
+  buildOktaAuthorizeUrl,
+  buildSamlMetadataXml,
+  buildSamlRedirectUrl,
+  clearOauthStateCookie,
+  consumeOauthState,
+  describeAdminIdp,
+  exchangeLineLoginCode,
+  exchangeOktaCode,
+  issueOauthState,
+  verifySamlResponse,
+} from '../services/admin-idp';
 import { isAuthorizedForAdminRole } from '../services/admin-authorization';
 import { verifyOdooAdminAccess } from '../services/odoo/admin';
 import { sendTargetedMessage } from '../line/messaging';
@@ -176,6 +189,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
       missingRequired: envAudit.missingRequired,
       capabilities: adapter.capabilities,
       modules: getDemoPlatformPayload(),
+      idp: describeAdminIdp(),
     });
   });
 
@@ -227,9 +241,129 @@ export const registerAdminApiRoutes = (app: Express): void => {
   });
 
   app.post('/admin/api/session/logout', requireOpsStrict, (_req, res) => {
-    res.setHeader('Set-Cookie', clearAdminActorCookie());
+    res.setHeader('Set-Cookie', [clearAdminActorCookie(), clearOauthStateCookie()]);
     return res.json({ ok: true });
   });
+
+  const queryStr = (value: unknown): string => typeof value === 'string' ? value : '';
+
+  const denyIdp = async (res: Response, userId: string, detail: string, asRedirect: boolean) => {
+    await recordAuditEvent({ action: 'admin_session_bind', outcome: 'failure', actorUserId: userId || 'unknown', detail });
+    if (asRedirect) return res.redirect(302, '/admin?idp_error=1');
+    return res.status(403).json({ error: 'Not authorized to bind.' });
+  };
+
+  const completeIdp = async (res: Response, userId: string | null, detail: string, asRedirect: boolean) => {
+    if (!userId) return denyIdp(res, '', `${detail}_missing_user`, asRedirect);
+    const profile = await getUserProfile(userId);
+    if (!isSuperAdminActor(userId, profile)) return denyIdp(res, userId, `${detail}_not_allowlisted`, asRedirect);
+    const { cookie } = buildAdminActorCookie(userId);
+    res.setHeader('Set-Cookie', [cookie, clearOauthStateCookie()]);
+    await recordAuditEvent({ action: 'admin_session_bind', outcome: 'success', actorUserId: userId, detail });
+    if (asRedirect) return res.redirect(302, '/admin');
+    return res.json({ ok: true, actorUserId: userId });
+  };
+
+  app.get('/admin/api/session/idp', adminApiLimiter, async (req, res) => {
+    if (!ipAllowedForAdmin(req.ip || req.socket.remoteAddress || '')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    return res.json(describeAdminIdp());
+  });
+
+  const startLine = async (req: Request, res: Response, redirect: boolean) => {
+    if (!ipAllowedForAdmin(req.ip || req.socket.remoteAddress || '')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const issued = await issueOauthState('line_login');
+    const url = buildLineAuthorizeUrl(issued.state, issued.verifier);
+    if (!url) return res.status(503).json({ error: 'LINE Login is not configured.' });
+    res.setHeader('Set-Cookie', issued.cookie);
+    if (redirect) return res.redirect(302, url);
+    return res.json({ url });
+  };
+  app.get('/admin/api/session/line/start', adminApiLimiter, (req, res) => void startLine(req, res, true));
+  app.post('/admin/api/session/line/start', adminApiLimiter, (req, res) => void startLine(req, res, false));
+
+  app.get('/admin/api/session/line/callback', adminApiLimiter, async (req, res) => {
+    if (!ipAllowedForAdmin(req.ip || req.socket.remoteAddress || '')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const state = queryStr(req.query.state);
+    const code = queryStr(req.query.code);
+    const verifier = await consumeOauthState(state, req.get('cookie'), 'line_login');
+    if (!verifier || !code) {
+      await recordAuditEvent({ action: 'admin_session_bind', outcome: 'failure', actorUserId: 'unknown', detail: 'line_login_state' });
+      return res.redirect(302, '/admin?idp_error=1');
+    }
+    const userId = await exchangeLineLoginCode(code, verifier);
+    return completeIdp(res, userId, 'line_login', true);
+  });
+
+  const startOidc = async (req: Request, res: Response, redirect: boolean) => {
+    if (!ipAllowedForAdmin(req.ip || req.socket.remoteAddress || '')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const issued = await issueOauthState('okta_oidc');
+    const url = buildOktaAuthorizeUrl(issued.state, issued.verifier);
+    if (!url) return res.status(503).json({ error: 'Okta OIDC is not configured.' });
+    res.setHeader('Set-Cookie', issued.cookie);
+    if (redirect) return res.redirect(302, url);
+    return res.json({ url });
+  };
+  app.get('/admin/api/session/oidc/start', adminApiLimiter, (req, res) => void startOidc(req, res, true));
+  app.post('/admin/api/session/oidc/start', adminApiLimiter, (req, res) => void startOidc(req, res, false));
+
+  app.get('/admin/api/session/oidc/callback', adminApiLimiter, async (req, res) => {
+    if (!ipAllowedForAdmin(req.ip || req.socket.remoteAddress || '')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const state = queryStr(req.query.state);
+    const code = queryStr(req.query.code);
+    const verifier = await consumeOauthState(state, req.get('cookie'), 'okta_oidc');
+    if (!verifier || !code) {
+      await recordAuditEvent({ action: 'admin_session_bind', outcome: 'failure', actorUserId: 'unknown', detail: 'okta_oidc_state' });
+      return res.redirect(302, '/admin?idp_error=1');
+    }
+    const userId = await exchangeOktaCode(code, verifier);
+    return completeIdp(res, userId, 'okta_oidc', true);
+  });
+
+  app.get('/admin/api/session/saml/metadata', adminApiLimiter, (req, res) => {
+    if (!ipAllowedForAdmin(req.ip || req.socket.remoteAddress || '')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    if (!describeAdminIdp().saml) return res.status(503).json({ error: 'SAML is not configured.' });
+    res.type('application/xml').send(buildSamlMetadataXml());
+  });
+
+  app.get('/admin/api/session/saml/start', adminApiLimiter, async (req, res) => {
+    if (!ipAllowedForAdmin(req.ip || req.socket.remoteAddress || '')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const issued = await issueOauthState('saml');
+    const url = buildSamlRedirectUrl(issued.state);
+    if (!url) return res.status(503).json({ error: 'SAML is not configured.' });
+    res.setHeader('Set-Cookie', issued.cookie);
+    return res.redirect(302, url);
+  });
+
+  app.post('/admin/api/session/saml/acs', formParser, adminApiLimiter, async (req, res) => {
+    if (!ipAllowedForAdmin(req.ip || req.socket.remoteAddress || '')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    const relay = String(req.body?.RelayState || '');
+    const raw = String(req.body?.SAMLResponse || '');
+    const verifier = await consumeOauthState(relay, req.get('cookie'), 'saml');
+    if (!verifier || !raw) {
+      await recordAuditEvent({ action: 'admin_session_bind', outcome: 'failure', actorUserId: 'unknown', detail: 'saml_state' });
+      return res.redirect(302, '/admin?idp_error=1');
+    }
+    const audience = getRuntime('SAML_SP_ENTITY_ID') || `${getRuntime('PUBLIC_BASE_URL').replace(/\/$/, '')}/admin/api/session/saml/metadata`;
+    const userId = verifySamlResponse(raw, audience, getRuntime('SAML_IDP_CERT'));
+    return completeIdp(res, userId, 'saml', true);
+  });
+
 
   app.post('/admin/api/secrets/reveal-token', jsonParser, adminRevealLimiter, requireSuperAdmin, async (req, res) => {
     const secretKey = String(req.body?.secretKey || '').trim();

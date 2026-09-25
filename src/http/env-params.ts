@@ -55,6 +55,17 @@ export const ENV_PARAMS: EnvParam[] = [
   { key: 'CONNECT_BOOTSTRAP_TOKEN', requiredIn: [], note: 'One-shot install token for POST /admin/api/bootstrap' },
   { key: 'ADMIN_ALLOWED_CIDRS', requiredIn: [], note: 'Optional IPv4 CIDR allowlist for /admin' },
   { key: 'AUDIT_RETENTION_DAYS', requiredIn: [], note: 'Hot auditLog retention; default 30' },
+  { key: 'LINE_LOGIN_CHANNEL_ID', requiredIn: [], note: 'LINE Login channel id for admin web OAuth' },
+  { key: 'LINE_LOGIN_CHANNEL_SECRET', requiredIn: [], note: 'LINE Login channel secret' },
+  { key: 'OKTA_ISSUER', requiredIn: [], note: 'Okta OIDC issuer, e.g. https://example.okta.com/oauth2/default' },
+  { key: 'OKTA_CLIENT_ID', requiredIn: [], note: 'Okta OIDC client id' },
+  { key: 'OKTA_CLIENT_SECRET', requiredIn: [], note: 'Okta OIDC client secret' },
+  { key: 'OKTA_LINE_CLAIM', requiredIn: [], note: 'OIDC claim that holds LINE user id; default line_user_id' },
+  { key: 'OKTA_LINE_USER_MAP', requiredIn: [], note: 'JSON map of Okta sub/email to LINE user id' },
+  { key: 'SAML_IDP_SSO_URL', requiredIn: [], note: 'Okta/other SAML SSO URL' },
+  { key: 'SAML_IDP_CERT', requiredIn: [], note: 'IdP X.509 cert PEM for assertion signatures' },
+  { key: 'SAML_SP_ENTITY_ID', requiredIn: [], note: 'SP entity ID; defaults to metadata URL' },
+  { key: 'SAML_LINE_ATTRIBUTE', requiredIn: [], note: 'SAML attribute with LINE user id; default line_user_id' },
 ];
 
 export const auditEnvParams = (appEnv: AppEnv, env: NodeJS.ProcessEnv = process.env) => {

@@ -186,6 +186,34 @@ const opsPaths: Record<string, OpenApiPath> = {
       responses: { '200': { description: 'Masked settings and webhook URL table' } },
     },
   },
+  '/admin/api/session/line/start': {
+    get: {
+      tags: ['admin'],
+      summary: 'Start LINE Login OAuth (PKCE) for super-admin cookie',
+      responses: { '302': { description: 'Redirect to LINE' }, '503': { description: 'Not configured' } },
+    },
+  },
+  '/admin/api/session/oidc/start': {
+    get: {
+      tags: ['admin'],
+      summary: 'Start Okta OIDC authorization code + PKCE',
+      responses: { '302': { description: 'Redirect to Okta' }, '503': { description: 'Not configured' } },
+    },
+  },
+  '/admin/api/session/saml/metadata': {
+    get: {
+      tags: ['admin'],
+      summary: 'SAML SP metadata for Okta or other IdP',
+      responses: { '200': { description: 'XML metadata' } },
+    },
+  },
+  '/admin/api/session/saml/acs': {
+    post: {
+      tags: ['admin'],
+      summary: 'SAML HTTP-POST ACS (signed assertion, LINE user mapping)',
+      responses: { '302': { description: 'Bound or denied' } },
+    },
+  },
   '/admin/api/session/bind': {
     post: {
       tags: ['admin'],

@@ -204,6 +204,14 @@ describe('Cloudnex Connect admin API', () => {
     const body = await res.json() as { events: Array<{ action: string }> };
     expect(body.events.map(event => event.action)).toEqual(['quote_create']);
   });
+
+  it('returns 503 for LINE Login start when unset', async () => {
+    const res = await fetch(`${base()}/admin/api/session/line/start`, { redirect: 'manual' });
+    expect([503, 302]).toContain(res.status);
+    if (res.status === 302) return;
+    const body = await res.json() as { error: string };
+    expect(body.error).toMatch(/LINE Login/);
+  });
 });
 
 describe('OpenAPI Cloudnex Connect coverage', () => {
@@ -217,6 +225,9 @@ describe('OpenAPI Cloudnex Connect coverage', () => {
     expect(document.paths['/admin/api/bootstrap']).toBeTruthy();
     expect(document.paths['/admin/api/settings']).toBeTruthy();
     expect(document.paths['/admin/api/session/bind']).toBeTruthy();
+    expect(document.paths['/admin/api/session/line/start']).toBeTruthy();
+    expect(document.paths['/admin/api/session/oidc/start']).toBeTruthy();
+    expect(document.paths['/admin/api/session/saml/acs']).toBeTruthy();
     expect(document.paths['/webhook']).toBeTruthy();
     const auditParams = document.paths['/ops/audit-log'].get?.parameters?.map(param => param.name) || [];
     expect(auditParams).toEqual(expect.arrayContaining(['actorUserId', 'action', 'from', 'to']));

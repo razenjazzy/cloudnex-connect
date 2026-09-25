@@ -7,6 +7,7 @@ import { getRateStore } from './runtime-state';
 import { isProduction } from './env';
 
 export const jsonParser = express.json({ limit: process.env.MAX_JSON_BODY || '64kb' });
+export const formParser = express.urlencoded({ extended: false, limit: process.env.MAX_JSON_BODY || '256kb' });
 
 export const cspMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
     if (req.path === '/api-docs' || req.path.startsWith('/api-docs/')) {

@@ -29,7 +29,7 @@ Optional ops adapters (not the LINE path): schema-driven `/api-docs`, `POST /gra
 - `src/services/guided-forms.ts`: step-by-step guided-form field specs for multi-field commands (reconstructs the equivalent single-line command on completion; not used in group/room chats).
 - `src/services/user-verification.ts`: Odoo user verification (OTP + magic link, with attempt lockout).
 - `src/services/admin-authorization.ts`: `ADMIN_USER_ID` allowlist check used by `ADMIN ENABLE`, applied after verification and before the Odoo admin-capability check.
-- `src/http/admin-api-routes.ts`: Cloudnex Connect Admin HTTP (`/admin/api`). Overlay settings, LINE bind OTP, secret reveal, CRM/ops. Same `getErpAdapter()`; no second LINE router.
+- `src/http/admin-api-routes.ts`: Cloudnex Connect Admin HTTP (`/admin/api`). Overlay settings, LINE bind OTP, LINE Login OAuth, Okta OIDC/SAML, secret reveal, CRM/ops. Same `getErpAdapter()`; no second LINE router.
 - `src/services/opsAuth.ts`: operational API protection.
 - `src/services/odoo.ts`: Odoo integration.
 - `src/services/vertexai.ts`: Gemini integration for insights, intent classification, and voice-message transcription.
@@ -53,7 +53,7 @@ Do not replace these mechanisms.
 
 When adding authentication or authorization, extend the existing identity/profile model where possible.
 
-Do not assume that LINE identity alone authorizes access to every service. A verified Odoo identity does not by itself grant admin or write access either — the enforced chain for the admin role is: LINE identity -> user profile -> `profile.odooVerified` -> `ADMIN_USER_ID` allowlist (`src/services/admin-authorization.ts`, fails closed if unset) -> Odoo admin-capability precondition -> role assignment. Do not weaken or bypass any link in this chain.
+Do not assume that LINE identity alone authorizes access to every service. A verified Odoo identity does not by itself grant admin or write access either — the enforced chain for the admin role is: LINE identity -> user profile -> `profile.odooVerified` -> `ADMIN_USER_ID` allowlist (`src/services/admin-authorization.ts`, fails closed if unset) -> Odoo admin-capability precondition -> role assignment. Web super-admin additionally requires `SUPER_ADMIN_USER_IDS` plus a bound actor cookie from LINE OTP, LINE Login OAuth, or Okta OIDC/SAML mapped to that LINE id. Do not weaken or bypass any link in this chain.
 
 For multi-channel support, consider channel/service access separately from user identity. This is implemented: `src/line/channels.ts` resolves per-channel credentials and enabled services from environment variables only (never hardcoded), and `src/services/service-catalog.ts` is the single source of truth both command execution and channel navigation menus consult for service gating.
 

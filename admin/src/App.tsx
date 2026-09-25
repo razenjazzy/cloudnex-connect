@@ -138,11 +138,16 @@ export const App = () => {
       <main>
         <div className="card">
           <h1>Cloudnex Connect Admin</h1>
-          <p>OPS token required. Super-admin secret reveal needs a LINE bind after sign-in.</p>
+          <p>OPS token required. Super-admin identity: LINE Login, Okta (OIDC/SAML), or LINE OTP bind.</p>
           <form className="row" onSubmit={login}>
             <input type="password" value={token} onChange={e => setToken(e.target.value)} placeholder="OPS_API_TOKEN" autoComplete="off" />
             <button type="submit">Sign in</button>
           </form>
+          <div className="row">
+            <a href="/admin/api/session/line/start">LINE Login</a>
+            <a href="/admin/api/session/oidc/start">Okta OIDC</a>
+            <a href="/admin/api/session/saml/start">Okta/SAML</a>
+          </div>
           {error ? <p className="error">{error}</p> : null}
         </div>
       </main>
@@ -177,7 +182,12 @@ export const App = () => {
               <button type="button" onClick={() => go('/admin/testing')}>Testing</button>
               <button type="button" onClick={() => go('/admin/platform')}>Platform</button>
             </div>
-            <p>Bind LINE (super admin):</p>
+            <p>Bind super admin (LINE OTP, or LINE Login / Okta):</p>
+            <div className="row">
+              <a href="/admin/api/session/line/start">LINE Login</a>
+              <a href="/admin/api/session/oidc/start">Okta OIDC</a>
+              <a href="/admin/api/session/saml/start">SAML</a>
+            </div>
             <div className="row">
               <input value={bindUser} onChange={e => setBindUser(e.target.value)} placeholder="LINE user id" />
               <button type="button" onClick={async () => {
