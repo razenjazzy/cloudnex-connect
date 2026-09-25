@@ -63,7 +63,10 @@ export const COMMAND_GRID: CommandGridEntry[] = [
   { id: 'admin-channel', prefix: 'ADMIN CHANNEL', labelEn: 'Channel services', labelTh: 'บริการช่องทาง', category: 'admin', roles: ['admin'], channels: [SALES_CHANNEL_ID, DEFAULT_CHANNEL_ID], requiresAdmin: true },
   { id: 'admin-access', prefix: 'ADMIN ACCESS', labelEn: 'Admin access', labelTh: 'สิทธิ์แอดมิน', category: 'admin', roles: ['admin'], channels: [SALES_CHANNEL_ID, DEFAULT_CHANNEL_ID], requiresAdmin: true },
   { id: 'admin-audit', prefix: 'ADMIN AUDIT ROTATE', labelEn: 'Rotate audit', labelTh: 'หมุนเวียนออดิต', category: 'admin', roles: ['admin'], channels: [SALES_CHANNEL_ID, DEFAULT_CHANNEL_ID], requiresAdmin: true },
-  { id: 'seed-sample', prefix: 'SEED SAMPLE DATA', labelEn: 'Seed sample data', labelTh: 'ข้อมูลตัวอย่าง', category: 'admin', roles: ['admin'], channels: [SALES_CHANNEL_ID, DEFAULT_CHANNEL_ID], requiresAdmin: true },
+  { id: 'quote-assign', prefix: 'QUOTE ASSIGN', labelEn: 'Assign salesperson', labelTh: 'มอบหมายพนักงานขาย', category: 'commerce', roles: ['admin'], channels: [SALES_CHANNEL_ID, DEFAULT_CHANNEL_ID], requiresAdmin: true },
+  { id: 'relay-assign', prefix: 'RELAY ASSIGN', labelEn: 'Assign inbound', labelTh: 'มอบหมายข้อความ', category: 'commerce', roles: ['admin'], channels: [SALES_CHANNEL_ID, DEFAULT_CHANNEL_ID], requiresAdmin: true },
+  { id: 'relay-to', prefix: 'RELAY TO', labelEn: 'Relay to customer', labelTh: 'ส่งถึงลูกค้า', category: 'commerce', roles: ['staff', 'admin'], channels: [SALES_CHANNEL_ID, DEFAULT_CHANNEL_ID] },
+  { id: 'staff-pick', prefix: 'STAFF PICK', labelEn: 'More salespeople', labelTh: 'พนักงานขายเพิ่ม', category: 'commerce', roles: ['admin'], channels: [SALES_CHANNEL_ID, DEFAULT_CHANNEL_ID], requiresAdmin: true },
 ];
 
 export const commandActor = (profile: Pick<UserProfile, 'odooVerified' | 'role' | 'salesTier'>): CommandRole => {

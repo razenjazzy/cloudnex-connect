@@ -10,6 +10,10 @@ Three lanes. Same codebase. Different `APP_ENV`. The Docker image always sets `N
 
 If `APP_ENV` is unset and `NODE_ENV=production`, the process **fails closed to production**. The VPS must set `APP_ENV=staging`.
 
+This cut does **not** deploy production.
+
+Optional flags (default false): `GCS_MEDIA_BUCKET`, `LINE_MEDIA_MAX_BYTES`, `CLAMAV_URL`, `AV_SCAN_REQUIRED`, `LINE_GROUP_ROOMS`, `LINE_SECOND_WEBHOOK`, `MONGO_USERS`, `GRAPHQL_LINE_INGEST`.
+
 ## 1. Development (local + API test)
 
 ```bash

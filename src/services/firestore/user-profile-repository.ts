@@ -21,6 +21,11 @@ type CachedUserState = {
     salesTier?: 'salesperson' | 'sales_manager';
     salesSessionExpiresAt?: string;
     lastChannelId?: string;
+    lastTerminalAt?: string;
+    relayWaitAt?: string;
+    lastInboundSnippet?: string;
+    waitingSalesUserId?: string;
+    waitingCustomerUserId?: string;
 };
 
 type RepositoryDependencies = {
@@ -265,6 +270,56 @@ export const createUserProfileRepository = (dependencies: RepositoryDependencies
         dependencies.mergeCached(userId, { lastChannelId });
         const result = await dependencies.write('setLastChannelId', async database => {
             await database.collection('users').doc(userId).set({ lastChannelId }, { merge: true });
+        });
+        if (!result.ok) dependencies.restorePrevious(userId, previous);
+        return result;
+    },
+
+    setLastTerminalAt: async (userId: string, lastTerminalAt: string | null) => {
+        const previous = dependencies.getPrevious(userId);
+        dependencies.mergeCached(userId, { lastTerminalAt: lastTerminalAt || undefined });
+        const result = await dependencies.write('setLastTerminalAt', async database => {
+            await database.collection('users').doc(userId).set({ lastTerminalAt: lastTerminalAt || null }, { merge: true });
+        });
+        if (!result.ok) dependencies.restorePrevious(userId, previous);
+        return result;
+    },
+
+    setRelayWaitAt: async (userId: string, relayWaitAt: string | null) => {
+        const previous = dependencies.getPrevious(userId);
+        dependencies.mergeCached(userId, { relayWaitAt: relayWaitAt || undefined });
+        const result = await dependencies.write('setRelayWaitAt', async database => {
+            await database.collection('users').doc(userId).set({ relayWaitAt: relayWaitAt || null }, { merge: true });
+        });
+        if (!result.ok) dependencies.restorePrevious(userId, previous);
+        return result;
+    },
+
+    setLastInboundSnippet: async (userId: string, lastInboundSnippet: string | null) => {
+        const previous = dependencies.getPrevious(userId);
+        dependencies.mergeCached(userId, { lastInboundSnippet: lastInboundSnippet || undefined });
+        const result = await dependencies.write('setLastInboundSnippet', async database => {
+            await database.collection('users').doc(userId).set({ lastInboundSnippet: lastInboundSnippet || null }, { merge: true });
+        });
+        if (!result.ok) dependencies.restorePrevious(userId, previous);
+        return result;
+    },
+
+    setWaitingSalesUserId: async (userId: string, waitingSalesUserId: string | null) => {
+        const previous = dependencies.getPrevious(userId);
+        dependencies.mergeCached(userId, { waitingSalesUserId: waitingSalesUserId || undefined });
+        const result = await dependencies.write('setWaitingSalesUserId', async database => {
+            await database.collection('users').doc(userId).set({ waitingSalesUserId: waitingSalesUserId || null }, { merge: true });
+        });
+        if (!result.ok) dependencies.restorePrevious(userId, previous);
+        return result;
+    },
+
+    setWaitingCustomerUserId: async (userId: string, waitingCustomerUserId: string | null) => {
+        const previous = dependencies.getPrevious(userId);
+        dependencies.mergeCached(userId, { waitingCustomerUserId: waitingCustomerUserId || undefined });
+        const result = await dependencies.write('setWaitingCustomerUserId', async database => {
+            await database.collection('users').doc(userId).set({ waitingCustomerUserId: waitingCustomerUserId || null }, { merge: true });
         });
         if (!result.ok) dependencies.restorePrevious(userId, previous);
         return result;

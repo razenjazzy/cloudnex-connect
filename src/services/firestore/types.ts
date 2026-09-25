@@ -78,6 +78,11 @@ export type UserProfile = {
     salesSessionExpiresAt?: string;
     /** Last LINE OA channelId for this user (`sales` or `customer`). */
     lastChannelId?: string;
+    lastTerminalAt?: string;
+    relayWaitAt?: string;
+    lastInboundSnippet?: string;
+    waitingSalesUserId?: string;
+    waitingCustomerUserId?: string;
 };
 
 export type OdooVerificationChallenge = {
@@ -163,7 +168,11 @@ export type AuditAction =
     | 'secret_reveal_consumed'
     | 'secret_reveal_denied'
     | 'admin_session_bind'
-    | 'bootstrap_complete';
+    | 'bootstrap_complete'
+    | 'customer_inbound'
+    | 'campaign_test'
+    | 'campaign_send'
+    | 'campaign_broadcast';
 
 export type AuditOutcome = 'success' | 'failure';
 

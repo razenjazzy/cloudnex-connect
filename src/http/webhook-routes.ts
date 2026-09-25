@@ -11,9 +11,9 @@ import { isProduction, isWebhookTestEnabled, webhookTestToken } from './env';
 export const registerWebhookRoutes = (app: Express): void => {
     // LINE Webhook endpoint (default channel, backward compatible)
     app.post('/webhook', webhookLimiter, handleWebhook);
-
-    // LINE Webhook endpoint for additional configured channels
     app.post('/webhook/:channelId', webhookLimiter, handleWebhook);
+    app.post('/webhook-alt', webhookLimiter, handleWebhook);
+    app.post('/webhook-legacy', (_req, res) => res.status(410).json({ error: 'Use POST /webhook or POST /webhook-alt (same HMAC handler).' }));
 
     // Local test endpoint — bypasses LINE signature validation
     // Remove this before deploying to production

@@ -56,6 +56,11 @@ type CachedUserState = {
     salesTier?: 'salesperson' | 'sales_manager';
     salesSessionExpiresAt?: string;
     lastChannelId?: string;
+    lastTerminalAt?: string;
+    relayWaitAt?: string;
+    lastInboundSnippet?: string;
+    waitingSalesUserId?: string;
+    waitingCustomerUserId?: string;
 };
 
 const isPendingFlowActive = (pendingFlow: PendingFlowState | undefined | null): pendingFlow is PendingFlowState => {
@@ -440,6 +445,11 @@ export const setUserDisplayName = userProfileRepository.setDisplayName;
 export const setUserOdooVerificationStatus = userProfileRepository.setVerificationStatus;
 export const setSalesSessionExpiresAt = userProfileRepository.setSalesSessionExpiresAt;
 export const setLastChannelId = userProfileRepository.setLastChannelId;
+export const setLastTerminalAt = userProfileRepository.setLastTerminalAt;
+export const setRelayWaitAt = userProfileRepository.setRelayWaitAt;
+export const setLastInboundSnippet = userProfileRepository.setLastInboundSnippet;
+export const setWaitingSalesUserId = userProfileRepository.setWaitingSalesUserId;
+export const setWaitingCustomerUserId = userProfileRepository.setWaitingCustomerUserId;
 
 const phoneVariantsOverlap = (left: string, right: string): boolean => {
     const a = phoneMatchVariants(left);
@@ -570,6 +580,36 @@ export const listVerifiedSalesLineUserIds = async (): Promise<string[]> => {
         if (entry.state.salesTier === 'salesperson' || entry.state.salesTier === 'sales_manager') {
             ids.add(userId);
         }
+    }
+    return [...ids];
+};
+
+/** Verified LINE users last seen on Cloudnex Customer (not sales staff). */
+export const listVerifiedCustomerLineUserIds = async (): Promise<string[]> => {
+    const ids = new Set<string>();
+    const database = getDb();
+    if (database) {
+        try {
+            const snap = await database.collection('users')
+                .where('odooVerified', '==', true)
+                .where('lastChannelId', '==', 'customer')
+                .limit(200)
+                .get();
+            for (const doc of snap.docs) {
+                const data = doc.data() as { salesTier?: string; role?: string };
+                if (data.salesTier === 'salesperson' || data.salesTier === 'sales_manager' || data.role === 'admin') continue;
+                ids.add(doc.id);
+            }
+        } catch (error) {
+            logFirestoreError('listVerifiedCustomerLineUserIds', error);
+        }
+    }
+
+    for (const [userId, entry] of userStateCache.entries()) {
+        if (!entry.state.odooVerified) continue;
+        if (entry.state.lastChannelId !== 'customer') continue;
+        if (entry.state.salesTier === 'salesperson' || entry.state.salesTier === 'sales_manager' || entry.state.role === 'admin') continue;
+        ids.add(userId);
     }
     return [...ids];
 };

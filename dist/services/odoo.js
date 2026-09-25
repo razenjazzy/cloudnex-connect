@@ -14,7 +14,7 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.seedOdooSampleSalesData = exports.getDailySalesSnapshot = exports.deleteServiceCatalogItem = exports.updateServiceCatalogItem = exports.createServiceCatalogItem = exports.getServiceByIdentifier = exports.listServiceCatalogItems = exports.deletePartnerFromLine = exports.updatePartnerFromLine = exports.createPartnerFromLine = exports.getPartnerById = exports.getPartnerByName = exports.getPartnerByPhone = exports.listPartners = exports.createQuotationFromLine = exports.createInvoiceForSaleOrder = exports.removeSaleOrderLine = exports.updateSaleOrderLineQty = exports.findSaleOrderLineByProduct = exports.addSaleOrderLine = exports.cancelSaleOrder = exports.sendQuotationEmail = exports.markSaleOrderSent = exports.confirmSaleOrder = exports.listPaymentTerms = exports.getDefaultPaymentTermName = exports.pickDefaultPaymentTermName = exports.findPaymentTermByName = exports.getSaleOrdersForSalesperson = exports.getSaleOrdersForPartner = exports.getSaleOrderPdfLink = exports.getSaleOrderPortalLink = exports.getSaleOrderById = exports.findOrderByReference = exports.listProducts = exports.findProductsByQuery = exports.getProductById = exports.findProductByQuery = exports.verifyOdooAdminAccess = exports.pingOdoo = exports.isOdooConfigured = void 0;
+exports.seedOdooSampleSalesData = exports.getDailySalesSnapshot = exports.deleteServiceCatalogItem = exports.updateServiceCatalogItem = exports.createServiceCatalogItem = exports.getServiceByIdentifier = exports.listServiceCatalogItems = exports.deletePartnerFromLine = exports.updatePartnerFromLine = exports.createPartnerFromLine = exports.getPartnerById = exports.getPartnerByName = exports.getPartnerByPhone = exports.listPartners = exports.postPartnerNote = exports.createQuotationFromLine = exports.createInvoiceForSaleOrder = exports.removeSaleOrderLine = exports.updateSaleOrderLineQty = exports.findSaleOrderLineByProduct = exports.addSaleOrderLine = exports.cancelSaleOrder = exports.sendQuotationEmail = exports.markSaleOrderSent = exports.confirmSaleOrder = exports.listPaymentTerms = exports.getDefaultPaymentTermName = exports.pickDefaultPaymentTermName = exports.findPaymentTermByName = exports.assignSaleOrderSalesperson = exports.listCrmQuotations = exports.getSaleOrdersForSalesperson = exports.getSaleOrdersForPartner = exports.getSaleOrderPdfLink = exports.getSaleOrderPortalLink = exports.getSaleOrderById = exports.findOrderByReference = exports.listProducts = exports.findProductsByQuery = exports.getProductById = exports.findProductByQuery = exports.verifyOdooAdminAccess = exports.pingOdoo = exports.isOdooConfigured = void 0;
 const client_1 = require("./odoo/client");
 const admin_1 = require("./odoo/admin");
 const phone_match_1 = require("./phone-match");
@@ -39,22 +39,28 @@ const parseProduct = (row) => ({
     qty_available: num(row.qty_available),
     default_code: str(row.default_code),
 });
+const parseMany2one = (value) => {
+    if (!Array.isArray(value) || value.length < 2)
+        return undefined;
+    const id = num(value[0]);
+    if (!id)
+        return undefined;
+    return [id, str(value[1])];
+};
 const parseOrder = (row) => {
-    const partner = Array.isArray(row.partner_id) ? row.partner_id : undefined;
-    const partnerTuple = partner && partner.length >= 2
-        ? [num(partner[0]), str(partner[1])]
-        : undefined;
     return {
         id: num(row.id),
         name: str(row.name),
         state: str(row.state),
         amount_total: num(row.amount_total),
-        partner_id: partnerTuple,
+        partner_id: parseMany2one(row.partner_id),
+        user_id: parseMany2one(row.user_id),
         date_order: str(row.date_order),
         access_token: typeof row.access_token === 'string' ? row.access_token : undefined,
         invoice_status: typeof row.invoice_status === 'string' ? row.invoice_status : undefined,
         amount_invoiced: row.amount_invoiced !== undefined ? num(row.amount_invoiced) : undefined,
         note: typeof row.note === 'string' && row.note ? row.note : undefined,
+        client_order_ref: str(row.client_order_ref) || undefined,
     };
 };
 const parseOrderLine = (row) => {
@@ -288,7 +294,7 @@ const listSaleOrders = async (ownerDomain, limitOrOpts = 8) => {
     const uid = await (0, client_1.loginRead)(config);
     if (!uid)
         return [];
-    const rows = await (0, client_1.executeKwRead)(config, uid, 'sale.order', 'search_read', [domain], { fields: ['id', 'name', 'state', 'amount_total', 'partner_id', 'date_order'], order: 'date_order desc, id desc', limit, offset });
+    const rows = await (0, client_1.executeKwRead)(config, uid, 'sale.order', 'search_read', [domain], { fields: ['id', 'name', 'state', 'amount_total', 'partner_id', 'user_id', 'date_order', 'client_order_ref', 'note'], order: 'date_order desc, id desc', limit, offset });
     return rows.map(parseOrder);
 };
 /** Powers a customer's "my quotations" — orders where they are partner_id. */
@@ -297,6 +303,42 @@ exports.getSaleOrdersForPartner = getSaleOrdersForPartner;
 /** Powers a Sales User's "my quotations" — orders they own (user_id), with the buyer's name. */
 const getSaleOrdersForSalesperson = async (odooUserId, limitOrOpts = 8) => listSaleOrders([['user_id', '=', odooUserId]], limitOrOpts);
 exports.getSaleOrdersForSalesperson = getSaleOrdersForSalesperson;
+const listCrmQuotations = async (opts = {}) => {
+    const domain = [];
+    const state = (opts.state || '').trim().toLowerCase();
+    if (state && ['draft', 'sent', 'sale'].includes(state))
+        domain.push(['state', '=', state]);
+    else
+        domain.push(['state', 'in', ['draft', 'sent', 'sale']]);
+    if (opts.unassigned)
+        domain.push(['user_id', '=', false]);
+    const limit = Math.min(Math.max(opts.limit ?? 50, 1), 100);
+    return listSaleOrders(domain, { limit });
+};
+exports.listCrmQuotations = listCrmQuotations;
+/** Assign or unassign salesperson. Unassign writes false — never defaults to the XML-RPC admin uid. */
+const assignSaleOrderSalesperson = async (orderId, salespersonUserId) => {
+    if (!Number.isInteger(orderId) || orderId <= 0)
+        return false;
+    if (salespersonUserId !== null && (!Number.isInteger(salespersonUserId) || salespersonUserId <= 0))
+        return false;
+    const config = getConfig();
+    if (!config)
+        return false;
+    try {
+        const uid = await (0, client_1.login)(config);
+        if (!uid)
+            return false;
+        const user_id = salespersonUserId === null ? false : salespersonUserId;
+        await (0, client_1.executeKw)(config, uid, 'sale.order', 'write', [[orderId], { user_id }]);
+        return true;
+    }
+    catch (error) {
+        console.error('assignSaleOrderSalesperson failed:', error);
+        return false;
+    }
+};
+exports.assignSaleOrderSalesperson = assignSaleOrderSalesperson;
 /** Mirrors findProductByQuery's ilike-first-match convention, applied to account.payment.term. */
 const findPaymentTermByName = async (query) => {
     const normalizedQuery = normalizeLookupText(query);
@@ -627,10 +669,22 @@ extra) => {
             orderFields.note = extra.note;
         if (extra?.paymentTermId !== undefined)
             orderFields.payment_term_id = extra.paymentTermId;
+        if (extra?.salespersonUserId === false)
+            orderFields.user_id = false;
+        else if (typeof extra?.salespersonUserId === 'number')
+            orderFields.user_id = extra.salespersonUserId;
         // No reliable natural key to reconcile a sale order against before it
         // exists, so unlike partner/service creates this is not retried or
         // reconciled — a failed attempt should be safely re-runnable by the user.
         const orderId = await (0, client_1.executeKw)(config, uid, 'sale.order', 'create', [orderFields]);
+        if (extra?.salespersonUserId === false) {
+            try {
+                await (0, client_1.executeKw)(config, uid, 'sale.order', 'write', [[orderId], { user_id: false }]);
+            }
+            catch (error) {
+                console.warn('clear salesperson after quote create failed (non-fatal):', error);
+            }
+        }
         const rows = await (0, client_1.executeKw)(config, uid, 'sale.order', 'read', [[orderId]], { fields: ['name', 'amount_total'] });
         if (!rows.length)
             return null;
@@ -646,6 +700,29 @@ extra) => {
     }
 };
 exports.createQuotationFromLine = createQuotationFromLine;
+const postPartnerNote = async (partnerId, body) => {
+    const config = getConfig();
+    if (!config)
+        return false;
+    const uid = await (0, client_1.login)(config);
+    if (!uid)
+        return false;
+    const safe = body.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').slice(0, 2000);
+    try {
+        await (0, client_1.executeKw)(config, uid, 'mail.message', 'create', [{
+                model: 'res.partner',
+                res_id: partnerId,
+                body: `<p>${safe}</p>`,
+                message_type: 'comment',
+            }]);
+        return true;
+    }
+    catch (error) {
+        console.error('postPartnerNote failed:', error);
+        return false;
+    }
+};
+exports.postPartnerNote = postPartnerNote;
 let cachedPartnerPhoneFields = null;
 const getPartnerPhoneFields = async (config, uid) => {
     if (cachedPartnerPhoneFields)

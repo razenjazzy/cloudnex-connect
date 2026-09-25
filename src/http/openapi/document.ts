@@ -171,6 +171,13 @@ const opsPaths: Record<string, OpenApiPath> = {
       responses: { '200': { description: 'Accepted' }, '401': { description: 'Invalid signature' } },
     },
   },
+  '/webhook-alt': {
+    post: {
+      tags: ['line-services'],
+      summary: 'Same HMAC handleWebhook as POST /webhook (same Express process)',
+      responses: { '200': { description: 'Accepted' } },
+    },
+  },
   '/admin/api/bootstrap': {
     post: {
       tags: ['install'],
@@ -220,6 +227,46 @@ const opsPaths: Record<string, OpenApiPath> = {
       summary: 'Send LINE OTP to bind super-admin actor cookie',
       security: bearer,
       responses: { '200': { description: 'OTP pushed' } },
+    },
+  },
+  '/admin/api/campaigns/preview': {
+    post: {
+      tags: ['admin'],
+      summary: 'Preview campaign audience counts (super admin). Does not send LINE.',
+      security: bearer,
+      responses: { '200': { description: 'count and skip reasons' }, '400': { description: 'Illegal audience/channel' } },
+    },
+  },
+  '/admin/api/campaigns/test': {
+    post: {
+      tags: ['admin'],
+      summary: 'Push a test LINE message to the bound super-admin only',
+      security: bearer,
+      responses: { '200': { description: 'Pushed to actor' }, '400': { description: 'Invalid body or channel' } },
+    },
+  },
+  '/admin/api/campaigns/send': {
+    post: {
+      tags: ['admin'],
+      summary: 'Queue multicast campaign. Does not call LINE in this HTTP handler.',
+      security: bearer,
+      responses: { '202': { description: 'Queued' }, '400': { description: 'Invalid' }, '503': { description: 'No Redis' } },
+    },
+  },
+  '/admin/api/campaigns/broadcast': {
+    post: {
+      tags: ['admin'],
+      summary: 'LINE Broadcast API. Requires confirm BROADCAST. Ignores PROMO OFF.',
+      security: bearer,
+      responses: { '200': { description: 'Broadcast' }, '400': { description: 'Missing confirm' } },
+    },
+  },
+  '/admin/api/campaigns': {
+    get: {
+      tags: ['admin'],
+      summary: 'Last 50 campaigns',
+      security: bearer,
+      responses: { '200': { description: 'Campaign history' } },
     },
   },
   '/admin/api/secrets/reveal-token': {

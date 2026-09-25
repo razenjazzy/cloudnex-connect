@@ -49,8 +49,9 @@ import { bindPostbackData } from './postback';
 import { withSpan } from '../observability/tracing';
 import { appLogger } from '../services/logger';
 import { applyChannelPersona, isQuoteStaff, selfQuoteIdentity, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary } from './quote-access';
-import { evaluateCommandGrid, isGuestAllowedCommand } from './command-grid';
+import { evaluateCommandGrid, isGuestAllowedCommand, matchCommandGrid } from './command-grid';
 import { getErpAdapter } from '../erp/registry';
+import { guidedFormTtlMinutes, shouldIdleHome } from './idle-home';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -75,6 +76,11 @@ export type CommandReplyContext = {
   /** Push Odoo product carousel after reply when the catalog cache was cold. */
   pendingCatalogPush?: boolean;
   trayGeneration?: string;
+  /** Internal: staff Home re-enters QUOTE LIST without looping on idle-home. */
+  /** LINE quotedMessage text when the user swipe-replied. */
+  quotedText?: string;
+  quotedMessageId?: string;
+  skipIdleHome?: boolean;
 };
 
 // ---------------------------------------------------------------------------
@@ -143,9 +149,7 @@ export const homeMenuFromContext = (ctx: Pick<CommandReplyContext, 'userLanguage
   );
 };
 
-export const homeReplyFromContext = async (
-  ctx: Pick<CommandReplyContext, 'userId' | 'userLanguage' | 'agentName' | 'channel' | 'profile' | 'requestId'>,
-): Promise<messagingApi.Message[]> => {
+export const homeReplyFromContext = async (ctx: CommandReplyContext): Promise<messagingApi.Message[]> => {
   if (ctx.channel?.channelId === CUSTOMER_CHANNEL_ID) {
     const { commerceFollowUpMessages } = await import('./commerce-followup');
     const follow = await commerceFollowUpMessages(ctx, 2, { deferCatalogMiss: true });
@@ -158,6 +162,10 @@ export const homeReplyFromContext = async (
     const messages = [...prefix, ...follow];
     if (messages.length) return messages.slice(0, 5);
   }
+  const persona = applyChannelPersona(ctx.profile, ctx.channel?.channelId);
+  if (isQuoteStaff(persona)) {
+    return resolveCommandReply({ ...ctx, profile: persona, text: 'QUOTE LIST', skipIdleHome: true });
+  }
   return [homeMenuFromContext(ctx)];
 };
 
@@ -165,8 +173,7 @@ export const homeReplyFromContext = async (
 // Guided form helpers
 // ---------------------------------------------------------------------------
 
-const GUIDED_FORM_TTL_MINUTES = Number(process.env.GUIDED_FORM_TTL_MINUTES || 10);
-const buildFlowExpiry = (): string => new Date(Date.now() + GUIDED_FORM_TTL_MINUTES * 60 * 1000).toISOString();
+const buildFlowExpiry = (): string => new Date(Date.now() + guidedFormTtlMinutes() * 60 * 1000).toISOString();
 
 const buildFormPromptMessage = async (
   language: UserLanguage,
@@ -831,6 +838,10 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
     }
   }
 
+  if (!ctx.skipIdleHome && !ctx.isGroupContext && shouldIdleHome(profile) && upperText !== 'NAV HOME' && upperText !== 'NAV' && upperText !== 'BACK') {
+    return homeReplyFromContext(ctx);
+  }
+
   // Step 2: First-contact → PDPA data-collection notice (once, informational —
   // does not block any feature) + show home menu immediately
   if (!profile.firstMessageAt && !ctx.isGroupContext) {
@@ -849,6 +860,10 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
   }
 
   if (!profile.odooVerified && !isGuestAllowedCommand(upperText, profile.pendingFlow)) {
+    if (ctx.channel?.channelId === CUSTOMER_CHANNEL_ID && !matchCommandGrid(upperText) && !upperText.startsWith('FORM ')) {
+      const { notifyAdminsOfCustomerInbound } = await import('./inbound-relay');
+      await notifyAdminsOfCustomerInbound(ctx);
+    }
     return [text(tr(userLanguage,
       `${agentName} กรุณายืนยันด้วยเบอร์ในบัญชีผู้ใช้ Odoo ก่อนใช้บริการ ลูกค้าที่ไม่ได้ยืนยันจะเห็นเฉพาะข้อความที่ผู้ใช้ Odoo ส่งมา`,
       `${agentName} verify with the phone on your Odoo user account before using services. Unverified customers only see messages a verified Odoo user sends.`,
@@ -906,6 +921,34 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
     profile,
   });
   if (guidanceMessages) return guidanceMessages;
+
+  if (ctx.channel?.channelId === CUSTOMER_CHANNEL_ID) {
+    const { notifyAdminsOfCustomerInbound, clearSalesWaiting } = await import('./inbound-relay');
+    await notifyAdminsOfCustomerInbound(ctx);
+    await clearSalesWaiting(userId);
+    return [
+      text(tr(userLanguage, 'รับข้อความแล้ว ทีมขายจะติดต่อกลับ', 'Message received. Sales will follow up.'), userLanguage),
+      ...(await homeReplyFromContext(ctx)).slice(0, 4),
+    ];
+  }
+
+  if (isQuoteStaff(profile) && profile.waitingCustomerUserId && !matchCommandGrid(upperText) && !upperText.startsWith('NAV') && !upperText.startsWith('QUOTE') && !upperText.startsWith('FORM')) {
+    const { sendTargetedFlexMessage } = await import('./messaging');
+    const { customerNotifyChannelId } = await import('./channels');
+    const customerId = profile.waitingCustomerUserId;
+    const card = createBotTextFlexMessage({
+      title: getBrandTitle(userLanguage),
+      body: trimmed,
+      language: userLanguage,
+      tone: 'info',
+    });
+    await sendTargetedFlexMessage(
+      [customerId],
+      card,
+      customerNotifyChannelId(),
+    );
+    return [text(tr(userLanguage, 'ส่งถึงลูกค้าแล้ว', 'Sent to the customer.'), userLanguage)];
+  }
 
   // Step 7: AI chat fallback (Gemini → ClawBridge → Odoo heuristic)
   return handleChatFallback(ctx);

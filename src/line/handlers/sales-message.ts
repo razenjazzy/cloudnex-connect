@@ -11,8 +11,8 @@ import { sendTargetedFlexMessage } from '../messaging';
 import { customerNotifyChannelId } from '../channels';
 import { isQuoteStaff, syncStaffProfile } from '../quote-access';
 import { resolveCustomerLineUserId } from '../quote-notify';
-import { commerceFollowUpMessages } from '../commerce-followup';
-import { LINE_LIMITS } from '../message-limits';
+import { t } from '../../services/i18n';
+import { markSalesWaiting } from '../inbound-relay';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -84,12 +84,15 @@ const messageCustomerHandler: CommandHandler = {
 
     const customerLanguage = await getUserLanguage(customerUserId);
     await sendTargetedFlexMessage([customerUserId], botText(parsed.message, customerLanguage), customerNotifyChannelId());
+    await markSalesWaiting(userId, customerUserId);
 
     recordAuditEvent({ action: 'sales_message', outcome: 'success', actorUserId: userId, channelId: channel?.channelId, requestId, targetId: customerUserId });
-    return [
-      botText(tr(userLanguage, 'ส่งข้อความแล้ว', 'Message sent.'), userLanguage, 'success'),
-      ...(await commerceFollowUpMessages(ctx, LINE_LIMITS.MAX_MESSAGES_PER_REPLY - 1)),
-    ];
+    return [createBotTextFlexMessage({
+      title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+      body: t('waitingForCustomerReply', userLanguage),
+      language: userLanguage,
+      tone: 'info',
+    })];
   },
 };
 

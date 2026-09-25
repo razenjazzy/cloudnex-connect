@@ -34,6 +34,12 @@ export const startQueueWorkers = (): Worker[] => {
       sourceType: data.sourceType,
       text: data.text,
       audioMessageId: data.audioMessageId,
+      quotedText: data.quotedText,
+      quotedMessageId: data.quotedMessageId,
+      imageMessageId: data.imageMessageId,
+      fileMessageId: data.fileMessageId,
+      fileName: data.fileName,
+      videoMessageId: data.videoMessageId,
       receivedAt: data.receivedAt,
       isGroupContext: data.isGroupContext,
     });
@@ -57,6 +63,11 @@ export const startQueueWorkers = (): Worker[] => {
     }
     if (name === 'audit-rotate') {
       await runAuditRotationJob(actor || 'queue');
+      return;
+    }
+    if (name === 'campaign-send' && job.data.campaignId) {
+      const { runCampaignSend } = await import('./campaign-send');
+      await runCampaignSend(job.data.campaignId);
     }
   }, { connection, prefix: bullmqPrefix }));
 

@@ -154,6 +154,12 @@ See `documents/PROJECT_SUMMARY.md` for the full file inventory and
 
 ---
 
+## Admin (staging)
+
+`https://amardhaka.io/admin` — OPS token + super-admin (LINE Login, Okta, or OTP bind). Campaigns: `/admin/campaigns`. Webhooks: `POST https://amardhaka.io/webhook/sales` and `/webhook/customer`. Same `resolveCommandReply` as LINE.
+
+---
+
 ## Testing
 
 ```bash

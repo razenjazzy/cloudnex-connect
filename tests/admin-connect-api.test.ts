@@ -1,7 +1,8 @@
 import express from 'express';
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { getPlatformConfig, getUserProfile, listRecentAuditEventsPage, recordAuditEvent, setPlatformConfig } from '../src/services/firestore';
+import { getPlatformConfig, getUserProfile, listRecentAuditEventsPage, listVerifiedCustomerLineUserIds, recordAuditEvent, setPlatformConfig } from '../src/services/firestore';
 import { sendTargetedMessage } from '../src/line/messaging';
+import { enqueueCampaignSend } from '../src/jobs/queue';
 import { resetRuntimeSettingsForTests } from '../src/services/runtime-settings';
 import { registerAdminApiRoutes } from '../src/http/admin-api-routes';
 import { buildAdminActorCookie } from '../src/services/admin-session';
@@ -9,7 +10,14 @@ import { buildOpenApiDocument } from '../src/http/openapi/document';
 
 vi.mock('../src/line/messaging', () => ({
   sendTargetedMessage: vi.fn(async () => undefined),
+  sendBroadcastMessage: vi.fn(async () => true),
   SALES_CHANNEL_ID: 'sales',
+}));
+
+vi.mock('../src/jobs/queue', () => ({
+  isQueueBackendReady: vi.fn(() => true),
+  enqueueCampaignSend: vi.fn(async () => 'job-campaign-1'),
+  enqueueOpsJob: vi.fn(async () => 'job-ops-1'),
 }));
 
 vi.mock('../src/services/firestore', async () => {
@@ -24,6 +32,7 @@ vi.mock('../src/services/firestore', async () => {
     findLineUserIdByPhone: vi.fn(),
     findVerifiedUserIdByPartnerId: vi.fn(),
     listVerifiedSalesLineUserIds: vi.fn(async () => []),
+    listVerifiedCustomerLineUserIds: vi.fn(async () => []),
     listRecentApprovals: vi.fn(async () => []),
     setMarketingOptIn: vi.fn(),
     setUserLanguage: vi.fn(),
@@ -54,6 +63,7 @@ describe('Cloudnex Connect admin API', () => {
     'SUPER_ADMIN_USER_IDS',
     'CONNECT_BOOTSTRAP_TOKEN',
     'LINE_CHANNEL_SECRET',
+    'LINE_CHANNEL_ACCESS_TOKEN',
     'ADMIN_CONFIG_LOCK',
     'SECRET_REVEAL_TTL_SECONDS',
     'SECRETS_ENCRYPTION_KEY',
@@ -212,6 +222,108 @@ describe('Cloudnex Connect admin API', () => {
     const body = await res.json() as { error: string };
     expect(body.error).toMatch(/LINE Login/);
   });
+
+  it('previews promo skip counts and rejects promo on sales', async () => {
+    const { cookie } = buildAdminActorCookie('Usuper');
+    const headers = { ...ops, 'content-type': 'application/json', cookie };
+    const denied = await fetch(`${base()}/admin/api/campaigns/preview`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ audienceType: 'customers_promo', channelId: 'sales' }),
+    });
+    expect(denied.status).toBe(400);
+
+    vi.mocked(listVerifiedCustomerLineUserIds).mockResolvedValueOnce(['UcustOff']);
+    mockedProfile.mockImplementation(async (userId: string) => (
+      userId === 'UcustOff'
+        ? { ...profile, lastChannelId: 'customer' as const, marketingOptIn: false }
+        : profile
+    ));
+    const preview = await fetch(`${base()}/admin/api/campaigns/preview`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ audienceType: 'customers_promo', channelId: 'customer' }),
+    });
+    expect(preview.status).toBe(200);
+    const body = await preview.json() as { count: number; skipped: { not_opted_in: number } };
+    expect(body.count).toBe(0);
+    expect(body.skipped.not_opted_in).toBe(1);
+    expect(mockedSend).not.toHaveBeenCalled();
+    mockedProfile.mockResolvedValue(profile);
+  });
+
+  it('test-pushes only the bound super-admin on the configured channel', async () => {
+    process.env.LINE_CHANNEL_ACCESS_TOKEN = 'token-default';
+    const { cookie } = buildAdminActorCookie('Usuper');
+    mockedSend.mockResolvedValueOnce(true);
+    const res = await fetch(`${base()}/admin/api/campaigns/test`, {
+      method: 'POST',
+      headers: { ...ops, 'content-type': 'application/json', cookie },
+      body: JSON.stringify({ audienceType: 'sales_internal', channelId: 'sales', text: 'hello staff' }),
+    });
+    expect(res.status).toBe(200);
+    expect(mockedSend).toHaveBeenCalledWith(['Usuper'], '[Cloudnex test] hello staff', 'sales');
+    const body = await res.json() as { to: string };
+    expect(body.to).toBe('Usuper');
+  });
+
+  it('queues send without calling LINE and replays idempotency key', async () => {
+    process.env.LINE_CHANNEL_ACCESS_TOKEN = 'token-default';
+    process.env.LINE_CHANNEL_CUSTOMER_SECRET = 'cust-secret';
+    process.env.LINE_CHANNEL_CUSTOMER_ACCESS_TOKEN = 'cust-token';
+    resetRuntimeSettingsForTests();
+    const { cookie } = buildAdminActorCookie('Usuper');
+    const headers = { ...ops, 'content-type': 'application/json', cookie };
+    vi.mocked(listVerifiedCustomerLineUserIds).mockResolvedValue(['UcustOn']);
+    mockedProfile.mockImplementation(async (userId: string) => (
+      userId === 'UcustOn'
+        ? { ...profile, lastChannelId: 'customer' as const, marketingOptIn: true }
+        : profile
+    ));
+    const send = vi.mocked(enqueueCampaignSend);
+    send.mockClear();
+    mockedSend.mockClear();
+    const first = await fetch(`${base()}/admin/api/campaigns/send`, {
+      method: 'POST',
+      headers: { ...headers, 'Idempotency-Key': 'camp-1' },
+      body: JSON.stringify({
+        audienceType: 'customers_transactional',
+        channelId: 'customer',
+        text: 'hello',
+        confirm: 'SEND',
+      }),
+    });
+    expect(first.status).toBe(202);
+    expect(mockedSend).not.toHaveBeenCalled();
+    expect(send).toHaveBeenCalledTimes(1);
+    const replay = await fetch(`${base()}/admin/api/campaigns/send`, {
+      method: 'POST',
+      headers: { ...headers, 'Idempotency-Key': 'camp-1' },
+      body: JSON.stringify({
+        audienceType: 'customers_transactional',
+        channelId: 'customer',
+        text: 'hello',
+        confirm: 'SEND',
+      }),
+    });
+    expect(replay.status).toBe(200);
+    const replayBody = await replay.json() as { replayed?: boolean };
+    expect(replayBody.replayed).toBe(true);
+    expect(send).toHaveBeenCalledTimes(1);
+    const list = await fetch(`${base()}/admin/api/campaigns`, { headers: { ...ops, cookie } });
+    expect(list.status).toBe(200);
+    mockedProfile.mockResolvedValue(profile);
+  });
+
+  it('rejects broadcast without BROADCAST confirm', async () => {
+    const { cookie } = buildAdminActorCookie('Usuper');
+    const res = await fetch(`${base()}/admin/api/campaigns/broadcast`, {
+      method: 'POST',
+      headers: { ...ops, 'content-type': 'application/json', cookie },
+      body: JSON.stringify({ channelId: 'customer', text: 'hi', confirm: 'SEND' }),
+    });
+    expect(res.status).toBe(400);
+  });
 });
 
 describe('OpenAPI Cloudnex Connect coverage', () => {
@@ -224,7 +336,8 @@ describe('OpenAPI Cloudnex Connect coverage', () => {
     expect(names).toEqual(expect.arrayContaining(['install', 'line-services', 'admin', 'ops', 'jobs', 'erp']));
     expect(document.paths['/admin/api/bootstrap']).toBeTruthy();
     expect(document.paths['/admin/api/settings']).toBeTruthy();
-    expect(document.paths['/admin/api/session/bind']).toBeTruthy();
+    expect(document.paths['/admin/api/campaigns/send']).toBeTruthy();
+    expect(document.paths['/admin/api/campaigns/broadcast']).toBeTruthy();
     expect(document.paths['/admin/api/session/line/start']).toBeTruthy();
     expect(document.paths['/admin/api/session/oidc/start']).toBeTruthy();
     expect(document.paths['/admin/api/session/saml/acs']).toBeTruthy();

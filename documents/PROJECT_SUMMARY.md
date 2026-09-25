@@ -1,6 +1,8 @@
-# CNS LINE OA — Project Summary
+# Cloudnex Connect — Project Summary
 
-## Status: In active development, core platform complete
+LINE Official Account + Odoo for Cloudnex: Sales and Customer OAs, Firestore identity, Flex quotes, enterprise Admin (campaigns, audit, IdP), and consented messaging.
+
+## Status: Staging cut v8.0.5 (amardhaka.io). Production deploy is not this cut.
 
 ### What this is
 

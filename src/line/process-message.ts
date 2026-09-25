@@ -44,28 +44,35 @@ export type LineMessageJobInput = {
   sourceType?: string;
   text?: string;
   audioMessageId?: string;
+  quotedText?: string;
+  quotedMessageId?: string;
+  imageMessageId?: string;
+  fileMessageId?: string;
+  fileName?: string;
+  videoMessageId?: string;
   receivedAt: number;
   isGroupContext?: boolean;
 };
 
-export const extractLineMessageJobs = (events: webhook.Event[]): Array<{
+export type ExtractedLineMessageJob = {
   replyToken: string;
   conversationId: string;
   sourceType?: string;
   text?: string;
   audioMessageId?: string;
+  quotedText?: string;
+  quotedMessageId?: string;
+  imageMessageId?: string;
+  fileMessageId?: string;
+  fileName?: string;
+  videoMessageId?: string;
   webhookEventId?: string;
   isGroupContext?: boolean;
-}> => {
-  const jobs: Array<{
-    replyToken: string;
-    conversationId: string;
-    sourceType?: string;
-    text?: string;
-    audioMessageId?: string;
-    webhookEventId?: string;
-    isGroupContext?: boolean;
-  }> = [];
+};
+
+export const extractLineMessageJobs = (events: webhook.Event[]): ExtractedLineMessageJob[] => {
+  const jobs: ExtractedLineMessageJob[] = [];
+  const groupRooms = /^(1|true|yes|on)$/i.test(process.env.LINE_GROUP_ROOMS || '');
 
   for (const event of events) {
     if (event.type === 'postback') {
@@ -85,23 +92,52 @@ export const extractLineMessageJobs = (events: webhook.Event[]): Array<{
       });
       continue;
     }
-    if (event.type !== 'message' || (event.message.type !== 'text' && event.message.type !== 'audio')) {
-      continue;
-    }
+    if (event.type !== 'message') continue;
     const replyToken = (event as { replyToken?: string }).replyToken;
     const source = (event as { source?: { userId?: string; groupId?: string; roomId?: string; type?: string } }).source;
     const conversationId = source?.userId || source?.groupId || source?.roomId;
     if (!replyToken || !conversationId) continue;
-
-    jobs.push({
+    const isGroupContext = source?.type === 'group' || source?.type === 'room';
+    const message = event.message as {
+      type: string;
+      id?: string;
+      text?: string;
+      fileName?: string;
+      quotedMessageId?: string;
+      quotedMessage?: { text?: string; type?: string };
+    };
+    const quotedText = typeof message.quotedMessage?.text === 'string' ? message.quotedMessage.text : undefined;
+    const quotedMessageId = typeof message.quotedMessageId === 'string' ? message.quotedMessageId : undefined;
+    const base = {
       replyToken,
       conversationId,
       sourceType: source?.type,
-      text: event.message.type === 'text' ? event.message.text : undefined,
-      audioMessageId: event.message.type === 'audio' ? event.message.id : undefined,
       webhookEventId: (event as { webhookEventId?: string }).webhookEventId,
-      isGroupContext: source?.type === 'group' || source?.type === 'room',
-    });
+      isGroupContext,
+      quotedText,
+      quotedMessageId,
+    };
+
+    if (message.type === 'text' || message.type === 'audio') {
+      jobs.push({
+        ...base,
+        text: message.type === 'text' ? message.text : undefined,
+        audioMessageId: message.type === 'audio' ? message.id : undefined,
+      });
+      continue;
+    }
+    if (isGroupContext && !groupRooms) continue;
+    if (message.type === 'image' && message.id) {
+      jobs.push({ ...base, imageMessageId: message.id });
+      continue;
+    }
+    if (message.type === 'video' && message.id) {
+      jobs.push({ ...base, videoMessageId: message.id });
+      continue;
+    }
+    if (message.type === 'file' && message.id) {
+      jobs.push({ ...base, fileMessageId: message.id, fileName: message.fileName });
+    }
   }
   return jobs;
 };
@@ -166,6 +202,55 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
       }
     }
 
+    if (!inputText && (input.imageMessageId || input.fileMessageId || input.videoMessageId)) {
+      const { assertInboundMediaAllowed, scanBufferIfRequired, gcsMediaBucket } = await import('./media');
+      const kind = input.imageMessageId ? 'image' : input.videoMessageId ? 'video' : 'file';
+      const allowed = assertInboundMediaAllowed({ fileName: input.fileName });
+      if (!allowed.ok) {
+        return deliverMessages(client, input, [createBotTextFlexMessage({
+          title: agentName,
+          body: allowed.error,
+          language: userLanguage,
+          tone: 'warning',
+        })]);
+      }
+      try {
+        const blobClient = new messagingApi.MessagingApiBlobClient({ channelAccessToken: input.channelConfig.channelAccessToken });
+        const mediaId = input.imageMessageId || input.videoMessageId || input.fileMessageId || '';
+        const buffer = await streamToBuffer(await blobClient.getMessageContent(mediaId));
+        appLogger.info('line_media_received', { kind, bytes: buffer.length, requestId: input.requestId });
+        const sized = assertInboundMediaAllowed({ fileName: input.fileName, sizeBytes: buffer.length });
+        if (!sized.ok) {
+          return deliverMessages(client, input, [createBotTextFlexMessage({
+            title: agentName, body: sized.error, language: userLanguage, tone: 'warning',
+          })]);
+        }
+        const scanned = await scanBufferIfRequired(buffer);
+        if (!scanned.ok) {
+          return deliverMessages(client, input, [createBotTextFlexMessage({
+            title: agentName, body: scanned.error, language: userLanguage, tone: 'warning',
+          })]);
+        }
+        if (!gcsMediaBucket()) {
+          return deliverMessages(client, input, [createBotTextFlexMessage({
+            title: agentName,
+            body: tr(userLanguage, 'รับไฟล์แล้ว แต่ยังไม่ได้ตั้งที่เก็บไฟล์', 'File received. Media storage is not configured.'),
+            language: userLanguage,
+            tone: 'info',
+          })]);
+        }
+        inputText = `[${kind}] ${input.fileName || kind}`;
+      } catch (error) {
+        appLogger.warn('line_media_fetch_failed', { error: String(error), requestId: input.requestId });
+        return deliverMessages(client, input, [createBotTextFlexMessage({
+          title: agentName,
+          body: tr(userLanguage, 'รับไฟล์แล้ว แต่ยังส่งต่อไม่ได้', 'File received. It could not be relayed.'),
+          language: userLanguage,
+          tone: 'warning',
+        })]);
+      }
+    }
+
     if (!inputText) return null;
 
     appLogger.info('line_message', {
@@ -201,6 +286,8 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
       requestId: input.requestId,
       channel: input.channel,
       isGroupContext: input.isGroupContext,
+      quotedText: input.quotedText,
+      quotedMessageId: input.quotedMessageId,
     };
     const trayGeneration = `${input.receivedAt}:${input.requestId || ''}`;
     ctx.trayGeneration = trayGeneration;
@@ -223,8 +310,17 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
       })];
       delivered = await client.pushMessage({ to: input.conversationId, messages: fallback });
     }
-    const { applyTrayAfterReply } = await import('./rich-menu');
-    if (!input.isGroupContext) {
+    const { applyTrayAfterReply, unlinkUserRichMenu } = await import('./rich-menu');
+    const { shouldApplyTrayAfterReply, replyExpectsKeyboard } = await import('./tray-policy');
+    const { setLastTerminalAt } = await import('../services/firestore');
+    const afterProfile = await getUserProfile(input.conversationId);
+    const applyTray = shouldApplyTrayAfterReply({
+      isGroupContext: input.isGroupContext,
+      pendingFlow: Boolean(afterProfile.pendingFlow),
+      expectsKeyboard: replyExpectsKeyboard(messages),
+      relayWait: Boolean(afterProfile.relayWaitAt),
+    });
+    if (!input.isGroupContext && applyTray) {
       applyTrayAfterReply(
         input.conversationId,
         ctx.userLanguage,
@@ -232,6 +328,9 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
         ctx.trayHighlight,
         ctx.trayRest,
       );
+      await setLastTerminalAt(input.conversationId, new Date().toISOString());
+    } else if (!input.isGroupContext && (afterProfile.pendingFlow || replyExpectsKeyboard(messages))) {
+      void unlinkUserRichMenu(input.conversationId, input.channelConfig.channelId);
     }
     if (ctx.pendingCatalogPush && !input.isGroupContext) {
       void pushDeferredCommerceCatalog({

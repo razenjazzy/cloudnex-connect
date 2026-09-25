@@ -57,12 +57,23 @@ exports.handleWebhook = [
                         webhookEventId: job.webhookEventId,
                         text: job.text,
                         audioMessageId: job.audioMessageId,
+                        quotedText: job.quotedText,
+                        quotedMessageId: job.quotedMessageId,
+                        imageMessageId: job.imageMessageId,
+                        fileMessageId: job.fileMessageId,
+                        fileName: job.fileName,
+                        videoMessageId: job.videoMessageId,
                         sourceType: job.sourceType,
                         receivedAt,
                         requestId,
                         baseUrl,
                         isGroupContext: job.isGroupContext,
                     })));
+                    logger_1.appLogger.info('line_webhook_queued', {
+                        channelId: channelConfig.channelId,
+                        queued: jobs.length,
+                        requestId,
+                    });
                     res.status(200).json({ queued: jobs.length });
                     return;
                 }
@@ -76,6 +87,12 @@ exports.handleWebhook = [
                     sourceType: job.sourceType,
                     text: job.text,
                     audioMessageId: job.audioMessageId,
+                    quotedText: job.quotedText,
+                    quotedMessageId: job.quotedMessageId,
+                    imageMessageId: job.imageMessageId,
+                    fileMessageId: job.fileMessageId,
+                    fileName: job.fileName,
+                    videoMessageId: job.videoMessageId,
                     receivedAt,
                     isGroupContext: job.isGroupContext,
                 })));

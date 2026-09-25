@@ -14,6 +14,11 @@ import { getPlatformStatus } from '../platform/status';
 import { getErpAdapter } from '../erp/registry';
 import { recordAuditEvent } from '../services/firestore';
 import { isOdooConfigured } from '../services/odoo';
+import { parseCampaignAudienceRequest, parseCampaignSendRequest, resolveCampaignAudience } from '../line/campaigns';
+import { createQueuedCampaign } from '../jobs/campaign-store';
+import { enqueueCampaignSend, isQueueBackendReady } from '../jobs/queue';
+import { extractLineMessageJobs } from '../line/process-message';
+import { isGraphqlLineIngestEnabled } from '../http/optional-flags';
 
 const GraphQLJSON = new GraphQLScalarType({
   name: 'JSON',
@@ -210,6 +215,54 @@ const Mutation = new GraphQLObjectType({
           throw new GraphQLError('Assign failed', { extensions: { code: 'UNAVAILABLE' } });
         }
         return { ok: true, id: args.id, salespersonUserId };
+      },
+    },
+    previewCampaign: {
+      type: GraphQLJSON,
+      args: { input: { type: GraphQLJSON } },
+      resolve: async (_src, args: { input?: unknown }, ctx: GraphqlContext) => {
+        requireOps(ctx);
+        const parsed = parseCampaignAudienceRequest(args.input);
+        if ('error' in parsed) throw new GraphQLError(parsed.error);
+        const result = await resolveCampaignAudience(parsed);
+        if (!result.ok) throw new GraphQLError(result.error);
+        return { count: result.userIds.length, skipped: result.skipped };
+      },
+    },
+    sendCampaign: {
+      type: GraphQLJSON,
+      args: { input: { type: GraphQLJSON } },
+      resolve: async (_src, args: { input?: unknown }, ctx: GraphqlContext) => {
+        requireAdmin(ctx);
+        const parsed = parseCampaignSendRequest(args.input);
+        if ('error' in parsed) throw new GraphQLError(parsed.error);
+        if (!isQueueBackendReady()) throw new GraphQLError('REDIS_URL is required');
+        const audience = await resolveCampaignAudience(parsed);
+        if (!audience.ok) throw new GraphQLError(audience.error);
+        const campaign = await createQueuedCampaign({
+          audienceType: parsed.audienceType,
+          channelId: parsed.channelId,
+          text: parsed.text,
+          count: audience.userIds.length,
+          actorUserId: 'graphql',
+          delivery: 'multicast',
+          language: parsed.language,
+        });
+        const jobId = await enqueueCampaignSend(campaign.id, 'graphql');
+        return { ok: true, queued: true, jobId, campaign };
+      },
+    },
+    ingestLineEvents: {
+      type: GraphQLJSON,
+      args: { payload: { type: GraphQLJSON } },
+      resolve: async (_src, args: { payload?: { events?: unknown[] } }, ctx: GraphqlContext) => {
+        requireOps(ctx);
+        if (!isGraphqlLineIngestEnabled()) {
+          return { ok: false, disabled: true, error: 'GRAPHQL_LINE_INGEST is not enabled.' };
+        }
+        const events = Array.isArray(args.payload?.events) ? args.payload.events : [];
+        const jobs = extractLineMessageJobs(events as never);
+        return { ok: true, accepted: jobs.length };
       },
     },
   },

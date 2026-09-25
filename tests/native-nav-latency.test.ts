@@ -7,6 +7,8 @@ describe('native tray reply path', () => {
     expect(router).not.toContain('await linkUserRichMenu');
     expect(router).toContain('trayHighlight');
     const processMessage = readFileSync('src/line/process-message.ts', 'utf8');
+    expect(processMessage).toContain('shouldApplyTrayAfterReply');
+    expect(processMessage).toContain('unlinkUserRichMenu');
     expect(processMessage).toContain('pendingCatalogPush');
     expect(processMessage).toContain('pushDeferredCommerceCatalog');
     const deliverIdx = processMessage.indexOf('delivered = await deliverMessages');

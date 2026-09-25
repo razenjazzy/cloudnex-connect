@@ -9,6 +9,12 @@ export type LineEventJob = {
   webhookEventId?: string;
   text?: string;
   audioMessageId?: string;
+  quotedText?: string;
+  quotedMessageId?: string;
+  imageMessageId?: string;
+  fileMessageId?: string;
+  fileName?: string;
+  videoMessageId?: string;
   sourceType?: string;
   receivedAt: number;
   requestId?: string;
@@ -16,11 +22,12 @@ export type LineEventJob = {
   isGroupContext?: boolean;
 };
 
-export type OpsJobName = 'daily-report' | 'segmentation' | 'seed-odoo' | 'audit-rotate';
+export type OpsJobName = 'daily-report' | 'segmentation' | 'seed-odoo' | 'audit-rotate' | 'campaign-send';
 
 export type OpsJobPayload = {
   name: OpsJobName;
   actor?: string;
+  campaignId?: string;
 };
 
 type RedisConnection = { url: string; maxRetriesPerRequest: null };
@@ -93,6 +100,16 @@ export const enqueueOpsJob = async (name: OpsJobName, actor = 'ops'): Promise<st
     removeOnFail: 100,
   });
   appLogger.info('ops_job_enqueued', { name, jobId: queued.id });
+  return String(queued.id);
+};
+
+export const enqueueCampaignSend = async (campaignId: string, actor = 'ops'): Promise<string> => {
+  const queued = await getOpsJobQueue().add('campaign-send', { name: 'campaign-send', actor, campaignId }, {
+    jobId: `campaign-${campaignId}`,
+    removeOnComplete: 50,
+    removeOnFail: 100,
+  });
+  appLogger.info('ops_job_enqueued', { name: 'campaign-send', jobId: queued.id, campaignId });
   return String(queued.id);
 };
 

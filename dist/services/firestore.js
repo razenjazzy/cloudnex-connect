@@ -14,8 +14,8 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.claimQuoteCreateLock = exports.consumeActionOtpChallengeByToken = exports.consumeActionOtpChallenge = exports.createActionOtpChallenge = exports.consumeOdooVerificationByToken = exports.consumeOdooVerificationByOtp = exports.getPendingOdooVerificationChallenge = exports.createOdooVerificationChallenge = exports.deleteAuditEventsByIds = exports.listAuditEventsOlderThan = exports.listRecentAuditEvents = exports.listRecentAuditEventsPage = exports.recordAuditEvent = exports.transitionStoredApproval = exports.getApprovalRecord = exports.saveApprovalRecord = exports.setPlatformConfig = exports.getPlatformConfig = exports.listVerifiedSalesLineUserIds = exports.findVerifiedUserIdByPartnerId = exports.findLineUserIdByPhone = exports.findVerifiedUserIdByPhone = exports.setLastChannelId = exports.setSalesSessionExpiresAt = exports.setUserOdooVerificationStatus = exports.setUserDisplayName = exports.setUserContactPhone = exports.setUserOdooPartner = exports.setUserSalesTier = exports.setUserRole = exports.setLastQuoteListFrom = exports.setLastProductContext = exports.setUserPendingFlow = exports.recordChatFeedback = exports.filterMarketingOptedInUserIds = exports.deleteUserProfile = exports.setMarketingOptIn = exports.setLastActionOtpAt = exports.markConsentNoticeShown = exports.getUserProfile = exports.setUserLanguage = exports.getUserLanguage = exports.saveReportLog = exports.markUserFirstContact = exports.setEscalationState = exports.getEscalationState = exports.saveConversationMessage = exports.getConversationHistory = exports.updateUserScore = exports.checkFirestoreReady = void 0;
-exports.cancelGroupBuy = exports.confirmGroupBuy = exports.joinGroupBuy = exports.attachGroupBuyOdooOrder = exports.listGroupBuysByCreator = exports.getGroupBuyById = exports.createGroupBuy = exports.consumeQuoteInvites = exports.persistQuoteInvite = exports.releaseQuoteCreateLock = exports.completeQuoteCreateLock = void 0;
+exports.createOdooVerificationChallenge = exports.deleteAuditEventsByIds = exports.listAuditEventsOlderThan = exports.listRecentAuditEvents = exports.listRecentAuditEventsPage = exports.recordAuditEvent = exports.transitionStoredApproval = exports.listRecentApprovals = exports.getApprovalRecord = exports.saveApprovalRecord = exports.setPlatformConfig = exports.getPlatformConfig = exports.listVerifiedCustomerLineUserIds = exports.listVerifiedSalesLineUserIds = exports.findVerifiedUserIdByPartnerId = exports.findLineUserIdByPhone = exports.findVerifiedUserIdByPhone = exports.setWaitingCustomerUserId = exports.setWaitingSalesUserId = exports.setLastInboundSnippet = exports.setRelayWaitAt = exports.setLastTerminalAt = exports.setLastChannelId = exports.setSalesSessionExpiresAt = exports.setUserOdooVerificationStatus = exports.setUserDisplayName = exports.setUserContactPhone = exports.setUserOdooPartner = exports.setUserSalesTier = exports.setUserRole = exports.setLastQuoteListFrom = exports.setLastProductContext = exports.setUserPendingFlow = exports.recordChatFeedback = exports.filterMarketingOptedInUserIds = exports.deleteUserProfile = exports.setMarketingOptIn = exports.setLastActionOtpAt = exports.markConsentNoticeShown = exports.getUserProfile = exports.setUserLanguage = exports.getUserLanguage = exports.saveReportLog = exports.markUserFirstContact = exports.setEscalationState = exports.getEscalationState = exports.saveConversationMessage = exports.getConversationHistory = exports.updateUserScore = exports.checkFirestoreReady = void 0;
+exports.cancelGroupBuy = exports.confirmGroupBuy = exports.joinGroupBuy = exports.attachGroupBuyOdooOrder = exports.listGroupBuysByCreator = exports.getGroupBuyById = exports.createGroupBuy = exports.consumeQuoteInvites = exports.persistQuoteInvite = exports.releaseQuoteCreateLock = exports.completeQuoteCreateLock = exports.claimQuoteCreateLock = exports.consumeActionOtpChallengeByToken = exports.consumeActionOtpChallenge = exports.createActionOtpChallenge = exports.consumeOdooVerificationByToken = exports.consumeOdooVerificationByOtp = exports.getPendingOdooVerificationChallenge = void 0;
 const firestore_1 = require("@google-cloud/firestore");
 const app_config_1 = require("./app-config");
 const logger_1 = require("./logger");
@@ -371,6 +371,11 @@ exports.setUserDisplayName = userProfileRepository.setDisplayName;
 exports.setUserOdooVerificationStatus = userProfileRepository.setVerificationStatus;
 exports.setSalesSessionExpiresAt = userProfileRepository.setSalesSessionExpiresAt;
 exports.setLastChannelId = userProfileRepository.setLastChannelId;
+exports.setLastTerminalAt = userProfileRepository.setLastTerminalAt;
+exports.setRelayWaitAt = userProfileRepository.setRelayWaitAt;
+exports.setLastInboundSnippet = userProfileRepository.setLastInboundSnippet;
+exports.setWaitingSalesUserId = userProfileRepository.setWaitingSalesUserId;
+exports.setWaitingCustomerUserId = userProfileRepository.setWaitingCustomerUserId;
 const phoneVariantsOverlap = (left, right) => {
     const a = (0, phone_match_1.phoneMatchVariants)(left);
     const b = new Set((0, phone_match_1.phoneMatchVariants)(right));
@@ -497,6 +502,40 @@ const listVerifiedSalesLineUserIds = async () => {
     return [...ids];
 };
 exports.listVerifiedSalesLineUserIds = listVerifiedSalesLineUserIds;
+/** Verified LINE users last seen on Cloudnex Customer (not sales staff). */
+const listVerifiedCustomerLineUserIds = async () => {
+    const ids = new Set();
+    const database = getDb();
+    if (database) {
+        try {
+            const snap = await database.collection('users')
+                .where('odooVerified', '==', true)
+                .where('lastChannelId', '==', 'customer')
+                .limit(200)
+                .get();
+            for (const doc of snap.docs) {
+                const data = doc.data();
+                if (data.salesTier === 'salesperson' || data.salesTier === 'sales_manager' || data.role === 'admin')
+                    continue;
+                ids.add(doc.id);
+            }
+        }
+        catch (error) {
+            logFirestoreError('listVerifiedCustomerLineUserIds', error);
+        }
+    }
+    for (const [userId, entry] of userStateCache.entries()) {
+        if (!entry.state.odooVerified)
+            continue;
+        if (entry.state.lastChannelId !== 'customer')
+            continue;
+        if (entry.state.salesTier === 'salesperson' || entry.state.salesTier === 'sales_manager' || entry.state.role === 'admin')
+            continue;
+        ids.add(userId);
+    }
+    return [...ids];
+};
+exports.listVerifiedCustomerLineUserIds = listVerifiedCustomerLineUserIds;
 exports.getPlatformConfig = platformConfigRepository.get;
 exports.setPlatformConfig = platformConfigRepository.set;
 const approvalStore = (0, approval_store_1.createApprovalStore)({
@@ -516,6 +555,8 @@ const auditStore = (0, audit_store_1.createAuditStore)({
 const saveApprovalRecord = (record, auditContext = {}) => approvalStore.save(record, auditContext.requestId);
 exports.saveApprovalRecord = saveApprovalRecord;
 exports.getApprovalRecord = approvalStore.get;
+const listRecentApprovals = (limit = 50) => approvalStore.listRecent(limit);
+exports.listRecentApprovals = listRecentApprovals;
 const transitionStoredApproval = (approvalId, transition, now = new Date(), auditContext = {}) => approvalStore.transition(approvalId, transition, now, auditContext.requestId);
 exports.transitionStoredApproval = transitionStoredApproval;
 exports.recordAuditEvent = auditStore.record;

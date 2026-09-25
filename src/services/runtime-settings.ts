@@ -192,7 +192,8 @@ export const describeSettings = (env: NodeJS.ProcessEnv = process.env): Array<{
   value?: string;
 }> => {
   const keys = [...PUBLIC_SETTING_KEYS, ...SECRET_SETTING_KEYS];
-  return keys.map(key => {
+  const extra = Object.keys(overlay).filter(key => key.startsWith('LINE_CHANNEL_') && !keys.includes(key as typeof keys[number]));
+  return [...keys, ...extra].map(key => {
     const value = getRuntime(key, env);
     const kind = isSecretSettingKey(key) ? 'secret' as const : 'public' as const;
     return {

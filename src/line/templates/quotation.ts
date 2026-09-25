@@ -9,6 +9,16 @@ const tr = (language: Lang, th: string, en: string): string => (language === 'en
 
 const QUOTATION_STATE_SEQUENCE = ['draft', 'sent', 'sale'] as const;
 
+const pairButtons = (left: messagingApi.FlexButton, right: messagingApi.FlexButton): messagingApi.FlexBox => ({
+  type: 'box',
+  layout: 'horizontal',
+  spacing: 'md',
+  contents: [
+    { ...left, flex: 1 },
+    { ...right, flex: 1 },
+  ],
+});
+
 /**
  * Mirrors the real Odoo Sales record's status bar (Quotation -> Quotation
  * Sent -> Sales Order) plus the actions relevant to who's looking at it.
@@ -108,16 +118,6 @@ export const createQuotationJourneyFlexMessage = (
   const isSent = order.state === 'sent';
   const isSale = order.state === 'sale';
 
-  const pairButtons = (left: messagingApi.FlexButton, right: messagingApi.FlexButton): messagingApi.FlexBox => ({
-    type: 'box',
-    layout: 'horizontal',
-    spacing: 'md',
-    contents: [
-      { ...left, flex: 1 },
-      { ...right, flex: 1 },
-    ],
-  });
-
   // Screenshot layout: Confirm|Send in the body; footer is exactly three
   // rows — View Quote|Download PDF, More, Home.
   const bodyActions: messagingApi.FlexComponent[] = [];
@@ -127,6 +127,9 @@ export const createQuotationJourneyFlexMessage = (
         createMessageActionButton(t('confirm', language), `QUOTE CONFIRM ${order.id}`, 'primary', BRAND.teal),
         createMessageActionButton(t('sendNow', language), `QUOTE SEND ${order.id}`, 'secondary', BRAND.tealTint),
       ));
+      if (!order.user_id?.[0]) {
+        bodyActions.push(createMessageActionButton(t('assignSalesperson', language), `QUOTE ASSIGN ${order.id}`, 'secondary', BRAND.goldTint));
+      }
     }
     if (!isCancelled && isSale) {
       const canCreateInvoice = order.invoice_status === 'to invoice' || order.invoice_status === 'upselling';
@@ -159,7 +162,10 @@ export const createQuotationJourneyFlexMessage = (
     bodyActions.push(createUriActionButton(t('invoiceField', language), options.portalLink, 'secondary', BRAND.goldTint));
   }
   if (!isCancelled && (isDraft || isSent)) {
-    bodyActions.push(createMessageActionButton(t('addMore', language), `FORM QUOTE ADD ${order.id}`, 'secondary', BRAND.tealTint));
+    bodyActions.push(pairButtons(
+      createMessageActionButton(t('addMore', language), `FORM QUOTE ADD ${order.id}`, 'secondary', BRAND.tealTint),
+      createMessageActionButton(t('skip', language), 'NAV HOME', 'secondary', BRAND.goldTint),
+    ));
   }
 
   const footerContents: messagingApi.FlexComponent[] = [];
@@ -285,7 +291,10 @@ export const createQuotationMoreFlexMessage = (
   }
   rows.push(createPrefillButton(t('messageCustomer', language), `QUOTE MESSAGE ${order.id} `, 'secondary', BRAND.tealTint));
   if (canStillAct) {
-    rows.push(createMessageActionButton(t('addMore', language), `FORM QUOTE ADD ${order.id}`, 'secondary', BRAND.tealTint));
+    rows.push(pairButtons(
+      createMessageActionButton(t('addMore', language), `FORM QUOTE ADD ${order.id}`, 'secondary', BRAND.tealTint),
+      createMessageActionButton(t('skip', language), 'NAV HOME', 'secondary', BRAND.goldTint),
+    ));
   }
   rows.push(createMessageActionButton(t('back', language), `QUOTE STATUS ${order.id}`, 'secondary', BRAND.goldTint));
 
@@ -457,6 +466,7 @@ export const createQuotationListFlexMessage = (
   dateFrom?: string,
   dateTo?: string,
   userId = '',
+  listOptions: { staff?: boolean; admin?: boolean } = {},
 ): messagingApi.FlexMessage => {
   const dateQuery = dateFrom && dateTo ? ` FROM ${dateFrom} TO ${dateTo}` : '';
   return {
@@ -479,13 +489,17 @@ export const createQuotationListFlexMessage = (
               const kind = order.state === 'sale' || order.state === 'done' ? t('orderKind', language) : t('quotation', language);
               const datePart = order.date_order ? order.date_order.split(' ')[0] : '';
               const customer = order.partner_id?.[1] || '-';
+              const assignHint = listOptions.admin && !order.user_id?.[0] ? ` · ${t('assignSalesperson', language)}` : '';
               return {
                 type: 'box' as const,
                 layout: 'horizontal' as const,
                 backgroundColor: BRAND.paper,
                 cornerRadius: BRAND.radius,
                 paddingAll: 'sm' as const,
-                action: { type: 'message' as const, text: `QUOTE STATUS ${order.id}` },
+                action: {
+                  type: 'message' as const,
+                  text: listOptions.admin && !order.user_id?.[0] ? `QUOTE ASSIGN ${order.id}` : `QUOTE STATUS ${order.id}`,
+                },
                 contents: [
                   {
                     type: 'box' as const,
@@ -495,7 +509,7 @@ export const createQuotationListFlexMessage = (
                       { type: 'text' as const, text: order.name, size: 'sm' as const, color: BRAND.ink, wrap: true },
                       {
                         type: 'text' as const,
-                        text: `${kind}: ${datePart} | ${customer}`,
+                        text: `${kind}: ${datePart} | ${customer}${assignHint}`,
                         size: 'xs' as const, color: BRAND.inkSoft, wrap: true,
                       },
                     ],
@@ -521,6 +535,7 @@ export const createQuotationListFlexMessage = (
             { ...createDatePickerButton(t('dateTo', language), bindPostbackData('quote.list.to', userId)), flex: 1 },
           ] },
           ...(hasMore && nextCursor ? [createMessageActionButton(t('moreActions', language), `QUOTE LIST CURSOR ${nextCursor}${dateQuery}`, 'secondary', BRAND.tealTint)] : []),
+          ...(listOptions.staff ? [createMessageActionButton(t('createQuote', language), 'FORM QUOTE CREATE', 'primary', BRAND.teal)] : []),
           createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint),
         ],
       },

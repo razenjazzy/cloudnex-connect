@@ -201,6 +201,17 @@ export const UI_STRINGS = {
     en: 'The request finished. Open My quotations or Home for the next step.',
     th: 'คำขอเสร็จแล้ว เปิดใบเสนอราคาของฉันหรือหน้าแรกสำหรับขั้นตอนถัดไป',
   },
+  inboundLeadTitle: { en: 'Customer message', th: 'ข้อความลูกค้า' },
+  inboundFromCustomer: {
+    en: 'Customer wrote: {text}',
+    th: 'ลูกค้าเขียน: {text}',
+  },
+  inboundAssigned: { en: 'Assigned. Create a quotation when ready.', th: 'มอบหมายแล้ว สร้างใบเสนอราคาได้' },
+  assignSalesperson: { en: 'Assign', th: 'มอบหมาย' },
+  waitingForCustomerReply: {
+    en: 'Waiting for the customer to reply or approve.',
+    th: 'รอลูกค้าตอบหรืออนุมัติ',
+  },
 } as const;
 
 export type UiStringKey = keyof typeof UI_STRINGS;

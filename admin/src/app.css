@@ -16,6 +16,12 @@ header {
 }
 header a { color: #cdeae4; text-decoration: none; }
 header a.active { color: #fff; font-weight: 700; }
+.pill {
+  font-size: 0.75rem;
+  background: #1d4a44;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+}
 main { padding: 1.25rem; max-width: 960px; }
 .card {
   background: #fff;

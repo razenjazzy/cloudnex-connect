@@ -59,8 +59,12 @@ import {
 } from '../services/admin-idp';
 import { isAuthorizedForAdminRole } from '../services/admin-authorization';
 import { verifyOdooAdminAccess } from '../services/odoo/admin';
-import { sendTargetedMessage } from '../line/messaging';
-import { SALES_CHANNEL_ID, getChannelServiceOverride, setChannelServiceOverride } from '../line/channels';
+import { sendTargetedMessage, sendBroadcastMessage } from '../line/messaging';
+import { SALES_CHANNEL_ID, getChannelServiceOverride, setChannelServiceOverride, resolveChannelConfig } from '../line/channels';
+import { parseCampaignAudienceRequest, parseCampaignBroadcastRequest, parseCampaignSendRequest, parseCampaignTestText, resolveCampaignAudience } from '../line/campaigns';
+import { createQueuedCampaign, findCampaignByIdempotencyKey, listCampaigns } from '../jobs/campaign-store';
+import { enqueueCampaignSend, isQueueBackendReady } from '../jobs/queue';
+import { describeOptionalFlags } from './optional-flags';
 import { describeAllFeatureToggles, ensureFeatureTogglesLoaded, replaceFeatureToggles } from '../services/feature-toggles';
 import { getPricingModel, updatePricingModel } from '../services/pricing-control';
 import { getDemoPlatformPayload } from '../platform/service-modules';
@@ -190,6 +194,8 @@ export const registerAdminApiRoutes = (app: Express): void => {
       capabilities: adapter.capabilities,
       modules: getDemoPlatformPayload(),
       idp: describeAdminIdp(),
+      appEnv,
+      optionalFlags: describeOptionalFlags(),
     });
   });
 
@@ -208,6 +214,156 @@ export const registerAdminApiRoutes = (app: Express): void => {
     });
     if (!result.ok) return res.status(403).json({ error: result.error });
     return res.json({ ok: true, keys: Object.keys(next) });
+  });
+
+  app.post('/admin/api/line-channels', jsonParser, adminApiLimiter, requireSuperAdmin, async (req, res) => {
+    const channelId = String(req.body?.channelId || '').trim().toLowerCase();
+    if (!/^[a-z][a-z0-9_-]{0,31}$/.test(channelId)) {
+      return res.status(400).json({ error: 'channelId must be a lowercase slug (e.g. hr).' });
+    }
+    const envKey = channelId.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+    const secret = String(req.body?.secret || '').trim();
+    const accessToken = String(req.body?.accessToken || '').trim();
+    if (!secret || !accessToken) {
+      return res.status(400).json({ error: 'secret and accessToken are required.' });
+    }
+    const patch: Record<string, string> = {
+      [`LINE_CHANNEL_${envKey}_SECRET`]: secret,
+      [`LINE_CHANNEL_${envKey}_ACCESS_TOKEN`]: accessToken,
+    };
+    if (typeof req.body?.services === 'string' && req.body.services.trim()) {
+      patch[`LINE_CHANNEL_${envKey}_SERVICES`] = req.body.services.trim();
+    }
+    if (typeof req.body?.basicId === 'string' && req.body.basicId.trim()) {
+      patch[`LINE_CHANNEL_${envKey}_BASIC_ID`] = req.body.basicId.trim();
+    }
+    if (typeof req.body?.richMenuJson === 'string' && req.body.richMenuJson.trim()) {
+      patch[`LINE_CHANNEL_${envKey}_RICH_MENU_JSON`] = req.body.richMenuJson.trim();
+    }
+    const result = await mergeRuntimeOverlay(patch);
+    const actor = (req as Request & { adminActor?: string }).adminActor || 'unknown';
+    await recordAuditEvent({
+      action: 'channel_config_update',
+      outcome: result.ok ? 'success' : 'failure',
+      actorUserId: actor,
+      detail: channelId,
+    });
+    if (!result.ok) return res.status(403).json({ error: result.error });
+    const origin = (getRuntime('PUBLIC_BASE_URL') || '').replace(/\/$/, '') || 'https://example.invalid';
+    return res.json({
+      ok: true,
+      channelId,
+      webhookUrl: `${origin}/webhook/${channelId}`,
+    });
+  });
+
+  app.post('/admin/api/campaigns/preview', jsonParser, adminApiLimiter, requireSuperAdmin, async (req, res) => {
+    const parsed = parseCampaignAudienceRequest(req.body);
+    if ('error' in parsed) return res.status(400).json({ error: parsed.error });
+    const result = await resolveCampaignAudience(parsed);
+    if (!result.ok) return res.status(400).json({ error: result.error });
+    return res.json({
+      ok: true,
+      audienceType: parsed.audienceType,
+      channelId: parsed.channelId,
+      language: parsed.language || null,
+      count: result.userIds.length,
+      skipped: result.skipped,
+    });
+  });
+
+  app.post('/admin/api/campaigns/test', jsonParser, adminApiLimiter, requireSuperAdmin, async (req, res) => {
+    const parsed = parseCampaignAudienceRequest(req.body);
+    if ('error' in parsed) return res.status(400).json({ error: parsed.error });
+    const text = parseCampaignTestText(req.body);
+    if (typeof text !== 'string') return res.status(400).json({ error: text.error });
+    if (!resolveChannelConfig(parsed.channelId)) {
+      return res.status(400).json({ error: 'LINE channel is not configured.' });
+    }
+    const actor = (req as Request & { adminActor?: string }).adminActor || '';
+    const audience = await resolveCampaignAudience(parsed);
+    const previewCount = audience.ok ? audience.userIds.length : 0;
+    const delivered = await sendTargetedMessage(
+      [actor],
+      `[Cloudnex test] ${text}`,
+      parsed.channelId,
+    );
+    await recordAuditEvent({
+      action: 'campaign_test',
+      outcome: delivered === false ? 'failure' : 'success',
+      actorUserId: actor,
+      channelId: parsed.channelId,
+      detail: parsed.audienceType,
+    });
+    if (delivered === false) return res.status(503).json({ error: 'Test push failed.' });
+    return res.json({
+      ok: true,
+      to: actor,
+      channelId: parsed.channelId,
+      audienceCount: previewCount,
+    });
+  });
+
+  app.post('/admin/api/campaigns/send', jsonParser, adminApiLimiter, requireSuperAdmin, async (req, res) => {
+    const parsed = parseCampaignSendRequest(req.body);
+    if ('error' in parsed) return res.status(400).json({ error: parsed.error });
+    if (!resolveChannelConfig(parsed.channelId)) {
+      return res.status(400).json({ error: 'LINE channel is not configured.' });
+    }
+    if (!isQueueBackendReady()) {
+      return res.status(503).json({ error: 'REDIS_URL is required to queue campaign send.' });
+    }
+    const audience = await resolveCampaignAudience(parsed);
+    if (!audience.ok) return res.status(400).json({ error: audience.error });
+    if (audience.userIds.length === 0) return res.status(400).json({ error: 'Audience is empty.' });
+    const actor = (req as Request & { adminActor?: string }).adminActor || '';
+    const idempotencyKey = String(req.get('idempotency-key') || '').trim();
+    if (idempotencyKey) {
+      const existing = await findCampaignByIdempotencyKey(idempotencyKey);
+      if (existing) return res.status(200).json({ ok: true, campaign: existing, replayed: true });
+    }
+    const campaign = await createQueuedCampaign({
+      audienceType: parsed.audienceType,
+      channelId: parsed.channelId,
+      text: parsed.text,
+      count: audience.userIds.length,
+      actorUserId: actor,
+      idempotencyKey: idempotencyKey || undefined,
+      delivery: 'multicast',
+      language: parsed.language,
+    });
+    const jobId = await enqueueCampaignSend(campaign.id, actor);
+    await recordAuditEvent({
+      action: 'campaign_send',
+      outcome: 'success',
+      actorUserId: actor,
+      channelId: parsed.channelId,
+      detail: campaign.id,
+    });
+    return res.status(202).json({ ok: true, queued: true, jobId, campaign });
+  });
+
+  app.post('/admin/api/campaigns/broadcast', jsonParser, adminApiLimiter, requireSuperAdmin, async (req, res) => {
+    const parsed = parseCampaignBroadcastRequest(req.body);
+    if ('error' in parsed) return res.status(400).json({ error: parsed.error });
+    if (!resolveChannelConfig(parsed.channelId)) {
+      return res.status(400).json({ error: 'LINE channel is not configured.' });
+    }
+    const actor = (req as Request & { adminActor?: string }).adminActor || '';
+    const delivered = await sendBroadcastMessage(parsed.text, parsed.channelId);
+    await recordAuditEvent({
+      action: 'campaign_broadcast',
+      outcome: delivered ? 'success' : 'failure',
+      actorUserId: actor,
+      channelId: parsed.channelId,
+    });
+    if (!delivered) return res.status(503).json({ error: 'Broadcast failed.' });
+    return res.json({ ok: true, delivery: 'broadcast', channelId: parsed.channelId });
+  });
+
+  app.get('/admin/api/campaigns', adminApiLimiter, requireSuperAdmin, async (_req, res) => {
+    const campaigns = await listCampaigns(50);
+    return res.json({ campaigns, count: campaigns.length });
   });
 
   app.post('/admin/api/session/bind', jsonParser, adminApiLimiter, requireOpsStrict, async (req, res) => {
@@ -243,6 +399,17 @@ export const registerAdminApiRoutes = (app: Express): void => {
   app.post('/admin/api/session/logout', requireOpsStrict, (_req, res) => {
     res.setHeader('Set-Cookie', [clearAdminActorCookie(), clearOauthStateCookie()]);
     return res.json({ ok: true });
+  });
+
+  app.get('/admin/api/session/me', adminApiLimiter, requireAdminPanelAccess, (req, res) => {
+    const actor = parseAdminActorCookie(req.get('cookie'));
+    return res.json({
+      ok: true,
+      appEnv,
+      actorUserId: actor || null,
+      lock: isAdminConfigLocked(),
+      optionalFlags: describeOptionalFlags(),
+    });
   });
 
   const queryStr = (value: unknown): string => typeof value === 'string' ? value : '';

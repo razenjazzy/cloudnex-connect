@@ -5,6 +5,8 @@ credentials or secret values in this repository.
 
 **Current staging path:** Hostinger VPS `https://amardhaka.io` ([VPS_STAGING.md](VPS_STAGING.md)), image `razenjazzy/cloudnex-connect:staging`. Certification snapshot: [ENTERPRISE_CERTIFICATION.md](ENTERPRISE_CERTIFICATION.md).
 
+v8.0.5 is a **staging** recertify (campaigns, Admin IA, chat/media). Production deploy boxes below stay unchecked for this cut.
+
 Cloud Run (`release.yml`) is optional `workflow_dispatch` only. Railway variable names remain in [RAILWAY_STAGING.md](RAILWAY_STAGING.md) for historical deploys. Do not treat Railway as the live host.
 
 ## Hostinger VPS staging (current path)

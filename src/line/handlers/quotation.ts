@@ -1,5 +1,4 @@
 import type { CommandHandler } from './index';
-import { messagingApi } from '@line/bot-sdk';
 import { createBotTextFlexMessage, createFormPromptFlexMessage, createQuotationEditFlexMessage, createQuotationJourneyFlexMessage, createQuotationListFlexMessage, createQuotationMoreFlexMessage } from '../templates';
 import { DEFAULT_CHANNEL_ID, getBrandTitle, customerNotifyChannelId } from '../channels';
 import {
@@ -27,13 +26,14 @@ import { t } from '../../services/i18n';
 import { outcomeFlex, withOutcome } from '../outcome-reply';
 import { sendTargetedFlexMessage } from '../messaging';
 import { notifyQuoteParties, resolveCustomerLineUserId, type QuoteSendChannel } from '../quote-notify';
+import { guidedFormTtlMinutes } from '../idle-home';
+import { markSalesWaiting, clearSalesWaiting } from '../inbound-relay';
+import { listCrmQuotations } from '../../services/odoo';
 import { getErpAdapter } from '../../erp/registry';
 import type { ErpDeliveryStatus } from '../../erp/adapter';
 import { decodeQuoteListCursor, encodeQuoteListCursor } from '../quote-list-cursor';
 import { FLOW_SPECS } from '../../services/guided-forms';
 import { canManageQuoteLines, canViewOrderAsCustomer, isQuoteStaff, quoteJourneyRole, syncStaffProfile } from '../quote-access';
-import { commerceFollowUpMessages } from '../commerce-followup';
-import { LINE_LIMITS } from '../message-limits';
 import { appLogger } from '../../services/logger';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
@@ -121,17 +121,6 @@ const safeJourneyExtras = async (
   return { ...links, ...(delivery ? { delivery } : {}) };
 };
 
-const withCommerceMenu = async (
-  ctx: Parameters<typeof commerceFollowUpMessages>[0],
-  messages: messagingApi.Message[],
-): Promise<messagingApi.Message[]> => {
-  const room = LINE_LIMITS.MAX_MESSAGES_PER_REPLY - messages.length;
-  return [...messages, ...(await commerceFollowUpMessages(ctx, room))];
-};
-
-// Exported for direct unit testing (same rationale as command-validators.ts's
-// parsers) — pure functions, no need to exercise them through a full
-// CommandHandler.handle() call with mocked Odoo/Firestore.
 export const parseOrderId = (text: string, prefix: string): number | null => {
   const raw = text.trim().replace(new RegExp(`^${prefix}\\s*`, 'i'), '').trim();
   const first = raw.split(/\s+/)[0] || '';
@@ -254,7 +243,7 @@ const startQuoteSendFlow = async (
     flow: flowSpec.key,
     stepIndex: 0,
     collected,
-    expiresAt: new Date(Date.now() + Number(process.env.GUIDED_FORM_TTL_MINUTES || 10) * 60 * 1000).toISOString(),
+    expiresAt: new Date(Date.now() + guidedFormTtlMinutes() * 60 * 1000).toISOString(),
   });
   const options = flowSpec.fields[0].loadOptions
     ? await flowSpec.fields[0].loadOptions(collected).catch(() => [])
@@ -431,6 +420,13 @@ const quoteSendConfirmHandler: CommandHandler = {
       detail: `${sendChannel}:${result.customerLineId ? 'line' : 'no_line'}:${result.emailed ? 'email' : 'no_email'}`,
     });
 
+    if (result.customerLineId) {
+      await markSalesWaiting(userId, result.customerLineId);
+    } else {
+      const { setRelayWaitAt } = await import('../../services/firestore');
+      await setRelayWaitAt(userId, new Date().toISOString());
+    }
+
     return withOutcome(userLanguage, botText(
       sendChannelSummary(userLanguage, result, sendChannel),
       userLanguage,
@@ -524,6 +520,7 @@ const quoteApproveHandler: CommandHandler = {
       notifyCustomer: false,
       salesIntro: t('quoteApprovedStaff', userLanguage),
     }).catch(err => console.warn('quote-approve: sales notify failed (non-fatal):', err));
+    await clearSalesWaiting(userId);
 
     return withOutcome(userLanguage, outcomeFlex({
       language: userLanguage,
@@ -579,6 +576,7 @@ const quoteAddHandler: CommandHandler = {
         `"${product.name}" is already on this quote.`,
       ), userLanguage, [
         { label: t('addMore', userLanguage), text: `FORM QUOTE ADD ${parsed.orderId}`, style: 'primary' },
+        { label: t('skip', userLanguage), text: 'NAV HOME', style: 'secondary' },
       ])];
     }
 
@@ -603,10 +601,14 @@ const quoteAddHandler: CommandHandler = {
       title: t('quoteLineAddedTitle', userLanguage),
       body: isQuoteStaff(profile) ? t('quoteLineAddedStaff', userLanguage) : t('quoteLineAddedWaitingSales', userLanguage),
       actions: isQuoteStaff(profile)
-        ? [{ label: t('sendNow', userLanguage), text: `QUOTE SEND ${parsed.orderId}`, style: 'primary' }]
+        ? [
+          { label: t('sendNow', userLanguage), text: `QUOTE SEND ${parsed.orderId}`, style: 'primary' },
+          { label: t('addMore', userLanguage), text: `FORM QUOTE ADD ${parsed.orderId}`, style: 'secondary' },
+          { label: t('skip', userLanguage), text: 'NAV HOME', style: 'secondary' },
+        ]
         : [
           { label: t('addMore', userLanguage), text: `FORM QUOTE ADD ${parsed.orderId}`, style: 'primary' },
-          { label: t('myQuotations', userLanguage), text: 'QUOTE LIST', style: 'secondary' },
+          { label: t('skip', userLanguage), text: 'NAV HOME', style: 'secondary' },
         ],
     });
     return withOutcome(userLanguage, added, [
@@ -942,7 +944,7 @@ const quoteListHandler: CommandHandler = {
       partnerId = profile.odooPartnerId;
     }
 
-    if (!partnerId) {
+    if (!partnerId && !(profile.role === 'admin' && !phoneArg)) {
       return [botText(t('quoteNotLinked', userLanguage), userLanguage)];
     }
 
@@ -954,16 +956,21 @@ const quoteListHandler: CommandHandler = {
       dateFrom,
       dateTo,
     };
-    let fetched;
+    let fetched: OdooSaleOrder[] = [];
     try {
-      if (listMode !== 'lookup' && isQuoteStaff(profile)) {
+      if (listMode !== 'lookup' && profile.role === 'admin' && !phoneArg) {
+        fetched = await listCrmQuotations({ limit: DISPLAY_LIMIT + 1 });
+        listMode = 'salesperson';
+      } else if (listMode !== 'lookup' && isQuoteStaff(profile) && partnerId) {
         const odooUserId = await findOdooUserIdByPartnerId(partnerId);
         fetched = odooUserId
           ? await getSaleOrdersForSalesperson(odooUserId, listOpts)
           : await getSaleOrdersForPartner(partnerId, listOpts);
         listMode = odooUserId ? 'salesperson' : 'partner';
-      } else {
+      } else if (partnerId) {
         fetched = await getSaleOrdersForPartner(partnerId, listOpts);
+      } else {
+        fetched = [];
       }
     } catch (error) {
       console.warn('quote-list failed:', error);
@@ -983,7 +990,10 @@ const quoteListHandler: CommandHandler = {
       customers: page.map(order => order.partner_id?.[1] || null),
     });
     const nextCursor = hasMore && page.length ? encodeQuoteListCursor(page[page.length - 1]) : undefined;
-    return [createQuotationListFlexMessage(page, hasMore, userLanguage, nextCursor, dateFrom, dateTo, userId)];
+    return [createQuotationListFlexMessage(page, hasMore, userLanguage, nextCursor, dateFrom, dateTo, userId, {
+      staff: isQuoteStaff(profile),
+      admin: profile.role === 'admin',
+    })];
   },
 };
 
@@ -1015,9 +1025,15 @@ const quoteMessageHandler: CommandHandler = {
 
     const customerLanguage = await getUserLanguage(customerUserId);
     await sendTargetedFlexMessage([customerUserId], botText(parsed.message, customerLanguage), customerNotifyChannelId());
+    await markSalesWaiting(userId, customerUserId);
 
     recordAuditEvent({ action: 'quote_message', outcome: 'success', actorUserId: userId, channelId: channel?.channelId, requestId, targetId: String(parsed.orderId) });
-    return withCommerceMenu(ctx, [botText(tr(userLanguage, 'ส่งข้อความให้ลูกค้าแล้ว', 'Message sent to the customer.'), userLanguage)]);
+    return [createBotTextFlexMessage({
+      title: t('assignSalesperson', userLanguage),
+      body: t('waitingForCustomerReply', userLanguage),
+      language: userLanguage,
+      tone: 'info',
+    })];
   },
 };
 

@@ -1,5 +1,6 @@
 import type { UserLanguage } from '../services/firestore';
 import { DEFAULT_CHANNEL_ID, resolveChannelConfig } from './channels';
+import { getRuntime } from '../services/runtime-settings';
 import { appLogger } from '../services/logger';
 
 export type RichMenuVariant = 'default' | 'home' | 'verify' | 'commerce' | 'orders' | 'help' | 'language';
@@ -7,9 +8,9 @@ export type RichMenuVariant = 'default' | 'home' | 'verify' | 'commerce' | 'orde
 const parseMenuMap = (env: NodeJS.ProcessEnv, channelId = DEFAULT_CHANNEL_ID): Record<string, Record<string, string>> => {
   const envKey = channelId.trim().toUpperCase().replace(/[^A-Z0-9]/g, '_');
   const namespaced = channelId !== DEFAULT_CHANNEL_ID
-    ? env[`LINE_CHANNEL_${envKey}_RICH_MENU_JSON`]?.trim()
+    ? (env[`LINE_CHANNEL_${envKey}_RICH_MENU_JSON`]?.trim() || getRuntime(`LINE_CHANNEL_${envKey}_RICH_MENU_JSON`))
     : undefined;
-  const raw = namespaced || env.LINE_RICH_MENU_JSON?.trim();
+  const raw = namespaced || env.LINE_RICH_MENU_JSON?.trim() || getRuntime('LINE_RICH_MENU_JSON');
   if (!raw) return {};
   try {
     const parsed = JSON.parse(raw) as Record<string, Record<string, string>>;
@@ -108,6 +109,25 @@ export const queueTrayRestAfterReply = (
       appLogger.warn('rich_menu_rest_failed', { error: String(error) });
     });
   }, 750);
+};
+
+export const unlinkUserRichMenu = async (
+  userId: string,
+  channelId: string = DEFAULT_CHANNEL_ID,
+): Promise<void> => {
+  const channel = resolveChannelConfig(channelId || DEFAULT_CHANNEL_ID);
+  if (!channel) return;
+  try {
+    const response = await fetch(
+      `https://api.line.me/v2/bot/user/${encodeURIComponent(userId)}/richmenu`,
+      { method: 'DELETE', headers: { Authorization: `Bearer ${channel.channelAccessToken}` } },
+    );
+    if (!response.ok && response.status !== 404) {
+      appLogger.warn('rich_menu_unlink_failed', { status: response.status, body: await response.text() });
+    }
+  } catch (error) {
+    appLogger.warn('rich_menu_unlink_failed', { error: String(error) });
+  }
 };
 
 export const applyTrayAfterReply = (

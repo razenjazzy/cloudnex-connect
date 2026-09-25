@@ -276,7 +276,7 @@ const demoQuoteHandler: CommandHandler = {
         body: tFill('quoteReceivedWaitingSales', userLanguage, { name: quotation.name }),
         actions: [
           { label: t('addMore', userLanguage), text: `FORM QUOTE ADD ${quotation.id}`, style: 'primary' },
-          { label: t('myQuotations', userLanguage), text: 'QUOTE LIST', style: 'secondary' },
+          { label: t('skip', userLanguage), text: 'NAV HOME', style: 'secondary' },
         ],
       });
       if (paymentTermNotFound) {
@@ -297,7 +297,8 @@ const demoQuoteHandler: CommandHandler = {
         : tFill('quoteCreatedStaffNext', userLanguage, { name: quotation.name }),
       actions: [
         { label: t('confirm', userLanguage), text: `QUOTE CONFIRM ${quotation.id}`, style: 'primary' },
-        { label: t('sendNow', userLanguage), text: `QUOTE SEND ${quotation.id}`, style: 'secondary' },
+        { label: t('addMore', userLanguage), text: `FORM QUOTE ADD ${quotation.id}`, style: 'secondary' },
+        { label: t('skip', userLanguage), text: 'NAV HOME', style: 'secondary' },
       ],
     });
     if (paymentTermNotFound) {
