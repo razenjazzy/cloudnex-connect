@@ -1,3 +1,16 @@
+# Release notes — v9.0.0
+
+**Date:** 2026-09-26  
+**Package version:** `9.0.0`  
+**Lane:** staging (no production deploy)  
+**Commit title:** `Release: v9.0.0 - Odoo Line OA v6 Staging Deploy`
+
+Included architecture: HMAC `/webhook` and `/webhook/:channelId` plus gated `/webhook-alt`; GraphQL `ingestLineEvents` → `processLineMessageJob`; one `resolveCommandReply`. `MONGO_USERS` on uses Mongo as identity SoR (Firestore may mirror; Odoo stays on `getErpAdapter()`). Non-odoo ERP is an unimplemented placeholder. Admin command overlay, `TENANT_KEY` overlay scoping, Directory/Privileges/Audit, e-sign/payment status fail-closed without fake PDFs.
+
+Remaining limitations: EN/TH only; placeholder ERP (no SAP RPC); e-sign/payment need installed Odoo modules; Mongo SoR default off and requires `MONGODB_URI`; no production cutover; Flex/tray not restyled; no chart npm kit.
+
+---
+
 # Release notes — v8.0.8
 
 **Date:** 2026-09-26  

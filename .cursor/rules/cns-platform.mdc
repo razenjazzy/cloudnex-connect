@@ -5,10 +5,12 @@ alwaysApply: true
 
 # CNS LINE OA
 
-LINE HMAC webhook → Firestore profile → one `resolveCommandReply` → Flex.
-Do not add a second router. Do not put LINE events on GraphQL. Do not store users or Odoo data in Mongo.
+LINE HMAC `POST /webhook` and `POST /webhook/:channelId` (and `POST /webhook-alt` when `LINE_SECOND_WEBHOOK`) → identity SoR → one `resolveCommandReply` → Flex.
+GraphQL `ingestLineEvents` (`GRAPHQL_LINE_INGEST`, ops-auth) is an allowed ingest path → `processLineMessageJob` → the same `resolveCommandReply`. Do not duplicate command logic.
+`MONGO_USERS` on: Mongo is identity SoR (Firestore may mirror). Odoo masters stay in Odoo via `getErpAdapter()` — never Mongo as Odoo SoR.
+Non-odoo `ERP_PROVIDER` values use an unimplemented placeholder adapter (fail closed). Do not implement SAP/QuickBooks/Oracle RPC.
 
-Admin chain (fail closed): LINE id → profile → `odooVerified` → `ADMIN_USER_ID` → Odoo admin capability → `role=admin`.
+Admin chain (fail closed): LINE id → profile (SoR) → `odooVerified` → `ADMIN_USER_ID` → Odoo admin capability → `role=admin`.
 
 ## Environments
 
@@ -20,7 +22,7 @@ Admin chain (fail closed): LINE id → profile → `odooVerified` → `ADMIN_USE
 
 Unset `APP_ENV` with `NODE_ENV=production` is treated as production.
 
-Optional adapters (Swagger, GraphQL, Mongo RAG, BullMQ) are ops add-ons, not the bot.
+Optional adapters (Swagger, GraphQL ingest, Mongo identity when flagged, Mongo RAG, BullMQ) share the same command processor. Production deploy is a separate cut.
 
 ## Agent budget
 

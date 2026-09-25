@@ -163,5 +163,52 @@ export const verifyOdooAdminAccess = async (): Promise<{ ok: boolean; message: s
     return { ok: false, message: 'Odoo user lacks admin-level write rights on res.partner.' };
   }
 
-  return { ok: true, message: `Odoo admin verified (uid=${uid}).` };
+    return { ok: true, message: `Odoo admin verified (uid=${uid}).` };
+};
+
+export type OdooPrivilegeSnapshot = {
+  configured: boolean;
+  odooUserId?: number;
+  login?: string;
+  name?: string;
+  salesTier?: OdooSalesTier;
+  groups: string[];
+  canWritePartners?: boolean;
+};
+
+/** Live res.users + Sales groups for a verified partner. Fail closed if Odoo is unset. */
+export const describeOdooPrivilegesByPartnerId = async (partnerId: number): Promise<OdooPrivilegeSnapshot> => {
+  const config = getOdooConfig();
+  if (!config) return { configured: false, groups: [] };
+  if (!Number.isInteger(partnerId) || partnerId <= 0) return { configured: true, groups: [] };
+  try {
+    const uid = await loginRead(config);
+    if (!uid) return { configured: true, groups: [] };
+    const odooUserId = await findOdooUserIdByPartnerId(partnerId);
+    if (!odooUserId) return { configured: true, groups: [] };
+    const salesTier = await findOdooSalesTierByPartnerId(partnerId);
+    const rows = await executeKwRead<Array<{ login?: string; name?: string; groups_id?: number[]; all_group_ids?: number[] }>>(
+      config, uid, 'res.users', 'read', [[odooUserId]], { fields: ['login', 'name', 'groups_id'] }
+    ).catch(() => [] as Array<{ login?: string; name?: string; groups_id?: number[] }>);
+    const row = rows[0] || {};
+    const groupIds = Array.isArray(row.groups_id) ? row.groups_id : [];
+    let groups: string[] = [];
+    if (groupIds.length) {
+      const named = await executeKwRead<Array<{ id: number; name: string }>>(
+        config, uid, 'res.groups', 'read', [groupIds.slice(0, 40)], { fields: ['name'] }
+      ).catch(() => [] as Array<{ id: number; name: string }>);
+      groups = named.map(g => g.name).filter(Boolean);
+    }
+    return {
+      configured: true,
+      odooUserId,
+      login: typeof row.login === 'string' ? row.login : undefined,
+      name: typeof row.name === 'string' ? row.name : undefined,
+      salesTier,
+      groups,
+    };
+  } catch (err) {
+    console.error('describeOdooPrivilegesByPartnerId error:', err);
+    return { configured: true, groups: [] };
+  }
 };

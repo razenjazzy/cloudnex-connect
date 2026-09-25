@@ -24,6 +24,8 @@ import { getServiceModules } from './service-modules';
 import { auditEnvParams } from '../http/env-params';
 import { lineAccessTokenExpiryWarnings } from '../services/line-access-token-expiry';
 import { getEffectiveAdminUserIds, getRuntime } from '../services/runtime-settings';
+import { isErpImplemented } from '../erp/registry';
+import { isMongoUsersEnabled, mongoIdentityReady } from '../services/mongo-users';
 
 export type PlatformCheck = ProbeResult & { required: boolean };
 
@@ -34,6 +36,7 @@ export type PlatformFlags = {
   deliveryProduction: boolean;
   staging: boolean;
   erpProvider: string;
+  erpImplemented: boolean;
   lineConfigured: boolean;
   lineCustomerConfigured: boolean;
   firestoreProjectConfigured: boolean;
@@ -82,6 +85,13 @@ export const getPlatformFlags = (): PlatformFlags => ({
   deliveryProduction: isDeliveryProduction,
   staging: isStaging,
   erpProvider: process.env.ERP_PROVIDER?.trim().toLowerCase() || 'odoo',
+  erpImplemented: (() => {
+    try {
+      return isErpImplemented();
+    } catch {
+      return false;
+    }
+  })(),
   lineConfigured: isLineConfigured(),
   lineCustomerConfigured: isLineCustomerConfigured(),
   firestoreProjectConfigured: Boolean(process.env.GOOGLE_CLOUD_PROJECT?.trim()),
@@ -164,7 +174,13 @@ export const getPlatformStatus = async () => {
     { ...probes.firestore, required: true },
     { ...probes.odoo, required: true },
     { ...probes.rateLimiter, required: true },
-    { ...probes.mongo, required: false },
+    { ...probes.mongo, required: isMongoUsersEnabled() },
+    {
+      name: 'mongo-identity',
+      required: isMongoUsersEnabled(),
+      ok: mongoIdentityReady().ok,
+      message: mongoIdentityReady().message,
+    },
     {
       name: 'queues',
       required: false,
@@ -183,7 +199,7 @@ export const getPlatformStatus = async () => {
     env: envAudit,
     modules: getServiceModules(),
     warnings: collectWarnings(flags, checks),
-    identityChain: 'LINE identity -> Firestore profile -> odooVerified -> ADMIN_USER_ID -> Odoo admin capability -> role',
+    identityChain: 'LINE identity -> profile SoR -> odooVerified -> ADMIN_USER_ID -> Odoo admin capability -> role',
     uptimeSeconds: Number(process.uptime().toFixed(0)),
     timestamp: new Date().toISOString(),
   };

@@ -2,6 +2,7 @@ export type AuditLogFilters = {
   action?: string;
   outcome?: 'success' | 'failure';
   actorUserId?: string;
+  userId?: string;
   channelId?: string;
   from?: string;
   to?: string;
@@ -37,6 +38,7 @@ export const parseAuditLogFilters = (query: Record<string, unknown>): AuditLogFi
     action: clean(query.action),
     outcome: outcome === 'success' || outcome === 'failure' ? outcome : undefined,
     actorUserId: clean(query.actorUserId),
+    userId: clean(query.userId),
     channelId: clean(query.channelId),
     from: isoDate(query.from),
     to: isoDate(query.to),
@@ -47,12 +49,14 @@ export const matchesAuditLogFilters = (entry: {
   action: string;
   outcome: string;
   actorUserId: string;
+  targetId?: string | null;
   channelId: string | null;
   createdAt: string;
 }, filters: AuditLogFilters): boolean => {
   if (filters.action && entry.action !== filters.action) return false;
   if (filters.outcome && entry.outcome !== filters.outcome) return false;
   if (filters.actorUserId && entry.actorUserId !== filters.actorUserId) return false;
+  if (filters.userId && entry.actorUserId !== filters.userId && entry.targetId !== filters.userId) return false;
   if (filters.channelId && entry.channelId !== filters.channelId) return false;
   if (filters.from && entry.createdAt < filters.from) return false;
   if (filters.to && entry.createdAt > filters.to) return false;

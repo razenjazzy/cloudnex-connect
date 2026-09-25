@@ -1,5 +1,5 @@
 import type { Express, NextFunction, Request, Response } from 'express';
-import { getErpAdapter } from '../erp/registry';
+import { getErpAdapter, isErpImplemented } from '../erp/registry';
 import { isOdooConfigured } from '../services/odoo';
 import { getOdooConfig } from '../services/odoo/client';
 import {
@@ -58,6 +58,7 @@ import {
   verifySamlResponse,
 } from '../services/admin-idp';
 import { isAuthorizedForAdminRole } from '../services/admin-authorization';
+import { commandActor, getCommandGridPayload } from '../line/command-grid';
 import { verifyOdooAdminAccess } from '../services/odoo/admin';
 import { sendTargetedMessage, sendBroadcastMessage } from '../line/messaging';
 import { SALES_CHANNEL_ID, getChannelServiceOverride, setChannelServiceOverride, resolveChannelConfig } from '../line/channels';
@@ -68,6 +69,8 @@ import { describeOptionalFlags } from './optional-flags';
 import { describeAllFeatureToggles, ensureFeatureTogglesLoaded, replaceFeatureToggles } from '../services/feature-toggles';
 import { getPricingModel, updatePricingModel } from '../services/pricing-control';
 import { getDemoPlatformPayload } from '../platform/service-modules';
+import { loadCommandOverlay, sanitizeCommandOverlay, saveCommandOverlay } from '../line/command-overlay';
+import { getActiveTenantKey } from '../services/tenant';
 import { getPlatformStatus } from '../platform/status';
 import { handleOdooHook } from './odoo-hook';
 import { decodeAuditCursor, parseAuditLogFilters } from '../services/audit-query';
@@ -136,6 +139,31 @@ const redactProfile = (userId: string, profile: Awaited<ReturnType<typeof getUse
   pendingFlow: Boolean(profile.pendingFlow),
 });
 
+const normalizeLineUserId = (raw: string): string => raw.trim();
+
+const toAdminUserView = async (userId: string) => {
+  const id = normalizeLineUserId(userId);
+  const profile = await getUserProfile(id);
+  const adminAuth = isAuthorizedForAdminRole(id, profile);
+  let odooPrivileges = { configured: isOdooConfigured(), groups: [] as string[] };
+  try {
+    const describe = getErpAdapter().describePartnerPrivileges;
+    if (describe && profile.odooPartnerId) {
+      odooPrivileges = await describe(profile.odooPartnerId);
+    }
+  } catch {
+    // ERP unset or unimplemented: LINE/Firestore dossier still returns.
+  }
+  return {
+    ...redactProfile(id, profile),
+    commandRole: commandActor(profile),
+    lineAdminAllowlisted: adminAuth.ok,
+    lineAdminReason: adminAuth.reason,
+    superAdmin: isSuperAdminActor(id, profile),
+    odooPrivileges,
+  };
+};
+
 const pathParam = (value: string | string[] | undefined): string =>
   Array.isArray(value) ? (value[0] || '') : (value || '');
 
@@ -198,6 +226,32 @@ export const registerAdminApiRoutes = (app: Express): void => {
       optionalFlags: describeOptionalFlags(),
       queueReady: isQueueBackendReady(),
     });
+  });
+
+  app.get('/admin/api/commands', adminApiLimiter, requireAdminPanelAccess, async (_req, res) => {
+    await loadCommandOverlay();
+    return res.json({ commands: getCommandGridPayload(), tenantKey: getActiveTenantKey() });
+  });
+
+  app.put('/admin/api/commands', jsonParser, adminApiLimiter, requireOpsStrict, async (req, res) => {
+    const parsed = sanitizeCommandOverlay(req.body?.commands);
+    if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+    const saved = await saveCommandOverlay(parsed.commands);
+    if (!saved.ok) return res.status(503).json({ error: saved.error || 'Could not save command overlay.' });
+    await loadCommandOverlay();
+    return res.json({ ok: true, commands: getCommandGridPayload(), tenantKey: getActiveTenantKey() });
+  });
+
+  app.get('/admin/api/tenant', requireAdminPanelAccess, (_req, res) => {
+    return res.json({ tenantKey: getActiveTenantKey() });
+  });
+
+  app.put('/admin/api/tenant', jsonParser, requireOpsStrict, async (req, res) => {
+    const tenantKey = String(req.body?.tenantKey || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    if (!tenantKey) return res.status(400).json({ error: 'tenantKey is required.' });
+    const result = await mergeRuntimeOverlay({ TENANT_KEY: tenantKey });
+    if (!result.ok) return res.status(403).json({ error: result.error });
+    return res.json({ ok: true, tenantKey: getActiveTenantKey() });
   });
 
   app.put('/admin/api/secrets', jsonParser, adminApiLimiter, requireOpsStrict, async (req, res) => {
@@ -409,6 +463,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
       ok: true,
       appEnv,
       actorUserId: actor || null,
+      actorFormat: 'LINE user id (U followed by 32 hex characters)',
       lock: isAdminConfigLocked(),
       optionalFlags: describeOptionalFlags(),
     });
@@ -611,7 +666,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
   app.get('/admin/api/users', adminApiLimiter, requireOpsStrict, async (req, res) => {
     if (req.query.sales === '1' || req.query.sales === 'true') {
       const ids = await listVerifiedSalesLineUserIds();
-      const users = await Promise.all(ids.map(async id => redactProfile(id, await getUserProfile(id))));
+      const users = await Promise.all(ids.map(id => toAdminUserView(id)));
       return res.json({ users });
     }
     const userId = typeof req.query.userId === 'string' ? req.query.userId.trim() : '';
@@ -623,7 +678,25 @@ export const registerAdminApiRoutes = (app: Express): void => {
       resolved = await findVerifiedUserIdByPartnerId(partnerId) || '';
     }
     if (!resolved) return res.status(400).json({ error: 'userId, phone, partnerId, or sales=1 required.' });
-    return res.json({ users: [redactProfile(resolved, await getUserProfile(resolved))] });
+    return res.json({ users: [await toAdminUserView(resolved)] });
+  });
+
+  app.get('/admin/api/users/:id', adminApiLimiter, requireOpsStrict, async (req, res) => {
+    const userId = normalizeLineUserId(pathParam(req.params.id));
+    if (!userId) return res.status(400).json({ error: 'LINE user id is required.' });
+    return res.json({ user: await toAdminUserView(userId) });
+  });
+
+  app.get('/admin/api/users/:id/activity', adminApiLimiter, requireOpsStrict, async (req, res) => {
+    const userId = normalizeLineUserId(pathParam(req.params.id));
+    if (!userId) return res.status(400).json({ error: 'LINE user id is required.' });
+    const page = await listRecentAuditEventsPage(
+      Number(req.query.limit) || 50,
+      parseAuditLogFilters({ userId }),
+      decodeAuditCursor(req.query.cursor),
+    );
+    const events = page.events.filter(event => !REVEAL_ACTIONS.has(event.action));
+    return res.json({ userId, events, nextCursor: page.nextCursor, count: events.length });
   });
 
   app.patch('/admin/api/users/:id', jsonParser, requireOpsStrict, async (req, res) => {
@@ -637,13 +710,23 @@ export const registerAdminApiRoutes = (app: Express): void => {
     if (req.body?.clearPendingFlow === true) {
       await setUserPendingFlow(userId, null);
     }
-    return res.json({ ok: true, user: redactProfile(userId, await getUserProfile(userId)) });
+    return res.json({ ok: true, user: await toAdminUserView(userId) });
   });
 
   app.get('/admin/api/privileges', requireOpsStrict, (_req, res) => {
     return res.json({
       adminUserIds: [...getEffectiveAdminUserIds()],
       lock: isAdminConfigLocked(),
+      odooConfigured: isOdooConfigured(),
+      identityFormat: 'LINE user id (U + 32 hex). Lookup in Directory; Audit filters actor or target.',
+      chain: [
+        'LINE identity',
+        'Firestore profile',
+        'odooVerified',
+        'ADMIN_USER_ID allowlist',
+        'Odoo admin capability (ERP API)',
+        'role=admin',
+      ],
     });
   });
 
@@ -696,7 +779,20 @@ export const registerAdminApiRoutes = (app: Express): void => {
 
   app.get('/admin/api/erp/test', requireOpsStrict, async (_req, res) => {
     const cfg = getOdooConfig();
-    return res.json({ ok: Boolean(cfg && isOdooConfigured()), configured: Boolean(cfg) });
+    const adapter = getErpAdapter();
+    return res.json({
+      ok: adapter.name === 'odoo' && Boolean(cfg && isOdooConfigured()),
+      configured: Boolean(cfg),
+      erpProvider: adapter.name,
+      erpImplemented: isErpImplemented(),
+    });
+  });
+
+  app.get('/admin/api/erp/status', requireOpsStrict, async (_req, res) => {
+    const adapter = getErpAdapter();
+    const signature = await adapter.describeSignatureStatus?.() || { ok: false, message: 'Not available.' };
+    const payment = await adapter.describePaymentStatus?.() || { ok: false, message: 'Not available.' };
+    return res.json({ erpProvider: adapter.name, erpImplemented: isErpImplemented(), signature, payment });
   });
 
   app.get('/admin/api/platform', requireAdminPanelAccess, async (_req, res) => {

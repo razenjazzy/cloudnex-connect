@@ -5,7 +5,7 @@ import { createPartnerFromLine, deletePartnerFromLine, getPartnerByName, getPart
 import { getOutgoingPickingForOrder } from '../src/services/odoo/delivery';
 import { getDailySalesSnapshot } from '../src/services/odoo/reporting';
 import { odooAdapter, seedProductCatalogCacheForTests } from '../src/erp/odoo-adapter';
-import { getErpAdapter } from '../src/erp/registry';
+import { getErpAdapter, isErpImplemented } from '../src/erp/registry';
 
 vi.mock('../src/services/odoo/catalog', () => ({
   createServiceCatalogItem: vi.fn(),
@@ -253,9 +253,12 @@ describe('Odoo ERP adapter', () => {
     expect(typeof odooAdapter.assignQuotationSalesperson).toBe('function');
   });
 
-  it('selects Odoo by default and rejects unimplemented ERP providers', () => {
+  it('selects Odoo by default and uses a placeholder for reserved ERP names', () => {
     expect(getErpAdapter()).toBe(odooAdapter);
     process.env.ERP_PROVIDER = 'sap';
-    expect(() => getErpAdapter()).toThrow('not implemented');
+    const adapter = getErpAdapter();
+    expect(adapter.name).toBe('sap');
+    expect(adapter.capabilities.supportsQuoteCreation).toBe(false);
+    expect(isErpImplemented()).toBe(false);
   });
 });

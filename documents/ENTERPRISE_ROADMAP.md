@@ -174,8 +174,9 @@ to validate it against.
 - [x] The boundary is now stronger than originally proposed: rather than
   just documenting the `odoo.ts`-as-boundary discipline, an actual
   `ErpAdapter` interface + registry now exists (`src/erp/`), with
-  `odoo-adapter.ts` as the one real implementation and `ERP_PROVIDER`
-  failing closed for anything else. `CLAUDE.md`'s Odoo Services section
+  `odoo-adapter.ts` as the live implementation, an unimplemented
+  placeholder for sap/quickbooks/oracle, and `ERP_PROVIDER`
+  failing closed for unknown names. `CLAUDE.md`'s Odoo Services section
   now documents this seam.
 - [ ] Still deferred, correctly: no second provider implementation, no
   live credentials/network calls for a hypothetical SAP/QuickBooks/Oracle

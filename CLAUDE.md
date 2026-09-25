@@ -7,14 +7,15 @@ This is a TypeScript + Express backend for LINE Official Account integrations.
 Main flow:
 
 LINE event
-→ `src/index.ts`
-→ `src/line/webhook.ts`
-→ Firestore user/profile lookup
-→ `src/line/command-router.ts`
-→ service integrations
-→ LINE reply messages / Flex UI.
+→ HMAC `POST /webhook` or `POST /webhook/:channelId` (and `POST /webhook-alt` when `LINE_SECOND_WEBHOOK`)
+→ identity SoR (Firestore, or Mongo when `MONGO_USERS`)
+→ `src/line/command-router.ts` (`resolveCommandReply`)
+→ `getErpAdapter()` / services
+→ LINE Flex.
 
-Optional ops adapters (not the LINE path): schema-driven `/api-docs`, `POST /graphql` (ops/jobs only), Mongo RAG embeddings, BullMQ webhook/jobs when env-gated. Firestore remains identity SoR. See `documents/ENTERPRISE_STANDARD.md` section 8. Environments: `documents/ENVIRONMENTS.md`. Demo-day presenter script: `documents/DEMO_DAY.md`. Railway staging: `documents/RAILWAY_STAGING.md`. Module inventory: `src/platform/service-modules.ts` (`GET /demo/platform`). Full runtime snapshot: `GET /readyz`, `GET /ops/platform`.
+GraphQL `ingestLineEvents` (`GRAPHQL_LINE_INGEST`, ops-auth) is an allowed ingest path: `processLineMessageJob` → the same `resolveCommandReply`. Do not duplicate command or Odoo logic.
+
+Odoo masters stay in Odoo via `getErpAdapter()`. Mongo is never Odoo SoR. Non-odoo `ERP_PROVIDER` values use the unimplemented placeholder adapter. See `documents/ENTERPRISE_STANDARD.md` section 8. Environments: `documents/ENVIRONMENTS.md`. Demo-day presenter script: `documents/DEMO_DAY.md`. Railway staging: `documents/RAILWAY_STAGING.md`. Module inventory: `src/platform/service-modules.ts` (`GET /demo/platform`). Full runtime snapshot: `GET /readyz`, `GET /ops/platform`. This cut does not production-deploy.
 
 ### Important existing areas
 
@@ -29,7 +30,7 @@ Optional ops adapters (not the LINE path): schema-driven `/api-docs`, `POST /gra
 - `src/services/guided-forms.ts`: step-by-step guided-form field specs for multi-field commands (reconstructs the equivalent single-line command on completion; not used in group/room chats).
 - `src/services/user-verification.ts`: Odoo user verification (OTP + magic link, with attempt lockout).
 - `src/services/admin-authorization.ts`: `ADMIN_USER_ID` allowlist check used by `ADMIN ENABLE`, applied after verification and before the Odoo admin-capability check.
-- `src/http/admin-api-routes.ts`: Cloudnex Connect Admin HTTP (`/admin/api`). Overlay settings, LINE bind OTP, LINE Login OAuth, Okta OIDC/SAML, secret reveal, CRM/ops. Same `getErpAdapter()`; no second LINE router.
+- `src/http/admin-api-routes.ts`: Cloudnex Connect Admin HTTP (`/admin/api`). Overlay settings, command overlay, tenant key, LINE bind OTP, LINE Login OAuth, Okta OIDC/SAML, secret reveal, CRM/ops. Same `getErpAdapter()`. Extra LINE ingresses still share `resolveCommandReply`.
 - `src/services/opsAuth.ts`: operational API protection.
 - `src/services/odoo.ts`: Odoo integration.
 - `src/services/vertexai.ts`: Gemini integration for insights, intent classification, and voice-message transcription.
@@ -39,7 +40,7 @@ Preserve this architecture unless a requirement clearly cannot fit it.
 
 ## User Identity and Authorization
 
-The application currently uses LINE source identity and Firestore user profiles.
+The application uses LINE source identity and a profile SoR: Firestore by default, Mongo when `MONGO_USERS` is on (Firestore may mirror). Fail closed if the flag is on and Mongo is unset.
 
 Existing mechanisms include:
 
@@ -53,7 +54,7 @@ Do not replace these mechanisms.
 
 When adding authentication or authorization, extend the existing identity/profile model where possible.
 
-Do not assume that LINE identity alone authorizes access to every service. A verified Odoo identity does not by itself grant admin or write access either — the enforced chain for the admin role is: LINE identity -> user profile -> `profile.odooVerified` -> `ADMIN_USER_ID` allowlist (`src/services/admin-authorization.ts`, fails closed if unset) -> Odoo admin-capability precondition -> role assignment. Web super-admin additionally requires `SUPER_ADMIN_USER_IDS` plus a bound actor cookie from LINE OTP, LINE Login OAuth, or Okta OIDC/SAML mapped to that LINE id. Do not weaken or bypass any link in this chain.
+Do not assume that LINE identity alone authorizes access to every service. A verified Odoo identity does not by itself grant admin or write access either — the enforced chain for the admin role is: LINE identity -> user profile (SoR) -> `profile.odooVerified` -> `ADMIN_USER_ID` allowlist (`src/services/admin-authorization.ts`, fails closed if unset) -> Odoo admin-capability precondition -> role assignment. Web super-admin additionally requires `SUPER_ADMIN_USER_IDS` plus a bound actor cookie from LINE OTP, LINE Login OAuth, or Okta OIDC/SAML mapped to that LINE id. Do not weaken or bypass any link in this chain.
 
 For multi-channel support, consider channel/service access separately from user identity. This is implemented: `src/line/channels.ts` resolves per-channel credentials and enabled services from environment variables only (never hardcoded), and `src/services/service-catalog.ts` is the single source of truth both command execution and channel navigation menus consult for service gating.
 
@@ -73,7 +74,7 @@ If multiple LINE OAs are added:
 4. Pass channel context to the existing routing flow.
 5. Reuse `resolveCommandReply` rather than duplicating routers.
 
-This is implemented: `POST /webhook` (default channel, backward compatible) and `POST /webhook/:channelId` (additional channels) both go through the same `handleWebhook` middleware array in `src/line/webhook.ts`, which resolves credentials via `src/line/channels.ts` and rejects unknown/unconfigured channels before signature validation. `ChannelContext` flows into `CommandReplyContext.channel` for the one shared `resolveCommandReply`. Add new channels via `LINE_CHANNEL_<ID>_SECRET` / `_ACCESS_TOKEN` / `_SERVICES` env vars — no code changes needed per channel.
+This is implemented: `POST /webhook` (default channel, backward compatible), `POST /webhook/:channelId` (additional channels), and gated `POST /webhook-alt` (`LINE_SECOND_WEBHOOK`) all go through the same `handleWebhook` middleware array in `src/line/webhook.ts`, which resolves credentials via `src/line/channels.ts` and rejects unknown/unconfigured channels before signature validation. `ChannelContext` flows into `CommandReplyContext.channel` for the one shared `resolveCommandReply`. Add new channels via `LINE_CHANNEL_<ID>_SECRET` / `_ACCESS_TOKEN` / `_SERVICES` env vars — no code changes needed per channel. Tenant overlay (`TENANT_KEY`) scopes channel/command/admin overlay documents.
 
 Keep LINE credentials outside source code.
 
@@ -113,11 +114,9 @@ When adding Sales, HR, or future Odoo services:
 All ERP-specific calls go through `src/erp/registry.ts`'s `getErpAdapter()`
 (backed today by `src/erp/odoo-adapter.ts`, which itself delegates to
 `src/services/odoo/*`) — a handler file must never call Odoo RPC or
-`odoo.ts` directly. This is the one seam a future second ERP provider would
-implement against; `ERP_PROVIDER` fails closed for any value other than
-`odoo` until a second adapter actually exists. Do not build a general
-multi-ERP abstraction beyond this seam without a concrete second-provider
-requirement to validate it against.
+`odoo.ts` directly. Non-odoo `ERP_PROVIDER` values return the unimplemented
+placeholder adapter (fail closed, `erpImplemented: false`). Do not add live
+SAP/QuickBooks/Oracle RPC in this cut.
 
 ## Context and Cost Efficiency
 

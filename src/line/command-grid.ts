@@ -2,6 +2,7 @@ import type { UserProfile } from '../services/firestore';
 import { CUSTOMER_CHANNEL_ID, DEFAULT_CHANNEL_ID, SALES_CHANNEL_ID } from './channels';
 import { isQuoteStaff } from './quote-access';
 import { parseQtyProductUtterance } from './command-validators';
+import { mergeCommandGridEntry } from './command-overlay';
 
 export type CommandRole = 'guest' | 'customer' | 'staff' | 'admin';
 export type CommandChannel = typeof DEFAULT_CHANNEL_ID | typeof SALES_CHANNEL_ID | typeof CUSTOMER_CHANNEL_ID;
@@ -92,34 +93,43 @@ export const isGuestAllowedCommand = (upperText: string, pendingFlow?: { flow: s
   if (pendingFlow?.flow === 'VERIFY' || pendingFlow?.flow === 'PRODUCT_FIND' || pendingFlow?.flow === 'CUSTOMER_REGISTER' || pendingFlow?.flow === 'MESSAGE_REQUEST' || pendingFlow?.flow === 'QUOTE_ADD') return true;
   if (parseQtyProductUtterance(upperText)) return true;
   const entry = matchCommandGrid(upperText);
-  return Boolean(entry?.roles.includes('guest'));
+  const merged = entry ? mergeCommandGridEntry(entry) : null;
+  return Boolean(merged?.enabled !== false && merged?.roles.includes('guest'));
 };
 
 export const evaluateCommandGrid = (
   upperText: string,
   ctx: { profile: UserProfile; channel?: { channelId: string } },
-): { ok: true } | { ok: false; reason: 'role' | 'channel' | 'admin' } => {
+): { ok: true } | { ok: false; reason: 'role' | 'channel' | 'admin' | 'disabled' } => {
   const entry = matchCommandGrid(upperText);
   if (!entry) return { ok: true };
+  const merged = mergeCommandGridEntry(entry);
+  if (merged.enabled === false) return { ok: false, reason: 'disabled' };
 
   const actor = commandActor(ctx.profile);
-  if (!entry.roles.includes(actor)) return { ok: false, reason: 'role' };
-  if (entry.requiresAdmin && ctx.profile.role !== 'admin') return { ok: false, reason: 'admin' };
+  if (!merged.roles.includes(actor)) return { ok: false, reason: 'role' };
+  if (merged.requiresAdmin && ctx.profile.role !== 'admin') return { ok: false, reason: 'admin' };
 
-  if (entry.channels?.length) {
+  if (merged.channels?.length) {
     const channelId = ctx.channel?.channelId || DEFAULT_CHANNEL_ID;
-    if (!entry.channels.includes(channelId as CommandChannel)) return { ok: false, reason: 'channel' };
+    if (!merged.channels.includes(channelId as CommandChannel)) return { ok: false, reason: 'channel' };
   }
 
   return { ok: true };
 };
 
 export const getCommandGridPayload = () =>
-  COMMAND_GRID.map(({ id, prefix, category, roles, channels, requiresAdmin }) => ({
-    id,
-    prefix,
-    category,
-    roles,
-    channels: channels || ['any'],
-    requiresAdmin: Boolean(requiresAdmin),
-  }));
+  COMMAND_GRID.map(entry => {
+    const merged = mergeCommandGridEntry(entry);
+    return {
+      id: merged.id,
+      prefix: merged.prefix,
+      labelEn: merged.labelEn,
+      labelTh: merged.labelTh,
+      category: merged.category,
+      roles: merged.roles,
+      channels: merged.channels || ['any'],
+      requiresAdmin: Boolean(merged.requiresAdmin),
+      enabled: merged.enabled,
+    };
+  });

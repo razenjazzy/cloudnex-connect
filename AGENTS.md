@@ -53,7 +53,8 @@ This repository is optimized for low-token, low-cost agent work. Follow these ru
 - Keep LINE credentials in environment variables only.
 - Reuse `resolveCommandReply` instead of duplicating webhook or command routing logic.
 - Preserve the chain:
-  `LINE identity -> Firestore profile -> odooVerified -> ADMIN_USER_ID allowlist -> Odoo admin capability -> role assignment`
+  `LINE identity -> profile SoR (Firestore, or Mongo when MONGO_USERS) -> odooVerified -> ADMIN_USER_ID allowlist -> Odoo admin capability -> role assignment`
+- Extra LINE ingresses (webhook-alt, GraphQL ingest) must reuse `resolveCommandReply`. Odoo data is never stored as Mongo SoR.
 - Preserve step-up OTP and write authorization checks.
 
 ## Refactor policy

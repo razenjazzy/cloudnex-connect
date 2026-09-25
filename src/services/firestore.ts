@@ -17,6 +17,7 @@ import { createVerificationStore } from './firestore/verification-store';
 import { createVerificationConsumer } from './firestore/verification-consume';
 import { createVerificationTokenConsumer } from './firestore/verification-token';
 import { createReportStore } from './firestore/report-store';
+import { getMongoUserProfile, isMongoUsersEnabled, mongoIdentityReady, putMongoUserProfile } from './mongo-users';
 import { phoneMatchVariants } from './phone-match';
 import type {
     ActionOtpChallenge,
@@ -386,9 +387,37 @@ const verificationTokenConsumer = createVerificationTokenConsumer({
 });
 export const getUserLanguage = userProfileRepository.getLanguage;
 
-export const setUserLanguage = userProfileRepository.setLanguage;
+const mongoWriteGuard = (): { ok: true } | { ok: false; error: string } => {
+    const ready = mongoIdentityReady();
+    if (isMongoUsersEnabled() && !ready.ok) return { ok: false, error: ready.message };
+    return { ok: true };
+};
 
-export const getUserProfile = userProfileRepository.getProfile;
+const mirrorMongoIdentity = async (userId: string, result: FirestoreWriteResult): Promise<FirestoreWriteResult> => {
+    if (!result.ok) return result;
+    const guard = mongoWriteGuard();
+    if (!guard.ok) return guard;
+    if (!isMongoUsersEnabled()) return result;
+    const profile = await userProfileRepository.getProfile(userId);
+    return putMongoUserProfile(userId, profile);
+};
+
+export const getUserProfile = async (userId: string) => {
+    if (!isMongoUsersEnabled()) return userProfileRepository.getProfile(userId);
+    const ready = mongoIdentityReady();
+    if (!ready.ok) return userProfileRepository.getProfile(userId);
+    const mongo = await getMongoUserProfile(userId);
+    if (mongo) return mongo;
+    const firestoreProfile = await userProfileRepository.getProfile(userId);
+    await putMongoUserProfile(userId, firestoreProfile);
+    return firestoreProfile;
+};
+
+export const setUserLanguage = async (userId: string, language: UserLanguage) => {
+    const guard = mongoWriteGuard();
+    if (!guard.ok) return guard;
+    return mirrorMongoIdentity(userId, await userProfileRepository.setLanguage(userId, language));
+};
 
 /**
  * PDPA data-collection notice — shown once at first contact (see
@@ -399,7 +428,11 @@ export const markConsentNoticeShown = userProfileRepository.markConsentNoticeSho
 
 export const setLastActionOtpAt = userProfileRepository.setLastActionOtpAt;
 
-export const setMarketingOptIn = userProfileRepository.setMarketingOptIn;
+export const setMarketingOptIn = async (userId: string, optIn: boolean) => {
+    const guard = mongoWriteGuard();
+    if (!guard.ok) return guard;
+    return mirrorMongoIdentity(userId, await userProfileRepository.setMarketingOptIn(userId, optIn));
+};
 
 /**
  * Data-subject erasure request (PDPA "right to delete"). Hard-deletes the
@@ -430,15 +463,27 @@ export const filterMarketingOptedInUserIds = async (userIds: string[]): Promise<
  */
 export const recordChatFeedback = communicationRepository.recordChatFeedback;
 
-export const setUserPendingFlow = userProfileRepository.setPendingFlow;
+export const setUserPendingFlow = async (userId: string, pendingFlow: PendingFlowState | null) => {
+    const guard = mongoWriteGuard();
+    if (!guard.ok) return guard;
+    return mirrorMongoIdentity(userId, await userProfileRepository.setPendingFlow(userId, pendingFlow));
+};
 export const setLastProductContext = userProfileRepository.setLastProductContext;
 export const setLastQuoteListFrom = userProfileRepository.setLastQuoteListFrom;
 
-export const setUserRole = userProfileRepository.setRole;
+export const setUserRole = async (userId: string, role: UserRole) => {
+    const guard = mongoWriteGuard();
+    if (!guard.ok) return guard;
+    return mirrorMongoIdentity(userId, await userProfileRepository.setRole(userId, role));
+};
 
 export const setUserSalesTier = userProfileRepository.setSalesTier;
 
-export const setUserOdooPartner = userProfileRepository.setOdooPartner;
+export const setUserOdooPartner = async (userId: string, partnerId: number, displayName?: string, phone?: string) => {
+    const guard = mongoWriteGuard();
+    if (!guard.ok) return guard;
+    return mirrorMongoIdentity(userId, await userProfileRepository.setOdooPartner(userId, partnerId, displayName, phone));
+};
 export const setUserContactPhone = userProfileRepository.setContactPhone;
 export const setUserDisplayName = userProfileRepository.setDisplayName;
 

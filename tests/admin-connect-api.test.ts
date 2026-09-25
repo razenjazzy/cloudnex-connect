@@ -138,6 +138,22 @@ describe('Cloudnex Connect admin API', () => {
     expect(typeof body.queueReady).toBe('boolean');
   });
 
+  it('lists command grid for Admin Commands', async () => {
+    const res = await fetch(`${base()}/admin/api/commands`, { headers: ops });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { commands: Array<{ prefix: string }> };
+    expect(body.commands.some(row => row.prefix === 'NAV HOME')).toBe(true);
+  });
+
+  it('rejects unknown command overlay ids', async () => {
+    const res = await fetch(`${base()}/admin/api/commands`, {
+      method: 'PUT',
+      headers: { ...ops, 'content-type': 'application/json' },
+      body: JSON.stringify({ commands: { 'not-real': { enabled: true } } }),
+    });
+    expect(res.status).toBe(400);
+  });
+
   it('burns bootstrap after the first success', async () => {
     delete process.env.OPS_API_TOKEN;
     const first = await fetch(`${base()}/admin/api/bootstrap`, {
@@ -347,6 +363,25 @@ describe('Cloudnex Connect admin API', () => {
     expect(res.status).toBe(400);
     const body = await res.json() as { error: string };
     expect(body.error).toMatch(/PROMO OFF/);
+  });
+
+  it('returns a LINE user dossier and activity for ops', async () => {
+    const lineUserId = 'U05594eb080e50a62b6911f45ffe30d4ea';
+    const list = await fetch(`${base()}/admin/api/users?userId=${lineUserId}`, { headers: ops });
+    expect(list.status).toBe(200);
+    const listed = await list.json() as { users: Array<{ userId: string; commandRole: string; odooPrivileges: { groups: string[] } }> };
+    expect(listed.users[0].userId).toBe(lineUserId);
+    expect(listed.users[0].commandRole).toBeTruthy();
+    expect(Array.isArray(listed.users[0].odooPrivileges.groups)).toBe(true);
+    const one = await fetch(`${base()}/admin/api/users/${lineUserId}`, { headers: ops });
+    expect(one.status).toBe(200);
+    const activity = await fetch(`${base()}/admin/api/users/${lineUserId}/activity?limit=20`, { headers: ops });
+    expect(activity.status).toBe(200);
+    const priv = await fetch(`${base()}/admin/api/privileges`, { headers: ops });
+    expect(priv.status).toBe(200);
+    const snap = await priv.json() as { chain: string[]; identityFormat: string };
+    expect(snap.chain).toEqual(expect.arrayContaining(['odooVerified', 'role=admin']));
+    expect(snap.identityFormat).toMatch(/LINE user id/);
   });
 });
 

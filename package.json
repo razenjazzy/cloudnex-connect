@@ -1,7 +1,7 @@
 {
   "name": "cloudnex-connect",
-  "version": "8.0.8",
-  "description": "LINE Official Account + Odoo for Cloudnex: Sales and Customer OAs, Firestore identity, Flex quotes, enterprise Admin (campaigns, audit, IdP), and consented messaging.",
+  "version": "9.0.0",
+  "description": "LINE Official Account + Odoo for Cloudnex: Sales and Customer OAs, identity SoR, Flex quotes, enterprise Admin (campaigns, audit, IdP), dual LINE ingress, and consented messaging.",
   "main": "dist/index.js",
   "bin": {
     "cns": "dist/cli/index.js",

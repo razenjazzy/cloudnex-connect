@@ -1,5 +1,6 @@
 import { getPlatformConfig, setPlatformConfig } from '../services/firestore';
 import { getRuntime } from '../services/runtime-settings';
+import { tenantScopedKey } from '../services/tenant';
 
 export type ChannelContext = {
   channelId: string;
@@ -145,7 +146,7 @@ export const oaPrefillDeepLink = (channelId: string, text: string): string | und
   return `https://line.me/R/oaMessage/${id}/?text=${encodeURIComponent(text)}`;
 };
 
-const channelServiceOverrideKey = (channelId: string): string => `channelServices:${channelId}`;
+const channelServiceOverrideKey = (channelId: string): string => tenantScopedKey(`channelServices:${channelId}`);
 
 /**
  * Per-channel module enablement was env-var-only, which meant every toggle

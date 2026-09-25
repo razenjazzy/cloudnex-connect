@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+import logo from './assets/cloudnex-connect.jpeg';
 
 const TOKEN_KEY = 'cloudnex_ops_token';
 const LEGACY_TOKEN_KEY = 'cns_ops_token';
@@ -47,12 +48,12 @@ const readError = async (res: Response, fallback: string): Promise<string> => {
 };
 
 const CopyField = ({ label, value }: { label: string; value: string }) => (
-  <div className="copy-field">
-    <div className="copy-field-bar">
+  <div className="snippet">
+    <div className="snippet-bar">
       <span>{label}</span>
       <button type="button" className="copy" onClick={() => void navigator.clipboard.writeText(value)}>Copy</button>
     </div>
-    <textarea readOnly value={value} rows={Math.min(10, Math.max(2, value.split('\n').length))} />
+    <pre><code>{value}</code></pre>
   </div>
 );
 
@@ -63,7 +64,10 @@ const NAV: Array<{ id: string; href: string; label: string }> = [
   { id: 'campaigns', href: '/admin/campaigns', label: 'Campaigns' },
   { id: 'crm', href: '/admin/crm', label: 'CRM' },
   { id: 'users', href: '/admin/users', label: 'Directory' },
-  { id: 'settings', href: '/admin/settings', label: 'Security' },
+  { id: 'privileges', href: '/admin/privileges', label: 'Privileges' },
+  { id: 'language', href: '/admin/language', label: 'Language' },
+  { id: 'commands', href: '/admin/commands', label: 'Commands' },
+  { id: 'settings', href: '/admin/settings', label: 'Settings' },
   { id: 'logs', href: '/admin/logs', label: 'Audit' },
   { id: 'platform', href: '/admin/platform', label: 'Platform' },
   { id: 'jobs', href: '/admin/jobs', label: 'Jobs' },
@@ -107,6 +111,17 @@ export const App = () => {
   const [campHistory, setCampHistory] = useState<Array<Record<string, unknown>>>([]);
   const [broadcastConfirm, setBroadcastConfirm] = useState('');
   const [platformSnap, setPlatformSnap] = useState<Record<string, unknown> | null>(null);
+  const [commands, setCommands] = useState<Array<Record<string, unknown>>>([]);
+  const [toggles, setToggles] = useState<Array<{ key: string; effective: boolean; source: string }>>([]);
+  const [langUser, setLangUser] = useState('');
+  const [langCurrent, setLangCurrent] = useState('');
+  const [activity, setActivity] = useState<Array<Record<string, unknown>>>([]);
+  const [auditUser, setAuditUser] = useState('');
+  const [auditAction, setAuditAction] = useState('');
+  const [grantUser, setGrantUser] = useState('');
+  const [privilegeSnap, setPrivilegeSnap] = useState('');
+  const [tenantKey, setTenantKey] = useState('default');
+  const [erpStatus, setErpStatus] = useState('');
 
   useEffect(() => {
     const onPop = () => setPath(pathOf());
@@ -228,7 +243,8 @@ export const App = () => {
 
   const page = useMemo(() => {
     if (path.endsWith('/crm')) return 'crm';
-    if (path.endsWith('/settings') || path.endsWith('/security') || path.endsWith('/unmask') || path.endsWith('/privileges') || path.endsWith('/setup')) return 'settings';
+    if (path.endsWith('/settings') || path.endsWith('/security') || path.endsWith('/unmask') || path.endsWith('/setup')) return 'settings';
+    if (path.endsWith('/privileges')) return 'privileges';
     if (path.endsWith('/logs') || path.endsWith('/audit')) return 'logs';
     if (path.endsWith('/users') || path.endsWith('/directory')) return 'users';
     if (path.endsWith('/testing') || path.endsWith('/demo')) return 'testing';
@@ -237,6 +253,8 @@ export const App = () => {
     if (path.endsWith('/line')) return 'line';
     if (path.endsWith('/campaigns')) return 'campaigns';
     if (path.endsWith('/identity')) return 'identity';
+    if (path.endsWith('/language')) return 'language';
+    if (path.endsWith('/commands')) return 'commands';
     if (path.endsWith('/advanced')) return 'advanced';
     return 'home';
   }, [path]);
@@ -245,10 +263,14 @@ export const App = () => {
     return (
       <main>
         <div className="card">
+          <img className="login-logo" src={logo} alt="Cloudnex Connect" />
           <h1>Cloudnex Connect Admin</h1>
           <p>OPS token required. Super-admin identity: LINE Login, Okta (OIDC/SAML), or LINE OTP bind.</p>
-          <form className="row" onSubmit={login}>
-            <input type="password" value={token} onChange={e => setToken(e.target.value)} placeholder="OPS_API_TOKEN" autoComplete="off" />
+          <form className="field-row" onSubmit={login}>
+            <div className="field">
+              <label htmlFor="ops-token">OPS token</label>
+              <input id="ops-token" type="password" value={token} onChange={e => setToken(e.target.value)} placeholder="OPS_API_TOKEN" autoComplete="off" />
+            </div>
             <button type="submit">Sign in</button>
           </form>
           <div className="row">
@@ -267,13 +289,13 @@ export const App = () => {
   const flags = (settings?.optionalFlags as Record<string, boolean> | undefined) || {};
 
   const lineForm = (
-    <form className="row" onSubmit={addLineChannel}>
-      <input value={channelSlug} onChange={e => setChannelSlug(e.target.value)} placeholder="hr" />
-      <input type="password" value={channelSecret} onChange={e => setChannelSecret(e.target.value)} placeholder="channel secret" autoComplete="off" />
-      <input type="password" value={channelToken} onChange={e => setChannelToken(e.target.value)} placeholder="access token" autoComplete="off" />
-      <input value={channelServices} onChange={e => setChannelServices(e.target.value)} placeholder="services CSV (optional)" />
-      <input value={channelBasicId} onChange={e => setChannelBasicId(e.target.value)} placeholder="@basic-id (optional)" />
-      <input value={channelRichMenu} onChange={e => setChannelRichMenu(e.target.value)} placeholder="rich-menu JSON (optional)" />
+    <form className="field-row" onSubmit={addLineChannel}>
+      <div className="field"><label>Channel id</label><input value={channelSlug} onChange={e => setChannelSlug(e.target.value)} placeholder="hr" /></div>
+      <div className="field"><label>Channel secret</label><input type="password" value={channelSecret} onChange={e => setChannelSecret(e.target.value)} placeholder="channel secret" autoComplete="off" /></div>
+      <div className="field"><label>Access token</label><input type="password" value={channelToken} onChange={e => setChannelToken(e.target.value)} placeholder="access token" autoComplete="off" /></div>
+      <div className="field"><label>Services CSV</label><input value={channelServices} onChange={e => setChannelServices(e.target.value)} placeholder="commerce,catalog" /></div>
+      <div className="field"><label>Basic ID</label><input value={channelBasicId} onChange={e => setChannelBasicId(e.target.value)} placeholder="@basic-id" /></div>
+      <div className="field"><label>Rich menu JSON</label><input value={channelRichMenu} onChange={e => setChannelRichMenu(e.target.value)} placeholder="rich-menu JSON" /></div>
       <button type="submit">Save channel</button>
     </form>
   );
@@ -281,21 +303,26 @@ export const App = () => {
   return (
     <>
       <header>
-        <div className="brand">
-          <strong>Cloudnex Connect</strong>
-          <span className="pill">{String(settings?.appEnv || appEnv)}</span>
-          {actor ? <span className="pill">{actor}</span> : <span className="pill">not bound</span>}
+        <a className="brand" href="/admin" onClick={e => { e.preventDefault(); go('/admin'); }}>
+          <img src={logo} alt="" />
+          <span className="brand-name">Cloudnex Connect</span>
+        </a>
+        <div className="header-end">
+          <div className="header-meta">
+            <span className="pill">{String(settings?.appEnv || appEnv)}</span>
+            {actor ? <span className="pill">{actor}</span> : <span className="pill">not bound</span>}
+          </div>
+          <nav>
+            {NAV.map(item => (
+              <a key={item.id} className={page === item.id ? 'active' : ''} href={item.href} onClick={e => { e.preventDefault(); go(item.href); }}>{item.label}</a>
+            ))}
+          </nav>
+          <button className="secondary header-signout" type="button" onClick={async () => {
+            await api('/admin/api/session/logout', { method: 'POST' });
+            sessionStorage.removeItem(TOKEN_KEY);
+            setAuthed(false);
+          }}>Sign out</button>
         </div>
-        <nav>
-        {NAV.map(item => (
-          <a key={item.id} className={page === item.id ? 'active' : ''} href={item.href} onClick={e => { e.preventDefault(); go(item.href); }}>{item.label}</a>
-        ))}
-        </nav>
-        <button className="secondary" type="button" onClick={async () => {
-          await api('/admin/api/session/logout', { method: 'POST' });
-          sessionStorage.removeItem(TOKEN_KEY);
-          setAuthed(false);
-        }}>Sign out</button>
       </header>
       <main>
         {error ? <p className="error">{error}</p> : null}
@@ -306,6 +333,7 @@ export const App = () => {
           <div className="card">
             <h2>Overview</h2>
             <p>HMAC LINE → Firestore → one command router. Demo is testing only. Lock: {String(settings?.lock)}</p>
+            <p>LINE user ids look like <code>U</code> plus 32 hex (header pill when bound). Directory looks up the Firestore dossier and live Odoo groups. Audit is every user’s ops log.</p>
             <div className="row">
               <button type="button" onClick={async () => {
                 const h = await fetch('/healthz');
@@ -332,19 +360,26 @@ export const App = () => {
         {page === 'identity' ? (
           <div className="card">
             <h2>Identity</h2>
-            <p>Bind super admin (LINE OTP, LINE Login, or Okta). Fail-closed ADMIN_USER_ID then SUPER_ADMIN_USER_IDS.</p>
+            <p>Bind super admin (LINE OTP, LINE Login, or Okta). Fail-closed ADMIN_USER_ID then SUPER_ADMIN_USER_IDS. The bound actor is a LINE user id, not an Odoo login.</p>
+            {actor ? <CopyField label="Bound LINE user id" value={actor} /> : null}
             <div className="row">
               <a href="/admin/api/session/line/start">LINE Login</a>
               <a href="/admin/api/session/oidc/start">Okta OIDC</a>
               <a href="/admin/api/session/saml/start">SAML</a>
             </div>
-            <div className="row">
-              <input value={bindUser} onChange={e => setBindUser(e.target.value)} placeholder="LINE user id" />
+            <div className="field-row">
+              <div className="field">
+                <label>LINE user id</label>
+                <input value={bindUser} onChange={e => setBindUser(e.target.value)} placeholder="LINE user id" />
+              </div>
               <button type="button" onClick={async () => {
                 const res = await api('/admin/api/session/bind', { method: 'POST', body: JSON.stringify({ lineUserId: bindUser }) });
                 setError(res.ok ? '' : await readError(res, 'Bind failed'));
               }}>Send code</button>
-              <input value={bindOtp} onChange={e => setBindOtp(e.target.value)} placeholder="OTP" />
+              <div className="field">
+                <label>OTP</label>
+                <input value={bindOtp} onChange={e => setBindOtp(e.target.value)} placeholder="OTP" />
+              </div>
               <button type="button" onClick={async () => {
                 const res = await api('/admin/api/session/confirm', { method: 'POST', body: JSON.stringify({ lineUserId: bindUser, otp: bindOtp }) });
                 setError(res.ok ? '' : await readError(res, 'Confirm failed'));
@@ -355,8 +390,8 @@ export const App = () => {
         ) : null}
         {page === 'settings' ? (
           <div className="card">
-            <h2>Security</h2>
-            <p>Credentials stay masked except a timed reveal. ADMIN_USER_ID is fail-closed.</p>
+            <h2>Settings</h2>
+            <p>Credentials stay masked except a timed reveal. ADMIN_USER_ID is fail-closed. Service toggles cannot enable a key omitted from env.</p>
             <CopyField label="Webhooks" value={JSON.stringify(webhooks, null, 2)} />
             <button type="button" onClick={() => void loadSettings()}>Refresh</button>
             <div className="table-wrap">
@@ -392,6 +427,132 @@ export const App = () => {
                 ))}
               </tbody>
             </table>
+            <h3>Service toggles</h3>
+            <p>Live overrides for commerce, directory, catalog, reporting, groupBuy. Env-forced keys cannot be turned on here.</p>
+            <div className="field-row">
+              <button type="button" onClick={async () => {
+                const res = await api('/admin/api/toggles');
+                const body = await res.json() as { toggles?: Array<{ key: string; effective: boolean; source: string }> };
+                setToggles(body.toggles || []);
+                setError(res.ok ? '' : 'Could not load toggles');
+              }}>Load toggles</button>
+              <button type="button" onClick={async () => {
+                const patch: Record<string, boolean> = {};
+                for (const row of toggles) patch[row.key] = row.effective;
+                const res = await api('/admin/api/toggles', { method: 'PUT', body: JSON.stringify(patch) });
+                const body = await res.json() as { toggles?: Array<{ key: string; effective: boolean; source: string }>; error?: string };
+                if (!res.ok) setError(body.error || 'Toggle save failed');
+                else {
+                  setToggles(body.toggles || toggles);
+                  setError('');
+                }
+              }}>Save toggles</button>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Service</th><th>On</th><th>Source</th></tr></thead>
+                <tbody>
+                  {toggles.map(row => (
+                    <tr key={row.key}>
+                      <td>{row.key}</td>
+                      <td>
+                        <input type="checkbox" checked={row.effective} onChange={e => {
+                          const on = e.target.checked;
+                          setToggles(prev => prev.map(item => item.key === row.key ? { ...item, effective: on } : item));
+                        }} />
+                      </td>
+                      <td>{row.source}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {toggles.length ? <CopyField label="Toggles JSON" value={JSON.stringify(toggles, null, 2)} /> : null}
+          </div>
+        ) : null}
+        {page === 'language' ? (
+          <div className="card">
+            <h2>Language</h2>
+            <p>LINE replies follow the Firestore profile language (EN/TH). Tray Language toggles it in chat. Here you set it for a LINE user id.</p>
+            <div className="field-row">
+              <div className="field">
+                <label>LINE user id</label>
+                <input value={langUser} onChange={e => setLangUser(e.target.value)} placeholder="U..." />
+              </div>
+              <button type="button" onClick={async () => {
+                const res = await api(`/admin/api/users?userId=${encodeURIComponent(langUser)}`);
+                const body = await res.json() as { users?: Array<{ userId?: string; language?: string }>; error?: string };
+                if (!res.ok) {
+                  setError(body.error || 'Lookup failed');
+                  return;
+                }
+                const user = body.users?.[0];
+                setLangCurrent(String(user?.language || ''));
+                setError('');
+              }}>Lookup</button>
+              <button type="button" onClick={async () => {
+                const res = await api(`/admin/api/users/${encodeURIComponent(langUser)}`, { method: 'PATCH', body: JSON.stringify({ language: 'en' }) });
+                setError(res.ok ? '' : await readError(res, 'Set English failed'));
+                if (res.ok) setLangCurrent('en');
+              }}>Set English</button>
+              <button type="button" onClick={async () => {
+                const res = await api(`/admin/api/users/${encodeURIComponent(langUser)}`, { method: 'PATCH', body: JSON.stringify({ language: 'th' }) });
+                setError(res.ok ? '' : await readError(res, 'Set Thai failed'));
+                if (res.ok) setLangCurrent('th');
+              }}>Set Thai</button>
+            </div>
+            {langCurrent ? <CopyField label="Current language" value={langCurrent} /> : null}
+          </div>
+        ) : null}
+        {page === 'commands' ? (
+          <div className="card">
+            <h2>Command config</h2>
+            <p>Overlay on <code>command-grid.ts</code>. Cannot invent prefixes. Cannot enable a command whose service is env-disabled. ADMIN CONFIG Flex still toggles channel services; this page is the command overlay.</p>
+            <div className="field-row">
+              <button type="button" onClick={async () => {
+                const res = await api('/admin/api/commands');
+                const body = await res.json() as { commands?: Array<Record<string, unknown>>; tenantKey?: string };
+                setCommands(body.commands || []);
+                if (body.tenantKey) setTenantKey(body.tenantKey);
+                setError(res.ok ? '' : 'Could not load commands');
+              }}>Load commands</button>
+              <button type="button" onClick={async () => {
+                const patch: Record<string, { enabled: boolean }> = {};
+                for (const row of commands) {
+                  if (typeof row.id === 'string') patch[row.id] = { enabled: row.enabled !== false };
+                }
+                const res = await api('/admin/api/commands', { method: 'PUT', body: JSON.stringify({ commands: patch }) });
+                const body = await res.json() as { commands?: Array<Record<string, unknown>>; error?: string };
+                if (!res.ok) setError(body.error || 'Save failed');
+                else {
+                  setCommands(body.commands || commands);
+                  setError('');
+                }
+              }}>Save overlay</button>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>On</th><th>Prefix</th><th>EN / TH</th><th>Category</th><th>Roles</th><th>Channels</th></tr></thead>
+                <tbody>
+                  {commands.map((row, i) => (
+                    <tr key={String(row.id || i)}>
+                      <td>
+                        <input type="checkbox" checked={row.enabled !== false} onChange={e => {
+                          const on = e.target.checked;
+                          setCommands(prev => prev.map(item => item.id === row.id ? { ...item, enabled: on } : item));
+                        }} />
+                      </td>
+                      <td><code>{String(row.prefix || '')}</code></td>
+                      <td>{String(row.labelEn || '')} / {String(row.labelTh || '')}</td>
+                      <td>{String(row.category || '')}</td>
+                      <td>{Array.isArray(row.roles) ? row.roles.join(', ') : ''}</td>
+                      <td>{Array.isArray(row.channels) ? row.channels.join(', ') : ''}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {commands.length ? <CopyField label="Command grid JSON" value={JSON.stringify(commands, null, 2)} /> : null}
           </div>
         ) : null}
         {page === 'crm' ? (
@@ -417,9 +578,15 @@ export const App = () => {
                 ))}
               </tbody>
             </table>
-            <div className="row">
-              <input value={assignId} onChange={e => setAssignId(e.target.value)} placeholder="quote id" />
-              <input value={assignSales} onChange={e => setAssignSales(e.target.value)} placeholder="Odoo user id" />
+            <div className="field-row">
+              <div className="field">
+                <label>Quote id</label>
+                <input value={assignId} onChange={e => setAssignId(e.target.value)} placeholder="quote id" />
+              </div>
+              <div className="field">
+                <label>Odoo user id</label>
+                <input value={assignSales} onChange={e => setAssignSales(e.target.value)} placeholder="Odoo user id" />
+              </div>
               <button type="button" onClick={async () => {
                 const res = await api(`/admin/crm/quotes/${assignId}`, { method: 'PUT', body: JSON.stringify({ salespersonUserId: Number(assignSales) }) });
                 setError(res.ok ? '' : 'Assign failed');
@@ -435,13 +602,21 @@ export const App = () => {
         {page === 'users' ? (
           <div className="card">
             <h2>Directory</h2>
-            <div className="row">
-              <input value={lookup} onChange={e => setLookup(e.target.value)} placeholder="LINE user id or phone" />
+            <p>Paste a LINE user id (<code>U</code> + 32 hex), a phone, or an Odoo partner id. This is Firestore identity plus live Odoo <code>res.users</code> groups via the ERP adapter — not a second LINE router.</p>
+            <div className="field-row">
+              <div className="field">
+                <label>LINE user id, phone, or partner id</label>
+                <input value={lookup} onChange={e => setLookup(e.target.value)} placeholder="U05594… or phone" />
+              </div>
               <button type="button" onClick={async () => {
-                const q = lookup.includes('U') ? `userId=${encodeURIComponent(lookup)}` : `phone=${encodeURIComponent(lookup)}`;
+                const raw = lookup.trim();
+                const q = raw.startsWith('U') ? `userId=${encodeURIComponent(raw)}`
+                  : /^\d+$/.test(raw) ? `partnerId=${encodeURIComponent(raw)}`
+                  : `phone=${encodeURIComponent(raw)}`;
                 const res = await api(`/admin/api/users?${q}`);
-                const body = await res.json() as { users?: Array<Record<string, unknown>> };
+                const body = await res.json() as { users?: Array<Record<string, unknown>>; error?: string };
                 setUsers(body.users || []);
+                setError(res.ok ? '' : (body.error || 'Lookup failed'));
               }}>Lookup</button>
               <button type="button" onClick={async () => {
                 const res = await api('/admin/api/users?sales=1');
@@ -449,37 +624,116 @@ export const App = () => {
                 setUsers(body.users || []);
               }}>Verified sales</button>
             </div>
+            <div className="table-wrap">
             <table>
-              <thead><tr><th>User</th><th>Verified</th><th>Language</th><th>Opt-in</th></tr></thead>
+              <thead><tr><th>LINE user</th><th>Command</th><th>Verified</th><th>Odoo groups</th><th></th></tr></thead>
               <tbody>
                 {users.map((u, i) => (
                   <tr key={String(u.userId || i)}>
                     <td>{String(u.userId || '')}</td>
+                    <td>{String(u.commandRole || u.role || '')}</td>
                     <td>{String(u.odooVerified)}</td>
-                    <td>{String(u.language || '')}</td>
-                    <td>{String(u.marketingOptIn)}</td>
+                    <td>{Array.isArray((u.odooPrivileges as { groups?: string[] } | undefined)?.groups)
+                      ? ((u.odooPrivileges as { groups: string[] }).groups.join(', ') || '—')
+                      : '—'}</td>
+                    <td>
+                      <button type="button" onClick={async () => {
+                        const id = String(u.userId || '');
+                        const res = await api(`/admin/api/users/${encodeURIComponent(id)}/activity?limit=50`);
+                        const body = await res.json() as { events?: Array<Record<string, unknown>> };
+                        setActivity(body.events || []);
+                        setAuditUser(id);
+                      }}>Activity</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+            </div>
+            {users[0] ? <CopyField label="User dossier" value={JSON.stringify(users[0], null, 2)} /> : null}
+            {activity.length ? (
+              <>
+                <h3>Activity (actor or target)</h3>
+                <table>
+                  <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Target</th></tr></thead>
+                  <tbody>
+                    {activity.map((row, i) => (
+                      <tr key={String(row.id || i)}>
+                        <td>{String(row.createdAt || '')}</td>
+                        <td>{String(row.action || '')}</td>
+                        <td>{String(row.actorUserId || '')}</td>
+                        <td>{String(row.targetId || '')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            ) : null}
+          </div>
+        ) : null}
+        {page === 'privileges' ? (
+          <div className="card">
+            <h2>Privileges</h2>
+            <p>LINE command role is Firestore <code>role</code> + verification. Admin grant still requires the fail-closed chain. Odoo groups are live from the ERP API on Directory lookup.</p>
+            <div className="row">
+              <button type="button" onClick={async () => {
+                const res = await api('/admin/api/privileges');
+                const body = await res.json() as Record<string, unknown>;
+                setPrivilegeSnap(JSON.stringify(body, null, 2));
+                setError(res.ok ? '' : 'Privileges load failed');
+              }}>Load allowlist</button>
+            </div>
+            {privilegeSnap ? <CopyField label="LINE admin allowlist + chain" value={privilegeSnap} /> : null}
+            <div className="field-row">
+              <div className="field">
+                <label>Grant LINE admin (verified + allowlisted)</label>
+                <input value={grantUser} onChange={e => setGrantUser(e.target.value)} placeholder="U05594…" />
+              </div>
+              <button type="button" disabled={!actor} onClick={async () => {
+                const res = await api('/admin/api/privileges/enable', { method: 'POST', body: JSON.stringify({ userId: grantUser.trim() }) });
+                setError(res.ok ? '' : await readError(res, 'Grant failed'));
+              }}>Grant role=admin</button>
+            </div>
           </div>
         ) : null}
         {page === 'logs' ? (
           <div className="card">
             <h2>Ops audit</h2>
-            <button type="button" onClick={async () => {
-              const res = await api('/admin/api/audit-log?limit=50');
-              const body = await res.json() as { events?: Array<Record<string, unknown>> };
-              setLogs(body.events || []);
-            }}>Load</button>
+            <p>Firestore audit for all users. Filter by LINE id as actor or target. Secret reveals stay on Settings.</p>
+            <div className="field-row">
+              <div className="field">
+                <label>LINE user id</label>
+                <input value={auditUser} onChange={e => setAuditUser(e.target.value)} placeholder="U05594… (actor or target)" />
+              </div>
+              <div className="field">
+                <label>Action</label>
+                <input value={auditAction} onChange={e => setAuditAction(e.target.value)} placeholder="role_grant" />
+              </div>
+              <button type="button" onClick={async () => {
+                const q = new URLSearchParams({ limit: '50' });
+                if (auditUser.trim()) q.set('userId', auditUser.trim());
+                if (auditAction.trim()) q.set('action', auditAction.trim());
+                const res = await api(`/admin/api/audit-log?${q.toString()}`);
+                const body = await res.json() as { events?: Array<Record<string, unknown>> };
+                setLogs(body.events || []);
+              }}>Load</button>
+            </div>
+            <div className="table-wrap">
             <table>
-              <thead><tr><th>Time</th><th>Action</th><th>Actor</th></tr></thead>
+              <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Target</th><th>Outcome</th></tr></thead>
               <tbody>
                 {logs.map((row, i) => (
-                  <tr key={String(row.id || i)}><td>{String(row.createdAt || '')}</td><td>{String(row.action || '')}</td><td>{String(row.actorUserId || '')}</td></tr>
+                  <tr key={String(row.id || i)}>
+                    <td>{String(row.createdAt || '')}</td>
+                    <td>{String(row.action || '')}</td>
+                    <td>{String(row.actorUserId || '')}</td>
+                    <td>{String(row.targetId || '')}</td>
+                    <td>{String(row.outcome || '')}</td>
+                  </tr>
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         ) : null}
         {page === 'testing' ? (
@@ -492,23 +746,47 @@ export const App = () => {
         {page === 'platform' ? (
           <div className="card">
             <h2>ERP / platform</h2>
-            <button type="button" onClick={async () => {
-              await loadSettings();
-              const res = await api('/admin/api/erp/test');
-              setErp(res.ok ? 'ok' : 'fail');
-            }}>Refresh</button>
-            <p>ERP test: {erp || '—'}</p>
+            <div className="field-row">
+              <div className="field">
+                <label>Tenant key</label>
+                <input value={tenantKey} onChange={e => setTenantKey(e.target.value)} placeholder="default" />
+              </div>
+              <button type="button" onClick={async () => {
+                const res = await api('/admin/api/tenant', { method: 'PUT', body: JSON.stringify({ tenantKey }) });
+                const body = await res.json() as { tenantKey?: string; error?: string };
+                if (!res.ok) setError(body.error || 'Tenant save failed (lock?)');
+                else {
+                  setTenantKey(body.tenantKey || tenantKey);
+                  setError('');
+                }
+              }}>Save tenant</button>
+              <button type="button" onClick={async () => {
+                await loadSettings();
+                const res = await api('/admin/api/erp/test');
+                const body = await res.json() as { erpImplemented?: boolean; erpProvider?: string };
+                setErp(res.ok ? JSON.stringify(body) : 'fail');
+                const st = await api('/admin/api/erp/status');
+                setErpStatus(JSON.stringify(await st.json(), null, 2));
+              }}>Refresh ERP</button>
+            </div>
+            <p>ERP: {erp || '—'}</p>
+            {erpStatus ? <CopyField label="E-sign / payment status" value={erpStatus} /> : null}
             <CopyField label="Platform settings" value={JSON.stringify({ lock: settings?.lock, missingRequired: settings?.missingRequired, capabilities: settings?.capabilities }, null, 2)} />
           </div>
         ) : null}
         {page === 'jobs' ? (
           <div className="card">
             <h2>Jobs</h2>
-            <input type="password" value={jobsToken} onChange={e => { setJobsToken(e.target.value); sessionStorage.setItem(JOBS_TOKEN_KEY, e.target.value); }} placeholder="ADMIN_SECRET_TOKEN" />
-            <button type="button" onClick={async () => {
-              const res = await fetch('/admin/api/jobs/daily-report', { method: 'POST', credentials: 'include', headers: { authorization: `Bearer ${jobsToken}` } });
-              setError(res.ok ? '' : 'Job failed');
-            }}>Daily report</button>
+            <div className="field-row">
+              <div className="field">
+                <label>ADMIN_SECRET_TOKEN</label>
+                <input type="password" value={jobsToken} onChange={e => { setJobsToken(e.target.value); sessionStorage.setItem(JOBS_TOKEN_KEY, e.target.value); }} placeholder="ADMIN_SECRET_TOKEN" />
+              </div>
+              <button type="button" onClick={async () => {
+                const res = await fetch('/admin/api/jobs/daily-report', { method: 'POST', credentials: 'include', headers: { authorization: `Bearer ${jobsToken}` } });
+                setError(res.ok ? '' : 'Job failed');
+              }}>Daily report</button>
+            </div>
           </div>
         ) : null}
         {page === 'line' ? (
@@ -565,11 +843,13 @@ export const App = () => {
             {campPreview ? <CopyField label="Campaign response" value={campPreview} /> : null}
             <h3>Broadcast (not default)</h3>
             <p>Sends to every OA friend. Blocked when class is promo — use multicast Send instead.</p>
-            <input value={broadcastConfirm} onChange={e => setBroadcastConfirm(e.target.value)} placeholder="type BROADCAST" disabled={campClass === 'customers_promo'} />
-            <button type="button" disabled={!actor || campClass === 'customers_promo'} onClick={async () => {
-              const res = await api('/admin/api/campaigns/broadcast', { method: 'POST', body: JSON.stringify({ channelId: campChannel, audienceType: campClass, text: campText, confirm: broadcastConfirm }) });
-              setError(res.ok ? '' : await readError(res, 'Broadcast denied or failed'));
-            }}>Broadcast</button>
+            <div className="field-row">
+              <input value={broadcastConfirm} onChange={e => setBroadcastConfirm(e.target.value)} placeholder="type BROADCAST" disabled={campClass === 'customers_promo'} />
+              <button type="button" disabled={!actor || campClass === 'customers_promo'} onClick={async () => {
+                const res = await api('/admin/api/campaigns/broadcast', { method: 'POST', body: JSON.stringify({ channelId: campChannel, audienceType: campClass, text: campText, confirm: broadcastConfirm }) });
+                setError(res.ok ? '' : await readError(res, 'Broadcast denied or failed'));
+              }}>Broadcast</button>
+            </div>
             <table>
               <thead><tr><th>Id</th><th>Status</th><th>Count</th></tr></thead>
               <tbody>

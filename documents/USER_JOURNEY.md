@@ -154,18 +154,19 @@ Live OA + this book are the source of truth. Do not restyle Flex or the tray unl
 
 Out of scope until a new ticket: Odoo e-sign, payment capture, extra npm UI packages. Production deploy is not this cut.
 
-Implemented, **not enabled** (Admin **Advanced**, flags default false): `POST /webhook-alt` 404 unless `LINE_SECOND_WEBHOOK` (same `handleWebhook`), Mongo mirror (`MONGO_USERS`; Firestore remains SoR), GraphQL `ingestLineEvents` then `processLineMessageJob` (`GRAPHQL_LINE_INGEST`), group-room files (`LINE_GROUP_ROOMS`).
+Implemented (flags default false unless noted): `POST /webhook-alt` 404 unless `LINE_SECOND_WEBHOOK` (same `handleWebhook`). GraphQL `ingestLineEvents` then `processLineMessageJob` (`GRAPHQL_LINE_INGEST`). Mongo identity SoR when `MONGO_USERS` (fail closed without URI; Firestore may mirror; Odoo never in Mongo). Command overlay from Admin Commands. `TENANT_KEY` scopes overlays. Extra locales beyond EN/TH are not in this cut.
 
 ---
 
 ## Admin campaigns and chat (staging)
 
 1. Open `https://amardhaka.io/admin` with OPS token + super-admin cookie.
-2. **Campaigns:** Channel → class (promo vs transactional) → message → Preview (no LINE) → Test (actor only) → Send (`confirm: SEND`, queued). Promo must use multicast Send (honors `PROMO OFF`). LINE Broadcast is blocked for promo class because the LINE API cannot filter opt-out.
-3. Customer swipe-reply: Sales Flex includes `Re:` quoted text or “card”.
-4. Sales chips: up to four `RELAY TO` / assign chips; **More** / `STAFF PICK` for overflow.
-5. Image/file/video: allowlist, default 10MB, optional AV; no GCS → Flex, no throw.
-6. Advanced pane: controls present and **disabled**.
+2. Header pill `U…` is the **LINE user id** (U + 32 hex), not Odoo login. **Directory** lookup that id (or phone / partner id) for Firestore dossier + live Odoo groups (`describePartnerPrivileges` via `getErpAdapter()`). **Audit** filters `userId` as actor or target. **Privileges** shows `ADMIN_USER_ID` chain and grant `role=admin`.
+3. **Campaigns:** Channel → class (promo vs transactional) → message → Preview (no LINE) → Test (actor only) → Send (`confirm: SEND`, queued). Promo must use multicast Send (honors `PROMO OFF`). LINE Broadcast is blocked for promo class because the LINE API cannot filter opt-out.
+4. Customer swipe-reply: Sales Flex includes `Re:` quoted text or “card”.
+5. Sales chips: up to four `RELAY TO` / assign chips; **More** / `STAFF PICK` for overflow.
+6. Image/file/video: allowlist, default 10MB, optional AV; no GCS → Flex, no throw.
+7. Advanced pane: controls present and **disabled**.
 
 Related: `documents/STORYBOARD.md` (capability status), `documents/DESIGN_SYSTEM.md` (tokens), `documents/requirement/MGT_Implementation_Playbook.md` (Phase 1 Odoo vs Phase 2 LINE, UAT).
 

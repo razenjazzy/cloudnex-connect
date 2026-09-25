@@ -45,4 +45,12 @@ describe('audit log query filters', () => {
     }))).toBe(true);
     expect(matchesAuditLogFilters(entry, { outcome: 'failure' })).toBe(false);
   });
+
+  it('matches userId as actor or as target', () => {
+    const asActor = { action: 'role_grant', actorUserId: 'U05594', createdAt: '2026-09-04T12:00:00.000Z' };
+    const asTarget = { action: 'role_grant', actorUserId: 'U-admin', targetId: 'U05594', createdAt: '2026-09-04T12:00:00.000Z' };
+    expect(matchesAuditLogFilters(asActor, parseAuditLogFilters({ userId: 'U05594' }))).toBe(true);
+    expect(matchesAuditLogFilters(asTarget, parseAuditLogFilters({ userId: 'U05594' }))).toBe(true);
+    expect(matchesAuditLogFilters(asTarget, parseAuditLogFilters({ userId: 'U-other' }))).toBe(false);
+  });
 });

@@ -1,10 +1,10 @@
 # Cloudnex Connect
 
-Cloudnex Connect is the Cloudnex LINE Official Account platform: HMAC webhooks, Firestore profiles, one command router, Odoo ERP, and a fail-closed Admin console. Staging host: https://amardhaka.io.
+Cloudnex Connect is the Cloudnex LINE Official Account platform: HMAC webhooks (plus gated `/webhook-alt` and GraphQL ingest), identity SoR (Firestore or Mongo), one command router, Odoo ERP, and a fail-closed Admin console. Staging host: https://amardhaka.io.
 
-TypeScript Express backend that connects LINE Official Accounts to Odoo ERP. Users work in LINE Flex cards (Thai/English). Identity lives in Firestore. Sales, partners, and products live in Odoo.
+TypeScript Express backend that connects LINE Official Accounts to Odoo ERP. Users work in LINE Flex cards (Thai/English). Identity is Firestore unless `MONGO_USERS` is on. Sales, partners, and products live in Odoo.
 
-**Release:** v8.0.8 — Odoo LINE OA v5 staging.  
+**Release:** v9.0.0 — Odoo LINE OA v6 staging. Production deploy is not this cut.  
 **Runtime:** Node 22+. **Persona:** Sora / โซระ. **Package:** `cloudnex-connect`.
 
 The git root on disk is `.../Code/cloudnex-connect`. `cns-line-oa` is only a symlink. In Cursor: **File → Open Folder** and choose `cloudnex-connect` (not the symlink) so the sidebar name matches. GCP project id `cns-line-oa` is unrelated.
@@ -24,15 +24,15 @@ Sales staff use **Cloudnex Line Sales** (`POST /webhook/sales`). Customers use *
 | Sales User / Sales Administrator | VERIFY against `res.users` phone. Create/send/confirm quotes, invoices, directory and catalog (gated). Sales Admin can toggle LINE service groups (`SALES FEATURES`) without `ADMIN ENABLE`. |
 | LINE admin (`role=admin`) | Fail-closed chain below. Required for some directory/catalog writes. |
 
-Odoo analog on the quote card: **Send** marks quotation sent; **Confirm** converts to sales order; **Invoice / Send Invoice** match the SO header. Not on LINE: e-sign, payment capture, delivery.
+Odoo analog on the quote card: **Send** marks quotation sent; **Confirm** converts to sales order; **Invoice / Send Invoice** match the SO header. E-sign and payment **status** are adapter fail-closed if the Odoo module is missing (no fake PDFs).
 
 ---
 
 ## Architecture (do not fork)
 
-One LINE path. One `resolveCommandReply`. LINE Platform posts HMAC to Express. Firestore is identity SoR.
+One LINE command processor (`resolveCommandReply`). HMAC `/webhook` and `/webhook/:channelId`; gated `/webhook-alt`; GraphQL ingest when flagged.
 
-Optional and **default off:** GraphQL `ingestLineEvents` (`GRAPHQL_LINE_INGEST` — same `processLineMessageJob` as HMAC), Mongo LINE/Odoo store (`MONGO_USERS`; Firestore remains SoR), group-room UI (`LINE_GROUP_ROOMS`). `POST /webhook-alt` is 404 unless `LINE_SECOND_WEBHOOK` is true (same HMAC handler).
+Optional and **default off:** GraphQL `ingestLineEvents` (`GRAPHQL_LINE_INGEST` — same `processLineMessageJob` as HMAC), Mongo identity SoR (`MONGO_USERS`; Odoo never in Mongo), group-room UI (`LINE_GROUP_ROOMS`). `POST /webhook-alt` is 404 unless `LINE_SECOND_WEBHOOK` is true (same HMAC handler).
 
 | Admin | Path |
 |---|---|

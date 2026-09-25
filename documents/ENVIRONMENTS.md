@@ -12,7 +12,7 @@ If `APP_ENV` is unset and `NODE_ENV=production`, the process **fails closed to p
 
 This cut does **not** deploy production.
 
-Optional flags (default false): `GCS_MEDIA_BUCKET`, `LINE_MEDIA_MAX_BYTES`, `CLAMAV_URL`, `AV_SCAN_REQUIRED`, `LINE_GROUP_ROOMS`, `LINE_SECOND_WEBHOOK`, `MONGO_USERS`, `GRAPHQL_LINE_INGEST`.
+Optional flags (default false): `GCS_MEDIA_BUCKET`, `LINE_MEDIA_MAX_BYTES`, `CLAMAV_URL`, `AV_SCAN_REQUIRED`, `LINE_GROUP_ROOMS`, `LINE_SECOND_WEBHOOK` (second HMAC ingress, same handler), `MONGO_USERS` (Mongo identity SoR when true; fail closed without `MONGODB_URI`; never Odoo SoR), `GRAPHQL_LINE_INGEST` (ops GraphQL ingest → same processor). `TENANT_KEY` scopes overlay docs (default `default`). `ERP_PROVIDER` other than `odoo` is an unimplemented placeholder.
 
 ## 1. Development (local + API test)
 

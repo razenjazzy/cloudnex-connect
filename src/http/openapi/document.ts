@@ -185,6 +185,42 @@ const opsPaths: Record<string, OpenApiPath> = {
       responses: { '200': { description: 'Bootstrapped' }, '410': { description: 'Already complete' } },
     },
   },
+  '/admin/api/commands': {
+    get: {
+      tags: ['admin'],
+      summary: 'Command grid plus overlay',
+      security: bearer,
+      responses: { '200': { description: 'Commands' } },
+    },
+    put: {
+      tags: ['admin'],
+      summary: 'Save command overlay (known ids only)',
+      security: bearer,
+      responses: { '200': { description: 'Saved' }, '400': { description: 'Unknown id or env-disabled service' } },
+    },
+  },
+  '/admin/api/tenant': {
+    get: {
+      tags: ['admin'],
+      summary: 'Active overlay tenantKey',
+      security: bearer,
+      responses: { '200': { description: 'Tenant' } },
+    },
+    put: {
+      tags: ['admin'],
+      summary: 'Set TENANT_KEY overlay (blocked when ADMIN_CONFIG_LOCK)',
+      security: bearer,
+      responses: { '200': { description: 'Saved' }, '403': { description: 'Locked' } },
+    },
+  },
+  '/admin/api/erp/status': {
+    get: {
+      tags: ['erp'],
+      summary: 'E-sign and payment module status (fail closed, no fake PDFs)',
+      security: bearer,
+      responses: { '200': { description: 'Status' } },
+    },
+  },
   '/admin/api/settings': {
     get: {
       tags: ['admin'],

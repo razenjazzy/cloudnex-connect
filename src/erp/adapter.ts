@@ -125,6 +125,22 @@ export type ErpCrmQuoteListOpts = {
   limit?: number;
 };
 
+export type ErpPartnerPrivileges = {
+  configured: boolean;
+  odooUserId?: number;
+  login?: string;
+  name?: string;
+  salesTier?: 'salesperson' | 'sales_manager';
+  groups: string[];
+  canWritePartners?: boolean;
+};
+
+export type ErpCommerceStatus = {
+  ok: boolean;
+  module?: string;
+  message: string;
+};
+
 export type ErpAdapter = {
   name: ErpProviderName;
   capabilities: ErpAdapterCapabilities;
@@ -160,4 +176,7 @@ export type ErpAdapter = {
   postPartnerNote?: (partnerId: number, body: string) => Promise<boolean>;
   listQuotations?: (opts?: ErpCrmQuoteListOpts) => Promise<ErpCrmQuote[]>;
   assignQuotationSalesperson?: (orderId: number, salespersonUserId: number | null) => Promise<boolean>;
+  describePartnerPrivileges?: (partnerId: number) => Promise<ErpPartnerPrivileges>;
+  describeSignatureStatus?: () => Promise<ErpCommerceStatus>;
+  describePaymentStatus?: () => Promise<ErpCommerceStatus>;
 };

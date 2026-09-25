@@ -4,6 +4,8 @@ import { createPartnerFromLine, deletePartnerFromLine, getPartnerByName, getPart
 import { getDailySalesSnapshot } from '../services/odoo/reporting';
 import { getOutgoingPickingForOrder } from '../services/odoo/delivery';
 import { postPartnerNote, listCrmQuotations, assignSaleOrderSalesperson } from '../services/odoo';
+import { describeOdooPrivilegesByPartnerId } from '../services/odoo/admin';
+import { describeOdooPaymentStatus, describeOdooSignatureStatus } from '../services/odoo/commerce-status';
 import type { OdooProduct, OdooSaleOrder } from '../services/odoo/types';
 import type { ErpAdapter, ErpCrmQuote, ErpCrmQuoteListOpts, ErpCustomerUpdate, ErpPartner, ErpPermission, ErpProduct, ErpProviderName, ErpQuoteDraft, ErpQuotationOptions, ErpService, ErpServiceUpdate, ErpWriteAction } from './adapter';
 
@@ -249,6 +251,9 @@ export const odooAdapter: ErpAdapter = {
     return rows.map(toErpCrmQuote);
   },
   assignQuotationSalesperson: assignSaleOrderSalesperson,
+  describePartnerPrivileges: describeOdooPrivilegesByPartnerId,
+  describeSignatureStatus: describeOdooSignatureStatus,
+  describePaymentStatus: describeOdooPaymentStatus,
   permissionFor: permissionForAction,
 };
 

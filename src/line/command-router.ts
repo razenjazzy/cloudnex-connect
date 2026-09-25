@@ -50,6 +50,7 @@ import { withSpan } from '../observability/tracing';
 import { appLogger } from '../services/logger';
 import { applyChannelPersona, isQuoteStaff, selfQuoteIdentity, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary } from './quote-access';
 import { evaluateCommandGrid, isGuestAllowedCommand, matchCommandGrid } from './command-grid';
+import { loadCommandOverlay } from './command-overlay';
 import { getErpAdapter } from '../erp/registry';
 import { guidedFormTtlMinutes, shouldIdleHome } from './idle-home';
 
@@ -888,14 +889,20 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
     ), userLanguage)];
   }
 
+  await loadCommandOverlay();
   const grid = evaluateCommandGrid(upperText, ctx);
   if (!grid.ok) {
     const channelDenied = grid.reason === 'channel';
+    const disabled = grid.reason === 'disabled';
     return [text(tr(userLanguage,
-       channelDenied
+       disabled
+         ? `${agentName} คำสั่งนี้ถูกปิดใช้งาน`
+         : channelDenied
          ? `${agentName} คำสั่งนี้ใช้ไม่ได้บน Official Account นี้`
          : `${agentName} คำสั่งนี้ต้องการสิทธิ์ที่สูงกว่า`,
-       channelDenied
+       disabled
+         ? `${agentName} this command is disabled.`
+         : channelDenied
          ? `${agentName} this command is not available on this Official Account.`
          : `${agentName} you do not have permission for this command.`,
     ), userLanguage)];

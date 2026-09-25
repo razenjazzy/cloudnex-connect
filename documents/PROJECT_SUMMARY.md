@@ -1,8 +1,8 @@
 # Cloudnex Connect — Project Summary
 
-LINE Official Account + Odoo for Cloudnex: Sales and Customer OAs, Firestore identity, Flex quotes, enterprise Admin (campaigns, audit, IdP), and consented messaging.
+LINE Official Account + Odoo for Cloudnex: Sales and Customer OAs, identity SoR, Flex quotes, enterprise Admin (campaigns, audit, IdP), dual LINE ingress, and consented messaging.
 
-## Status: Staging cut v8.0.5 (amardhaka.io). Production deploy is not this cut.
+## Status: Staging cut v9.0.0 (Odoo LINE OA v6). Production deploy is not this cut.
 
 ### What this is
 

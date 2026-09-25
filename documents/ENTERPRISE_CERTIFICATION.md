@@ -50,7 +50,7 @@ LINE POST /webhook | /webhook/sales | /webhook/customer
   -> getErpAdapter() | Firestore | Flex
 ```
 
-One router. No LINE on GraphQL. No users/Odoo in Mongo. `ERP_PROVIDER` fail-closed except `odoo`. Track B4 barrels done. Demo and webhook-test forced off in delivery production. `/demo` and `/webhook-test` re-enter `resolveCommandReply`.
+Two HMAC ingresses plus optional GraphQL ingest; one `resolveCommandReply`. Mongo identity SoR when flagged. Odoo never in Mongo. `ERP_PROVIDER` other than odoo is an unimplemented placeholder. Track B4 barrels done. Demo and webhook-test forced off in delivery production. `/demo` and `/webhook-test` re-enter `resolveCommandReply`. Production deploy is not the v9.0.0 cut.
 
 ---
 
