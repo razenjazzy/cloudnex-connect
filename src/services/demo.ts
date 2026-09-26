@@ -13,6 +13,7 @@ import {
   pingOdoo,
 } from './odoo';
 import { seedOdooSampleSalesDataWithAudit } from './seed-odoo';
+import { adminBase, originFromPublicBaseUrl, publicSiteUrl } from '../http/public-bases';
 
 type UiLanguage = AppLanguage;
 
@@ -111,7 +112,8 @@ const isOdooConfigured = (): boolean => {
 
 const normalizeBaseUrl = (baseUrl?: string): string => {
   const fallbackPort = process.env.PORT || '8080';
-  return (baseUrl || `http://localhost:${fallbackPort}`).replace(/\/$/, '');
+  const raw = baseUrl || `http://localhost:${fallbackPort}`;
+  return originFromPublicBaseUrl(raw) || raw.replace(/\/$/, '');
 };
 
 const safePingOdoo = async (): Promise<string> => {
@@ -131,7 +133,8 @@ const safeSeedOdoo = async (): Promise<string> => {
 };
 
 export const getDemoOverview = async (baseUrl?: string): Promise<DemoOverview> => {
-  const resolvedBaseUrl = normalizeBaseUrl(baseUrl);
+  const origin = normalizeBaseUrl(baseUrl);
+  const site = publicSiteUrl(process.env.PUBLIC_BASE_URL) || origin;
   const [odooStatus, mongoPing] = await Promise.all([safePingOdoo(), pingMongo()]);
 
   return {
@@ -140,17 +143,17 @@ export const getDemoOverview = async (baseUrl?: string): Promise<DemoOverview> =
       status: 'ready',
       environment: appEnv,
       endpoints: {
-        demoPage: `${resolvedBaseUrl}/demo`,
-        connections: `${resolvedBaseUrl}/demo/connections`,
-        journey: `${resolvedBaseUrl}/demo/journey`,
-        pricingModel: `${resolvedBaseUrl}/demo/pricing-model`,
-        pricingSimulation: `${resolvedBaseUrl}/demo/pricing-simulation`,
-        workflowAudit: `${resolvedBaseUrl}/demo/workflow-audit`,
-        simulatedLineWebhook: `${resolvedBaseUrl}/webhook-test`,
-        lineWebhook: `${resolvedBaseUrl}/webhook`,
-        platform: `${resolvedBaseUrl}/demo/platform`,
-        graphql: `${resolvedBaseUrl}/graphql`,
-        apiDocs: `${resolvedBaseUrl}/api-docs`,
+        demoPage: `${site}${adminBase()}/testing`,
+        connections: `${site}${adminBase()}/api/demo/connections`,
+        journey: `${site}${adminBase()}/api/demo/journey`,
+        pricingModel: `${site}${adminBase()}/api/pricing`,
+        pricingSimulation: `${site}${adminBase()}/api/demo/pricing-simulation`,
+        workflowAudit: `${site}${adminBase()}/api/demo/workflow-audit`,
+        simulatedLineWebhook: `${origin}/webhook-test`,
+        lineWebhook: `${origin}/webhook`,
+        platform: `${site}${adminBase()}/api/demo/platform`,
+        graphql: `${origin}/graphql`,
+        apiDocs: `${origin}/api-docs`,
       },
     },
     connections: {

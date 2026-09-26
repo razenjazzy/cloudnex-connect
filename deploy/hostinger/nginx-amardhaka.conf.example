@@ -1,10 +1,10 @@
 # TLS is typically certbot-managed. Merge these location blocks into the
 # amardhaka.io server{} on the VPS. Do not add this file to other vhosts.
 #
-# Prefixes are app-aware (PUBLIC_ADMIN_BASE / PUBLIC_DEMO_BASE on the process).
-# Longer Admin prefix must be matched first (^~ /cloudnex-connect/admin/test).
-# HMAC webhooks stay on the primary process (8080). Do not dual-bind the same
-# LINE OA to 8081 unless the sibling has its own channel credentials.
+# PUBLIC_BASE_URL=https://amardhaka.io/cloudnex-connect
+# PUBLIC_ADMIN_BASE=/admin  PUBLIC_DEMO_BASE=/demo
+# Trailing slash on proxy_pass strips /cloudnex-connect so Node sees /admin and /demo.
+# HMAC webhooks stay on the host root. Sibling Admin is /cloudnex-connect/admin/test (8081).
 
 location ^~ /cloudnex-connect/admin/test {
     proxy_pass http://127.0.0.1:8081;
@@ -16,22 +16,15 @@ location ^~ /cloudnex-connect/admin/test {
     proxy_read_timeout 60s;
 }
 
-location /cloudnex-connect/admin/ {
-    proxy_pass http://127.0.0.1:8080;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_read_timeout 60s;
+location = /cloudnex-connect {
+    return 301 /cloudnex-connect/admin/;
 }
-
-location = /cloudnex-connect/admin {
+location = /cloudnex-connect/ {
     return 301 /cloudnex-connect/admin/;
 }
 
-location /cloudnex-connect/demo {
-    proxy_pass http://127.0.0.1:8080;
+location /cloudnex-connect/ {
+    proxy_pass http://127.0.0.1:8080/;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;

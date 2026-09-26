@@ -160,7 +160,7 @@ Implemented (flags default false unless noted): `POST /webhook-alt` 404 unless `
 
 ## Admin campaigns and chat (staging)
 
-1. Open `https://amardhaka.io/cloudnex-connect/admin` with OPS token + super-admin cookie.
+1. Open `https://amardhaka.io/cloudnex-connect/` with OPS token + super-admin cookie.
 2. Header pill `U…` is the **LINE user id** (U + 32 hex), not Odoo login. **Directory** lookup that id (or phone / partner id) for Firestore dossier + live Odoo groups (`describePartnerPrivileges` via `getErpAdapter()`). **Audit** filters `userId` as actor or target. **Privileges** shows `ADMIN_USER_ID` chain and grant `role=admin`.
 3. **Campaigns:** Channel → class (promo vs transactional) → message → Preview (no LINE) → Test (actor only) → Send (`confirm: SEND`, queued). Promo must use multicast Send (honors `PROMO OFF`). LINE Broadcast is blocked for promo class because the LINE API cannot filter opt-out.
 4. Customer swipe-reply: Sales Flex includes `Re:` quoted text or “card”.

@@ -35,7 +35,7 @@ ENABLE_GRAPHQL=true          # optional
 ENABLE_API_DOCS=true         # optional
 ```
 
-Plus LINE **Cloudnex Sales** and **Cloudnex Customer** credentials, Firestore JSON credentials, sandbox Odoo, `ADMIN_USER_ID` (Sales OA LINE user ids), `OPS_API_TOKEN`, `PUBLIC_BASE_URL=https://amardhaka.io`. Staging Admin/demo prefixes: `PUBLIC_ADMIN_BASE=/cloudnex-connect/admin`, sibling `/cloudnex-connect/admin/test`, `PUBLIC_DEMO_BASE=/cloudnex-connect/demo` (local defaults remain `/admin` and `/demo`). See `documents/VPS_STAGING.md`.
+Plus LINE **Cloudnex Sales** and **Cloudnex Customer** credentials, Firestore JSON credentials, sandbox Odoo, `ADMIN_USER_ID` (Sales OA LINE user ids), `OPS_API_TOKEN`, `PUBLIC_BASE_URL=https://amardhaka.io/cloudnex-connect`. Staging Admin is `PUBLIC_ADMIN_BASE=/cloudnex-connect` (Demo is the Admin menu). Sibling `/cloudnex-connect/admin/test`. Local defaults remain `/admin` and `/demo` (demo GET redirects to Admin `/testing`). See `documents/VPS_STAGING.md`.
 
 Two Official Accounts (staging and production):
 

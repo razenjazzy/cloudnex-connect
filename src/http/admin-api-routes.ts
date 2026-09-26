@@ -1,6 +1,6 @@
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import { getErpAdapter, isErpImplemented } from '../erp/registry';
-import { adminBase } from './public-bases';
+import { adminBase, originFromPublicBaseUrl } from './public-bases';
 import { isOdooConfigured } from '../services/odoo';
 import { getOdooConfig } from '../services/odoo/client';
 import {
@@ -74,6 +74,7 @@ import { loadCommandOverlay, sanitizeCommandOverlay, saveCommandOverlay } from '
 import { getActiveTenantKey } from '../services/tenant';
 import { getPlatformFlags, getPlatformStatus } from '../platform/status';
 import { snapshotChannelTraffic } from '../services/channel-traffic';
+import { registerDemoJsonRoutes } from './demo-api';
 import { handleOdooHook } from './odoo-hook';
 import { decodeAuditCursor, parseAuditLogFilters } from '../services/audit-query';
 import { auditEnvParams } from './env-params';
@@ -170,7 +171,7 @@ const pathParam = (value: string | string[] | undefined): string =>
   Array.isArray(value) ? (value[0] || '') : (value || '');
 
 const webhookTable = (base: string) => {
-  const origin = base.replace(/\/$/, '') || 'https://example.invalid';
+  const origin = originFromPublicBaseUrl(base) || base.replace(/\/$/, '') || 'https://example.invalid';
   return {
     sales: `${origin}/webhook/sales`,
     customer: `${origin}/webhook/customer`,
@@ -821,5 +822,6 @@ export const registerAdminApiRoutes = (app: Express): void => {
     });
   });
 
+  registerDemoJsonRoutes(app, `${adminBase()}/api/demo`, requireAdminPanelAccess);
   app.use(`${adminBase()}/api`, router);
 };

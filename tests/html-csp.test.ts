@@ -27,9 +27,9 @@ describe('CSP headers', () => {
 
   it('applies admin CSP under PUBLIC_ADMIN_BASE, not the global default', () => {
     const prev = process.env.PUBLIC_ADMIN_BASE;
-    process.env.PUBLIC_ADMIN_BASE = '/cloudnex-connect/admin';
-    expect(cspHeaderForPath('/cloudnex-connect/admin')).toBe(buildAdminCspHeader());
-    expect(cspHeaderForPath('/cloudnex-connect/admin/assets/index.js')).toBe(buildAdminCspHeader());
+    process.env.PUBLIC_ADMIN_BASE = '/cloudnex-connect';
+    expect(cspHeaderForPath('/cloudnex-connect')).toBe(buildAdminCspHeader());
+    expect(cspHeaderForPath('/cloudnex-connect/testing')).toBe(buildAdminCspHeader());
     expect(cspHeaderForPath('/healthz')).toBe(buildCspHeader());
     if (prev === undefined) delete process.env.PUBLIC_ADMIN_BASE;
     else process.env.PUBLIC_ADMIN_BASE = prev;

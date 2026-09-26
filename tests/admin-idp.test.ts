@@ -56,9 +56,9 @@ describe('admin IdP mapping and LINE Login', () => {
 
   it('exposes LINE Login callback under PUBLIC_ADMIN_BASE', () => {
     const prevBase = process.env.PUBLIC_ADMIN_BASE;
-    process.env.PUBLIC_ADMIN_BASE = '/cloudnex-connect/admin';
+    process.env.PUBLIC_ADMIN_BASE = '/admin';
     resetRuntimeSettingsForTests({
-      PUBLIC_BASE_URL: 'https://amardhaka.io',
+      PUBLIC_BASE_URL: 'https://amardhaka.io/cloudnex-connect',
     });
     try {
       expect(describeAdminIdp().callbacks.lineLogin).toBe(

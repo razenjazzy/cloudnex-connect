@@ -151,7 +151,7 @@ export const SERVICE_MODULES: ServiceModule[] = [
 ];
 
 export const DEMO_DAY_SCRIPT: string[] = [
-  'Open /demo. Paste DEMO_CONTROL_TOKEN, Login Session, then Refresh Connections (LINE, Firestore, Odoo).',
+  'Open Admin Demo (/testing). Sign in with OPS token, then Refresh connections (LINE, Firestore, Odoo).',
   'Web chat first message: PDPA + home menu. Same resolveCommandReply as POST /webhook.',
   'FORM QUOTE CREATE writes a real Odoo sale.order when Odoo is up.',
   'Run Full Simulation Flow — seed and quote readback.',

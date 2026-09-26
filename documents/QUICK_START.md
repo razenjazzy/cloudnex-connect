@@ -156,7 +156,7 @@ See `documents/PROJECT_SUMMARY.md` for the full file inventory and
 
 ## Admin (staging)
 
-`https://amardhaka.io/cloudnex-connect/admin` — OPS token + super-admin (LINE Login, Okta, or OTP bind). Campaigns: `/cloudnex-connect/admin/campaigns`. Webhooks: `POST https://amardhaka.io/webhook/sales` and `/webhook/customer`. Same `resolveCommandReply` as LINE.
+`https://amardhaka.io/cloudnex-connect/` — OPS token + super-admin (LINE Login, Okta, or OTP bind). Campaigns: `/cloudnex-connect/campaigns`. Demo: `/cloudnex-connect/testing`. Webhooks: `POST https://amardhaka.io/webhook/sales` and `/webhook/customer`. Same `resolveCommandReply` as LINE.
 
 ---
 

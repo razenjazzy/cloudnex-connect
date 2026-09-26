@@ -33,9 +33,9 @@ services:
       APP_ENV: staging
       NODE_ENV: production
       PORT: "8080"
-      PUBLIC_BASE_URL: https://amardhaka.io
-      PUBLIC_ADMIN_BASE: /cloudnex-connect/admin
-      PUBLIC_DEMO_BASE: /cloudnex-connect/demo
+      PUBLIC_BASE_URL: https://amardhaka.io/cloudnex-connect
+      PUBLIC_ADMIN_BASE: /admin
+      PUBLIC_DEMO_BASE: /demo
       ENABLE_DEMO_CONTROL_PANEL: "true"
       ENABLE_WEBHOOK_TEST: "true"
       ENABLE_GRAPHQL: "true"

@@ -1,3 +1,14 @@
+# Release notes — v9.0.7
+
+**Date:** 2026-09-26  
+**Package version:** `9.0.7`  
+**Lane:** staging (no production deploy)  
+**Commit title:** `Release: v9.0.7 - Odoo Line OA v6 Bug Fix`
+
+Public site is `https://amardhaka.io/cloudnex-connect` with `PUBLIC_ADMIN_BASE=/admin` and `PUBLIC_DEMO_BASE=/demo`. Demo lives in the Admin Demo menu (same chrome). HMAC `/webhook*` stays on the host origin.
+
+---
+
 # Release notes — v9.0.6
 
 **Date:** 2026-09-26  

@@ -2,7 +2,7 @@ import { createHmac, createHash, createSign, createVerify, createPublicKey, rand
 import { deflateRawSync } from 'node:zlib';
 import { getPlatformConfig, setPlatformConfig } from './firestore';
 import { getRuntime } from './runtime-settings';
-import { adminBase, adminCookiePath } from '../http/public-bases';
+import { adminCookiePath, adminPublicPath, originFromPublicBaseUrl } from '../http/public-bases';
 
 const STATE_KEY = 'adminOauthStatesV1';
 const cookieName = 'cloudnex_admin_oauth';
@@ -40,9 +40,9 @@ export const describeAdminIdp = () => ({
   },
 });
 
-export const publicBase = (): string => getRuntime('PUBLIC_BASE_URL').replace(/\/$/, '');
+export const publicBase = (): string => originFromPublicBaseUrl(getRuntime('PUBLIC_BASE_URL'));
 
-const callbackUrl = (path: string): string => `${publicBase()}${adminBase()}/api${path}`;
+const callbackUrl = (path: string): string => `${publicBase()}${adminPublicPath(getRuntime('PUBLIC_BASE_URL'))}/api${path}`;
 
 export const mapIdpSubjectToLineUserId = (subject: string, claimValue?: string): string | null => {
   const mappedClaim = (claimValue || '').trim();
@@ -256,14 +256,14 @@ const verifyOidcIdToken = async (token: string, issuer: string, aud: string): Pr
 };
 
 export const buildSamlMetadataXml = (): string => {
-  const entityId = getRuntime('SAML_SP_ENTITY_ID') || `${publicBase()}${adminBase()}/api/session/saml/metadata`;
+  const entityId = getRuntime('SAML_SP_ENTITY_ID') || `${publicBase()}${adminPublicPath(getRuntime('PUBLIC_BASE_URL'))}/api/session/saml/metadata`;
   const acs = callbackUrl('/session/saml/acs');
   return `<?xml version="1.0" encoding="UTF-8"?><EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata" entityID="${entityId}"><SPSSODescriptor AuthnRequestsSigned="false" WantAssertionsSigned="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol"><AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="${acs}" index="0" isDefault="true"/></SPSSODescriptor></EntityDescriptor>`;
 };
 
 export const buildSamlRedirectUrl = (state: string): string | null => {
   const sso = getRuntime('SAML_IDP_SSO_URL');
-  const entityId = getRuntime('SAML_SP_ENTITY_ID') || `${publicBase()}${adminBase()}/api/session/saml/metadata`;
+  const entityId = getRuntime('SAML_SP_ENTITY_ID') || `${publicBase()}${adminPublicPath(getRuntime('PUBLIC_BASE_URL'))}/api/session/saml/metadata`;
   if (!sso || !publicBase()) return null;
   const acs = callbackUrl('/session/saml/acs');
   const id = `_${randomBytes(12).toString('hex')}`;

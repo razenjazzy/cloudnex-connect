@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import logo from './assets/cloudnex-connect.jpeg';
+import { DemoPanel } from './DemoPanel';
 
 const TOKEN_KEY = 'cloudnex_ops_token';
 const LEGACY_TOKEN_KEY = 'cns_ops_token';
@@ -45,6 +46,7 @@ const PAGE_BY_LEAF: Record<string, string> = {
   advanced: 'advanced',
   testing: 'testing',
   demo: 'testing',
+  admin: 'home',
 };
 
 const ADMIN_PAGE_LEAVES = new Set(Object.keys(PAGE_BY_LEAF));
@@ -75,10 +77,6 @@ const ADMIN_BASE = (() => {
   }
   return adminBaseFromPathname(window.location.pathname);
 })();
-
-const DEMO_BASE = typeof window !== 'undefined' && window.__DEMO_BASE__
-  ? window.__DEMO_BASE__.replace(/\/$/, '')
-  : '/demo';
 
 const pathOf = (): string => {
   const raw = window.location.pathname.replace(/\/$/, '') || ADMIN_BASE;
@@ -313,7 +311,7 @@ const NAV_GROUPS: Array<{ id: string; label: string; items: NavItem[] }> = [
       { id: 'advanced', href: `${ADMIN_BASE}/advanced`, label: 'Advanced' },
     ],
   },
-  { id: 'testing', label: 'Testing', items: [{ id: 'testing', href: `${ADMIN_BASE}/testing`, label: 'Demo' }] },
+  { id: 'testing', label: 'Demo', items: [{ id: 'testing', href: `${ADMIN_BASE}/testing`, label: 'Demo' }] },
 ];
 
 export const App = () => {
@@ -1199,13 +1197,7 @@ export const App = () => {
             </div>
           </div>
         ) : null}
-        {page === 'testing' ? (
-          <div className="card">
-            <h2>Testing (Demo)</h2>
-            <p>Admin testing only. Off when APP_ENV=production. Same resolveCommandReply as LINE.</p>
-            <p><a href={DEMO_BASE}>Open {DEMO_BASE}</a></p>
-          </div>
-        ) : null}
+        {page === 'testing' ? <DemoPanel adminBase={ADMIN_BASE} api={api} /> : null}
         {page === 'platform' ? (
           <div className="card">
             <h2>ERP / platform</h2>

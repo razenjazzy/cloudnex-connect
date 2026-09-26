@@ -14,6 +14,7 @@ import {
 } from './firestore';
 import { getPartnerById, getPartnerByPhone } from './odoo/partners';
 import { getRuntime } from './runtime-settings';
+import { originFromPublicBaseUrl } from '../http/public-bases';
 import { findOdooSalesTierByPartnerId } from './odoo/admin';
 import { DEFAULT_CHANNEL_ID, CUSTOMER_CHANNEL_ID, getAgentName, resolveChannelConfig } from '../line/channels';
 import { sendTargetedMessage, sendTargetedFlexMessage } from '../line/messaging';
@@ -65,7 +66,7 @@ const normalizePhone = (value: string): string => value.replace(/[^0-9+]/g, '').
 const buildBaseUrl = (fallbackBaseUrl?: string): string => {
   const fromEnv = getRuntime('PUBLIC_BASE_URL');
   const candidate = fromEnv || fallbackBaseUrl || 'http://localhost:8080';
-  return candidate.replace(/\/$/, '');
+  return originFromPublicBaseUrl(candidate) || candidate.replace(/\/$/, '');
 };
 
 export const generateOtp = (): string => {

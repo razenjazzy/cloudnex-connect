@@ -67,10 +67,10 @@ Required for two OAs:
 - `ADMIN_USER_ID` = Cloudnex Sales LINE user ids
 - `SUPER_ADMIN_USER_IDS` = LINE ids allowed to bind/reveal (fail closed if unset)
 - `CONNECT_BOOTSTRAP_TOKEN` from `scripts/bootstrap-cloudnex-connect.sh` (printed once)
-- `APP_ENV=staging`, `PUBLIC_BASE_URL=https://amardhaka.io`
-- `PUBLIC_ADMIN_BASE=/cloudnex-connect/admin`, `PUBLIC_DEMO_BASE=/cloudnex-connect/demo`
+- `APP_ENV=staging`, `PUBLIC_BASE_URL=https://amardhaka.io/cloudnex-connect`
+- `PUBLIC_ADMIN_BASE=/cloudnex-connect`, `PUBLIC_DEMO_BASE=/cloudnex-connect/demo` (GET redirects to `/cloudnex-connect/testing`)
 
-Install (one-shot): `POST https://amardhaka.io/cloudnex-connect/admin/api/bootstrap` with the bootstrap token (Swagger tag `install`). Second call is 410. Google credential JSON stays a mounted file/env secret on this same path.
+Install (one-shot): `POST https://amardhaka.io/cloudnex-connect/api/bootstrap` with the bootstrap token (Swagger tag `install`). Second call is 410. Google credential JSON stays a mounted file/env secret on this same path.
 
 Rotate channel secrets that were pasted in chat.
 
@@ -90,7 +90,7 @@ Repeat deploys from a machine logged into Docker Hub: `npm run deploy:staging-vm
 
 ## 5. Nginx + TLS
 
-Merge [deploy/hostinger/nginx-amardhaka.conf.example](../deploy/hostinger/nginx-amardhaka.conf.example) into the `amardhaka.io` server. `proxy_pass http://127.0.0.1:8080` **without** a `/webhook` URI suffix so `/webhook/sales` and `/webhook/customer` are preserved. Forward `X-Line-Signature`. Put `location ^~ /cloudnex-connect/admin/test` **before** `/cloudnex-connect/admin/` so the sibling (8081) wins. Old `/admin`, `/demo`, and `/cloudnex-admin` 301 to the `/cloudnex-connect/…` prefixes.
+Merge [deploy/hostinger/nginx-amardhaka.conf.example](../deploy/hostinger/nginx-amardhaka.conf.example) into the `amardhaka.io` server. `proxy_pass http://127.0.0.1:8080` **without** a `/webhook` URI suffix so `/webhook/sales` and `/webhook/customer` are preserved. Forward `X-Line-Signature`. Put `location ^~ /cloudnex-connect/admin/test` **before** `/cloudnex-connect/` so the sibling (8081) wins. Old `/admin`, `/demo`, `/cloudnex-connect/admin`, and `/cloudnex-admin` 301 to `/cloudnex-connect/`.
 
 ```bash
 nginx -t && systemctl reload nginx
@@ -118,8 +118,8 @@ Paste the printed `LINE_RICH_MENU_JSON` / `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON`
 
 - `GET https://amardhaka.io/healthz` — `service` is `cloudnex-connect`
 - `GET https://amardhaka.io/readyz` (`bootstrapComplete`)
-- `GET https://amardhaka.io/cloudnex-connect/admin/` (OPS token; LINE bind for reveal)
-- `GET https://amardhaka.io/cloudnex-connect/demo` (ops/demo tokens; testing only)
+- `GET https://amardhaka.io/cloudnex-connect/` (OPS token; LINE bind for reveal)
+- `GET https://amardhaka.io/cloudnex-connect/testing` (Demo in Admin; testing only)
 - `GET /ops/platform` — `lineCustomerConfigured` true when Customer env is set
 
 ## 7b. Sibling process (`/opt/cns-line-oa`, port 8081)
