@@ -341,6 +341,7 @@ export const App = () => {
   const [health, setHealth] = useState('');
   const [ready, setReady] = useState('');
   const [erp, setErp] = useState('');
+  const [bindHints, setBindHints] = useState({ adminAllowlistSet: false, superAdminAllowlistSet: false, actorBound: false });
   const [actor, setActor] = useState<string | null>(null);
   const [appEnv, setAppEnv] = useState('—');
   const [campChannel, setCampChannel] = useState('customer');
@@ -397,9 +398,21 @@ export const App = () => {
       }
       const me = await api(`${ADMIN_BASE}/api/session/me`);
       if (me.ok) {
-        const body = await me.json() as { appEnv?: string; actorUserId?: string | null };
+        const body = await me.json() as {
+          appEnv?: string;
+          actorUserId?: string | null;
+          bind?: { adminAllowlistSet?: boolean; superAdminAllowlistSet?: boolean; actorBound?: boolean };
+        };
         setAppEnv(body.appEnv || '—');
         setActor(body.actorUserId || null);
+        if (body.bind && typeof body.bind === 'object') {
+          const bind = body.bind as { adminAllowlistSet?: boolean; superAdminAllowlistSet?: boolean; actorBound?: boolean };
+          setBindHints({
+            adminAllowlistSet: Boolean(bind.adminAllowlistSet),
+            superAdminAllowlistSet: Boolean(bind.superAdminAllowlistSet),
+            actorBound: Boolean(bind.actorBound),
+          });
+        }
       }
     })();
   }, []);
@@ -420,6 +433,7 @@ export const App = () => {
 
   const go = (next: string) => {
     window.history.pushState({}, '', next);
+    setError('');
     setPath(pathOf());
   };
 
@@ -444,9 +458,20 @@ export const App = () => {
     if (res.ok) setSettings(await res.json());
     const me = await api(`${ADMIN_BASE}/api/session/me`);
     if (me.ok) {
-      const body = await me.json() as { appEnv?: string; actorUserId?: string | null };
+      const body = await me.json() as {
+        appEnv?: string;
+        actorUserId?: string | null;
+        bind?: { adminAllowlistSet?: boolean; superAdminAllowlistSet?: boolean; actorBound?: boolean };
+      };
       setAppEnv(body.appEnv || '—');
       setActor(body.actorUserId || null);
+      if (body.bind) {
+        setBindHints({
+          adminAllowlistSet: Boolean(body.bind.adminAllowlistSet),
+          superAdminAllowlistSet: Boolean(body.bind.superAdminAllowlistSet),
+          actorBound: Boolean(body.bind.actorBound),
+        });
+      }
     }
   };
 
@@ -585,6 +610,10 @@ export const App = () => {
         }
         return;
       }
+      if (page === 'identity') {
+        await loadSettings();
+        return;
+      }
       if (page === 'users') {
         const res = await api(`${ADMIN_BASE}/api/users?sales=1`);
         if (res.ok) {
@@ -623,17 +652,59 @@ export const App = () => {
     })();
   }, [authed, page, actor]);
 
+  const hostOrigin = window.location.origin;
+  const lineLoginCallback = idp?.callbacks?.lineLogin || `${hostOrigin}${ADMIN_BASE}/api/session/line/callback`;
+  const oidcCallback = idp?.callbacks?.oidc || `${hostOrigin}${ADMIN_BASE}/api/session/oidc/callback`;
+  const samlAcs = idp?.callbacks?.samlAcs || `${hostOrigin}${ADMIN_BASE}/api/session/saml/acs`;
   const idpLinks = (
-    <div className="row">
+    <div className="idp-bind">
+      <h3>Where to register URLs</h3>
+      <p>OTP bind (Identity) does not use these consoles. Register URLs only for the product you are turning on.</p>
+
+      <h3>1. Messaging API (required for LINE chat)</h3>
+      <p>
+        Open <a href="https://developers.line.biz/console/" target="_blank" rel="noreferrer">LINE Developers Console</a>
+        → your provider → the <strong>Messaging API</strong> channel (Sales or Customer) → <strong>Messaging API</strong> tab → <strong>Webhook URL</strong>. Enable Use webhook. This is not LINE Login.
+      </p>
+      <CopyField label="Sales OA → Webhook URL" value={`${hostOrigin}/webhook/sales`} />
+      <CopyField label="Customer OA → Webhook URL" value={`${hostOrigin}/webhook/customer`} />
+      <CopyField label="Default channel (same as Sales if unnamespaced)" value={`${hostOrigin}/webhook`} />
+
+      <h3>2. Official Account (OA side)</h3>
+      <p>
+        Open <a href="https://manager.line.biz/" target="_blank" rel="noreferrer">LINE Official Account Manager</a>
+        → the Sales or Customer OA → Response / bot settings. Confirm the OA is linked to the same Messaging API channel. Greeting and rich menu live here; the webhook URL still belongs in Developers Console.
+      </p>
+
+      <h3>3. LINE Login (optional Admin OAuth)</h3>
+      <p>
+        Same <a href="https://developers.line.biz/console/" target="_blank" rel="noreferrer">Developers Console</a>
+        → provider → <strong>Create a LINE Login channel</strong> (not Messaging API). Use the name and description below. App type: <strong>Web app</strong>. Then <strong>LINE Login</strong> tab → <strong>Callback URL</strong>. Copy Channel ID and Channel secret into <code>LINE_LOGIN_CHANNEL_ID</code> / <code>LINE_LOGIN_CHANNEL_SECRET</code> on the VPS.
+      </p>
+      <CopyField label="Channel name" value="Cloudnex Connect" />
+      <CopyField
+        label="Channel description (LINE Login consent / API listing)"
+        value="Cloudnex Connect Admin web sign-in. LINE Login (OAuth 2.0 PKCE) identifies the operator’s LINE user id so a super-admin cookie can be issued after OPS token auth. Scopes: profile and openid. This channel does not receive Messaging API webhooks."
+      />
+      <CopyField label="LINE Login APIs used" value="https://access.line.me/oauth2/v2.1/authorize (authorization code + PKCE S256, scope=profile openid)\nhttps://api.line.me/oauth2/v2.1/token (grant_type=authorization_code)\nhttps://api.line.me/v2/profile (if id_token has no LINE sub)" />
+      <CopyField label="LINE Login → Callback URL" value={lineLoginCallback} />
       {idp?.lineLogin
-        ? <a href={`${ADMIN_BASE}/api/session/line/start`}>LINE Login</a>
-        : <span className="muted">LINE Login off</span>}
+        ? <p><a href={`${ADMIN_BASE}/api/session/line/start`}>Start LINE Login</a></p>
+        : <p className="muted">LINE Login start stays off until those two env keys are set.</p>}
+
+      <h3>4. Okta OIDC (optional)</h3>
+      <p>Okta Admin → Applications → your OIDC app → <strong>Sign-in redirect URIs</strong>. Then set <code>OKTA_ISSUER</code>, <code>OKTA_CLIENT_ID</code>, <code>OKTA_CLIENT_SECRET</code>.</p>
+      <CopyField label="Okta → Sign-in redirect URI" value={oidcCallback} />
       {idp?.oktaOidc
-        ? <a href={`${ADMIN_BASE}/api/session/oidc/start`}>Okta OIDC</a>
-        : <span className="muted">Okta OIDC off</span>}
+        ? <p><a href={`${ADMIN_BASE}/api/session/oidc/start`}>Start Okta OIDC</a></p>
+        : <p className="muted">Okta OIDC start stays off until those env keys are set.</p>}
+
+      <h3>5. SAML (optional)</h3>
+      <p>Your IdP (Okta SAML app or other) → <strong>ACS / Single sign-on URL</strong>. Then set <code>SAML_IDP_SSO_URL</code> and <code>SAML_IDP_CERT</code>.</p>
+      <CopyField label="SAML → ACS URL" value={samlAcs} />
       {idp?.saml
-        ? <a href={`${ADMIN_BASE}/api/session/saml/start`}>SAML</a>
-        : <span className="muted">SAML off</span>}
+        ? <p><a href={`${ADMIN_BASE}/api/session/saml/start`}>Start SAML</a></p>
+        : <p className="muted">SAML start stays off until those env keys are set.</p>}
     </div>
   );
 
@@ -646,7 +717,7 @@ export const App = () => {
             <span className="brand-name">Cloudnex Connect</span>
           </div>
           <h1>Admin</h1>
-          <p>Sign in with the OPS token first. Super-admin bind uses LINE OTP on Identity. LINE Login and Okta stay off until their env keys are set on the VPS.</p>
+          <p>Sign in with the OPS token first. Super-admin bind is Identity → Bind (LINE OTP). The URL list below is only for Messaging API / LINE Login / Okta / SAML consoles.</p>
           <form className="field-row" onSubmit={login}>
             <div className="field">
               <label htmlFor="ops-token">OPS token</label>
@@ -655,7 +726,6 @@ export const App = () => {
             <button type="submit">Sign in</button>
           </form>
           {idpLinks}
-          <p className="muted">After OPS sign-in, open Identity. Paste your LINE user id (U…), Send code, then enter the OTP from Cloudnex Sales.</p>
           {error ? <p className="error">{error}</p> : null}
         </div>
       </main>
@@ -690,7 +760,9 @@ export const App = () => {
             <span className="pill">{String(settings?.appEnv || appEnv)}</span>
             {actor ? <span className="pill">{actor}</span> : <span className="pill">not bound</span>}
           </div>
-          <button className="nav-hamburger" type="button" aria-label="Open menu" aria-expanded={navOpen} onClick={() => setNavOpen(open => !open)}>Menu</button>
+          <button className="nav-hamburger" type="button" aria-label="Open menu" aria-expanded={navOpen} onClick={() => setNavOpen(open => !open)}>
+            <span className="nav-hamburger-icon" aria-hidden="true"><span /><span /><span /></span>
+          </button>
           {navOpen ? <button type="button" className="nav-backdrop" aria-label="Close menu" onClick={() => setNavOpen(false)} /> : null}
           <nav className={navOpen ? 'open' : ''}>
             {NAV_GROUPS.map(group => {
@@ -739,8 +811,10 @@ export const App = () => {
       </header>
       <main>
         {error ? <p className="error">{error}</p> : null}
-        {(page === 'campaigns' || page === 'settings' || page === 'jobs') && !actor ? (
-          <p className="warn">Campaigns and secret reveal need a super-admin LINE bind. Open Identity, confirm OTP or LINE Login, then retry.</p>
+        {(page === 'campaigns' || page === 'settings') && !actor ? (
+          <p className="warn">
+            Campaigns and secret reveal need a bound super-admin cookie. Open <a href={`${ADMIN_BASE}/identity`} onClick={e => { e.preventDefault(); go(`${ADMIN_BASE}/identity`); }}>Identity → Bind</a>, set the VPS allowlists, then OTP from Cloudnex Sales. LINE Login is optional.
+          </p>
         ) : null}
         {page === 'home' ? (() => {
           const probes = dash?.flags || {};
@@ -816,18 +890,34 @@ export const App = () => {
           <div className="card">
             <h2>Identity</h2>
             <ol className="howto">
-              <li>Sign in with OPS_API_TOKEN (this page already did that).</li>
-              <li>On the VPS <code>/opt/cloudnex-connect/.env</code>, set your LINE id on <code>SUPER_ADMIN_USER_IDS</code> and <code>ADMIN_USER_ID</code>. The same id must be Odoo-verified in Firestore.</li>
-              <li>Paste that <code>U…</code> id below, Send code. Cloudnex Sales pushes a 6-digit OTP (you must have talked to the Sales OA at least once).</li>
-              <li>Confirm OTP. The header pill shows the bound LINE user id. Campaigns and secret reveal need this cookie.</li>
-              <li>LINE Login / Okta are optional. They stay “off” until LINE Developers Login (or Okta) credentials are in that same .env, plus the callback URLs below.</li>
+              <li>OPS token sign-in is done. That is not the super-admin bind.</li>
+              <li>On the VPS <code>/opt/cloudnex-connect/.env</code> set the same Cloudnex Sales LINE id on both keys, then recreate the container:
+                <code>ADMIN_USER_ID=U…</code> and <code>SUPER_ADMIN_USER_IDS=U…</code>
+              </li>
+              <li>In LINE, talk to Cloudnex Sales and run VERIFY so the profile is <code>odooVerified</code>.</li>
+              <li>Paste that <code>U…</code> below, Send code, enter the OTP from Sales. The header pill then shows the bound LINE id.</li>
+              <li>LINE Login / Okta / SAML stay off until those extra credentials exist. They are not required for bind.</li>
             </ol>
+            <div className="status-grid">
+              <div className={`status-cell ${bindHints.adminAllowlistSet ? 'on' : 'off'}`}>
+                <span className="status-dot" aria-hidden="true" />
+                <span className="status-label">ADMIN_USER_ID</span>
+                <span className="status-value">{bindHints.adminAllowlistSet ? 'set' : 'unset on VPS'}</span>
+              </div>
+              <div className={`status-cell ${bindHints.superAdminAllowlistSet ? 'on' : 'off'}`}>
+                <span className="status-dot" aria-hidden="true" />
+                <span className="status-label">SUPER_ADMIN_USER_IDS</span>
+                <span className="status-value">{bindHints.superAdminAllowlistSet ? 'set (also on ADMIN_USER_ID)' : 'unset or not overlapping ADMIN_USER_ID'}</span>
+              </div>
+              <div className={`status-cell ${actor ? 'on' : 'off'}`}>
+                <span className="status-dot" aria-hidden="true" />
+                <span className="status-label">Actor cookie</span>
+                <span className="status-value">{actor ? 'bound' : 'not bound'}</span>
+              </div>
+            </div>
             <p>Fail-closed chain: LINE id → profile → odooVerified → ADMIN_USER_ID → SUPER_ADMIN_USER_IDS. The bound actor is a LINE user id, not an Odoo login.</p>
             {actor ? <CopyField label="Bound LINE user id" value={actor} /> : null}
             {idpLinks}
-            {idp?.callbacks?.lineLogin ? <CopyField label="LINE Login callback" value={idp.callbacks.lineLogin} /> : null}
-            {idp?.callbacks?.oidc ? <CopyField label="Okta OIDC callback" value={idp.callbacks.oidc} /> : null}
-            {idp?.callbacks?.samlAcs ? <CopyField label="SAML ACS" value={idp.callbacks.samlAcs} /> : null}
             <div className="field-row">
               <div className="field">
                 <label>LINE user id</label>
@@ -867,7 +957,7 @@ export const App = () => {
                     ) : (row.set ? '••••' : '—')) : (
                       row.value ? <CopyField label={row.key} value={row.value} /> : '—'
                     )}</td>
-                    <td>{row.kind === 'secret' && row.set ? <button type="button" onClick={() => void reveal(row.key)}>Reveal</button> : null}</td>
+                    <td>{row.kind === 'secret' && row.set ? <button type="button" disabled={!actor} onClick={() => void reveal(row.key)}>Reveal</button> : null}</td>
                   </tr>
                 ))}
               </tbody>
@@ -941,7 +1031,8 @@ export const App = () => {
                 <input value={langUser} onChange={e => setLangUser(e.target.value)} placeholder="U..." />
               </div>
               <button type="button" onClick={async () => {
-                const res = await api(`${ADMIN_BASE}/api/users?userId=${encodeURIComponent(langUser)}`);
+                if (!langUser.trim()) return;
+                const res = await api(`${ADMIN_BASE}/api/users?userId=${encodeURIComponent(langUser.trim())}`);
                 const body = await res.json() as { users?: Array<{ userId?: string; language?: string }>; error?: string };
                 if (!res.ok) {
                   setError(body.error || 'Lookup failed');
@@ -1071,7 +1162,8 @@ export const App = () => {
               </div>
               <button type="button" onClick={async () => {
                 const raw = lookup.trim();
-                const q = raw.startsWith('U') ? `userId=${encodeURIComponent(raw)}`
+                const q = !raw ? 'sales=1'
+                  : raw.startsWith('U') ? `userId=${encodeURIComponent(raw)}`
                   : /^\d+$/.test(raw) ? `partnerId=${encodeURIComponent(raw)}`
                   : `phone=${encodeURIComponent(raw)}`;
                 const res = await api(`${ADMIN_BASE}/api/users?${q}`);
@@ -1257,7 +1349,7 @@ export const App = () => {
           <div className="card">
             <h2>Campaigns</h2>
             <p>Channel → class → message → preview → test → multicast Send. Promo uses Send only (honors PROMO OFF). LINE Broadcast cannot filter opt-out; it is blocked for promo class.</p>
-            {!actor ? <p className="error">Bind super-admin on Identity first. Campaign APIs return 403 without the actor cookie.</p> : null}
+            {!actor ? <p className="warn">Bind super-admin on Identity first. Campaign send stays disabled until the actor cookie is set.</p> : null}
             <div className="row">
               <select value={campChannel} onChange={e => setCampChannel(e.target.value)}>
                 <option value="customer">customer</option>

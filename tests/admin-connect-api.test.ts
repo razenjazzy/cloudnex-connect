@@ -365,6 +365,21 @@ describe('Cloudnex Connect admin API', () => {
     expect(body.error).toMatch(/PROMO OFF/);
   });
 
+  it('lists verified sales when Directory is opened with no lookup query', async () => {
+    const res = await fetch(`${base()}/admin/api/users`, { headers: ops });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { users: unknown[] };
+    expect(Array.isArray(body.users)).toBe(true);
+  });
+
+  it('reports bind allowlist flags on session/me', async () => {
+    const res = await fetch(`${base()}/admin/api/session/me`, { headers: ops });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { bind: { adminAllowlistSet: boolean; superAdminAllowlistSet: boolean } };
+    expect(body.bind.adminAllowlistSet).toBe(true);
+    expect(body.bind.superAdminAllowlistSet).toBe(true);
+  });
+
   it('returns a LINE user dossier and activity for ops', async () => {
     const lineUserId = 'U05594eb080e50a62b6911f45ffe30d4ea';
     const list = await fetch(`${base()}/admin/api/users?userId=${lineUserId}`, { headers: ops });

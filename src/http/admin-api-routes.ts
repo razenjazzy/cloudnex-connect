@@ -33,6 +33,7 @@ import {
   markBootstrapComplete,
   mergeRuntimeOverlay,
   getEffectiveAdminUserIds,
+  getSuperAdminUserIds,
   getSecretRevealTtlSeconds,
 } from '../services/runtime-settings';
 import {
@@ -43,6 +44,7 @@ import {
   issueBindOtp,
   issueRevealToken,
   isSuperAdminActor,
+  superAdminBindBlockReason,
   parseAdminActorCookie,
 } from '../services/admin-session';
 import {
@@ -430,9 +432,10 @@ export const registerAdminApiRoutes = (app: Express): void => {
     const userId = String(req.body?.lineUserId || '').trim();
     if (!userId) return res.status(400).json({ error: 'lineUserId is required.' });
     const profile = await getUserProfile(userId);
-    if (!isSuperAdminActor(userId, profile)) {
+    const bindBlock = superAdminBindBlockReason(userId, profile);
+    if (bindBlock) {
       await recordAuditEvent({ action: 'admin_session_bind', outcome: 'failure', actorUserId: userId, detail: 'not_allowlisted' });
-      return res.status(403).json({ error: 'Not authorized to bind.' });
+      return res.status(403).json({ error: bindBlock });
     }
     const issued = await issueBindOtp(userId);
     if (!issued.ok) return res.status(503).json({ error: issued.error });
@@ -470,6 +473,11 @@ export const registerAdminApiRoutes = (app: Express): void => {
       actorFormat: 'LINE user id (U followed by 32 hex characters)',
       lock: isAdminConfigLocked(),
       optionalFlags: describeOptionalFlags(),
+      bind: {
+        adminAllowlistSet: getEffectiveAdminUserIds().size > 0,
+        superAdminAllowlistSet: getSuperAdminUserIds().size > 0,
+        actorBound: Boolean(actor),
+      },
     });
   });
 
@@ -668,20 +676,22 @@ export const registerAdminApiRoutes = (app: Express): void => {
   });
 
   router.get('/users', adminApiLimiter, requireOpsStrict, async (req, res) => {
-    if (req.query.sales === '1' || req.query.sales === 'true') {
+    const userId = typeof req.query.userId === 'string' ? req.query.userId.trim() : '';
+    const phone = typeof req.query.phone === 'string' ? req.query.phone.trim() : '';
+    const partnerRaw = typeof req.query.partnerId === 'string' ? req.query.partnerId.trim() : '';
+    const partnerId = Number(partnerRaw);
+    const listSales = req.query.sales === '1' || req.query.sales === 'true' || (!userId && !phone && !partnerRaw);
+    if (listSales) {
       const ids = await listVerifiedSalesLineUserIds();
       const users = await Promise.all(ids.map(id => toAdminUserView(id)));
       return res.json({ users });
     }
-    const userId = typeof req.query.userId === 'string' ? req.query.userId.trim() : '';
-    const phone = typeof req.query.phone === 'string' ? req.query.phone.trim() : '';
-    const partnerId = Number(req.query.partnerId);
     let resolved = userId;
     if (!resolved && phone) resolved = await findLineUserIdByPhone(phone) || '';
     if (!resolved && Number.isInteger(partnerId) && partnerId > 0) {
       resolved = await findVerifiedUserIdByPartnerId(partnerId) || '';
     }
-    if (!resolved) return res.status(400).json({ error: 'userId, phone, partnerId, or sales=1 required.' });
+    if (!resolved) return res.json({ users: [] });
     return res.json({ users: [await toAdminUserView(resolved)] });
   });
 

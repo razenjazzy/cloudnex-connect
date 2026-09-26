@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { getPlatformConfig, setPlatformConfig } from '../src/services/firestore';
+import { resetRuntimeSettingsForTests } from '../src/services/runtime-settings';
 import {
   buildAdminActorCookie,
   consumeBindOtp,
@@ -7,6 +8,7 @@ import {
   issueBindOtp,
   issueRevealToken,
   parseAdminActorCookie,
+  superAdminBindBlockReason,
 } from '../src/services/admin-session';
 
 vi.mock('../src/services/firestore', () => ({
@@ -57,6 +59,13 @@ describe('admin session bind and reveal tokens', () => {
     expect(stored.Uadmin.hash).not.toBe(issued.otp);
     expect(await consumeBindOtp('Uadmin', issued.otp)).toBe(true);
     expect(await consumeBindOtp('Uadmin', issued.otp)).toBe(false);
+  });
+
+  it('explains missing SUPER_ADMIN_USER_IDS for OTP bind', () => {
+    process.env.ADMIN_USER_ID = 'Uadmin';
+    delete process.env.SUPER_ADMIN_USER_IDS;
+    resetRuntimeSettingsForTests();
+    expect(superAdminBindBlockReason('Uadmin', { odooVerified: true })).toMatch(/SUPER_ADMIN_USER_IDS/);
   });
 
   it('stores reveal tokens hashed and consumes once', async () => {

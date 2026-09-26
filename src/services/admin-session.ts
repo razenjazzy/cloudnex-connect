@@ -3,7 +3,7 @@ import { getPlatformConfig, setPlatformConfig } from './firestore';
 import { adminCookiePath } from '../http/public-bases';
 import { isAuthorizedForAdminRole } from './admin-authorization';
 import type { UserProfile } from './firestore';
-import { getSecretRevealTtlSeconds, getSuperAdminUserIds } from './runtime-settings';
+import { getSecretRevealTtlSeconds, getEffectiveAdminUserIds, getSuperAdminUserIds } from './runtime-settings';
 
 const BIND_CONFIG_KEY = 'adminBindOtpsV1';
 const REVEAL_CONFIG_KEY = 'secretRevealTokensV1';
@@ -56,6 +56,18 @@ export const isSuperAdminActor = (userId: string, profile: { odooVerified: boole
   if (supers.size === 0) return false;
   if (!supers.has(userId.trim())) return false;
   return isAuthorizedForAdminRole(userId, profile).ok;
+};
+
+export const superAdminBindBlockReason = (userId: string, profile: { odooVerified: boolean }): string | null => {
+  if (isSuperAdminActor(userId, profile)) return null;
+  const admin = getEffectiveAdminUserIds();
+  const supers = getSuperAdminUserIds();
+  if (admin.size === 0) return 'Set ADMIN_USER_ID on the VPS to this LINE user id (U…).';
+  if (supers.size === 0) return 'Set SUPER_ADMIN_USER_IDS on the VPS to the same LINE id (it must also be listed in ADMIN_USER_ID).';
+  if (!profile.odooVerified) return 'VERIFY this LINE user in Cloudnex Sales first (odooVerified).';
+  if (!admin.has(userId.trim())) return 'This LINE id is not on ADMIN_USER_ID.';
+  if (!supers.has(userId.trim())) return 'This LINE id is not on SUPER_ADMIN_USER_IDS.';
+  return 'Not authorized to bind.';
 };
 
 export const issueBindOtp = async (userId: string): Promise<{ ok: true; expiresInSec: number; otp: string } | { ok: false; error: string }> => {

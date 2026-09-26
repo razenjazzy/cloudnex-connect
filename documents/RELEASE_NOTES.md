@@ -1,3 +1,14 @@
+# Release notes — v9.0.9
+
+**Date:** 2026-09-26  
+**Package version:** `9.0.9`  
+**Lane:** staging (no production deploy)  
+**Commit title:** `Release: v9.0.9 - Odoo Line OA v6 Bug Fix`
+
+Admin Identity/login lists where to register Messaging API, LINE Login, Okta, and SAML URLs. Empty Directory lookup no longer 400s. Super-admin bind errors name the missing VPS allowlist. Small-screen nav is a 3-bar drawer.
+
+---
+
 # Release notes — v9.0.8
 
 **Date:** 2026-09-26  
