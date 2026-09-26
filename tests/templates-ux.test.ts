@@ -50,6 +50,12 @@ describe('product card quote CTA', () => {
     const message = createProductCardFlexMessage('App Premium', 100, 3, 'en', 11);
     expect(JSON.stringify(message)).toContain('FORM QUOTE CREATE FROM CARD 11');
   });
+
+  it('shows an https product image on the detail card', () => {
+    const message = createProductCardFlexMessage('App Premium', 100, 3, 'en', 11, 'https://amardhaka.io/cloudnex-connect/admin/catalog/product/11/image');
+    expect(JSON.stringify(message)).toContain('"type":"image"');
+    expect(JSON.stringify(message)).toContain('/catalog/product/11/image');
+  });
 });
 
 describe('optional summary', () => {

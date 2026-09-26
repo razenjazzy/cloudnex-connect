@@ -76,7 +76,7 @@ export const registerAdminPanelRoutes = (app: Express): void => {
 
   const spaRegex = new RegExp(`^${root.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:/.*)?$`);
   app.get(spaRegex, (req, res, next) => {
-    if (req.path.startsWith(`${root}/api`) || req.path.startsWith(`${root}/crm/quotes`)) return next();
+    if (req.path.startsWith(`${root}/api`) || req.path.startsWith(`${root}/crm/quotes`) || req.path.startsWith(`${root}/catalog/product`)) return next();
     return spaFallback(req, res);
   });
 };

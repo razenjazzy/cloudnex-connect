@@ -8,15 +8,10 @@ import { describeOdooPrivilegesByPartnerId } from '../services/odoo/admin';
 import { describeOdooPaymentStatus, describeOdooSignatureStatus } from '../services/odoo/commerce-status';
 import type { OdooProduct, OdooSaleOrder } from '../services/odoo/types';
 import type { ErpAdapter, ErpCrmQuote, ErpCrmQuoteListOpts, ErpCustomerUpdate, ErpPartner, ErpPermission, ErpProduct, ErpProviderName, ErpQuoteDraft, ErpQuotationOptions, ErpService, ErpServiceUpdate, ErpWriteAction } from './adapter';
-
-const productImageUrl = (productId: number): string | undefined => {
-  const base = (process.env.ODOO_URL || '').trim().replace(/\/$/, '');
-  if (!base.startsWith('https://')) return undefined;
-  return `${base}/web/image/product.product/${productId}/image_128`;
-};
+import { publicCatalogProductImageUrl } from './product-image-url';
 
 const toErpProduct = (product: OdooProduct): ErpProduct => {
-  const imageUrl = product.image_url || productImageUrl(product.id);
+  const imageUrl = publicCatalogProductImageUrl(product.id);
   return {
     id: product.id,
     name: product.name,

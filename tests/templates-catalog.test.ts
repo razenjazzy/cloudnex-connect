@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { createProductCarouselFlexMessage } from '../src/line/templates';
+import { createProductCarouselFlexMessage, stripFlexHeroImages } from '../src/line/templates';
 import { checkMessageAgainstLineLimits } from '../src/line/message-limits';
 
 describe('product catalogue carousel', () => {
@@ -17,6 +17,19 @@ describe('product catalogue carousel', () => {
     expect(json).toContain('PRODUCT FIND App Premium');
     expect(json).not.toContain('"text":"NAV HOME"');
     expect(checkMessageAgainstLineLimits(message)).toEqual([]);
+  });
+
+  it('puts https product images on the hero and can strip them for LINE retry', () => {
+    const message = createProductCarouselFlexMessage([
+      { id: 11, name: 'App Premium', price: 990, quantity: 4, imageUrl: 'https://amardhaka.io/cloudnex-connect/admin/catalog/product/11/image' },
+      { id: 12, name: 'App Support', price: 490, quantity: 8, imageUrl: 'http://odoo.local/web/image/product.product/12/image_128' },
+    ], 'en');
+    const json = JSON.stringify(message);
+    expect(json).toContain('/catalog/product/11/image');
+    expect(json).not.toContain('odoo.local');
+    const stripped = stripFlexHeroImages([message]);
+    expect(JSON.stringify(stripped)).not.toContain('"type":"image"');
+    expect(JSON.stringify(stripped)).toContain('FORM QUOTE CREATE FROM CARD 11');
   });
 
   it('can browse services with SERVICE READ as the view action', () => {

@@ -69,15 +69,23 @@ const mockedGetDailySummary = vi.mocked(getDailySalesSnapshot);
 
 describe('Odoo ERP adapter', () => {
   const originalProvider = process.env.ERP_PROVIDER;
+  const originalPublicBase = process.env.PUBLIC_BASE_URL;
+  const originalAdminBase = process.env.PUBLIC_ADMIN_BASE;
 
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.ERP_PROVIDER;
+    delete process.env.PUBLIC_BASE_URL;
+    delete process.env.PUBLIC_ADMIN_BASE;
   });
 
   afterEach(() => {
     if (originalProvider === undefined) delete process.env.ERP_PROVIDER;
     else process.env.ERP_PROVIDER = originalProvider;
+    if (originalPublicBase === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = originalPublicBase;
+    if (originalAdminBase === undefined) delete process.env.PUBLIC_ADMIN_BASE;
+    else process.env.PUBLIC_ADMIN_BASE = originalAdminBase;
   });
 
   it('normalizes product search results and filters by name or SKU', async () => {
@@ -90,6 +98,29 @@ describe('Odoo ERP adapter', () => {
     mockedListProducts.mockResolvedValue([]);
     await expect(odooAdapter.searchProducts('   ')).resolves.toEqual([]);
     expect(mockedListProducts).toHaveBeenCalled();
+  });
+
+  it('uses the public Admin HTTPS image URL instead of Odoo web/image', async () => {
+    const previousBase = process.env.PUBLIC_BASE_URL;
+    const previousAdmin = process.env.PUBLIC_ADMIN_BASE;
+    process.env.PUBLIC_BASE_URL = 'https://amardhaka.io/cloudnex-connect';
+    process.env.PUBLIC_ADMIN_BASE = '/admin';
+    mockedFindProducts.mockResolvedValue([{ id: 1, name: 'Widget Pro', default_code: 'WP-1', list_price: 125, qty_available: 8 }]);
+    await expect(odooAdapter.searchProducts('widget', 5)).resolves.toEqual([
+      {
+        id: 1,
+        name: 'Widget Pro',
+        sku: 'WP-1',
+        price: 125,
+        quantity: 8,
+        currency: 'THB',
+        imageUrl: 'https://amardhaka.io/cloudnex-connect/admin/catalog/product/1/image',
+      },
+    ]);
+    if (previousBase === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = previousBase;
+    if (previousAdmin === undefined) delete process.env.PUBLIC_ADMIN_BASE;
+    else process.env.PUBLIC_ADMIN_BASE = previousAdmin;
   });
 
   it('peeks the warm catalog cache without a second Odoo list', async () => {

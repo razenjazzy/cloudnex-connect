@@ -327,16 +327,23 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
       delivered = await deliverMessages(client, input, messages);
     } catch (error) {
       appLogger.error('line_reply_failed', { error: String(error), requestId: input.requestId });
-      const { outcomeFlex } = await import('./outcome-reply');
-      const { t } = await import('../services/i18n');
-      const fallback = [outcomeFlex({
-        language: userLanguage,
-        tone: 'warning',
-        title: t('replyDeliverFailed', userLanguage),
-        body: t('replyDeliverFailedBody', userLanguage),
-        actions: [{ label: t('myQuotations', userLanguage), text: 'QUOTE LIST', style: 'primary' }],
-      })];
-      delivered = await client.pushMessage({ to: input.conversationId, messages: fallback });
+      const { stripFlexHeroImages } = await import('./templates');
+      const withoutHero = stripFlexHeroImages(messages);
+      try {
+        delivered = await deliverMessages(client, input, withoutHero);
+      } catch (retryError) {
+        appLogger.error('line_reply_retry_failed', { error: String(retryError), requestId: input.requestId });
+        const { outcomeFlex } = await import('./outcome-reply');
+        const { t } = await import('../services/i18n');
+        const fallback = [outcomeFlex({
+          language: userLanguage,
+          tone: 'warning',
+          title: t('replyDeliverFailed', userLanguage),
+          body: t('replyDeliverFailedBody', userLanguage),
+          actions: [{ label: t('myQuotations', userLanguage), text: 'QUOTE LIST', style: 'primary' }],
+        })];
+        delivered = await client.pushMessage({ to: input.conversationId, messages: fallback });
+      }
     }
     const { applyTrayAfterReply, unlinkUserRichMenu } = await import('./rich-menu');
     const { shouldApplyTrayAfterReply, replyExpectsKeyboard } = await import('./tray-policy');

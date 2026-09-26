@@ -1,5 +1,10 @@
 # Changelog
 
+## v10.0.2 — Odoo LINE OA v7 (2026-09-26)
+
+- Serve product thumbnails at `{PUBLIC_BASE_URL}/admin/catalog/product/{id}/image` via Odoo RPC instead of session-gated `/web/image`.
+- Retry LINE replies without Flex heroes if LINE rejects the image URL so Customer OA messages still get an answer.
+
 ## v10.0.1 — Odoo LINE OA v7 (2026-09-26)
 
 - Admin overlay saves EN/TH labels, roles, and channels; `pickLocale` never returns empty copy.

@@ -81,7 +81,7 @@ const demoProductHandler: CommandHandler = {
       productName: product.name,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     });
-    return [createProductCardFlexMessage(product.name, product.price || 0, product.quantity || 0, userLanguage, product.id)];
+    return [createProductCardFlexMessage(product.name, product.price || 0, product.quantity || 0, userLanguage, product.id, product.imageUrl)];
   },
 };
 

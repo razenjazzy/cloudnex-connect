@@ -1,3 +1,14 @@
+# Release notes — v10.0.2
+
+**Date:** 2026-09-26  
+**Package version:** `10.0.2`  
+**Lane:** VPS production `/opt/cloudnex-connect` (`:8080` HMAC) + staging sibling `/opt/cns-line-oa`  
+**Commit title:** `Release: v10.0.2 - Odoo Line OA v7 Bug Fix`
+
+Customer catalog Flex uses a public Admin HTTPS image proxy (Odoo `image_128` over RPC). LINE no longer drops the whole reply on gated Odoo `/web/image` URLs. Cloud Run `deploy:prod` still requires signoff.
+
+---
+
 # Release notes — v10.0.1
 
 **Date:** 2026-09-26  

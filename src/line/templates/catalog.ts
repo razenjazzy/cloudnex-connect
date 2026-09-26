@@ -2,6 +2,46 @@ import { messagingApi } from '@line/bot-sdk';
 import { t } from '../../services/i18n';
 import { BRAND, createMessageActionButton, createTapRow, flexBubbleStyles, flexHeaderBox, formatMoney, truncate, type ReportLanguage } from './shared';
 
+const flexHero = (imageUrl?: string): { hero: messagingApi.FlexImage } | Record<string, never> => {
+  const url = imageUrl?.startsWith('https://') ? imageUrl : undefined;
+  if (!url) return {};
+  return {
+    hero: {
+      type: 'image',
+      url,
+      size: 'full',
+      aspectRatio: '20:13',
+      aspectMode: 'cover',
+    },
+  };
+};
+
+const stripBubbleHero = (bubble: messagingApi.FlexBubble): messagingApi.FlexBubble => {
+  const next = { ...bubble };
+  delete next.hero;
+  return next;
+};
+
+/** LINE rejects the whole reply when a Flex hero URL is not a public image. */
+export const stripFlexHeroImages = (messages: messagingApi.Message[]): messagingApi.Message[] =>
+  messages.map((msg) => {
+    if (msg.type !== 'flex') return msg;
+    const contents = msg.contents;
+    if (contents.type === 'carousel') {
+      return {
+        ...msg,
+        contents: {
+          ...contents,
+          contents: contents.contents.map(stripBubbleHero),
+        },
+      };
+    }
+    if (contents.type === 'bubble') {
+      return { ...msg, contents: stripBubbleHero(contents) };
+    }
+    return msg;
+  });
+
 /**
  * PRODUCT FIND <query> shown when the search matched more than one
  * product — previously the handler silently acted on whichever row Odoo
@@ -50,6 +90,7 @@ export const createProductCardFlexMessage = (
   stock: number,
   language: ReportLanguage = 'en',
   productId?: number,
+  imageUrl?: string,
 ): messagingApi.FlexMessage => {
   const quoteText = productId ? `FORM QUOTE CREATE FROM CARD ${productId}` : 'FORM QUOTE CREATE FROM CARD';
   return {
@@ -58,6 +99,7 @@ export const createProductCardFlexMessage = (
     contents: {
       type: 'bubble',
       styles: flexBubbleStyles,
+      ...flexHero(imageUrl),
       header: flexHeaderBox(t('productDetail', language), t('productNext', language)),
       body: {
         type: 'box',
@@ -132,20 +174,11 @@ const createProductCatalogBubble = (
   const quoteText = product.id
     ? `FORM QUOTE CREATE FROM CARD ${product.id}`
     : viewText;
-  const imageUrl = product.imageUrl?.startsWith('https://') ? product.imageUrl : undefined;
   return {
     type: 'bubble',
     size: 'kilo',
     styles: flexBubbleStyles,
-    ...(imageUrl ? {
-      hero: {
-        type: 'image' as const,
-        url: imageUrl,
-        size: 'full' as const,
-        aspectRatio: '20:13',
-        aspectMode: 'cover' as const,
-      },
-    } : {}),
+    ...flexHero(product.imageUrl),
     header: flexHeaderBox(truncate(product.name, 40), product.sku || t('productCatalog', language)),
     body: {
       type: 'box',

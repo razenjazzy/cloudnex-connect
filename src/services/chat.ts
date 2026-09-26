@@ -24,6 +24,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { getConversationHistory, getUserProfile, saveConversationMessage, setEscalationState } from './firestore';
 import { createProductCardFlexMessage, createOrderSummaryFlexMessage } from '../line/templates';
+import { publicCatalogProductImageUrl } from '../erp/product-image-url';
 import { messagingApi } from '@line/bot-sdk';
 import { createQuotationFromLine } from './odoo/sales';
 import { findProductByQuery } from './odoo/catalog';
@@ -230,7 +231,7 @@ const heuristicFallback = async (
       handled: true,
       messages: [
         { type: 'text', text: isThai ? `${agentName} พบสินค้าจาก Odoo แล้วค่ะ` : `${agentName} found this product in Odoo.` },
-        createProductCardFlexMessage(product.name, product.list_price, product.qty_available, isThai ? 'th' : 'en'),
+        createProductCardFlexMessage(product.name, product.list_price, product.qty_available, isThai ? 'th' : 'en', product.id, publicCatalogProductImageUrl(product.id)),
       ],
     };
   }
@@ -272,7 +273,7 @@ const processGeminiResponse = async (
         const odooProduct = await findProductByQuery(query);
         if (odooProduct) {
           aiTextResponse += `[Product card: ${odooProduct.name}]`;
-          messages.push(createProductCardFlexMessage(odooProduct.name, odooProduct.list_price, odooProduct.qty_available, isThai ? 'th' : 'en'));
+          messages.push(createProductCardFlexMessage(odooProduct.name, odooProduct.list_price, odooProduct.qty_available, isThai ? 'th' : 'en', odooProduct.id, publicCatalogProductImageUrl(odooProduct.id)));
         } else {
           const msg = isThai
             ? `${agentName} ไม่พบสินค้า "${query}" ใน Odoo ค่ะ`
