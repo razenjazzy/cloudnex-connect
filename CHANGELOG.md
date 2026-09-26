@@ -1,5 +1,10 @@
 # Changelog
 
+## v10.0.4 — Odoo LINE OA v7 (2026-09-26)
+
+- Attach product photos only when Odoo has `image_128` so LINE does not render a blank hero or stampede Odoo on 404s.
+- Product Details always shows the short sales description on Customer OA (`description_sale` / `description`).
+
 ## v10.0.3 — Odoo LINE OA v7 (2026-09-26)
 
 - Customer OA commerce: Products & Orders, My Orders, and Ask for Quotations (`QUOTE ASK`) with status and sales replies.

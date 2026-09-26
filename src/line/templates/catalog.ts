@@ -2,6 +2,7 @@ import { messagingApi } from '@line/bot-sdk';
 import { t } from '../../services/i18n';
 import { BRAND, createMessageActionButton, createTapRow, flexBubbleStyles, flexHeaderBox, formatMoney, truncate, type ReportLanguage } from './shared';
 import { catalogUiLabel, isCatalogUiVisible } from '../catalog-ui';
+import { CUSTOMER_CHANNEL_ID } from '../channels';
 
 const flexHero = (imageUrl?: string): { hero: messagingApi.FlexImage } | Record<string, never> => {
   const url = imageUrl?.startsWith('https://') ? imageUrl : undefined;
@@ -142,7 +143,7 @@ export const createProductCardFlexMessage = (
   const showImage = isCatalogUiVisible('ui-catalog-image', channelId);
   const showQuote = isCatalogUiVisible('ui-product-detail-quote', channelId);
   const showMessage = isCatalogUiVisible('ui-product-detail-message', channelId);
-  const showDescription = isCatalogUiVisible('ui-product-detail-description', channelId);
+  const showDescription = channelId === CUSTOMER_CHANNEL_ID || isCatalogUiVisible('ui-product-detail-description', channelId);
   const description = showDescription ? options?.description?.trim() : undefined;
   const footerButtons: messagingApi.FlexComponent[] = [];
   if (showQuote) {
@@ -175,7 +176,7 @@ export const createProductCardFlexMessage = (
     priceStockRow(price, stock, language, channelId),
   ];
   if (description) {
-    bodyContents.push({ type: 'text', text: truncate(description, 240), size: 'sm', color: BRAND.inkSoft, wrap: true });
+    bodyContents.push({ type: 'text', text: truncate(description, 160), size: 'sm', color: BRAND.inkSoft, wrap: true });
   }
   return {
     type: 'flex',

@@ -9,19 +9,26 @@ import { describeOdooPaymentStatus, describeOdooSignatureStatus } from '../servi
 import type { OdooProduct, OdooSaleOrder } from '../services/odoo/types';
 import type { ErpAdapter, ErpCrmQuote, ErpCrmQuoteListOpts, ErpCustomerUpdate, ErpPartner, ErpPermission, ErpProduct, ErpProviderName, ErpQuoteDraft, ErpQuotationOptions, ErpService, ErpServiceUpdate, ErpWriteAction } from './adapter';
 import { publicCatalogProductImageUrl } from './product-image-url';
+import { productIdsWithImage128 } from '../services/odoo/product-image';
 
-const toErpProduct = (product: OdooProduct): ErpProduct => {
-  const imageUrl = publicCatalogProductImageUrl(product.id);
-  return {
-    id: product.id,
-    name: product.name,
-    sku: product.default_code,
-    price: product.list_price,
-    quantity: product.qty_available,
-    currency: 'THB',
-    ...(imageUrl ? { imageUrl } : {}),
-    ...(product.description ? { description: product.description } : {}),
-  };
+const toErpProduct = (product: OdooProduct, imageUrl?: string): ErpProduct => ({
+  id: product.id,
+  name: product.name,
+  sku: product.default_code,
+  price: product.list_price,
+  quantity: product.qty_available,
+  currency: 'THB',
+  ...(imageUrl ? { imageUrl } : {}),
+  ...(product.description ? { description: product.description } : {}),
+});
+
+const withPublicImages = async (products: OdooProduct[]): Promise<ErpProduct[]> => {
+  if (!products.length) return [];
+  const withImage = await productIdsWithImage128(products.map(product => product.id));
+  return products.map(product => {
+    const url = withImage.has(product.id) ? publicCatalogProductImageUrl(product.id) : undefined;
+    return toErpProduct(product, url);
+  });
 };
 
 const toErpCrmQuote = (order: OdooSaleOrder): ErpCrmQuote => ({
@@ -45,7 +52,7 @@ const refreshProductCatalog = async (limit = 10): Promise<void> => {
   if (catalogRefresh) return catalogRefresh;
   catalogRefresh = (async () => {
     const products = await listProducts(limit);
-    productCatalogCache = { at: Date.now(), items: products.map(toErpProduct) };
+    productCatalogCache = { at: Date.now(), items: await withPublicImages(products) };
   })().finally(() => {
     catalogRefresh = null;
   });
@@ -121,7 +128,7 @@ export const odooAdapter: ErpAdapter = {
       return (productCatalogCache?.items || []).slice(0, limit);
     }
     const products = await findProductsByQuery(normalized, limit);
-    return products.map(toErpProduct);
+    return withPublicImages(products);
   },
   peekCachedProducts,
   async listServices(limit = 10): Promise<ErpService[]> {
@@ -227,7 +234,9 @@ export const odooAdapter: ErpAdapter = {
   },
   async lookupProduct(productId: number): Promise<ErpProduct | null> {
     const product = await getProductById(productId);
-    return product ? toErpProduct(product) : null;
+    if (!product) return null;
+    const [mapped] = await withPublicImages([product]);
+    return mapped || null;
   },
   async lookupCustomerByName(name: string): Promise<ErpPartner | null> {
     const partner = await getPartnerByName(name.trim());

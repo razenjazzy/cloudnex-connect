@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { createBotTextFlexMessage, createFormPromptFlexMessage, createOptionalSummaryFlexMessage, createProductCardFlexMessage, createQuotationEditFlexMessage, createQuotationJourneyFlexMessage, createQuotationListFlexMessage, createQuotationMoreFlexMessage, createQuoteSendComposerFlexMessage } from '../src/line/templates';
+import { setCommandOverlayCacheForTests } from '../src/line/command-overlay';
 
 describe('form prompt options', () => {
   it('keeps product chips in quickReply and out of the bubble body', () => {
@@ -69,6 +70,16 @@ describe('product card quote CTA', () => {
     expect(json).not.toContain('FORM QUOTE CREATE FROM CARD');
     expect(json).not.toContain('FORM MESSAGE REQUEST');
     expect(json).not.toContain('"text":"Stock"');
+  });
+
+  it('still shows a short description on Customer OA when the overlay row is off', () => {
+    setCommandOverlayCacheForTests({ 'ui-product-detail-description': { enabled: false } });
+    const json = JSON.stringify(createProductCardFlexMessage('App Premium', 100, 3, 'en', 11, undefined, {
+      channelId: 'customer',
+      description: 'Shown even if Admin hid Description.',
+    }));
+    expect(json).toContain('Shown even if Admin hid Description.');
+    setCommandOverlayCacheForTests({});
   });
 });
 

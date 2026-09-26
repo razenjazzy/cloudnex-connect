@@ -43,11 +43,20 @@ const parseProduct = (row: Record<string, unknown>): OdooProduct => ({
 });
 
 const stripHtml = (value: string): string | undefined => {
-  const text = value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const text = value
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<\/p>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\s+/g, ' ')
+    .trim();
   return text ? text.slice(0, 400) : undefined;
 };
 
-const PRODUCT_READ_FIELDS = ['id', 'name', 'list_price', 'qty_available', 'default_code', 'description_sale'];
+const PRODUCT_READ_FIELDS = ['id', 'name', 'list_price', 'qty_available', 'default_code', 'description_sale', 'description'];
 
 const parseMany2one = (value: unknown): [number, string] | undefined => {
   if (!Array.isArray(value) || value.length < 2) return undefined;

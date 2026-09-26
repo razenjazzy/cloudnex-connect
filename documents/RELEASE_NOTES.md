@@ -1,3 +1,14 @@
+# Release notes — v10.0.4
+
+**Date:** 2026-09-26  
+**Package version:** `10.0.4`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`) + local `APP_ENV=development`. Production HMAC `:8080` is not this cut.  
+**Commit title:** `Release: v10.0.4 - Odoo Line OA v7 Bug Fix`
+
+Customer product cards no longer use 404 image URLs. Product Details shows Odoo short description. Cloud Run `deploy:prod` still requires signoff.
+
+---
+
 # Release notes — v10.0.3
 
 **Date:** 2026-09-26  
