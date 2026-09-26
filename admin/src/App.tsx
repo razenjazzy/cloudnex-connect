@@ -22,14 +22,58 @@ declare global {
   }
 }
 
+/** Last path segment → SPA page id. Aliases share a page. */
+const PAGE_BY_LEAF: Record<string, string> = {
+  identity: 'identity',
+  users: 'users',
+  directory: 'users',
+  privileges: 'privileges',
+  language: 'language',
+  line: 'line',
+  campaigns: 'campaigns',
+  crm: 'crm',
+  commands: 'commands',
+  jobs: 'jobs',
+  settings: 'settings',
+  security: 'settings',
+  unmask: 'settings',
+  setup: 'settings',
+  logs: 'logs',
+  audit: 'logs',
+  platform: 'platform',
+  erp: 'platform',
+  advanced: 'advanced',
+  testing: 'testing',
+  demo: 'testing',
+};
+
+const ADMIN_PAGE_LEAVES = new Set(Object.keys(PAGE_BY_LEAF));
+
+const stripTrailingSlash = (value: string): string => value.replace(/\/+$/, '');
+
+const adminBaseFromPathname = (pathname: string): string => {
+  const cleaned = stripTrailingSlash(pathname || '') || '/admin';
+  const parts = cleaned.split('/').filter(Boolean);
+  if (parts.length === 0) return '/admin';
+  if (ADMIN_PAGE_LEAVES.has(parts[parts.length - 1])) parts.pop();
+  return parts.length ? `/${parts.join('/')}` : '/admin';
+};
+
 const ADMIN_BASE = (() => {
   if (typeof window === 'undefined') return '/admin';
-  if (window.__ADMIN_BASE__) return window.__ADMIN_BASE__.replace(/\/$/, '');
+  if (window.__ADMIN_BASE__) return stripTrailingSlash(window.__ADMIN_BASE__) || '/admin';
   const href = document.querySelector('base')?.getAttribute('href');
-  if (href && href !== './') return href.replace(/\/$/, '') || '/admin';
-  const path = window.location.pathname;
-  const match = path.match(/^(\/cloudnex-admin(?:\/test)?|\/admin)(?=\/|$)/);
-  return match?.[1] || '/admin';
+  if (href && href !== './') {
+    try {
+      const path = new URL(href, window.location.origin).pathname;
+      const fromBase = stripTrailingSlash(path);
+      if (fromBase) return fromBase;
+    } catch {
+      const fromBase = stripTrailingSlash(href);
+      if (fromBase) return fromBase;
+    }
+  }
+  return adminBaseFromPathname(window.location.pathname);
 })();
 
 const DEMO_BASE = typeof window !== 'undefined' && window.__DEMO_BASE__
@@ -302,21 +346,10 @@ export const App = () => {
   });
 
   const page = useMemo(() => {
-    if (path.endsWith('/crm')) return 'crm';
-    if (path.endsWith('/settings') || path.endsWith('/security') || path.endsWith('/unmask') || path.endsWith('/setup')) return 'settings';
-    if (path.endsWith('/privileges')) return 'privileges';
-    if (path.endsWith('/logs') || path.endsWith('/audit')) return 'logs';
-    if (path.endsWith('/users') || path.endsWith('/directory')) return 'users';
-    if (path.endsWith('/testing') || path.endsWith('/demo')) return 'testing';
-    if (path.endsWith('/erp') || path.endsWith('/platform')) return 'platform';
-    if (path.endsWith('/jobs')) return 'jobs';
-    if (path.endsWith('/line')) return 'line';
-    if (path.endsWith('/campaigns')) return 'campaigns';
-    if (path.endsWith('/identity')) return 'identity';
-    if (path.endsWith('/language')) return 'language';
-    if (path.endsWith('/commands')) return 'commands';
-    if (path.endsWith('/advanced')) return 'advanced';
-    return 'home';
+    const normalized = path.replace(/\/+$/, '') || ADMIN_BASE;
+    if (normalized === ADMIN_BASE) return 'home';
+    const leaf = normalized.split('/').filter(Boolean).pop() || '';
+    return PAGE_BY_LEAF[leaf] || 'home';
   }, [path]);
 
   useEffect(() => {

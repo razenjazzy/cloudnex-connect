@@ -405,14 +405,14 @@ describe('Cloudnex Connect admin API', () => {
   });
 
   it('registers a custom PUBLIC_ADMIN_BASE prefix', async () => {
-    process.env.PUBLIC_ADMIN_BASE = '/cloudnex-admin';
+    process.env.PUBLIC_ADMIN_BASE = '/cloudnex-connect/admin';
     const extra = express();
     registerAdminApiRoutes(extra);
     const srv = extra.listen(0);
     const addr = srv.address();
     const port = typeof addr === 'object' && addr ? addr.port : 0;
     try {
-      const res = await fetch(`http://127.0.0.1:${port}/cloudnex-admin/api/settings`, { headers: ops });
+      const res = await fetch(`http://127.0.0.1:${port}/cloudnex-connect/admin/api/settings`, { headers: ops });
       expect(res.status).toBe(200);
       const miss = await fetch(`http://127.0.0.1:${port}/admin/api/settings`, { headers: ops });
       expect(miss.status).toBe(404);

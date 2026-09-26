@@ -1,3 +1,14 @@
+# Release notes — v9.0.2
+
+**Date:** 2026-09-26  
+**Package version:** `9.0.2`  
+**Lane:** staging (no production deploy)  
+**Commit title:** `Release: v9.0.2 - Odoo Line OA v6 Staging Deploy`
+
+VPS Admin URLs are `https://amardhaka.io/cloudnex-connect/admin` (primary) and `/cloudnex-connect/admin/test` (sibling). Demo stays `/cloudnex-connect/demo`. SPA infers any `PUBLIC_ADMIN_BASE` from `__ADMIN_BASE__`, `<base href>`, or the path leaf map.
+
+---
+
 # Release notes — v9.0.1
 
 **Date:** 2026-09-26  
@@ -5,7 +16,7 @@
 **Lane:** staging (no production deploy)  
 **Commit title:** `Release: v9.0.1 - Odoo Line OA v6 Staging Deploy`
 
-`PUBLIC_ADMIN_BASE` / `PUBLIC_DEMO_BASE` (defaults `/admin`, `/demo`) mount Admin SPA+API and demo. VPS primary: `/cloudnex-admin` and `/cloudnex-connect/demo`. Sibling compose on 8081 with `/cloudnex-admin/test`. Grouped hamburger Admin nav, auto-load Overview with CSS/SVG channel bars (no chart npm), scoped bind banner, Admin-styled demo. Cookie Path and OAuth callbacks follow the Admin prefix. HMAC `/webhook*` stays host root on the primary process. Dashboard `queueReady` is `flags.queueReady` (`isQueueBackendReady()`), not Redis config aliased.
+`PUBLIC_ADMIN_BASE` / `PUBLIC_DEMO_BASE` (defaults `/admin`, `/demo`) mount Admin SPA+API and demo. VPS primary: `/cloudnex-connect/admin` and `/cloudnex-connect/demo`. Sibling compose on 8081 with `/cloudnex-connect/admin/test`. Grouped hamburger Admin nav, auto-load Overview with CSS/SVG channel bars (no chart npm), scoped bind banner, Admin-styled demo. Cookie Path and OAuth callbacks follow the Admin prefix. HMAC `/webhook*` stays host root on the primary process. Dashboard `queueReady` is `flags.queueReady` (`isQueueBackendReady()`), not Redis config aliased.
 
 Remaining limitations: EN/TH only; placeholder ERP (no SAP RPC); e-sign/payment need installed Odoo modules; Mongo SoR default off and requires `MONGODB_URI`; no production cutover; Flex/tray not restyled. Sibling `.env` is operator-owned. Do not dual-bind the same LINE OA to 8080 and 8081.
 

@@ -1,4 +1,4 @@
-# Second staging copy at /opt/cns-line-oa (Admin under /cloudnex-admin/test).
+# Second staging copy at /opt/cns-line-oa (Admin under /cloudnex-connect/admin/test).
 # Same image tag as primary. Operator-owned .env — copy from primary, do not commit.
 # Own Redis so BullMQ keys do not collide with the primary stack.
 # Do not point the same LINE OA webhook at this process unless it has distinct
@@ -35,7 +35,7 @@ services:
       NODE_ENV: production
       PORT: "8080"
       PUBLIC_BASE_URL: https://amardhaka.io
-      PUBLIC_ADMIN_BASE: /cloudnex-admin/test
+      PUBLIC_ADMIN_BASE: /cloudnex-connect/admin/test
       PUBLIC_DEMO_BASE: /cloudnex-connect/demo
       ENABLE_DEMO_CONTROL_PANEL: "false"
       ENABLE_WEBHOOK_TEST: "false"

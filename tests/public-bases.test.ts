@@ -14,10 +14,10 @@ describe('public URL bases', () => {
   });
 
   it('normalizes custom prefixes without a trailing slash', () => {
-    process.env.PUBLIC_ADMIN_BASE = '/cloudnex-admin/test/';
+    process.env.PUBLIC_ADMIN_BASE = '/cloudnex-connect/admin/test/';
     process.env.PUBLIC_DEMO_BASE = 'cloudnex-connect/demo';
-    expect(adminBase()).toBe('/cloudnex-admin/test');
+    expect(adminBase()).toBe('/cloudnex-connect/admin/test');
     expect(demoBase()).toBe('/cloudnex-connect/demo');
-    expect(adminCookiePath()).toBe('/cloudnex-admin/test');
+    expect(adminCookiePath()).toBe('/cloudnex-connect/admin/test');
   });
 });

@@ -7,7 +7,7 @@ const normalizeBase = (raw: string | undefined, fallback: string): string => {
   return cleaned || fallback;
 };
 
-/** SPA + `/api` prefix. Default `/admin` (local). VPS: `/cloudnex-admin` or `/cloudnex-admin/test`. */
+/** SPA + `/api` prefix. Default `/admin` (local). VPS: `/cloudnex-connect/admin` or `/cloudnex-connect/admin/test`. */
 export const adminBase = (): string => normalizeBase(process.env.PUBLIC_ADMIN_BASE, '/admin');
 
 /** Demo panel prefix. Default `/demo`. VPS: `/cloudnex-connect/demo`. */

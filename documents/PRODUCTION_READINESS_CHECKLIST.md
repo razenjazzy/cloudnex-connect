@@ -5,7 +5,7 @@ credentials or secret values in this repository.
 
 **Current staging path:** Hostinger VPS `https://amardhaka.io` ([VPS_STAGING.md](VPS_STAGING.md)), image `razenjazzy/cloudnex-connect:staging`. Certification snapshot: [ENTERPRISE_CERTIFICATION.md](ENTERPRISE_CERTIFICATION.md).
 
-v9.0.1 is a **staging** recertify (Odoo LINE OA v6). Production deploy boxes below stay unchecked for this cut.
+v9.0.2 is a **staging** recertify (Odoo LINE OA v6). Production deploy boxes below stay unchecked for this cut.
 
 **Staging DoD (this cut, no production deploy):** Dual HMAC ingress + GraphQL ingest → one `resolveCommandReply`; identity SoR Firestore or Mongo; command overlay; tenant overlay; ERP placeholder for non-odoo; Directory/Audit/Privileges; e-sign/payment fail-closed. Do **not** run `deploy:prod`, set `APP_ENV=production`, or `PRODUCTION_APPROVED`.
 

@@ -51,7 +51,7 @@ export const ENV_PARAMS: EnvParam[] = [
   { key: 'ODOO_API_KEY', requiredIn: ['staging', 'production'], note: '' },
   { key: 'ERP_PROVIDER', requiredIn: ['staging', 'production'], note: 'odoo live; sap|quickbooks|oracle unimplemented placeholder' },
   { key: 'PUBLIC_BASE_URL', requiredIn: ['staging', 'production'], note: 'https://host for verify links' },
-  { key: 'PUBLIC_ADMIN_BASE', requiredIn: [], note: 'Admin SPA+API prefix; default /admin; VPS /cloudnex-admin or /cloudnex-admin/test' },
+  { key: 'PUBLIC_ADMIN_BASE', requiredIn: [], note: 'Admin SPA+API prefix; default /admin; VPS /cloudnex-connect/admin or /cloudnex-connect/admin/test' },
   { key: 'PUBLIC_DEMO_BASE', requiredIn: [], note: 'Demo panel prefix; default /demo; VPS /cloudnex-connect/demo' },
   { key: 'OPS_API_TOKEN', requiredIn: ['staging', 'production'], note: 'Protects /ops, GraphQL, docs' },
   { key: 'DEMO_CONTROL_TOKEN', requiredIn: ['staging'], note: 'Demo login; may equal OPS_API_TOKEN' },
