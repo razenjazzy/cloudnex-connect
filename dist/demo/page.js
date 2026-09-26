@@ -9,8 +9,8 @@ exports.buildDemoPage = void 0;
 const styles_1 = require("./styles");
 const markup_1 = require("./markup");
 const script_1 = require("./script");
-const buildDemoPage = () => `<!DOCTYPE html>
-<html lang="en">
+const buildDemoPage = (demoBase = '/demo') => `<!DOCTYPE html>
+<html lang="en" data-demo-base="${demoBase}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />

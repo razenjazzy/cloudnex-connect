@@ -6,6 +6,7 @@ import { getOdooConfig } from '../services/odoo/client';
 import {
   findLineUserIdByPhone,
   findVerifiedUserIdByPartnerId,
+  getUserLanguage,
   getUserProfile,
   listRecentApprovals,
   listRecentAuditEventsPage,
@@ -65,7 +66,7 @@ import { isAuthorizedForAdminRole } from '../services/admin-authorization';
 import { commandActor, getCommandGridPayload } from '../line/command-grid';
 import { verifyOdooAdminAccess } from '../services/odoo/admin';
 import { sendTargetedMessage, sendBroadcastMessage } from '../line/messaging';
-import { SALES_CHANNEL_ID, getChannelServiceOverride, setChannelServiceOverride, resolveChannelConfig } from '../line/channels';
+import { getAgentName, SALES_CHANNEL_ID, getChannelServiceOverride, setChannelServiceOverride, resolveChannelConfig } from '../line/channels';
 import { parseCampaignAudienceRequest, parseCampaignBroadcastRequest, parseCampaignSendRequest, parseCampaignTestText, resolveCampaignAudience } from '../line/campaigns';
 import { createQueuedCampaign, findCampaignByIdempotencyKey, listCampaigns } from '../jobs/campaign-store';
 import { enqueueCampaignSend, isQueueBackendReady } from '../jobs/queue';
@@ -80,6 +81,7 @@ import { snapshotChannelTraffic } from '../services/channel-traffic';
 import { registerDemoJsonRoutes } from './demo-api';
 import { handleOdooHook } from './odoo-hook';
 import { decodeAuditCursor, parseAuditLogFilters } from '../services/audit-query';
+import { listGuidedFormCatalog, matchFlowForPreview } from '../services/guided-forms';
 import { auditEnvParams } from './env-params';
 import { runDailyReport } from '../jobs/daily-report';
 import { seedOdooSampleSalesDataWithAudit } from '../services/seed-odoo';
@@ -255,6 +257,58 @@ export const registerAdminApiRoutes = (app: Express): void => {
     if (!saved.ok) return res.status(503).json({ error: saved.error || 'Could not save command overlay.' });
     await loadCommandOverlay();
     return res.json({ ok: true, commands: getCommandGridPayload(), tenantKey: getActiveTenantKey() });
+  });
+
+  router.get('/forms', adminApiLimiter, requireAdminPanelAccess, (_req, res) => {
+    return res.json({ forms: listGuidedFormCatalog() });
+  });
+
+  router.post('/command', jsonParser, adminApiLimiter, requireSuperAdmin, async (req, res) => {
+    const text = String(req.body?.text || '').trim();
+    if (!text) return res.status(400).json({ error: 'text is required.' });
+    const preview = req.body?.preview === true;
+    const actor = (req as Request & { adminActor?: string }).adminActor || '';
+    const flow = matchFlowForPreview(text);
+    if (preview) {
+      await recordAuditEvent({ action: 'admin_command_preview', outcome: 'success', actorUserId: actor, detail: text.slice(0, 120) });
+      return res.json({
+        preview: true,
+        text,
+        form: flow
+          ? {
+            key: flow.key,
+            startCommand: flow.startCommand,
+            labelEn: flow.labelEn,
+            labelTh: flow.labelTh,
+            requiresAdmin: flow.requiresAdmin,
+            fields: flow.fields.map(field => ({
+              key: field.key,
+              promptEn: field.promptEn,
+              promptTh: field.promptTh,
+              optional: Boolean(field.optional),
+            })),
+          }
+          : null,
+      });
+    }
+    const profile = await getUserProfile(actor);
+    const userLanguage = await getUserLanguage(actor);
+    const { resolveCommandReply } = await import('../line/command-router');
+    const messages = await resolveCommandReply({
+      text,
+      userId: actor,
+      userLanguage,
+      profile,
+      agentName: getAgentName(userLanguage),
+      baseUrl: originFromPublicBaseUrl(getRuntime('PUBLIC_BASE_URL')) || originFromPublicBaseUrl(`${req.protocol}://${req.get('host')}`),
+      requestId: String(res.getHeader('x-request-id') || '') || undefined,
+    });
+    const transcript = messages.map(message => {
+      if (message.type === 'text') return { kind: 'text' as const, text: message.text };
+      return { kind: 'card' as const, text: (message.type === 'flex' ? message.altText : 'Card') || 'Card' };
+    });
+    await recordAuditEvent({ action: 'admin_command', outcome: 'success', actorUserId: actor, detail: text.slice(0, 120) });
+    return res.json({ preview: false, text, transcript });
   });
 
   router.get('/tenant', requireAdminPanelAccess, (_req, res) => {
@@ -820,7 +874,13 @@ export const registerAdminApiRoutes = (app: Express): void => {
   });
 
   router.get('/platform', requireAdminPanelAccess, async (_req, res) => {
-    return res.json(await getPlatformStatus());
+    const envAudit = auditEnvParams(appEnv);
+    return res.json({
+      ...(await getPlatformStatus()),
+      optionalFlags: describeOptionalFlags(),
+      missingRequired: envAudit.missingRequired,
+      queueReady: isQueueBackendReady(),
+    });
   });
 
   router.get('/dashboard', requireAdminPanelAccess, (_req, res) => {

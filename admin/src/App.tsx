@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import logo from './assets/cloudnex-connect.jpeg';
 import { DemoPanel } from './DemoPanel';
 import { HelpFaq } from './HelpFaq';
+import { CommandWork } from './CommandWork';
 import { CopyField, FaqItem, Steps, ToastStack, type ToastItem } from './ui';
 import { readUiLang, t, writeUiLang, type UiLang } from './i18n';
 
@@ -384,6 +385,9 @@ export const App = () => {
   const [campChannel, setCampChannel] = useState('customer');
   const [campClass, setCampClass] = useState('customers_transactional');
   const [campText, setCampText] = useState('');
+  const [campTextEn, setCampTextEn] = useState('');
+  const [campTextTh, setCampTextTh] = useState('');
+  const [campLang, setCampLang] = useState('');
   const [campPreview, setCampPreview] = useState('');
   const [campHistory, setCampHistory] = useState<Array<Record<string, unknown>>>([]);
   const [broadcastConfirm, setBroadcastConfirm] = useState('');
@@ -584,7 +588,10 @@ export const App = () => {
   const campaignBody = () => ({
     audienceType: campClass,
     channelId: campChannel,
-    text: campText,
+    ...(campLang === 'en' || campLang === 'th' ? { language: campLang } : {}),
+    textEn: campTextEn,
+    textTh: campTextTh,
+    text: campTextEn || campTextTh || campText,
   });
 
   const page = useMemo(() => {
@@ -1151,13 +1158,17 @@ export const App = () => {
                 setError(res.ok ? '' : 'Could not load commands');
               }}>Load commands</button>
               <button type="button" onClick={async () => {
-                const patch: Record<string, { enabled: boolean; labelEn?: string; labelTh?: string }> = {};
+                const patch: Record<string, { enabled: boolean; labelEn?: string; labelTh?: string; roles?: string[]; channels?: string[] }> = {};
                 for (const row of commands) {
                   if (typeof row.id === 'string') {
                     patch[row.id] = {
                       enabled: row.enabled !== false,
                       labelEn: String(row.labelEn || ''),
                       labelTh: String(row.labelTh || ''),
+                      ...(Array.isArray(row.roles) && row.roles.length ? { roles: row.roles.map(String) } : {}),
+                      ...(Array.isArray(row.channels) && row.channels.filter(ch => ch !== 'any').length
+                        ? { channels: row.channels.map(String).filter(ch => ch !== 'any') }
+                        : {}),
                     };
                   }
                 }
@@ -1172,7 +1183,7 @@ export const App = () => {
             </div>
             <div className="table-wrap">
               <table>
-                <thead><tr><th>On</th><th>Prefix</th><th>EN</th><th>TH</th><th>Category</th><th>Roles</th></tr></thead>
+                <thead><tr><th>On</th><th>Prefix</th><th>EN</th><th>TH</th><th>Category</th><th>Roles</th><th>Channels</th></tr></thead>
                 <tbody>
                   {commands.map((row, i) => (
                     <tr key={String(row.id || i)}>
@@ -1196,7 +1207,18 @@ export const App = () => {
                         }} />
                       </td>
                       <td>{String(row.category || '')}</td>
-                      <td>{Array.isArray(row.roles) ? row.roles.join(', ') : ''}</td>
+                      <td>
+                        <input value={Array.isArray(row.roles) ? row.roles.join(',') : ''} onChange={e => {
+                          const roles = e.target.value.split(',').map(part => part.trim()).filter(Boolean);
+                          setCommands(prev => prev.map(item => item.id === row.id ? { ...item, roles } : item));
+                        }} />
+                      </td>
+                      <td>
+                        <input value={Array.isArray(row.channels) ? row.channels.filter(ch => ch !== 'any').join(',') : ''} onChange={e => {
+                          const channels = e.target.value.split(',').map(part => part.trim()).filter(Boolean);
+                          setCommands(prev => prev.map(item => item.id === row.id ? { ...item, channels } : item));
+                        }} />
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -1206,6 +1228,8 @@ export const App = () => {
           </div>
         ) : null}
         {page === 'crm' ? (
+          <>
+          <CommandWork adminBase={ADMIN_BASE} api={api} actor={actor} uiLang={uiLang} toast={(text, kind) => toast(text, kind === 'ok' ? 'ok' : 'error')} />
           <div className="card">
             <h2>CRM quotes</h2>
             <div className="row">
@@ -1248,6 +1272,7 @@ export const App = () => {
               }}>Assign</button>
             </div>
           </div>
+          </>
         ) : null}
         {page === 'users' ? (
           <div className="card">
@@ -1281,16 +1306,17 @@ export const App = () => {
             </div>
             <div className="table-wrap">
             <table>
-              <thead><tr><th>LINE user</th><th>Command</th><th>Verified</th><th>Odoo groups</th><th></th></tr></thead>
+              <thead><tr><th>LINE</th><th>OA</th><th>Lang</th><th>Verified</th><th>Odoo partner</th><th>Role</th><th>Promo</th><th></th></tr></thead>
               <tbody>
                 {users.map((u, i) => (
                   <tr key={String(u.userId || i)}>
                     <td>{String(u.userId || '')}</td>
-                    <td>{String(u.commandRole || u.role || '')}</td>
+                    <td>{String(u.lastChannelId || '—')}</td>
+                    <td>{String(u.language || '')}</td>
                     <td>{String(u.odooVerified)}</td>
-                    <td>{Array.isArray((u.odooPrivileges as { groups?: string[] } | undefined)?.groups)
-                      ? ((u.odooPrivileges as { groups: string[] }).groups.join(', ') || '—')
-                      : '—'}</td>
+                    <td>{String(u.odooPartnerId || '—')}</td>
+                    <td>{String(u.commandRole || u.role || '')}</td>
+                    <td>{String(u.marketingOptIn)}</td>
                     <td>
                       <button type="button" onClick={async () => {
                         const id = String(u.userId || '');
@@ -1299,6 +1325,12 @@ export const App = () => {
                         setActivity(body.events || []);
                         setAuditUser(id);
                       }}>Activity</button>
+                      <button type="button" disabled={!actor} onClick={async () => {
+                        const res = await api(`${ADMIN_BASE}/api/command`, { method: 'POST', body: JSON.stringify({ text: 'FORM VERIFY', preview: true }) });
+                        const body = await res.json() as { error?: string };
+                        if (!res.ok) toast(body.error || t(uiLang, 'toastUnauthorized'));
+                        else toast(t(uiLang, 'preview'), 'ok');
+                      }}>FORM VERIFY</button>
                     </td>
                   </tr>
                 ))}
@@ -1509,11 +1541,11 @@ export const App = () => {
         ) : null}
         {page === 'campaigns' ? (
           <div className="card">
-            <h2>Campaigns</h2>
-            <p className="page-lead">Channel → class → message → preview → test → multicast Send. Promo uses Send only (honors PROMO OFF). LINE Broadcast cannot filter opt-out; it is blocked for promo class.</p>
+            <h2>{t(uiLang, 'navCampaigns')}</h2>
+            <p className="page-lead">{t(uiLang, 'campLead')}</p>
             <Steps items={[
               <>Bind super-admin on Identity if the header pill says not bound.</>,
-              <>Choose channel and class, write the message, then Preview.</>,
+              <>{t(uiLang, 'transactionalAudience')} / {t(uiLang, 'optedInPromo')} / {t(uiLang, 'allFollowers')}.</>,
               <>Test to yourself, then Send multicast. Do not Broadcast promo.</>,
             ]} />
             {!actor ? <p className="warn">Bind super-admin on Identity first. Campaign send stays disabled until the actor cookie is set.</p> : null}
@@ -1523,12 +1555,20 @@ export const App = () => {
                 <option value="sales">sales</option>
               </select>
               <select value={campClass} onChange={e => setCampClass(e.target.value)}>
-                <option value="customers_transactional">transactional customers</option>
-                <option value="customers_promo">promo customers</option>
+                <option value="customers_transactional">{t(uiLang, 'transactionalAudience')}</option>
+                <option value="customers_promo">{t(uiLang, 'optedInPromo')}</option>
                 <option value="sales_internal">sales internal</option>
               </select>
+              <select value={campLang} onChange={e => setCampLang(e.target.value)}>
+                <option value="">lang filter off</option>
+                <option value="en">en</option>
+                <option value="th">th</option>
+              </select>
             </div>
-            <textarea value={campText} onChange={e => setCampText(e.target.value)} rows={4} style={{ width: '100%' }} />
+            <label>{t(uiLang, 'textEn')}</label>
+            <textarea value={campTextEn} onChange={e => { setCampTextEn(e.target.value); setCampText(e.target.value); }} rows={3} style={{ width: '100%' }} />
+            <label>{t(uiLang, 'textTh')}</label>
+            <textarea value={campTextTh} onChange={e => setCampTextTh(e.target.value)} rows={3} style={{ width: '100%' }} />
             <div className="row">
               <button type="button" disabled={!actor} onClick={async () => {
                 const res = await api(`${ADMIN_BASE}/api/campaigns/preview`, { method: 'POST', body: JSON.stringify(campaignBody()) });
@@ -1555,12 +1595,12 @@ export const App = () => {
               }}>History</button>
             </div>
             {campPreview ? <CopyField label="Campaign response" value={campPreview} /> : null}
-            <h3>Broadcast (not default)</h3>
-            <p>Sends to every OA friend. Blocked when class is promo — use multicast Send instead.</p>
+            <h3>{t(uiLang, 'allFollowers')}</h3>
+            <p>Broadcast is one payload (cannot pick EN vs TH per user). Blocked when class is promo — use multicast Send instead.</p>
             <div className="field-row">
               <input value={broadcastConfirm} onChange={e => setBroadcastConfirm(e.target.value)} placeholder="type BROADCAST" disabled={campClass === 'customers_promo'} />
               <button type="button" disabled={!actor || campClass === 'customers_promo'} onClick={async () => {
-                const res = await api(`${ADMIN_BASE}/api/campaigns/broadcast`, { method: 'POST', body: JSON.stringify({ channelId: campChannel, audienceType: campClass, text: campText, confirm: broadcastConfirm }) });
+                const res = await api(`${ADMIN_BASE}/api/campaigns/broadcast`, { method: 'POST', body: JSON.stringify({ channelId: campChannel, audienceType: campClass, text: campTextEn || campTextTh || campText, textEn: campTextEn, textTh: campTextTh, language: campLang || undefined, confirm: broadcastConfirm }) });
                 setError(res.ok ? '' : await readError(res, 'Broadcast denied or failed'));
               }}>Broadcast</button>
             </div>
@@ -1576,34 +1616,25 @@ export const App = () => {
         ) : null}
         {page === 'advanced' ? (
           <div className="card">
-            <h2>Advanced — implemented, not enabled</h2>
-            <p>Flags default off. Firestore remains identity SoR. One resolveCommandReply.</p>
+            <h2>Advanced — fulfillment flags</h2>
+            <p>{t(uiLang, 'fulfillment')}</p>
+            {Array.isArray(settings?.missingRequired) && (settings.missingRequired as string[]).length
+              ? <CopyField label={t(uiLang, 'missingEnv')} value={(settings.missingRequired as string[]).join('\n')} />
+              : null}
             <table>
-              <thead><tr><th>Control</th><th>Flag</th><th>Live</th><th></th></tr></thead>
+              <thead><tr><th>Control</th><th>Flag</th><th>Live</th></tr></thead>
               <tbody>
+                {Object.entries((settings?.optionalFlags as Record<string, boolean> | undefined) || flags).map(([key, value]) => (
+                  <tr key={key}>
+                    <td>{key}</td>
+                    <td><code>{key}</code></td>
+                    <td>{String(Boolean(value))}</td>
+                  </tr>
+                ))}
                 <tr>
-                  <td>Second HMAC process</td>
-                  <td>LINE_SECOND_WEBHOOK</td>
-                  <td>{String(Boolean(flags.LINE_SECOND_WEBHOOK))}</td>
-                  <td><button type="button" disabled>Enable</button></td>
-                </tr>
-                <tr>
-                  <td>Mongo users / Odoo SoR</td>
-                  <td>MONGO_USERS</td>
-                  <td>{String(Boolean(flags.MONGO_USERS))}</td>
-                  <td><button type="button" disabled>Enable</button></td>
-                </tr>
-                <tr>
-                  <td>GraphQL LINE ingest</td>
-                  <td>GRAPHQL_LINE_INGEST</td>
-                  <td>{String(Boolean(flags.GRAPHQL_LINE_INGEST))}</td>
-                  <td><button type="button" disabled>Enable</button></td>
-                </tr>
-                <tr>
-                  <td>Group rooms</td>
-                  <td>LINE_GROUP_ROOMS</td>
-                  <td>{String(Boolean(flags.LINE_GROUP_ROOMS))}</td>
-                  <td><button type="button" disabled>Enable</button></td>
+                  <td>Redis / campaign queue</td>
+                  <td>REDIS_URL / queueReady</td>
+                  <td>{String(settings?.queueReady !== false)}</td>
                 </tr>
               </tbody>
             </table>

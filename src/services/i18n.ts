@@ -1,12 +1,9 @@
 import type { UserLanguage } from './firestore';
 
 /**
- * Single bilingual source of truth for the quotation-journey feature's own
- * copy and Odoo domain terms, so a translation only ever needs to change in
- * one place. This is additive and scoped to that feature — the rest of the
- * codebase's existing inline `tr(language, th, en)` calls are left as-is;
- * migrating every existing string is a large, low-value churn unrelated to
- * this feature.
+ * Single bilingual source of truth for LINE Flex, forms, and Odoo domain terms.
+ * Languages are EN and TH only. Handlers should call `t` / `tFill` / `pickLocale`
+ * instead of English-only literals.
  *
  * Reuses UserLanguage ('th' | 'en') rather than introducing a third
  * language type — every call site elsewhere already threads that type.
@@ -216,8 +213,21 @@ export const UI_STRINGS = {
 
 export type UiStringKey = keyof typeof UI_STRINGS;
 
+/** Non-empty when both locales are blank. Never return '' to LINE or Admin. */
+export const EMPTY_COPY = '—';
+
+export const pickLocale = (language: Lang, pair: { en?: string; th?: string }): string => {
+  const en = (pair.en || '').trim();
+  const th = (pair.th || '').trim();
+  const preferred = language === 'th' ? th : en;
+  if (preferred) return preferred;
+  if (en) return en;
+  if (th) return th;
+  return EMPTY_COPY;
+};
+
 /** Same shape as the existing `tr(language, th, en)` helper repeated in every handler file, just table-driven. */
-export const t = (key: UiStringKey, language: Lang): string => UI_STRINGS[key][language];
+export const t = (key: UiStringKey, language: Lang): string => pickLocale(language, UI_STRINGS[key]);
 
 export const tFill = (key: UiStringKey, language: Lang, vars: Record<string, string | number>): string =>
   Object.entries(vars).reduce((acc, [name, value]) => acc.split(`{${name}}`).join(String(value)), t(key, language));

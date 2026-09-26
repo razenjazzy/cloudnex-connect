@@ -1,3 +1,16 @@
+# Release notes — v10.0.1
+
+**Date:** 2026-09-26  
+**Package version:** `10.0.1`  
+**Lane:** VPS production `/opt/cloudnex-connect` + staging sibling `/opt/cns-line-oa`  
+**Commit title:** `Release: v10.0.1 - Odoo Line OA v7 Staging Deploy`
+
+Admin is the operator console on the one `resolveCommandReply` path: bilingual overlay labels, Work CRUD (preview then confirm), Directory LINE↔Odoo fields, campaign EN/TH bodies. Promo LINE Broadcast remains blocked (`PROMO OFF`). Optional Mongo/GraphQL ingest stay off until [PLATFORM_FULFILLMENT.md](PLATFORM_FULFILLMENT.md) secrets exist. Cloud Run `deploy:prod` still requires signoff.
+
+Remaining limits: EN/TH only; placeholder ERP; sibling `.env` operator-owned; Mongo identity / GraphQL ingest not enabled in compose.
+
+---
+
 # Release notes — v9.0.10
 
 **Date:** 2026-09-26  

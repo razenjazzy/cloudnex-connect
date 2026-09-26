@@ -20,6 +20,10 @@ vi.mock('../src/jobs/queue', () => ({
   enqueueOpsJob: vi.fn(async () => 'job-ops-1'),
 }));
 
+vi.mock('../src/line/command-router', () => ({
+  resolveCommandReply: vi.fn(async () => [{ type: 'text', text: 'ok' }]),
+}));
+
 vi.mock('../src/services/firestore', async () => {
   const actual = await vi.importActual<typeof import('../src/services/firestore')>('../src/services/firestore');
   return {
@@ -363,6 +367,43 @@ describe('Cloudnex Connect admin API', () => {
     expect(res.status).toBe(400);
     const body = await res.json() as { error: string };
     expect(body.error).toMatch(/PROMO OFF/);
+  });
+
+  it('accepts campaign textEn/textTh when text is omitted', async () => {
+    const { parseCampaignTestText } = await import('../src/line/campaigns');
+    expect(parseCampaignTestText({ textTh: 'สวัสดี', language: 'th' })).toBe('สวัสดี');
+    expect(parseCampaignTestText({ textEn: 'Hello', language: 'en' })).toBe('Hello');
+  });
+
+  it('previews admin command without calling the command router', async () => {
+    const { resolveCommandReply } = await import('../src/line/command-router');
+    const { cookie } = buildAdminActorCookie('Usuper');
+    const res = await fetch(`${base()}/admin/api/command`, {
+      method: 'POST',
+      headers: { ...ops, 'content-type': 'application/json', cookie },
+      body: JSON.stringify({ text: 'FORM USER CREATE', preview: true }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { preview?: boolean; form?: { startCommand?: string } };
+    expect(body.preview).toBe(true);
+    expect(body.form?.startCommand).toBe('FORM USER CREATE');
+    expect(vi.mocked(resolveCommandReply)).not.toHaveBeenCalled();
+  });
+
+  it('confirms admin command as the bound actor', async () => {
+    const { resolveCommandReply } = await import('../src/line/command-router');
+    vi.mocked(resolveCommandReply).mockClear();
+    const { cookie } = buildAdminActorCookie('Usuper');
+    const res = await fetch(`${base()}/admin/api/command`, {
+      method: 'POST',
+      headers: { ...ops, 'content-type': 'application/json', cookie },
+      body: JSON.stringify({ text: 'NAV HOME' }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { transcript?: Array<{ text?: string }>; preview?: boolean };
+    expect(body.preview).toBe(false);
+    expect(body.transcript?.[0]?.text).toBe('ok');
+    expect(vi.mocked(resolveCommandReply)).toHaveBeenCalled();
   });
 
   it('lists verified sales when Directory is opened with no lookup query', async () => {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { evaluateCommandGrid } from '../src/line/command-grid';
-import { sanitizeCommandOverlay, setCommandOverlayCacheForTests } from '../src/line/command-overlay';
+import { evaluateCommandGrid, COMMAND_GRID } from '../src/line/command-grid';
+import { mergeCommandGridEntry, sanitizeCommandOverlay, setCommandOverlayCacheForTests } from '../src/line/command-overlay';
 
 const verifiedAdmin = {
   language: 'en' as const,
@@ -32,5 +32,14 @@ describe('command overlay', () => {
     if (previous === undefined) delete process.env.ENABLED_SERVICES;
     else process.env.ENABLED_SERVICES = previous;
     expect(result.ok).toBe(false);
+  });
+
+  it('overlay labels win over command-grid defaults', () => {
+    const navHome = COMMAND_GRID.find(entry => entry.id === 'nav-home');
+    expect(navHome).toBeTruthy();
+    setCommandOverlayCacheForTests({ 'nav-home': { labelEn: 'HQ Home', labelTh: 'หน้าแรก HQ' } });
+    const merged = mergeCommandGridEntry(navHome!);
+    expect(merged.labelEn).toBe('HQ Home');
+    expect(merged.labelTh).toBe('หน้าแรก HQ');
   });
 });

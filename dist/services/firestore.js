@@ -14,8 +14,8 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createOdooVerificationChallenge = exports.deleteAuditEventsByIds = exports.listAuditEventsOlderThan = exports.listRecentAuditEvents = exports.listRecentAuditEventsPage = exports.recordAuditEvent = exports.transitionStoredApproval = exports.listRecentApprovals = exports.getApprovalRecord = exports.saveApprovalRecord = exports.setPlatformConfig = exports.getPlatformConfig = exports.listVerifiedCustomerLineUserIds = exports.listVerifiedSalesLineUserIds = exports.findVerifiedUserIdByPartnerId = exports.findLineUserIdByPhone = exports.findVerifiedUserIdByPhone = exports.setWaitingCustomerUserId = exports.setWaitingSalesUserId = exports.setLastInboundSnippet = exports.setRelayWaitAt = exports.setLastTerminalAt = exports.setLastChannelId = exports.setSalesSessionExpiresAt = exports.setUserOdooVerificationStatus = exports.setUserDisplayName = exports.setUserContactPhone = exports.setUserOdooPartner = exports.setUserSalesTier = exports.setUserRole = exports.setLastQuoteListFrom = exports.setLastProductContext = exports.setUserPendingFlow = exports.recordChatFeedback = exports.filterMarketingOptedInUserIds = exports.deleteUserProfile = exports.setMarketingOptIn = exports.setLastActionOtpAt = exports.markConsentNoticeShown = exports.getUserProfile = exports.setUserLanguage = exports.getUserLanguage = exports.saveReportLog = exports.markUserFirstContact = exports.setEscalationState = exports.getEscalationState = exports.saveConversationMessage = exports.getConversationHistory = exports.updateUserScore = exports.checkFirestoreReady = void 0;
-exports.cancelGroupBuy = exports.confirmGroupBuy = exports.joinGroupBuy = exports.attachGroupBuyOdooOrder = exports.listGroupBuysByCreator = exports.getGroupBuyById = exports.createGroupBuy = exports.consumeQuoteInvites = exports.persistQuoteInvite = exports.releaseQuoteCreateLock = exports.completeQuoteCreateLock = exports.claimQuoteCreateLock = exports.consumeActionOtpChallengeByToken = exports.consumeActionOtpChallenge = exports.createActionOtpChallenge = exports.consumeOdooVerificationByToken = exports.consumeOdooVerificationByOtp = exports.getPendingOdooVerificationChallenge = void 0;
+exports.deleteAuditEventsByIds = exports.listAuditEventsOlderThan = exports.listRecentAuditEvents = exports.listRecentAuditEventsPage = exports.recordAuditEvent = exports.transitionStoredApproval = exports.listRecentApprovals = exports.getApprovalRecord = exports.saveApprovalRecord = exports.mutatePlatformConfig = exports.setPlatformConfig = exports.getPlatformConfig = exports.listVerifiedCustomerLineUserIds = exports.listVerifiedSalesLineUserIds = exports.findVerifiedUserIdByPartnerId = exports.findLineUserIdByPhone = exports.findVerifiedUserIdByPhone = exports.setWaitingCustomerUserId = exports.setWaitingSalesUserId = exports.setLastInboundSnippet = exports.setRelayWaitAt = exports.setLastTerminalAt = exports.setLastChannelId = exports.setSalesSessionExpiresAt = exports.setUserOdooVerificationStatus = exports.setUserDisplayName = exports.setUserContactPhone = exports.setUserOdooPartner = exports.setUserSalesTier = exports.setUserRole = exports.setLastQuoteListFrom = exports.setLastProductContext = exports.setUserPendingFlow = exports.recordChatFeedback = exports.filterMarketingOptedInUserIds = exports.deleteUserProfile = exports.setMarketingOptIn = exports.setLastActionOtpAt = exports.markConsentNoticeShown = exports.setUserLanguage = exports.getUserProfile = exports.getUserLanguage = exports.saveReportLog = exports.markUserFirstContact = exports.setEscalationState = exports.getEscalationState = exports.saveConversationMessage = exports.getConversationHistory = exports.updateUserScore = exports.checkFirestoreReady = void 0;
+exports.cancelGroupBuy = exports.confirmGroupBuy = exports.joinGroupBuy = exports.attachGroupBuyOdooOrder = exports.listGroupBuysByCreator = exports.getGroupBuyById = exports.createGroupBuy = exports.consumeQuoteInvites = exports.persistQuoteInvite = exports.releaseQuoteCreateLock = exports.completeQuoteCreateLock = exports.claimQuoteCreateLock = exports.consumeActionOtpChallengeByToken = exports.consumeActionOtpChallenge = exports.createActionOtpChallenge = exports.consumeOdooVerificationByToken = exports.consumeOdooVerificationByOtp = exports.getPendingOdooVerificationChallenge = exports.createOdooVerificationChallenge = void 0;
 const firestore_1 = require("@google-cloud/firestore");
 const app_config_1 = require("./app-config");
 const logger_1 = require("./logger");
@@ -33,6 +33,7 @@ const verification_store_1 = require("./firestore/verification-store");
 const verification_consume_1 = require("./firestore/verification-consume");
 const verification_token_1 = require("./firestore/verification-token");
 const report_store_1 = require("./firestore/report-store");
+const mongo_users_1 = require("./mongo-users");
 const phone_match_1 = require("./phone-match");
 __exportStar(require("./firestore/types"), exports);
 let db = null;
@@ -323,8 +324,44 @@ const verificationTokenConsumer = (0, verification_token_1.createVerificationTok
     parse: toOdooVerificationChallenge,
 });
 exports.getUserLanguage = userProfileRepository.getLanguage;
-exports.setUserLanguage = userProfileRepository.setLanguage;
-exports.getUserProfile = userProfileRepository.getProfile;
+const mongoWriteGuard = () => {
+    const ready = (0, mongo_users_1.mongoIdentityReady)();
+    if ((0, mongo_users_1.isMongoUsersEnabled)() && !ready.ok)
+        return { ok: false, error: ready.message };
+    return { ok: true };
+};
+const mirrorMongoIdentity = async (userId, result) => {
+    if (!result.ok)
+        return result;
+    const guard = mongoWriteGuard();
+    if (!guard.ok)
+        return guard;
+    if (!(0, mongo_users_1.isMongoUsersEnabled)())
+        return result;
+    const profile = await userProfileRepository.getProfile(userId);
+    return (0, mongo_users_1.putMongoUserProfile)(userId, profile);
+};
+const getUserProfile = async (userId) => {
+    if (!(0, mongo_users_1.isMongoUsersEnabled)())
+        return userProfileRepository.getProfile(userId);
+    const ready = (0, mongo_users_1.mongoIdentityReady)();
+    if (!ready.ok)
+        return userProfileRepository.getProfile(userId);
+    const mongo = await (0, mongo_users_1.getMongoUserProfile)(userId);
+    if (mongo)
+        return mongo;
+    const firestoreProfile = await userProfileRepository.getProfile(userId);
+    await (0, mongo_users_1.putMongoUserProfile)(userId, firestoreProfile);
+    return firestoreProfile;
+};
+exports.getUserProfile = getUserProfile;
+const setUserLanguage = async (userId, language) => {
+    const guard = mongoWriteGuard();
+    if (!guard.ok)
+        return guard;
+    return mirrorMongoIdentity(userId, await userProfileRepository.setLanguage(userId, language));
+};
+exports.setUserLanguage = setUserLanguage;
 /**
  * PDPA data-collection notice — shown once at first contact (see
  * command-router.ts). Notice-only, not a blocking consent gate: it informs
@@ -332,7 +369,13 @@ exports.getUserProfile = userProfileRepository.getProfile;
  */
 exports.markConsentNoticeShown = userProfileRepository.markConsentNoticeShown;
 exports.setLastActionOtpAt = userProfileRepository.setLastActionOtpAt;
-exports.setMarketingOptIn = userProfileRepository.setMarketingOptIn;
+const setMarketingOptIn = async (userId, optIn) => {
+    const guard = mongoWriteGuard();
+    if (!guard.ok)
+        return guard;
+    return mirrorMongoIdentity(userId, await userProfileRepository.setMarketingOptIn(userId, optIn));
+};
+exports.setMarketingOptIn = setMarketingOptIn;
 /**
  * Data-subject erasure request (PDPA "right to delete"). Hard-deletes the
  * user's profile document — role, verification/Odoo link, language,
@@ -360,12 +403,30 @@ exports.filterMarketingOptedInUserIds = filterMarketingOptedInUserIds;
  * that triggered it.
  */
 exports.recordChatFeedback = communicationRepository.recordChatFeedback;
-exports.setUserPendingFlow = userProfileRepository.setPendingFlow;
+const setUserPendingFlow = async (userId, pendingFlow) => {
+    const guard = mongoWriteGuard();
+    if (!guard.ok)
+        return guard;
+    return mirrorMongoIdentity(userId, await userProfileRepository.setPendingFlow(userId, pendingFlow));
+};
+exports.setUserPendingFlow = setUserPendingFlow;
 exports.setLastProductContext = userProfileRepository.setLastProductContext;
 exports.setLastQuoteListFrom = userProfileRepository.setLastQuoteListFrom;
-exports.setUserRole = userProfileRepository.setRole;
+const setUserRole = async (userId, role) => {
+    const guard = mongoWriteGuard();
+    if (!guard.ok)
+        return guard;
+    return mirrorMongoIdentity(userId, await userProfileRepository.setRole(userId, role));
+};
+exports.setUserRole = setUserRole;
 exports.setUserSalesTier = userProfileRepository.setSalesTier;
-exports.setUserOdooPartner = userProfileRepository.setOdooPartner;
+const setUserOdooPartner = async (userId, partnerId, displayName, phone) => {
+    const guard = mongoWriteGuard();
+    if (!guard.ok)
+        return guard;
+    return mirrorMongoIdentity(userId, await userProfileRepository.setOdooPartner(userId, partnerId, displayName, phone));
+};
+exports.setUserOdooPartner = setUserOdooPartner;
 exports.setUserContactPhone = userProfileRepository.setContactPhone;
 exports.setUserDisplayName = userProfileRepository.setDisplayName;
 exports.setUserOdooVerificationStatus = userProfileRepository.setVerificationStatus;
@@ -538,6 +599,7 @@ const listVerifiedCustomerLineUserIds = async () => {
 exports.listVerifiedCustomerLineUserIds = listVerifiedCustomerLineUserIds;
 exports.getPlatformConfig = platformConfigRepository.get;
 exports.setPlatformConfig = platformConfigRepository.set;
+exports.mutatePlatformConfig = platformConfigRepository.mutate;
 const approvalStore = (0, approval_store_1.createApprovalStore)({
     database: getDb,
     write: withFirestoreWrite,

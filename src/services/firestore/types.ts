@@ -172,7 +172,9 @@ export type AuditAction =
     | 'customer_inbound'
     | 'campaign_test'
     | 'campaign_send'
-    | 'campaign_broadcast';
+    | 'campaign_broadcast'
+    | 'admin_command_preview'
+    | 'admin_command';
 
 export type AuditOutcome = 'success' | 'failure';
 

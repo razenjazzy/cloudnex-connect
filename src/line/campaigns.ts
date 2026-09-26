@@ -107,7 +107,13 @@ export const parseCampaignAudienceRequest = (body: unknown): CampaignAudienceReq
 
 export const parseCampaignTestText = (body: unknown): string | { error: string } => {
   const raw = body && typeof body === 'object' ? body as Record<string, unknown> : {};
-  const text = String(raw.text || '').trim();
+  const language = String(raw.language || '').trim();
+  const textEn = String(raw.textEn || '').trim();
+  const textTh = String(raw.textTh || '').trim();
+  const text = String(raw.text || '').trim()
+    || (language === 'th' ? textTh : textEn)
+    || textEn
+    || textTh;
   if (!text) return { error: 'text is required for a test push.' };
   if (text.length > 1000) return { error: 'text must be at most 1000 characters.' };
   return text;

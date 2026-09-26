@@ -18,6 +18,12 @@ describe('getFlowByStartCommand', () => {
   it('returns null for an unknown form command', () => {
     expect(getFlowByStartCommand('FORM NOPE')).toBeNull();
   });
+
+  it('matchFlowForPreview accepts the reconstructed command prefix', async () => {
+    const { matchFlowForPreview } = await import('../src/services/guided-forms');
+    expect(matchFlowForPreview('FORM USER CREATE')).not.toBeNull();
+    expect(matchFlowForPreview('USER CREATE Jane,0812345678')?.key).toBe('USER_CREATE');
+  });
 });
 
 describe('lookup flows', () => {

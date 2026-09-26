@@ -9,6 +9,7 @@ const service_modules_1 = require("../platform/service-modules");
 const env_1 = require("../http/env");
 const odoo_1 = require("./odoo");
 const seed_odoo_1 = require("./seed-odoo");
+const public_bases_1 = require("../http/public-bases");
 const isLineConfigured = () => {
     const accessToken = process.env.LINE_CHANNEL_ACCESS_TOKEN?.trim() || '';
     const secret = process.env.LINE_CHANNEL_SECRET?.trim() || '';
@@ -24,7 +25,8 @@ const isOdooConfigured = () => {
 };
 const normalizeBaseUrl = (baseUrl) => {
     const fallbackPort = process.env.PORT || '8080';
-    return (baseUrl || `http://localhost:${fallbackPort}`).replace(/\/$/, '');
+    const raw = baseUrl || `http://localhost:${fallbackPort}`;
+    return (0, public_bases_1.originFromPublicBaseUrl)(raw) || raw.replace(/\/$/, '');
 };
 const safePingOdoo = async () => {
     try {
@@ -43,7 +45,7 @@ const safeSeedOdoo = async () => {
     }
 };
 const getDemoOverview = async (baseUrl) => {
-    const resolvedBaseUrl = normalizeBaseUrl(baseUrl);
+    const origin = normalizeBaseUrl(baseUrl);
     const [odooStatus, mongoPing] = await Promise.all([safePingOdoo(), (0, base_repository_1.pingMongo)()]);
     return {
         generatedAt: new Date().toISOString(),
@@ -51,17 +53,17 @@ const getDemoOverview = async (baseUrl) => {
             status: 'ready',
             environment: env_1.appEnv,
             endpoints: {
-                demoPage: `${resolvedBaseUrl}/demo`,
-                connections: `${resolvedBaseUrl}/demo/connections`,
-                journey: `${resolvedBaseUrl}/demo/journey`,
-                pricingModel: `${resolvedBaseUrl}/demo/pricing-model`,
-                pricingSimulation: `${resolvedBaseUrl}/demo/pricing-simulation`,
-                workflowAudit: `${resolvedBaseUrl}/demo/workflow-audit`,
-                simulatedLineWebhook: `${resolvedBaseUrl}/webhook-test`,
-                lineWebhook: `${resolvedBaseUrl}/webhook`,
-                platform: `${resolvedBaseUrl}/demo/platform`,
-                graphql: `${resolvedBaseUrl}/graphql`,
-                apiDocs: `${resolvedBaseUrl}/api-docs`,
+                demoPage: `${origin}${(0, public_bases_1.adminBase)()}/testing`,
+                connections: `${origin}${(0, public_bases_1.adminBase)()}/api/demo/connections`,
+                journey: `${origin}${(0, public_bases_1.adminBase)()}/api/demo/journey`,
+                pricingModel: `${origin}${(0, public_bases_1.adminBase)()}/api/pricing`,
+                pricingSimulation: `${origin}${(0, public_bases_1.adminBase)()}/api/demo/pricing-simulation`,
+                workflowAudit: `${origin}${(0, public_bases_1.adminBase)()}/api/demo/workflow-audit`,
+                simulatedLineWebhook: `${origin}/webhook-test`,
+                lineWebhook: `${origin}/webhook`,
+                platform: `${origin}${(0, public_bases_1.adminBase)()}/api/demo/platform`,
+                graphql: `${origin}/graphql`,
+                apiDocs: `${origin}/api-docs`,
             },
         },
         connections: {

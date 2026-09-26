@@ -1,5 +1,12 @@
 # Changelog
 
+## v10.0.1 — Odoo LINE OA v7 (2026-09-26)
+
+- Admin overlay saves EN/TH labels, roles, and channels; `pickLocale` never returns empty copy.
+- `POST /admin/api/command` preview/confirm uses the bound actor and `resolveCommandReply`.
+- Directory shows LINE↔Odoo dossier; campaigns take `textEn`/`textTh`; promo Broadcast still blocked.
+- Fulfillment playbook: `documents/PLATFORM_FULFILLMENT.md`. Cloud Run `deploy:prod` still requires signoff.
+
 ## v9.0.10 — Odoo LINE OA v6 VPS lanes (2026-09-26)
 
 - Staging deploy updates `/opt/cns-line-oa` (`APP_ENV=staging`, Admin `{PUBLIC_BASE_URL}/admin/test`).

@@ -9,4 +9,6 @@ export const describeOptionalFlags = () => ({
   LINE_SECOND_WEBHOOK: isLineSecondWebhookEnabled(),
   MONGO_USERS: /^(1|true|yes|on)$/i.test(process.env.MONGO_USERS || ''),
   GRAPHQL_LINE_INGEST: isGraphqlLineIngestEnabled(),
+  ENABLE_GRAPHQL: flag(process.env.ENABLE_GRAPHQL),
+  ENABLE_API_DOCS: flag(process.env.ENABLE_API_DOCS),
 });

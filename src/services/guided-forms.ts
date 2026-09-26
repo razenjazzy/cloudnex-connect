@@ -394,5 +394,30 @@ const applyOdooFieldSkills = (): void => {
 applyOdooFieldSkills();
 
 export const getFlowByStartCommand = (upperText: string): FlowSpec | null => {
-  return Object.values(FLOW_SPECS).find(f => f.startCommand === upperText) || null;
+  const upper = upperText.trim().toUpperCase();
+  return Object.values(FLOW_SPECS).find(flow => flow.startCommand.toUpperCase() === upper) || null;
 };
+
+export const matchFlowForPreview = (text: string): FlowSpec | null => {
+  const upper = text.trim().toUpperCase();
+  return Object.values(FLOW_SPECS).find(flow => {
+    const start = flow.startCommand.toUpperCase();
+    const bare = start.replace(/^FORM /, '');
+    return upper === start || upper.startsWith(`${start} `) || upper === bare || upper.startsWith(`${bare} `);
+  }) || null;
+};
+
+export const listGuidedFormCatalog = () =>
+  Object.values(FLOW_SPECS).map(spec => ({
+    key: spec.key,
+    startCommand: spec.startCommand,
+    labelEn: spec.labelEn,
+    labelTh: spec.labelTh,
+    requiresAdmin: spec.requiresAdmin,
+    fields: spec.fields.map(field => ({
+      key: field.key,
+      promptEn: field.promptEn,
+      promptTh: field.promptTh,
+      optional: Boolean(field.optional),
+    })),
+  }));
