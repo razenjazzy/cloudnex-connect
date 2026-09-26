@@ -18,6 +18,8 @@ describe('public URL bases', () => {
     process.env.PUBLIC_BASE_URL = 'https://amardhaka.io/cloudnex-connect/';
     process.env.PUBLIC_ADMIN_BASE = '/admin';
     expect(pathFromPublicBaseUrl()).toBe('/cloudnex-connect');
+    expect(adminBase()).toBe('/cloudnex-connect/admin');
+    expect(demoBase()).toBe('/cloudnex-connect/demo');
     expect(adminCookiePath()).toBe('/cloudnex-connect/admin');
     expect(publicSiteUrl(process.env.PUBLIC_BASE_URL)).toBe('https://amardhaka.io/cloudnex-connect');
     expect(originFromPublicBaseUrl(process.env.PUBLIC_BASE_URL)).toBe('https://amardhaka.io');

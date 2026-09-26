@@ -13,7 +13,7 @@ import {
   pingOdoo,
 } from './odoo';
 import { seedOdooSampleSalesDataWithAudit } from './seed-odoo';
-import { adminBase, originFromPublicBaseUrl, publicSiteUrl } from '../http/public-bases';
+import { adminBase, originFromPublicBaseUrl } from '../http/public-bases';
 
 type UiLanguage = AppLanguage;
 
@@ -134,7 +134,6 @@ const safeSeedOdoo = async (): Promise<string> => {
 
 export const getDemoOverview = async (baseUrl?: string): Promise<DemoOverview> => {
   const origin = normalizeBaseUrl(baseUrl);
-  const site = publicSiteUrl(process.env.PUBLIC_BASE_URL) || origin;
   const [odooStatus, mongoPing] = await Promise.all([safePingOdoo(), pingMongo()]);
 
   return {
@@ -143,15 +142,15 @@ export const getDemoOverview = async (baseUrl?: string): Promise<DemoOverview> =
       status: 'ready',
       environment: appEnv,
       endpoints: {
-        demoPage: `${site}${adminBase()}/testing`,
-        connections: `${site}${adminBase()}/api/demo/connections`,
-        journey: `${site}${adminBase()}/api/demo/journey`,
-        pricingModel: `${site}${adminBase()}/api/pricing`,
-        pricingSimulation: `${site}${adminBase()}/api/demo/pricing-simulation`,
-        workflowAudit: `${site}${adminBase()}/api/demo/workflow-audit`,
+        demoPage: `${origin}${adminBase()}/testing`,
+        connections: `${origin}${adminBase()}/api/demo/connections`,
+        journey: `${origin}${adminBase()}/api/demo/journey`,
+        pricingModel: `${origin}${adminBase()}/api/pricing`,
+        pricingSimulation: `${origin}${adminBase()}/api/demo/pricing-simulation`,
+        workflowAudit: `${origin}${adminBase()}/api/demo/workflow-audit`,
         simulatedLineWebhook: `${origin}/webhook-test`,
         lineWebhook: `${origin}/webhook`,
-        platform: `${site}${adminBase()}/api/demo/platform`,
+        platform: `${origin}${adminBase()}/api/demo/platform`,
         graphql: `${origin}/graphql`,
         apiDocs: `${origin}/api-docs`,
       },

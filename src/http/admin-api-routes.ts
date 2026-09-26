@@ -587,7 +587,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
       await recordAuditEvent({ action: 'admin_session_bind', outcome: 'failure', actorUserId: 'unknown', detail: 'saml_state' });
       return res.redirect(302, `${adminBase()}?idp_error=1`);
     }
-    const audience = getRuntime('SAML_SP_ENTITY_ID') || `${getRuntime('PUBLIC_BASE_URL').replace(/\/$/, '')}${adminBase()}/api/session/saml/metadata`;
+    const audience = getRuntime('SAML_SP_ENTITY_ID') || `${originFromPublicBaseUrl(getRuntime('PUBLIC_BASE_URL'))}${adminBase()}/api/session/saml/metadata`;
     const userId = verifySamlResponse(raw, audience, getRuntime('SAML_IDP_CERT'));
     return completeIdp(res, userId, 'saml', true);
   });

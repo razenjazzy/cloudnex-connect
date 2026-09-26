@@ -25,13 +25,17 @@ describe('CSP headers', () => {
     expect(buildSwaggerCspHeader()).toContain("connect-src 'self'");
   });
 
-  it('applies admin CSP under PUBLIC_ADMIN_BASE, not the global default', () => {
-    const prev = process.env.PUBLIC_ADMIN_BASE;
-    process.env.PUBLIC_ADMIN_BASE = '/cloudnex-connect';
-    expect(cspHeaderForPath('/cloudnex-connect')).toBe(buildAdminCspHeader());
-    expect(cspHeaderForPath('/cloudnex-connect/testing')).toBe(buildAdminCspHeader());
+  it('applies admin CSP under the joined PUBLIC_BASE_URL + /admin mount', () => {
+    const prevAdmin = process.env.PUBLIC_ADMIN_BASE;
+    const prevUrl = process.env.PUBLIC_BASE_URL;
+    process.env.PUBLIC_ADMIN_BASE = '/admin';
+    process.env.PUBLIC_BASE_URL = 'https://amardhaka.io/cloudnex-connect';
+    expect(cspHeaderForPath('/cloudnex-connect/admin')).toBe(buildAdminCspHeader());
+    expect(cspHeaderForPath('/cloudnex-connect/admin/testing')).toBe(buildAdminCspHeader());
     expect(cspHeaderForPath('/healthz')).toBe(buildCspHeader());
-    if (prev === undefined) delete process.env.PUBLIC_ADMIN_BASE;
-    else process.env.PUBLIC_ADMIN_BASE = prev;
+    if (prevAdmin === undefined) delete process.env.PUBLIC_ADMIN_BASE;
+    else process.env.PUBLIC_ADMIN_BASE = prevAdmin;
+    if (prevUrl === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = prevUrl;
   });
 });

@@ -40,18 +40,26 @@ export const publicSiteUrl = (raw: string | undefined): string => {
   return path ? `${origin}${path}` : origin;
 };
 
-/** SPA + `/api` prefix. Exact env form: `/admin` (local and VPS). Sibling may set `/cloudnex-connect/admin/test`. */
-export const adminBase = (): string => normalizeBase(process.env.PUBLIC_ADMIN_BASE, '/admin');
-
-/** Demo prefix. Exact env form: `/demo`. GET redirects to Admin `/testing` (same UI). */
-export const demoBase = (): string => normalizeBase(process.env.PUBLIC_DEMO_BASE, '/demo');
-
-export const adminPublicPath = (publicBaseUrl: string | undefined = process.env.PUBLIC_BASE_URL): string => {
+const joinSitePath = (leaf: string, publicBaseUrl?: string): string => {
   const prefix = pathFromPublicBaseUrl(publicBaseUrl);
-  const admin = adminBase() || '/admin';
-  if (prefix && (admin === prefix || admin.startsWith(`${prefix}/`))) return admin;
-  return `${prefix}${admin}` || '/admin';
+  const path = normalizeBase(leaf, leaf);
+  if (prefix && (path === prefix || path.startsWith(`${prefix}/`))) return path;
+  return `${prefix}${path}` || path;
 };
+
+/**
+ * HTTP mount for Admin. Env stays `PUBLIC_ADMIN_BASE=/admin`.
+ * With PUBLIC_BASE_URL=https://amardhaka.io/cloudnex-connect this is `/cloudnex-connect/admin`.
+ */
+export const adminPublicPath = (publicBaseUrl: string | undefined = process.env.PUBLIC_BASE_URL): string =>
+  joinSitePath(normalizeBase(process.env.PUBLIC_ADMIN_BASE, '/admin'), publicBaseUrl);
+
+export const demoPublicPath = (publicBaseUrl: string | undefined = process.env.PUBLIC_BASE_URL): string =>
+  joinSitePath(normalizeBase(process.env.PUBLIC_DEMO_BASE, '/demo'), publicBaseUrl);
+
+export const adminBase = (): string => adminPublicPath();
+
+export const demoBase = (): string => demoPublicPath();
 
 export const adminApiRoot = (): string => `${adminBase()}/api`;
 

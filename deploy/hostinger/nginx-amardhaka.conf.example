@@ -3,11 +3,35 @@
 #
 # PUBLIC_BASE_URL=https://amardhaka.io/cloudnex-connect
 # PUBLIC_ADMIN_BASE=/admin  PUBLIC_DEMO_BASE=/demo
-# Trailing slash on proxy_pass strips /cloudnex-connect so Node sees /admin and /demo.
-# HMAC webhooks stay on the host root. Sibling Admin is /cloudnex-connect/admin/test (8081).
+# Node mounts at /cloudnex-connect/admin and /cloudnex-connect/demo (join site path).
+# Do not strip the prefix. HMAC webhooks stay on the host root.
 
 location ^~ /cloudnex-connect/admin/test {
     proxy_pass http://127.0.0.1:8081;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 60s;
+}
+
+location = /cloudnex-connect/admin {
+    return 301 /cloudnex-connect/admin/;
+}
+
+location /cloudnex-connect/admin/ {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 60s;
+}
+
+location /cloudnex-connect/demo {
+    proxy_pass http://127.0.0.1:8080;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -21,16 +45,6 @@ location = /cloudnex-connect {
 }
 location = /cloudnex-connect/ {
     return 301 /cloudnex-connect/admin/;
-}
-
-location /cloudnex-connect/ {
-    proxy_pass http://127.0.0.1:8080/;
-    proxy_http_version 1.1;
-    proxy_set_header Host $host;
-    proxy_set_header X-Real-IP $remote_addr;
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_read_timeout 60s;
 }
 
 location /webhook {

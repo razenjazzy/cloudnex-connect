@@ -68,7 +68,7 @@ Required for two OAs:
 - `SUPER_ADMIN_USER_IDS` = LINE ids allowed to bind/reveal (fail closed if unset)
 - `CONNECT_BOOTSTRAP_TOKEN` from `scripts/bootstrap-cloudnex-connect.sh` (printed once)
 - `APP_ENV=staging`, `PUBLIC_BASE_URL=https://amardhaka.io/cloudnex-connect`
-- `PUBLIC_ADMIN_BASE=/cloudnex-connect`, `PUBLIC_DEMO_BASE=/cloudnex-connect/demo` (GET redirects to `/cloudnex-connect/testing`)
+- `PUBLIC_ADMIN_BASE=/admin`, `PUBLIC_DEMO_BASE=/demo` (Node mounts `/cloudnex-connect/admin` and `/cloudnex-connect/demo`; demo GET redirects to Admin `/testing`)
 
 Install (one-shot): `POST https://amardhaka.io/cloudnex-connect/api/bootstrap` with the bootstrap token (Swagger tag `install`). Second call is 410. Google credential JSON stays a mounted file/env secret on this same path.
 

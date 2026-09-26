@@ -1,3 +1,14 @@
+# Release notes — v9.0.8
+
+**Date:** 2026-09-26  
+**Package version:** `9.0.8`  
+**Lane:** staging (no production deploy)  
+**Commit title:** `Release: v9.0.8 - Odoo Line OA v6 Bug Fix`
+
+Express mounts Admin at `/cloudnex-connect/admin` when `PUBLIC_BASE_URL` includes that path and env is still `PUBLIC_ADMIN_BASE=/admin`. Nginx must not strip the prefix.
+
+---
+
 # Release notes — v9.0.7
 
 **Date:** 2026-09-26  

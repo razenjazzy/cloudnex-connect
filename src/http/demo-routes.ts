@@ -17,7 +17,7 @@ import {
   isDemoControlEnabled,
   isProduction,
 } from './env';
-import { adminBase, demoBase, pathFromPublicBaseUrl } from './public-bases';
+import { adminBase, demoBase } from './public-bases';
 import { registerDemoJsonRoutes } from './demo-api';
 
 export const registerDemoRoutes = (app: Express): void => {
@@ -62,7 +62,7 @@ export const registerDemoRoutes = (app: Express): void => {
 
   app.get(D, (_req, res) => {
     if (!isDemoControlEnabled) return res.status(404).json({ error: 'Demo control panel is disabled.' });
-    return res.redirect(302, `${pathFromPublicBaseUrl()}${adminBase()}/testing`);
+    return res.redirect(302, `${adminBase()}/testing`);
   });
 
   registerDemoJsonRoutes(app, D, requireDemoControlAccess);
