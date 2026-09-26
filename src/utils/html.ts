@@ -45,11 +45,11 @@ export const buildDemoCspHeader = (): string =>
     "frame-ancestors 'none'",
   ].join('; ');
 
-/** React admin SPA: hashed assets from /admin/, same-origin GraphQL. */
+/** React admin SPA: hashed assets + injected window.__ADMIN_BASE__ inline script. */
 export const buildAdminCspHeader = (): string =>
   [
     "default-src 'none'",
-    "script-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
     "font-src 'self' data:",

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildCspHeader, buildDemoCspHeader, buildSwaggerCspHeader } from '../src/utils/html';
+import { buildAdminCspHeader, buildCspHeader, buildDemoCspHeader, buildSwaggerCspHeader } from '../src/utils/html';
+import { cspHeaderForPath } from '../src/http/middleware';
 
 describe('CSP headers', () => {
   it('keeps JSON/API pages script-free', () => {
@@ -13,7 +14,24 @@ describe('CSP headers', () => {
     expect(csp).toContain("connect-src 'self'");
   });
 
+  it('allows admin SPA hashed assets and injected base script', () => {
+    const csp = buildAdminCspHeader();
+    expect(csp).toContain("script-src 'self' 'unsafe-inline'");
+    expect(csp).toContain("style-src 'self'");
+    expect(csp).toContain("connect-src 'self'");
+  });
+
   it('keeps Swagger connect-src self', () => {
     expect(buildSwaggerCspHeader()).toContain("connect-src 'self'");
+  });
+
+  it('applies admin CSP under PUBLIC_ADMIN_BASE, not the global default', () => {
+    const prev = process.env.PUBLIC_ADMIN_BASE;
+    process.env.PUBLIC_ADMIN_BASE = '/cloudnex-connect/admin';
+    expect(cspHeaderForPath('/cloudnex-connect/admin')).toBe(buildAdminCspHeader());
+    expect(cspHeaderForPath('/cloudnex-connect/admin/assets/index.js')).toBe(buildAdminCspHeader());
+    expect(cspHeaderForPath('/healthz')).toBe(buildCspHeader());
+    if (prev === undefined) delete process.env.PUBLIC_ADMIN_BASE;
+    else process.env.PUBLIC_ADMIN_BASE = prev;
   });
 });

@@ -1,3 +1,14 @@
+# Release notes — v9.0.3
+
+**Date:** 2026-09-26  
+**Package version:** `9.0.3`  
+**Lane:** staging (no production deploy)  
+**Commit title:** `Release: v9.0.3 - Odoo Line OA v6 Bug Fix`
+
+CSP for Admin/demo follows `PUBLIC_ADMIN_BASE` / `PUBLIC_DEMO_BASE`. Prefixed Admin was getting `default-src 'none'`, which blocked Vite assets and the injected `__ADMIN_BASE__` script. Admin CSP now allows `'self'` scripts/styles plus `'unsafe-inline'` for that inject.
+
+---
+
 # Release notes — v9.0.2
 
 **Date:** 2026-09-26  

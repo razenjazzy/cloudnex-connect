@@ -5,24 +5,22 @@ import { recordHttpRequest } from '../services/kpi';
 import { appLogger } from '../services/logger';
 import { getRateStore } from './runtime-state';
 import { isProduction } from './env';
+import { adminBase, demoBase } from './public-bases';
 
 export const jsonParser = express.json({ limit: process.env.MAX_JSON_BODY || '64kb' });
 export const formParser = express.urlencoded({ extended: false, limit: process.env.MAX_JSON_BODY || '256kb' });
 
+const pathUnder = (path: string, root: string): boolean => path === root || path.startsWith(`${root}/`);
+
+export const cspHeaderForPath = (path: string): string => {
+    if (path === '/api-docs' || path.startsWith('/api-docs/')) return buildSwaggerCspHeader();
+    if (pathUnder(path, demoBase())) return buildDemoCspHeader();
+    if (pathUnder(path, adminBase())) return buildAdminCspHeader();
+    return buildCspHeader();
+};
+
 export const cspMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    if (req.path === '/api-docs' || req.path.startsWith('/api-docs/')) {
-        res.setHeader('Content-Security-Policy', buildSwaggerCspHeader());
-        return next();
-    }
-    if (req.path === '/demo') {
-        res.setHeader('Content-Security-Policy', buildDemoCspHeader());
-        return next();
-    }
-    if (req.path === '/admin' || req.path.startsWith('/admin/')) {
-        res.setHeader('Content-Security-Policy', buildAdminCspHeader());
-        return next();
-    }
-    res.setHeader('Content-Security-Policy', buildCspHeader());
+    res.setHeader('Content-Security-Policy', cspHeaderForPath(req.path));
     next();
 };
 
