@@ -1,3 +1,14 @@
+# Release notes — v9.0.10
+
+**Date:** 2026-09-26  
+**Package version:** `9.0.10`  
+**Lane:** VPS production `/opt/cloudnex-connect` + staging sibling `/opt/cns-line-oa`  
+**Commit title:** `Release: v9.0.10 - Odoo Line OA v6 Staging Deploy`
+
+Separate VPS deploys: staging rsyncs `/opt/cns-line-oa` (Admin `{PUBLIC_BASE_URL}/admin/test`, `:8081`) without tearing down production; production rsyncs `/opt/cloudnex-connect` (Admin `{PUBLIC_BASE_URL}/admin/`, HMAC `:8080`). IdP callback URLs in development follow the browser/request origin (`https://site.local`), not a mismatched `PUBLIC_BASE_URL`. Cloud Run `deploy:prod` still requires signoff.
+
+---
+
 # Release notes — v9.0.9
 
 **Date:** 2026-09-26  

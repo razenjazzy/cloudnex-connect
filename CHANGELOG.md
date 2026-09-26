@@ -1,5 +1,11 @@
 # Changelog
 
+## v9.0.10 — Odoo LINE OA v6 VPS lanes (2026-09-26)
+
+- Staging deploy updates `/opt/cns-line-oa` (`APP_ENV=staging`, Admin `{PUBLIC_BASE_URL}/admin/test`).
+- Production VPS deploy updates `/opt/cloudnex-connect` (`APP_ENV=production`, Admin `{PUBLIC_BASE_URL}/admin/`, HMAC on `:8080`).
+- Scripts: `npm run deploy:vps-staging`, `npm run deploy:vps-prod`. Cloud Run `deploy:prod` still requires signoff.
+
 ## v5.0.1 — Odoo LINE OA v3 staging (2026-09-19)
 
 Staging cut of Cloudnex Connect on `https://amardhaka.io`. No new product domains. Dual OA, catalog carousels, customer C0–C5 / staff send-approve-invoice, demo talk track.

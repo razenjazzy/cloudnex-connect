@@ -5,12 +5,10 @@ Three lanes. Same codebase. Different `APP_ENV`. The Docker image always sets `N
 | Lane | `APP_ENV` | Host | `/demo` | `/webhook-test` | GraphiQL | GraphQL / `/api-docs` |
 |---|---|---|---|---|---|---|
 | Dev | `development` | laptop (`npm run dev`) | on | on | on | on |
-| Staging | `staging` | Hostinger VPS `amardhaka.io` | if `ENABLE_DEMO_CONTROL_PANEL` | if `ENABLE_WEBHOOK_TEST` | if GraphQL enabled | if `ENABLE_*` |
+| Staging | `staging` | Hostinger sibling `/opt/cns-line-oa` `:8081` | sibling compose off | sibling compose off | if GraphQL enabled | if `ENABLE_*` |
 | Production | `production` | final delivery | **off** | **off** | **off** | only if `ENABLE_GRAPHQL` / `ENABLE_API_DOCS` + ops token |
 
-If `APP_ENV` is unset and `NODE_ENV=production`, the process **fails closed to production**. The VPS must set `APP_ENV=staging`.
-
-This cut does **not** deploy production.
+If `APP_ENV` is unset and `NODE_ENV=production`, the process **fails closed to production**. HMAC on `amardhaka.io` is the production VPS process (`APP_ENV=production`). Staging Admin is the sibling (`APP_ENV=staging`).
 
 Optional flags (default false): `GCS_MEDIA_BUCKET`, `LINE_MEDIA_MAX_BYTES`, `CLAMAV_URL`, `AV_SCAN_REQUIRED`, `LINE_GROUP_ROOMS`, `LINE_SECOND_WEBHOOK` (second HMAC ingress, same handler), `MONGO_USERS` (Mongo identity SoR when true; fail closed without `MONGODB_URI`; never Odoo SoR), `GRAPHQL_LINE_INGEST` (ops GraphQL ingest → same processor). `TENANT_KEY` scopes overlay docs (default `default`). `ERP_PROVIDER` other than `odoo` is an unimplemented placeholder.
 
@@ -35,7 +33,7 @@ ENABLE_GRAPHQL=true          # optional
 ENABLE_API_DOCS=true         # optional
 ```
 
-Plus LINE **Cloudnex Sales** and **Cloudnex Customer** credentials, Firestore JSON credentials, sandbox Odoo, `ADMIN_USER_ID` (Sales OA LINE user ids), `OPS_API_TOKEN`, `PUBLIC_BASE_URL=https://amardhaka.io/cloudnex-connect`. Staging keys are `PUBLIC_ADMIN_BASE=/admin` and `PUBLIC_DEMO_BASE=/demo`; HTTP paths are `/cloudnex-connect/admin` and `/cloudnex-connect/demo` (Demo is also the Admin menu). Sibling `/cloudnex-connect/admin/test`. Local defaults remain `/admin` and `/demo` (demo GET redirects to Admin `/testing`). See `documents/VPS_STAGING.md`.
+Plus LINE **Cloudnex Sales** and **Cloudnex Customer** credentials, Firestore JSON credentials, sandbox Odoo, `ADMIN_USER_ID` (Sales OA LINE user ids), `OPS_API_TOKEN`, `PUBLIC_BASE_URL=https://amardhaka.io/cloudnex-connect`. Staging Admin env is `PUBLIC_ADMIN_BASE=/admin/test` (HTTP `/cloudnex-connect/admin/test` on `:8081`). Production Admin is `PUBLIC_ADMIN_BASE=/admin` (HTTP `/cloudnex-connect/admin/` on `:8080`). Local defaults remain `/admin` and `/demo` (demo GET redirects to Admin `/testing`). See `documents/VPS_STAGING.md`.
 
 Two Official Accounts (staging and production):
 
@@ -55,9 +53,9 @@ ENABLE_DEMO_CONTROL_PANEL=   # ignored; demo stays off
 ENABLE_WEBHOOK_TEST=         # ignored; stays off
 ```
 
-Use a **production** LINE OA, production Odoo, and a separate `ADMIN_USER_ID` / token set from staging. Do not enable Claw, async LINE, or Mongo unless those systems are provisioned and reviewed.
+VPS production is `/opt/cloudnex-connect` (`npm run deploy:vps-prod`): HMAC `/webhook*` on `:8080`, Admin `https://amardhaka.io/cloudnex-connect/admin/`. Cloud Run `deploy:prod` still requires signoff. Railway is not production.
 
-Cloud Run `release.yml` remains manual until GCP secrets exist. Railway is not production.
+Use a **production** LINE OA, production Odoo, and a separate `ADMIN_USER_ID` / token set from staging when cutting over from sandbox. Do not enable Claw, async LINE, or Mongo unless those systems are provisioned and reviewed.
 
 ## Identity and ERP (all lanes)
 

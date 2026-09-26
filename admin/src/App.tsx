@@ -1,6 +1,9 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import logo from './assets/cloudnex-connect.jpeg';
 import { DemoPanel } from './DemoPanel';
+import { HelpFaq } from './HelpFaq';
+import { CopyField, FaqItem, Steps, ToastStack, type ToastItem } from './ui';
+import { readUiLang, t, writeUiLang, type UiLang } from './i18n';
 
 const TOKEN_KEY = 'cloudnex_ops_token';
 const LEGACY_TOKEN_KEY = 'cns_ops_token';
@@ -20,6 +23,7 @@ declare global {
   interface Window {
     __ADMIN_BASE__?: string;
     __DEMO_BASE__?: string;
+    __PUBLIC_ORIGIN__?: string;
   }
 }
 
@@ -46,6 +50,7 @@ const PAGE_BY_LEAF: Record<string, string> = {
   advanced: 'advanced',
   testing: 'testing',
   demo: 'testing',
+  help: 'help',
   admin: 'home',
 };
 
@@ -77,6 +82,38 @@ const ADMIN_BASE = (() => {
   }
   return adminBaseFromPathname(window.location.pathname);
 })();
+
+const DEFAULT_ORIGIN = 'http://127.0.0.1:8080';
+
+const isHttpOrigin = (value: string): boolean => /^https?:\/\/.+/i.test(value);
+
+/** Never empty: absolute http(s) origin with no trailing slash. */
+const resolveOrigin = (candidate: string): string => {
+  const cleaned = (candidate || '').replace(/\/+$/, '');
+  if (isHttpOrigin(cleaned)) return cleaned;
+  if (typeof window !== 'undefined' && isHttpOrigin(window.location.origin)) {
+    return window.location.origin.replace(/\/+$/, '');
+  }
+  return DEFAULT_ORIGIN;
+};
+
+const originPath = (origin: string, path: string): string => {
+  const leaf = path.startsWith('/') ? path : `/${path}`;
+  return `${resolveOrigin(origin)}${leaf}`;
+};
+
+/** Host origin from PUBLIC_BASE_URL (https://amardhaka.io). Health/OpenAPI/webhooks stay here, not under /cloudnex-connect. */
+const publicOrigin = (): string => {
+  const injected = (typeof window !== 'undefined' ? window.__PUBLIC_ORIGIN__ : '') || '';
+  return resolveOrigin(injected);
+};
+
+const probeOrigin = (): string => {
+  if (typeof window !== 'undefined' && isHttpOrigin(window.location.origin)) {
+    return window.location.origin.replace(/\/+$/, '');
+  }
+  return publicOrigin();
+};
 
 const pathOf = (): string => {
   const raw = window.location.pathname.replace(/\/$/, '') || ADMIN_BASE;
@@ -261,63 +298,63 @@ const parseDash = (body: {
   actorBound: Boolean(body.actorBound),
 });
 
-const CopyField = ({ label, value }: { label: string; value: string }) => (
-  <div className="snippet">
-    <div className="snippet-bar">
-      <span>{label}</span>
-      <button type="button" className="copy" onClick={() => void navigator.clipboard.writeText(value)}>Copy</button>
-    </div>
-    <pre><code>{value}</code></pre>
-  </div>
-);
-
 type NavItem = { id: string; href: string; label: string };
-const NAV_GROUPS: Array<{ id: string; label: string; items: NavItem[] }> = [
-  { id: 'home', label: 'Home', items: [{ id: 'home', href: ADMIN_BASE, label: 'Overview' }] },
+const navGroupsFor = (lang: UiLang): Array<{ id: string; label: string; items: NavItem[] }> => [
+  { id: 'home', label: t(lang, 'navHome'), items: [{ id: 'home', href: ADMIN_BASE, label: t(lang, 'navOverview') }] },
   {
     id: 'identity',
-    label: 'Identity',
+    label: t(lang, 'navIdentity'),
     items: [
-      { id: 'identity', href: `${ADMIN_BASE}/identity`, label: 'Bind' },
-      { id: 'users', href: `${ADMIN_BASE}/users`, label: 'Directory' },
-      { id: 'privileges', href: `${ADMIN_BASE}/privileges`, label: 'Privileges' },
-      { id: 'language', href: `${ADMIN_BASE}/language`, label: 'Language' },
+      { id: 'identity', href: `${ADMIN_BASE}/identity`, label: t(lang, 'navBind') },
+      { id: 'users', href: `${ADMIN_BASE}/users`, label: t(lang, 'navDirectory') },
+      { id: 'privileges', href: `${ADMIN_BASE}/privileges`, label: t(lang, 'navPrivileges') },
+      { id: 'language', href: `${ADMIN_BASE}/language`, label: t(lang, 'navLanguage') },
     ],
   },
   {
     id: 'line',
-    label: 'LINE',
+    label: t(lang, 'navLine'),
     items: [
-      { id: 'line', href: `${ADMIN_BASE}/line`, label: 'Channels' },
-      { id: 'campaigns', href: `${ADMIN_BASE}/campaigns`, label: 'Campaigns' },
+      { id: 'line', href: `${ADMIN_BASE}/line`, label: t(lang, 'navChannels') },
+      { id: 'campaigns', href: `${ADMIN_BASE}/campaigns`, label: t(lang, 'navCampaigns') },
     ],
   },
   {
     id: 'work',
-    label: 'Work',
+    label: t(lang, 'navWork'),
     items: [
-      { id: 'crm', href: `${ADMIN_BASE}/crm`, label: 'CRM' },
-      { id: 'commands', href: `${ADMIN_BASE}/commands`, label: 'Commands' },
-      { id: 'jobs', href: `${ADMIN_BASE}/jobs`, label: 'Jobs' },
+      { id: 'crm', href: `${ADMIN_BASE}/crm`, label: t(lang, 'navCrm') },
+      { id: 'commands', href: `${ADMIN_BASE}/commands`, label: t(lang, 'navCommands') },
+      { id: 'jobs', href: `${ADMIN_BASE}/jobs`, label: t(lang, 'navJobs') },
     ],
   },
   {
     id: 'platform',
-    label: 'Platform',
+    label: t(lang, 'navPlatform'),
     items: [
-      { id: 'settings', href: `${ADMIN_BASE}/settings`, label: 'Settings' },
-      { id: 'logs', href: `${ADMIN_BASE}/logs`, label: 'Audit' },
-      { id: 'platform', href: `${ADMIN_BASE}/platform`, label: 'ERP' },
-      { id: 'advanced', href: `${ADMIN_BASE}/advanced`, label: 'Advanced' },
+      { id: 'settings', href: `${ADMIN_BASE}/settings`, label: t(lang, 'navSettings') },
+      { id: 'logs', href: `${ADMIN_BASE}/logs`, label: t(lang, 'navAudit') },
+      { id: 'platform', href: `${ADMIN_BASE}/platform`, label: t(lang, 'navErp') },
+      { id: 'advanced', href: `${ADMIN_BASE}/advanced`, label: t(lang, 'navAdvanced') },
+      { id: 'testing', href: `${ADMIN_BASE}/testing`, label: t(lang, 'navDemo') },
+      { id: 'help', href: `${ADMIN_BASE}/help`, label: t(lang, 'navHelp') },
     ],
   },
-  { id: 'testing', label: 'Demo', items: [{ id: 'testing', href: `${ADMIN_BASE}/testing`, label: 'Demo' }] },
 ];
 
 export const App = () => {
+  const [uiLang, setUiLang] = useState<UiLang>(() => readUiLang());
+  const NAV_GROUPS = useMemo(() => navGroupsFor(uiLang), [uiLang]);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const toast = (text: string, kind: ToastItem['kind'] = 'error') => {
+    const id = Date.now() + Math.random();
+    setToasts(list => [...list, { id, kind, text }]);
+    window.setTimeout(() => setToasts(list => list.filter(item => item.id !== id)), 5600);
+  };
   const [path, setPath] = useState(pathOf);
   const [token, setToken] = useState(() => sessionStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(LEGACY_TOKEN_KEY) || '');
   const [jobsToken, setJobsToken] = useState(() => sessionStorage.getItem(JOBS_TOKEN_KEY) || '');
+  const [jobOut, setJobOut] = useState('');
   const [authed, setAuthed] = useState(false);
   const [error, setError] = useState('');
   const [settings, setSettings] = useState<Record<string, unknown> | null>(null);
@@ -351,6 +388,9 @@ export const App = () => {
   const [campHistory, setCampHistory] = useState<Array<Record<string, unknown>>>([]);
   const [broadcastConfirm, setBroadcastConfirm] = useState('');
   const [platformSnap, setPlatformSnap] = useState<Record<string, unknown> | null>(null);
+  const [healthJson, setHealthJson] = useState('');
+  const [readyJson, setReadyJson] = useState('');
+  const [openapiJson, setOpenapiJson] = useState('');
   const [commands, setCommands] = useState<Array<Record<string, unknown>>>([]);
   const [toggles, setToggles] = useState<Array<{ key: string; effective: boolean; source: string }>>([]);
   const [langUser, setLangUser] = useState('');
@@ -475,6 +515,29 @@ export const App = () => {
     }
   };
 
+  const prettyJson = async (res: Response): Promise<string> => {
+    const text = await res.text();
+    try {
+      return JSON.stringify(JSON.parse(text), null, 2);
+    } catch {
+      return text || String(res.status);
+    }
+  };
+
+  const loadOverviewProbes = async () => {
+    const healthUrl = originPath(probeOrigin(), '/healthz');
+    const readyUrl = originPath(probeOrigin(), '/readyz');
+    const docsUrl = originPath(probeOrigin(), '/api-docs.json');
+    const h = await fetch(healthUrl);
+    setHealth(String(h.status));
+    setHealthJson(await prettyJson(h));
+    const r = await fetch(readyUrl);
+    setReady(String(r.status));
+    setReadyJson(await prettyJson(r));
+    const docs = await api(docsUrl);
+    setOpenapiJson(await prettyJson(docs));
+  };
+
   const reveal = async (secretKey: string) => {
     const issued = await api(`${ADMIN_BASE}/api/secrets/reveal-token`, { method: 'POST', body: JSON.stringify({ secretKey }) });
     const issuedBody = await issued.json() as { token?: string; expiresInSec?: number; error?: string };
@@ -556,10 +619,7 @@ export const App = () => {
     if (!authed) return;
     void (async () => {
       if (page === 'home') {
-        const h = await fetch('/healthz');
-        setHealth(`${h.status}`);
-        const r = await fetch('/readyz');
-        setReady(`${r.status}`);
+        await loadOverviewProbes();
         const dashRes = await api(`${ADMIN_BASE}/api/dashboard`);
         if (dashRes.ok) setDash(parseDash(await dashRes.json()));
         const plat = await api(`${ADMIN_BASE}/api/platform`);
@@ -581,10 +641,14 @@ export const App = () => {
       }
       if (page === 'settings') {
         await loadSettings();
-        const revealsRes = await api(`${ADMIN_BASE}/api/audit-log/reveals?limit=50`);
-        if (revealsRes.ok) {
-          const body = await revealsRes.json() as { events?: Array<Record<string, unknown>> };
-          setReveals(body.events || []);
+        if (actor) {
+          const revealsRes = await api(`${ADMIN_BASE}/api/audit-log/reveals?limit=50`);
+          if (revealsRes.ok) {
+            const body = await revealsRes.json() as { events?: Array<Record<string, unknown>> };
+            setReveals(body.events || []);
+          }
+        } else {
+          setReveals([]);
         }
         const tog = await api(`${ADMIN_BASE}/api/toggles`);
         if (tog.ok) {
@@ -610,7 +674,7 @@ export const App = () => {
         }
         return;
       }
-      if (page === 'identity') {
+      if (page === 'identity' || page === 'help') {
         await loadSettings();
         return;
       }
@@ -625,6 +689,11 @@ export const App = () => {
       if (page === 'privileges') {
         const res = await api(`${ADMIN_BASE}/api/privileges`);
         if (res.ok) setPrivilegeSnap(JSON.stringify(await res.json(), null, 2));
+        const usersRes = await api(`${ADMIN_BASE}/api/users?sales=1`);
+        if (usersRes.ok) {
+          const body = await usersRes.json() as { users?: Array<Record<string, unknown>> };
+          setUsers(body.users || []);
+        }
         return;
       }
       if (page === 'logs') {
@@ -652,83 +721,64 @@ export const App = () => {
     })();
   }, [authed, page, actor]);
 
-  const hostOrigin = window.location.origin;
-  const lineLoginCallback = idp?.callbacks?.lineLogin || `${hostOrigin}${ADMIN_BASE}/api/session/line/callback`;
-  const oidcCallback = idp?.callbacks?.oidc || `${hostOrigin}${ADMIN_BASE}/api/session/oidc/callback`;
-  const samlAcs = idp?.callbacks?.samlAcs || `${hostOrigin}${ADMIN_BASE}/api/session/saml/acs`;
-  const idpLinks = (
-    <div className="idp-bind">
-      <h3>Where to register URLs</h3>
-      <p>OTP bind (Identity) does not use these consoles. Register URLs only for the product you are turning on.</p>
-
-      <h3>1. Messaging API (required for LINE chat)</h3>
-      <p>
-        Open <a href="https://developers.line.biz/console/" target="_blank" rel="noreferrer">LINE Developers Console</a>
-        → your provider → the <strong>Messaging API</strong> channel (Sales or Customer) → <strong>Messaging API</strong> tab → <strong>Webhook URL</strong>. Enable Use webhook. This is not LINE Login.
-      </p>
-      <CopyField label="Sales OA → Webhook URL" value={`${hostOrigin}/webhook/sales`} />
-      <CopyField label="Customer OA → Webhook URL" value={`${hostOrigin}/webhook/customer`} />
-      <CopyField label="Default channel (same as Sales if unnamespaced)" value={`${hostOrigin}/webhook`} />
-
-      <h3>2. Official Account (OA side)</h3>
-      <p>
-        Open <a href="https://manager.line.biz/" target="_blank" rel="noreferrer">LINE Official Account Manager</a>
-        → the Sales or Customer OA → Response / bot settings. Confirm the OA is linked to the same Messaging API channel. Greeting and rich menu live here; the webhook URL still belongs in Developers Console.
-      </p>
-
-      <h3>3. LINE Login (optional Admin OAuth)</h3>
-      <p>
-        Same <a href="https://developers.line.biz/console/" target="_blank" rel="noreferrer">Developers Console</a>
-        → provider → <strong>Create a LINE Login channel</strong> (not Messaging API). Use the name and description below. App type: <strong>Web app</strong>. Then <strong>LINE Login</strong> tab → <strong>Callback URL</strong>. Copy Channel ID and Channel secret into <code>LINE_LOGIN_CHANNEL_ID</code> / <code>LINE_LOGIN_CHANNEL_SECRET</code> on the VPS.
-      </p>
-      <CopyField label="Channel name" value="Cloudnex Connect" />
-      <CopyField
-        label="Channel description (LINE Login consent / API listing)"
-        value="Cloudnex Connect Admin web sign-in. LINE Login (OAuth 2.0 PKCE) identifies the operator’s LINE user id so a super-admin cookie can be issued after OPS token auth. Scopes: profile and openid. This channel does not receive Messaging API webhooks."
-      />
-      <CopyField label="LINE Login APIs used" value="https://access.line.me/oauth2/v2.1/authorize (authorization code + PKCE S256, scope=profile openid)\nhttps://api.line.me/oauth2/v2.1/token (grant_type=authorization_code)\nhttps://api.line.me/v2/profile (if id_token has no LINE sub)" />
-      <CopyField label="LINE Login → Callback URL" value={lineLoginCallback} />
-      {idp?.lineLogin
-        ? <p><a href={`${ADMIN_BASE}/api/session/line/start`}>Start LINE Login</a></p>
-        : <p className="muted">LINE Login start stays off until those two env keys are set.</p>}
-
-      <h3>4. Okta OIDC (optional)</h3>
-      <p>Okta Admin → Applications → your OIDC app → <strong>Sign-in redirect URIs</strong>. Then set <code>OKTA_ISSUER</code>, <code>OKTA_CLIENT_ID</code>, <code>OKTA_CLIENT_SECRET</code>.</p>
-      <CopyField label="Okta → Sign-in redirect URI" value={oidcCallback} />
-      {idp?.oktaOidc
-        ? <p><a href={`${ADMIN_BASE}/api/session/oidc/start`}>Start Okta OIDC</a></p>
-        : <p className="muted">Okta OIDC start stays off until those env keys are set.</p>}
-
-      <h3>5. SAML (optional)</h3>
-      <p>Your IdP (Okta SAML app or other) → <strong>ACS / Single sign-on URL</strong>. Then set <code>SAML_IDP_SSO_URL</code> and <code>SAML_IDP_CERT</code>.</p>
-      <CopyField label="SAML → ACS URL" value={samlAcs} />
-      {idp?.saml
-        ? <p><a href={`${ADMIN_BASE}/api/session/saml/start`}>Start SAML</a></p>
-        : <p className="muted">SAML start stays off until those env keys are set.</p>}
-    </div>
+  const hostOrigin = probeOrigin();
+  const lineLoginCallback = `${hostOrigin}${ADMIN_BASE}/api/session/line/callback`;
+  const oidcCallback = `${hostOrigin}${ADMIN_BASE}/api/session/oidc/callback`;
+  const samlAcs = `${hostOrigin}${ADMIN_BASE}/api/session/saml/acs`;
+  const helpFaq = (
+    <HelpFaq
+      hostOrigin={hostOrigin}
+      adminBase={ADMIN_BASE}
+      lineLoginCallback={lineLoginCallback}
+      oidcCallback={oidcCallback}
+      samlAcs={samlAcs}
+      idp={idp || undefined}
+      showStartLinks
+    />
   );
 
   if (!authed) {
     return (
-      <main>
-        <div className="card">
-          <div className="login-brand">
-            <img className="login-logo" src={logo} alt="" />
+      <>
+        <header>
+          <a className="brand" href={ADMIN_BASE} onClick={e => { e.preventDefault(); go(ADMIN_BASE); }}>
+            <img src={logo} alt="" />
             <span className="brand-name">Cloudnex Connect</span>
+          </a>
+          <div className="header-end">
+            <nav>
+              <a
+                className={page === 'help' ? 'active' : ''}
+                href={`${ADMIN_BASE}/help`}
+                onClick={e => { e.preventDefault(); go(`${ADMIN_BASE}/help`); }}
+              >{t(uiLang, 'navHelp')}</a>
+            </nav>
           </div>
-          <h1>Admin</h1>
-          <p>Sign in with the OPS token first. Super-admin bind is Identity → Bind (LINE OTP). The URL list below is only for Messaging API / LINE Login / Okta / SAML consoles.</p>
-          <form className="field-row" onSubmit={login}>
-            <div className="field">
-              <label htmlFor="ops-token">OPS token</label>
-              <input id="ops-token" type="password" value={token} onChange={e => setToken(e.target.value)} placeholder="OPS_API_TOKEN" autoComplete="off" />
+        </header>
+        {page === 'help' ? (
+          <main>
+            <div className="card">
+              <h2>Help</h2>
+              {helpFaq}
             </div>
-            <button type="submit">Sign in</button>
-          </form>
-          {idpLinks}
-          {error ? <p className="error">{error}</p> : null}
-        </div>
-      </main>
+          </main>
+        ) : (
+          <main className="login-page">
+            <div className="card login-card">
+              <h1>Admin</h1>
+              <p className="page-lead">OPS token to enter. Super-admin bind is Identity after sign-in.</p>
+              <form className="field-row" onSubmit={login}>
+                <div className="field">
+                  <label htmlFor="ops-token">OPS token</label>
+                  <input id="ops-token" type="password" value={token} onChange={e => setToken(e.target.value)} placeholder="OPS_API_TOKEN" autoComplete="off" />
+                </div>
+                <button type="submit">{t(uiLang, 'signIn')}</button>
+              </form>
+              {error ? <p className="error">{error}</p> : null}
+            </div>
+          </main>
+        )}
+      </>
     );
   }
 
@@ -806,9 +856,10 @@ export const App = () => {
             await api(`${ADMIN_BASE}/api/session/logout`, { method: 'POST' });
             sessionStorage.removeItem(TOKEN_KEY);
             setAuthed(false);
-          }}>Sign out</button>
+          }}>{t(uiLang, 'signOut')}</button>
         </div>
       </header>
+      <ToastStack items={toasts} onDismiss={id => setToasts(list => list.filter(item => item.id !== id))} />
       <main>
         {error ? <p className="error">{error}</p> : null}
         {(page === 'campaigns' || page === 'settings') && !actor ? (
@@ -835,7 +886,7 @@ export const App = () => {
           <div className="overview-grid">
             <div className="card">
               <h2>Overview</h2>
-              <p>HMAC LINE → Firestore → one command router. Demo is testing only. Lock: {String(settings?.lock)}</p>
+            <p className="page-lead">HMAC LINE inbound. Demo is testing only. Lock: {String(settings?.lock)}</p>
               <div className="status-grid">
                 {statusRows.map(row => (
                   <div key={row.label} className={`status-cell ${row.on ? 'on' : 'off'}`}>
@@ -847,10 +898,7 @@ export const App = () => {
               </div>
               <div className="row">
                 <button type="button" onClick={async () => {
-                  const h = await fetch('/healthz');
-                  setHealth(`${h.status}`);
-                  const r = await fetch('/readyz');
-                  setReady(`${r.status}`);
+                  await loadOverviewProbes();
                   await loadSettings();
                   const plat = await api(`${ADMIN_BASE}/api/platform`);
                   if (plat.ok) {
@@ -863,10 +911,26 @@ export const App = () => {
                   const dashRes = await api(`${ADMIN_BASE}/api/dashboard`);
                   if (dashRes.ok) setDash(parseDash(await dashRes.json()));
                 }}>Refresh</button>
-                <a href="/healthz">/healthz {health}</a>
-                <a href="/readyz">/readyz {ready}</a>
-                <a href="/api-docs">OpenAPI</a>
               </div>
+              <h3>Host probes</h3>
+              <CopyField
+                label="GET /healthz"
+                url={originPath(publicOrigin(), '/healthz')}
+                src={originPath(probeOrigin(), '/healthz')}
+                value={healthJson || `HTTP ${health || '—'}`}
+              />
+              <CopyField
+                label="GET /readyz"
+                url={originPath(publicOrigin(), '/readyz')}
+                src={originPath(probeOrigin(), '/readyz')}
+                value={readyJson || `HTTP ${ready || '—'}`}
+              />
+              <CopyField
+                label="GET /api-docs.json"
+                url={originPath(publicOrigin(), '/api-docs.json')}
+                value={openapiJson || 'Not loaded.'}
+                load={() => api(originPath(probeOrigin(), '/api-docs.json')).then(prettyJson)}
+              />
               {platformSnap ? <CopyField label="Platform" value={JSON.stringify(platformSnap, null, 2)} /> : null}
             </div>
             <div className="card">
@@ -886,18 +950,16 @@ export const App = () => {
           </div>
           );
         })() : null}
+        {page === 'help' ? (
+          <div className="card">
+            <h2>Help</h2>
+            {helpFaq}
+          </div>
+        ) : null}
         {page === 'identity' ? (
           <div className="card">
-            <h2>Identity</h2>
-            <ol className="howto">
-              <li>OPS token sign-in is done. That is not the super-admin bind.</li>
-              <li>On the VPS <code>/opt/cloudnex-connect/.env</code> set the same Cloudnex Sales LINE id on both keys, then recreate the container:
-                <code>ADMIN_USER_ID=U…</code> and <code>SUPER_ADMIN_USER_IDS=U…</code>
-              </li>
-              <li>In LINE, talk to Cloudnex Sales and run VERIFY so the profile is <code>odooVerified</code>.</li>
-              <li>Paste that <code>U…</code> below, Send code, enter the OTP from Sales. The header pill then shows the bound LINE id.</li>
-              <li>LINE Login / Okta / SAML stay off until those extra credentials exist. They are not required for bind.</li>
-            </ol>
+            <h2>Bind</h2>
+            <p className="page-lead">LINE id → profile → odooVerified → ADMIN_USER_ID | SUPER_ADMIN_USER_IDS. Actor is a LINE user id, not an Odoo login.</p>
             <div className="status-grid">
               <div className={`status-cell ${bindHints.adminAllowlistSet ? 'on' : 'off'}`}>
                 <span className="status-dot" aria-hidden="true" />
@@ -907,7 +969,7 @@ export const App = () => {
               <div className={`status-cell ${bindHints.superAdminAllowlistSet ? 'on' : 'off'}`}>
                 <span className="status-dot" aria-hidden="true" />
                 <span className="status-label">SUPER_ADMIN_USER_IDS</span>
-                <span className="status-value">{bindHints.superAdminAllowlistSet ? 'set (also on ADMIN_USER_ID)' : 'unset or not overlapping ADMIN_USER_ID'}</span>
+                <span className="status-value">{bindHints.superAdminAllowlistSet ? 'overlap set' : 'unset / no overlap'}</span>
               </div>
               <div className={`status-cell ${actor ? 'on' : 'off'}`}>
                 <span className="status-dot" aria-hidden="true" />
@@ -915,13 +977,10 @@ export const App = () => {
                 <span className="status-value">{actor ? 'bound' : 'not bound'}</span>
               </div>
             </div>
-            <p>Fail-closed chain: LINE id → profile → odooVerified → ADMIN_USER_ID → SUPER_ADMIN_USER_IDS. The bound actor is a LINE user id, not an Odoo login.</p>
-            {actor ? <CopyField label="Bound LINE user id" value={actor} /> : null}
-            {idpLinks}
             <div className="field-row">
               <div className="field">
                 <label>LINE user id</label>
-                <input value={bindUser} onChange={e => setBindUser(e.target.value)} placeholder="LINE user id" />
+                <input value={bindUser} onChange={e => setBindUser(e.target.value)} placeholder="U…" />
               </div>
               <button type="button" onClick={async () => {
                 const res = await api(`${ADMIN_BASE}/api/session/bind`, { method: 'POST', body: JSON.stringify({ lineUserId: bindUser }) });
@@ -937,6 +996,16 @@ export const App = () => {
                 await loadSettings();
               }}>Confirm</button>
             </div>
+            {actor ? <CopyField label="Bound LINE user id" value={actor} /> : null}
+            <FaqItem title="How to bind">
+              <Steps items={[
+                <>OPS token is not the super-admin bind.</>,
+                <>VPS <code>/opt/cloudnex-connect/.env</code>: same Sales LINE id on <code>ADMIN_USER_ID</code> and <code>SUPER_ADMIN_USER_IDS</code>, then recreate the container.</>,
+                <>In LINE, VERIFY on Cloudnex Sales so the profile is <code>odooVerified</code>.</>,
+                <>Paste that <code>U…</code>, Send code, enter the OTP from Sales.</>,
+                <>LINE Login / Okta / SAML are optional. URLs are under Help.</>,
+              ]} />
+            </FaqItem>
           </div>
         ) : null}
         {page === 'settings' ? (
@@ -964,10 +1033,14 @@ export const App = () => {
             </table>
             </div>
             <h3>Unmask log</h3>
-            <button type="button" onClick={async () => {
+            {!actor ? <p className="muted">Super-admin bind required. Secret reveal audit stays closed until Identity → Bind.</p> : null}
+            <button type="button" disabled={!actor} onClick={async () => {
               const res = await api(`${ADMIN_BASE}/api/audit-log/reveals?limit=50`);
               const body = await res.json() as { events?: Array<Record<string, unknown>>; error?: string };
-              if (!res.ok) setError(body.error || 'Forbidden');
+              if (!res.ok) {
+                toast(body.error || t(uiLang, 'toastForbidden'));
+                return;
+              }
               setReveals(body.events || []);
             }}>Load reveals</button>
             <table>
@@ -1022,9 +1095,18 @@ export const App = () => {
           </div>
         ) : null}
         {page === 'language' ? (
+          <>
           <div className="card">
-            <h2>Language</h2>
-            <p>LINE replies follow the Firestore profile language (EN/TH). Tray Language toggles it in chat. Here you set it for a LINE user id.</p>
+            <h2>{t(uiLang, 'uiLanguage')}</h2>
+            <p className="page-lead">EN/TH for Admin chrome (nav, toasts). LINE chat language stays on the user profile below.</p>
+            <div className="field-row">
+              <button type="button" className={uiLang === 'en' ? '' : 'secondary'} onClick={() => { writeUiLang('en'); setUiLang('en'); }}>English</button>
+              <button type="button" className={uiLang === 'th' ? '' : 'secondary'} onClick={() => { writeUiLang('th'); setUiLang('th'); }}>ไทย</button>
+            </div>
+          </div>
+          <div className="card">
+            <h2>{t(uiLang, 'lineUserLanguage')}</h2>
+            <p>LINE replies follow the Firestore profile language (EN/TH). Tray Language toggles it in chat.</p>
             <div className="field-row">
               <div className="field">
                 <label>LINE user id</label>
@@ -1035,26 +1117,26 @@ export const App = () => {
                 const res = await api(`${ADMIN_BASE}/api/users?userId=${encodeURIComponent(langUser.trim())}`);
                 const body = await res.json() as { users?: Array<{ userId?: string; language?: string }>; error?: string };
                 if (!res.ok) {
-                  setError(body.error || 'Lookup failed');
+                  toast(body.error || t(uiLang, 'toastUnauthorized'));
                   return;
                 }
                 const user = body.users?.[0];
                 setLangCurrent(String(user?.language || ''));
-                setError('');
               }}>Lookup</button>
               <button type="button" onClick={async () => {
                 const res = await api(`${ADMIN_BASE}/api/users/${encodeURIComponent(langUser)}`, { method: 'PATCH', body: JSON.stringify({ language: 'en' }) });
-                setError(res.ok ? '' : await readError(res, 'Set English failed'));
-                if (res.ok) setLangCurrent('en');
+                if (!res.ok) toast(await readError(res, 'Set English failed'));
+                else setLangCurrent('en');
               }}>Set English</button>
               <button type="button" onClick={async () => {
                 const res = await api(`${ADMIN_BASE}/api/users/${encodeURIComponent(langUser)}`, { method: 'PATCH', body: JSON.stringify({ language: 'th' }) });
-                setError(res.ok ? '' : await readError(res, 'Set Thai failed'));
-                if (res.ok) setLangCurrent('th');
+                if (!res.ok) toast(await readError(res, 'Set Thai failed'));
+                else setLangCurrent('th');
               }}>Set Thai</button>
             </div>
             {langCurrent ? <CopyField label="Current language" value={langCurrent} /> : null}
           </div>
+          </>
         ) : null}
         {page === 'commands' ? (
           <div className="card">
@@ -1069,9 +1151,15 @@ export const App = () => {
                 setError(res.ok ? '' : 'Could not load commands');
               }}>Load commands</button>
               <button type="button" onClick={async () => {
-                const patch: Record<string, { enabled: boolean }> = {};
+                const patch: Record<string, { enabled: boolean; labelEn?: string; labelTh?: string }> = {};
                 for (const row of commands) {
-                  if (typeof row.id === 'string') patch[row.id] = { enabled: row.enabled !== false };
+                  if (typeof row.id === 'string') {
+                    patch[row.id] = {
+                      enabled: row.enabled !== false,
+                      labelEn: String(row.labelEn || ''),
+                      labelTh: String(row.labelTh || ''),
+                    };
+                  }
                 }
                 const res = await api(`${ADMIN_BASE}/api/commands`, { method: 'PUT', body: JSON.stringify({ commands: patch }) });
                 const body = await res.json() as { commands?: Array<Record<string, unknown>>; error?: string };
@@ -1084,7 +1172,7 @@ export const App = () => {
             </div>
             <div className="table-wrap">
               <table>
-                <thead><tr><th>On</th><th>Prefix</th><th>EN / TH</th><th>Category</th><th>Roles</th><th>Channels</th></tr></thead>
+                <thead><tr><th>On</th><th>Prefix</th><th>EN</th><th>TH</th><th>Category</th><th>Roles</th></tr></thead>
                 <tbody>
                   {commands.map((row, i) => (
                     <tr key={String(row.id || i)}>
@@ -1095,10 +1183,20 @@ export const App = () => {
                         }} />
                       </td>
                       <td><code>{String(row.prefix || '')}</code></td>
-                      <td>{String(row.labelEn || '')} / {String(row.labelTh || '')}</td>
+                      <td>
+                        <input value={String(row.labelEn || '')} onChange={e => {
+                          const labelEn = e.target.value;
+                          setCommands(prev => prev.map(item => item.id === row.id ? { ...item, labelEn } : item));
+                        }} />
+                      </td>
+                      <td>
+                        <input value={String(row.labelTh || '')} onChange={e => {
+                          const labelTh = e.target.value;
+                          setCommands(prev => prev.map(item => item.id === row.id ? { ...item, labelTh } : item));
+                        }} />
+                      </td>
                       <td>{String(row.category || '')}</td>
                       <td>{Array.isArray(row.roles) ? row.roles.join(', ') : ''}</td>
-                      <td>{Array.isArray(row.channels) ? row.channels.join(', ') : ''}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1154,7 +1252,11 @@ export const App = () => {
         {page === 'users' ? (
           <div className="card">
             <h2>Directory</h2>
-            <p>Paste a LINE user id (<code>U</code> + 32 hex), a phone, or an Odoo partner id. This is Firestore identity plus live Odoo <code>res.users</code> groups via the ERP adapter — not a second LINE router.</p>
+            <p className="page-lead">Paste a LINE user id (<code>U</code> + 32 hex), a phone, or an Odoo partner id. Empty lookup lists verified sales.</p>
+            <Steps items={[
+              <>Lookup with a LINE id, phone, or partner id, or leave empty for verified sales.</>,
+              <>Open Activity for audit rows on that user.</>,
+            ]} />
             <div className="field-row">
               <div className="field">
                 <label>LINE user id, phone, or partner id</label>
@@ -1225,18 +1327,28 @@ export const App = () => {
           </div>
         ) : null}
         {page === 'privileges' ? (
+          <>
           <div className="card">
             <h2>Privileges</h2>
-            <p>LINE command role is Firestore <code>role</code> + verification. Admin grant still requires the fail-closed chain. Odoo groups are live from the ERP API on Directory lookup.</p>
-            <div className="row">
-              <button type="button" onClick={async () => {
-                const res = await api(`${ADMIN_BASE}/api/privileges`);
-                const body = await res.json() as Record<string, unknown>;
-                setPrivilegeSnap(JSON.stringify(body, null, 2));
-                setError(res.ok ? '' : 'Privileges load failed');
-              }}>Load allowlist</button>
+            <p className="page-lead">Roles from Directory. Admin grant still uses the fail-closed chain.</p>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>LINE user</th><th>Role</th><th>Verified</th></tr></thead>
+                <tbody>
+                  {users.map((u, i) => (
+                    <tr key={String(u.userId || i)}>
+                      <td>{String(u.userId || '')}</td>
+                      <td>{String(u.commandRole || u.role || '')}</td>
+                      <td>{String(u.odooVerified)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            {privilegeSnap ? <CopyField label="LINE admin allowlist + chain" value={privilegeSnap} /> : null}
+          </div>
+          <div className="card">
+            <h2>Allowlist</h2>
+            {privilegeSnap ? <CopyField label="LINE admin allowlist + chain" value={privilegeSnap} /> : <p className="muted">Loading…</p>}
             <div className="field-row">
               <div className="field">
                 <label>Grant LINE admin (verified + allowlisted)</label>
@@ -1244,10 +1356,12 @@ export const App = () => {
               </div>
               <button type="button" disabled={!actor} onClick={async () => {
                 const res = await api(`${ADMIN_BASE}/api/privileges/enable`, { method: 'POST', body: JSON.stringify({ userId: grantUser.trim() }) });
-                setError(res.ok ? '' : await readError(res, 'Grant failed'));
+                if (!res.ok) toast(await readError(res, t(uiLang, 'toastForbidden')));
+                else toast('Granted', 'ok');
               }}>Grant role=admin</button>
             </div>
           </div>
+          </>
         ) : null}
         {page === 'logs' ? (
           <div className="card">
@@ -1293,6 +1407,11 @@ export const App = () => {
         {page === 'platform' ? (
           <div className="card">
             <h2>ERP / platform</h2>
+            <p className="page-lead">ERP adapter status, tenant key, and e-sign/payment probes. Odoo masters stay in Odoo.</p>
+            <Steps items={[
+              <>Refresh ERP to load adapter status.</>,
+              <>Save tenant only when ADMIN_CONFIG_LOCK is off.</>,
+            ]} />
             <div className="field-row">
               <div className="field">
                 <label>Tenant key</label>
@@ -1316,30 +1435,73 @@ export const App = () => {
                 setErpStatus(JSON.stringify(await st.json(), null, 2));
               }}>Refresh ERP</button>
             </div>
-            <p>ERP: {erp || '—'}</p>
+            {erp ? <CopyField label="ERP probe" value={erp} /> : null}
             {erpStatus ? <CopyField label="E-sign / payment status" value={erpStatus} /> : null}
             <CopyField label="Platform settings" value={JSON.stringify({ lock: settings?.lock, missingRequired: settings?.missingRequired, capabilities: settings?.capabilities }, null, 2)} />
           </div>
         ) : null}
         {page === 'jobs' ? (
+          <>
           <div className="card">
             <h2>Jobs</h2>
+            <p className="page-lead">{t(uiLang, 'jobsNeedToken')}</p>
             <div className="field-row">
               <div className="field">
                 <label>ADMIN_SECRET_TOKEN</label>
-                <input type="password" value={jobsToken} onChange={e => { setJobsToken(e.target.value); sessionStorage.setItem(JOBS_TOKEN_KEY, e.target.value); }} placeholder="ADMIN_SECRET_TOKEN" />
+                <input type="password" value={jobsToken} onChange={e => { setJobsToken(e.target.value); sessionStorage.setItem(JOBS_TOKEN_KEY, e.target.value); }} placeholder="ADMIN_SECRET_TOKEN" autoComplete="off" />
               </div>
-              <button type="button" onClick={async () => {
-                const res = await fetch(`${ADMIN_BASE}/api/jobs/daily-report`, { method: 'POST', credentials: 'include', headers: { authorization: `Bearer ${jobsToken}` } });
-                setError(res.ok ? '' : 'Job failed');
-              }}>Daily report</button>
             </div>
           </div>
+          <div className="card">
+            <h2>Run</h2>
+            <div className="field-row">
+              {(['daily-report', 'segmentation', 'seed-odoo'] as const).map(name => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={async () => {
+                    const secret = jobsToken.trim();
+                    if (secret.length < 16) {
+                      toast(t(uiLang, 'toastAdminSecret'));
+                      return;
+                    }
+                    const res = await fetch(`${ADMIN_BASE}/api/jobs/${name}`, {
+                      method: 'POST',
+                      credentials: 'include',
+                      headers: { authorization: `Bearer ${secret}` },
+                    });
+                    const body = await res.json().catch(() => ({})) as { error?: string; message?: string };
+                    if (!res.ok) {
+                      toast(body.error || t(uiLang, 'toastUnauthorized'));
+                      setJobOut('');
+                      return;
+                    }
+                    setJobOut(body.message || `${name} ok`);
+                    toast(body.message || `${name} ok`, 'ok');
+                  }}
+                >{name}</button>
+              ))}
+            </div>
+            {jobOut ? <CopyField label="Last job result" value={jobOut} /> : null}
+          </div>
+          <div className="card">
+            <h2>curl</h2>
+            <CopyField
+              label="curl (staging)"
+              value={`curl -X POST '${hostOrigin}${ADMIN_BASE}/api/jobs/daily-report' -H "Authorization: Bearer $ADMIN_SECRET_TOKEN"`}
+            />
+          </div>
+          </>
         ) : null}
         {page === 'line' ? (
           <div className="card">
             <h2>LINE channels</h2>
-            <p>Add another OA. Existing <code>POST /webhook/:channelId</code>. Overlay only when ADMIN_CONFIG_LOCK is off.</p>
+            <p className="page-lead">Add another OA. Existing <code>POST /webhook/:channelId</code>. Overlay only when ADMIN_CONFIG_LOCK is off.</p>
+            <Steps items={[
+              <>Copy the webhook URL for that channel id.</>,
+              <>Paste secret and access token, then Save channel.</>,
+              <>Set the same URL on the Messaging API channel in LINE Developers.</>,
+            ]} />
             {lineForm}
             {channelWebhook ? <CopyField label="New channel webhook" value={channelWebhook} /> : null}
             <CopyField label="Webhooks" value={JSON.stringify(webhooks, null, 2)} />
@@ -1348,7 +1510,12 @@ export const App = () => {
         {page === 'campaigns' ? (
           <div className="card">
             <h2>Campaigns</h2>
-            <p>Channel → class → message → preview → test → multicast Send. Promo uses Send only (honors PROMO OFF). LINE Broadcast cannot filter opt-out; it is blocked for promo class.</p>
+            <p className="page-lead">Channel → class → message → preview → test → multicast Send. Promo uses Send only (honors PROMO OFF). LINE Broadcast cannot filter opt-out; it is blocked for promo class.</p>
+            <Steps items={[
+              <>Bind super-admin on Identity if the header pill says not bound.</>,
+              <>Choose channel and class, write the message, then Preview.</>,
+              <>Test to yourself, then Send multicast. Do not Broadcast promo.</>,
+            ]} />
             {!actor ? <p className="warn">Bind super-admin on Identity first. Campaign send stays disabled until the actor cookie is set.</p> : null}
             <div className="row">
               <select value={campChannel} onChange={e => setCampChannel(e.target.value)}>

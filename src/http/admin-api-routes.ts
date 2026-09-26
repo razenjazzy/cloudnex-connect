@@ -57,6 +57,7 @@ import {
   describeAdminIdp,
   exchangeLineLoginCode,
   exchangeOktaCode,
+  idpCallbackOrigin,
   issueOauthState,
   verifySamlResponse,
 } from '../services/admin-idp';
@@ -183,6 +184,14 @@ const webhookTable = (base: string) => {
   };
 };
 
+const requestHttpOrigin = (req: Request): string | undefined => {
+  const protoRaw = String(req.get('x-forwarded-proto') || req.protocol || '').split(',')[0].trim().toLowerCase();
+  const proto = protoRaw === 'http' || protoRaw === 'https' ? protoRaw : '';
+  const host = String(req.get('x-forwarded-host') || req.get('host') || '').split(',')[0].trim();
+  if (!proto || !host) return undefined;
+  return `${proto}://${host}`.replace(/\/+$/, '');
+};
+
 export const registerAdminApiRoutes = (app: Express): void => {
   const router = express.Router();
   router.post('/bootstrap', jsonParser, adminApiLimiter, async (req, res) => {
@@ -213,7 +222,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ ok: true, bootstrapComplete: true });
   });
 
-  router.get('/settings', adminApiLimiter, requireAdminPanelAccess, async (_req, res) => {
+  router.get('/settings', adminApiLimiter, requireAdminPanelAccess, async (req, res) => {
     await hydrateRuntimeSettings();
     const base = getRuntime('PUBLIC_BASE_URL');
     const envAudit = auditEnvParams(appEnv);
@@ -227,7 +236,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
       missingRequired: envAudit.missingRequired,
       capabilities: adapter.capabilities,
       modules: getDemoPlatformPayload(),
-      idp: describeAdminIdp(),
+      idp: describeAdminIdp(requestHttpOrigin(req)),
       appEnv,
       optionalFlags: describeOptionalFlags(),
       queueReady: isQueueBackendReady(),
@@ -504,7 +513,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     if (!ipAllowedForAdmin(req.ip || req.socket.remoteAddress || '')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
-    return res.json(describeAdminIdp());
+    return res.json(describeAdminIdp(requestHttpOrigin(req)));
   });
 
   const startLine = async (req: Request, res: Response, redirect: boolean) => {
@@ -512,7 +521,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
       return res.status(403).json({ error: 'Forbidden' });
     }
     const issued = await issueOauthState('line_login');
-    const url = buildLineAuthorizeUrl(issued.state, issued.verifier);
+    const url = buildLineAuthorizeUrl(issued.state, issued.verifier, requestHttpOrigin(req));
     if (!url) return res.status(503).json({ error: 'LINE Login is not configured.' });
     res.setHeader('Set-Cookie', issued.cookie);
     if (redirect) return res.redirect(302, url);
@@ -532,7 +541,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
       await recordAuditEvent({ action: 'admin_session_bind', outcome: 'failure', actorUserId: 'unknown', detail: 'line_login_state' });
       return res.redirect(302, `${adminBase()}?idp_error=1`);
     }
-    const userId = await exchangeLineLoginCode(code, verifier);
+    const userId = await exchangeLineLoginCode(code, verifier, requestHttpOrigin(req));
     return completeIdp(res, userId, 'line_login', true);
   });
 
@@ -541,7 +550,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
       return res.status(403).json({ error: 'Forbidden' });
     }
     const issued = await issueOauthState('okta_oidc');
-    const url = buildOktaAuthorizeUrl(issued.state, issued.verifier);
+    const url = buildOktaAuthorizeUrl(issued.state, issued.verifier, requestHttpOrigin(req));
     if (!url) return res.status(503).json({ error: 'Okta OIDC is not configured.' });
     res.setHeader('Set-Cookie', issued.cookie);
     if (redirect) return res.redirect(302, url);
@@ -561,7 +570,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
       await recordAuditEvent({ action: 'admin_session_bind', outcome: 'failure', actorUserId: 'unknown', detail: 'okta_oidc_state' });
       return res.redirect(302, `${adminBase()}?idp_error=1`);
     }
-    const userId = await exchangeOktaCode(code, verifier);
+    const userId = await exchangeOktaCode(code, verifier, requestHttpOrigin(req));
     return completeIdp(res, userId, 'okta_oidc', true);
   });
 
@@ -570,7 +579,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
       return res.status(403).json({ error: 'Forbidden' });
     }
     if (!describeAdminIdp().saml) return res.status(503).json({ error: 'SAML is not configured.' });
-    res.type('application/xml').send(buildSamlMetadataXml());
+    res.type('application/xml').send(buildSamlMetadataXml(requestHttpOrigin(req)));
   });
 
   router.get('/session/saml/start', adminApiLimiter, async (req, res) => {
@@ -578,7 +587,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
       return res.status(403).json({ error: 'Forbidden' });
     }
     const issued = await issueOauthState('saml');
-    const url = buildSamlRedirectUrl(issued.state);
+    const url = buildSamlRedirectUrl(issued.state, requestHttpOrigin(req));
     if (!url) return res.status(503).json({ error: 'SAML is not configured.' });
     res.setHeader('Set-Cookie', issued.cookie);
     return res.redirect(302, url);
@@ -595,7 +604,8 @@ export const registerAdminApiRoutes = (app: Express): void => {
       await recordAuditEvent({ action: 'admin_session_bind', outcome: 'failure', actorUserId: 'unknown', detail: 'saml_state' });
       return res.redirect(302, `${adminBase()}?idp_error=1`);
     }
-    const audience = getRuntime('SAML_SP_ENTITY_ID') || `${originFromPublicBaseUrl(getRuntime('PUBLIC_BASE_URL'))}${adminBase()}/api/session/saml/metadata`;
+    const audience = getRuntime('SAML_SP_ENTITY_ID')
+      || `${idpCallbackOrigin(requestHttpOrigin(req))}${adminBase()}/api/session/saml/metadata`;
     const userId = verifySamlResponse(raw, audience, getRuntime('SAML_IDP_CERT'));
     return completeIdp(res, userId, 'saml', true);
   });

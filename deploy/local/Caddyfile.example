@@ -1,0 +1,17 @@
+# Local HTTPS front for Express on :8080. Do not strip /cloudnex-connect.
+#   echo '127.0.0.1 site.local' | sudo tee -a /etc/hosts
+#   npm run dev            # background Caddy + Express
+#   npm run dev:fg         # foreground nodemon logs
+#   npm run dev:stop       # stop Express (leaves Caddy)
+# Admin: https://site.local/cloudnex-connect/admin/
+# Health: https://site.local/healthz  (host root, same as staging)
+
+site.local {
+	tls internal
+	encode gzip
+	reverse_proxy 127.0.0.1:8080 {
+		header_up X-Forwarded-Proto {scheme}
+		header_up X-Forwarded-Host {host}
+		header_up Host {host}
+	}
+}

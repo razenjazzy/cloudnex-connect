@@ -1,22 +1,23 @@
-# Staging VM: Cloudnex Connect on amardhaka.io
+# Cloudnex Connect on amardhaka.io (two VPS lanes)
 
-Formerly `/opt/cns-line-oa`. App directory is **`/opt/cloudnex-connect`**. Secrets stay on the VM — never commit `.env`.
+Secrets stay on the VM — never commit `.env`. Laptop **builds and pushes** `razenjazzy/cloudnex-connect:staging`. The VPS **docker pull**s that image (no `npm install` / `npm ci` on the host).
 
-LINE HMAC → Firestore profile → one `resolveCommandReply` → Flex. Laptop/CI **builds and pushes** `razenjazzy/cloudnex-connect:staging`. The VPS **docker pull**s that image (no `npm install` / `npm ci` on the host).
+LINE HMAC → Firestore profile → one `resolveCommandReply` → Flex. Webhooks stay on **production** `:8080`.
+
+| Lane | Directory | Port | Admin | Compose | `APP_ENV` |
+|---|---|---|---|---|---|
+| Production | `/opt/cloudnex-connect` | `127.0.0.1:8080` | `https://amardhaka.io/cloudnex-connect/admin/` | `docker-compose.production.yml` | `production` |
+| Staging | `/opt/cns-line-oa` | `127.0.0.1:8081` | `https://amardhaka.io/cloudnex-connect/admin/test` | `docker-compose.sibling.yml` | `staging` |
 
 | | |
 |---|---|
 | Domain | `https://amardhaka.io` |
 | Host | `root@187.127.179.49` |
-| App | `/opt/cloudnex-connect` |
-| Env | `/opt/cloudnex-connect/.env` (server only) |
 | Image | `razenjazzy/cloudnex-connect:staging` |
-| Compose | `deploy/hostinger/docker-compose.staging.yml` |
-| Lane | `APP_ENV=staging`, image `NODE_ENV=production` |
-| Sales webhook | `POST https://amardhaka.io/webhook/sales` |
-| Customer webhook | `POST https://amardhaka.io/webhook/customer` |
+| Sales webhook | `POST https://amardhaka.io/webhook/sales` (8080) |
+| Customer webhook | `POST https://amardhaka.io/webhook/customer` (8080) |
 
-Existing VM: `mv /opt/cns-line-oa /opt/cloudnex-connect` and keep the same `.env`. Then update nginx if it still points at the old path (compose `env_file` is `/opt/cloudnex-connect/.env`).
+Each lane has its own `/opt/.../.env`. Staging deploy seeds `/opt/cns-line-oa/.env` from production only if the sibling file is missing.
 
 ---
 
@@ -40,13 +41,14 @@ DNS: A `@` → `187.127.179.49`. CNAME `www` → `amardhaka.io`.
 ## 2. App directory (no secrets)
 
 ```bash
-mkdir -p /opt/cloudnex-connect
+mkdir -p /opt/cloudnex-connect /opt/cns-line-oa
 ```
 
 From a laptop with this repo (rsync excludes `.env`):
 
 ```bash
-npm run deploy:staging-vm
+npm run deploy:vps-staging   # /opt/cns-line-oa
+npm run deploy:vps-prod      # /opt/cloudnex-connect (SKIP_BUILD=1 after the first build)
 ```
 
 Or copy the tree once without `.env`, then fill env (step 3) before compose.
@@ -67,8 +69,8 @@ Required for two OAs:
 - `ADMIN_USER_ID` = Cloudnex Sales LINE user ids
 - `SUPER_ADMIN_USER_IDS` = LINE ids allowed to bind/reveal (fail closed if unset)
 - `CONNECT_BOOTSTRAP_TOKEN` from `scripts/bootstrap-cloudnex-connect.sh` (printed once)
-- `APP_ENV=staging`, `PUBLIC_BASE_URL=https://amardhaka.io/cloudnex-connect`
-- `PUBLIC_ADMIN_BASE=/admin`, `PUBLIC_DEMO_BASE=/demo` (Node mounts `/cloudnex-connect/admin` and `/cloudnex-connect/demo`; demo GET redirects to Admin `/testing`)
+- `APP_ENV=production` on `/opt/cloudnex-connect`, `APP_ENV=staging` on `/opt/cns-line-oa`, `PUBLIC_BASE_URL=https://amardhaka.io/cloudnex-connect`
+- Production: `PUBLIC_ADMIN_BASE=/admin`. Staging sibling: `PUBLIC_ADMIN_BASE=/admin/test`.
 
 Install (one-shot): `POST https://amardhaka.io/cloudnex-connect/api/bootstrap` with the bootstrap token (Swagger tag `install`). Second call is 410. Google credential JSON stays a mounted file/env secret on this same path.
 
@@ -81,12 +83,11 @@ Compose bind is `127.0.0.1:8080` only. Set `DOCKER_IMAGE=razenjazzy/cloudnex-con
 ```bash
 cd /opt/cloudnex-connect
 docker pull razenjazzy/cloudnex-connect:staging
-docker compose -f deploy/hostinger/docker-compose.staging.yml --env-file .env up -d --no-build --pull always
+docker compose -f deploy/hostinger/docker-compose.production.yml --env-file .env up -d --no-build --pull always
 curl -sS http://127.0.0.1:8080/healthz
-curl -sS http://127.0.0.1:8080/readyz
 ```
 
-Repeat deploys from a machine logged into Docker Hub: `npm run deploy:staging-vm` (builds, pushes, VPS pulls). Cloud Run: `scripts/deploy-cloudrun.sh`. Local tunnel: `scripts/deploy-cloudflare.sh`.
+Repeat deploys from a machine logged into Docker Hub: `npm run deploy:vps-staging` then `SKIP_BUILD=1 npm run deploy:vps-prod`. Cloud Run: `npm run deploy:prod` (signoff). Local tunnel: `scripts/deploy-cloudflare.sh`.
 
 ## 5. Nginx + TLS
 
@@ -116,31 +117,30 @@ Paste the printed `LINE_RICH_MENU_JSON` / `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON`
 
 ## 7. Smoke
 
-- `GET https://amardhaka.io/healthz` — `service` is `cloudnex-connect`
+- `GET https://amardhaka.io/healthz` — production lane (`appEnv=production`)
+- `GET https://amardhaka.io/cloudnex-connect/admin/` — production Admin
+- `GET https://amardhaka.io/cloudnex-connect/admin/test` — staging Admin
 - `GET https://amardhaka.io/readyz` (`bootstrapComplete`)
-- `GET https://amardhaka.io/cloudnex-connect/` (OPS token; LINE bind for reveal)
-- `GET https://amardhaka.io/cloudnex-connect/testing` (Demo in Admin; testing only)
 - `GET /ops/platform` — `lineCustomerConfigured` true when Customer env is set
 
 ## 7b. Sibling process (`/opt/cns-line-oa`, port 8081)
 
-Same image tag, `APP_ENV=staging`, Admin at `PUBLIC_ADMIN_BASE=/cloudnex-connect/admin/test`. Copy `.env` from primary onto the server only — do not commit it. Own Redis in `deploy/hostinger/docker-compose.sibling.yml` so queue keys do not collide.
+`APP_ENV=staging`, `PUBLIC_ADMIN_BASE=/admin/test` (joined to `/cloudnex-connect/admin/test`). Own Redis in `deploy/hostinger/docker-compose.sibling.yml` so queue keys do not collide.
 
 ```bash
-mkdir -p /opt/cns-line-oa
-# copy operator .env onto the sibling dir, then:
-docker compose -f deploy/hostinger/docker-compose.sibling.yml --env-file /opt/cns-line-oa/.env up -d --no-build --pull always
+npm run deploy:vps-staging
 curl -sS http://127.0.0.1:8081/healthz
 ```
 
-Keep HMAC webhooks on **primary 8080** unless the sibling has **distinct** LINE credentials. Do not dual-bind the same OA to both ports.
+Keep HMAC webhooks on **production 8080** unless the sibling has **distinct** LINE credentials. Do not dual-bind the same OA to both ports.
 
 ## 8. Repeat deploy from laptop / GitHub
 
 Laptop (SSH key that can `ssh root@187.127.179.49`):
 
 ```bash
-npm run deploy:staging-vm
+npm run deploy:vps-staging
+SKIP_BUILD=1 npm run deploy:vps-prod
 ```
 
 That rsync uses `deploy/staging-rsync.allowlist` only (compose + channel check + lockfile). It never uses `--delete` and never copies `.env`.

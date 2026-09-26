@@ -1,0 +1,88 @@
+export type UiLang = 'en' | 'th';
+
+const STORAGE = 'cloudnex_admin_ui_lang';
+
+export const readUiLang = (): UiLang => {
+  try {
+    const raw = localStorage.getItem(STORAGE);
+    return raw === 'th' ? 'th' : 'en';
+  } catch {
+    return 'en';
+  }
+};
+
+export const writeUiLang = (lang: UiLang): void => {
+  try {
+    localStorage.setItem(STORAGE, lang);
+  } catch {
+    /* ignore */
+  }
+};
+
+const en = {
+  navHome: 'Home',
+  navOverview: 'Overview',
+  navIdentity: 'Identity',
+  navBind: 'Bind',
+  navDirectory: 'Directory',
+  navPrivileges: 'Privileges',
+  navLanguage: 'Language',
+  navLine: 'LINE',
+  navChannels: 'Channels',
+  navCampaigns: 'Campaigns',
+  navWork: 'Work',
+  navCrm: 'CRM',
+  navCommands: 'Commands',
+  navJobs: 'Jobs',
+  navPlatform: 'Platform',
+  navSettings: 'Settings',
+  navAudit: 'Audit',
+  navErp: 'ERP',
+  navAdvanced: 'Advanced',
+  navDemo: 'Demo',
+  navHelp: 'Help',
+  signIn: 'Sign in',
+  signOut: 'Sign out',
+  toastAdminSecret: 'ADMIN_SECRET_TOKEN required. Paste a token of at least 16 characters on Jobs, then run the job.',
+  toastUnauthorized: 'Unauthorized. Bind super-admin or use the correct token.',
+  toastForbidden: 'Forbidden. Super-admin bind is required for this action.',
+  jobsNeedToken: 'Jobs stay idle until ADMIN_SECRET_TOKEN is pasted. No request is sent.',
+  uiLanguage: 'Admin panel language',
+  lineUserLanguage: 'LINE user language',
+};
+
+const th: typeof en = {
+  navHome: 'หน้าแรก',
+  navOverview: 'ภาพรวม',
+  navIdentity: 'ตัวตน',
+  navBind: 'ผูกสิทธิ์',
+  navDirectory: 'รายชื่อ',
+  navPrivileges: 'สิทธิ์',
+  navLanguage: 'ภาษา',
+  navLine: 'LINE',
+  navChannels: 'ช่องทาง',
+  navCampaigns: 'แคมเปญ',
+  navWork: 'งาน',
+  navCrm: 'CRM',
+  navCommands: 'คำสั่ง',
+  navJobs: 'จ็อบ',
+  navPlatform: 'แพลตฟอร์ม',
+  navSettings: 'ตั้งค่า',
+  navAudit: 'บันทึก',
+  navErp: 'ERP',
+  navAdvanced: 'ขั้นสูง',
+  navDemo: 'เดโม',
+  navHelp: 'ช่วยเหลือ',
+  signIn: 'เข้าสู่ระบบ',
+  signOut: 'ออก',
+  toastAdminSecret: 'ต้องมี ADMIN_SECRET_TOKEN ความยาวอย่างน้อย 16 ตัว วางในหน้าจ็อบก่อนรัน',
+  toastUnauthorized: 'ไม่มีสิทธิ์ ผูก super-admin หรือใช้โทเคนที่ถูกต้อง',
+  toastForbidden: 'ห้ามเข้า ต้องผูก super-admin',
+  jobsNeedToken: 'ยังไม่เรียก API จนกว่าจะวาง ADMIN_SECRET_TOKEN',
+  uiLanguage: 'ภาษาแผงแอดมิน',
+  lineUserLanguage: 'ภาษาผู้ใช้ LINE',
+};
+
+export type UiKey = keyof typeof en;
+
+export const t = (lang: UiLang, key: UiKey): string => (lang === 'th' ? th : en)[key];

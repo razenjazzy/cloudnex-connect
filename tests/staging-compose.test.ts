@@ -17,10 +17,33 @@ describe('staging compose LINE queue', () => {
 });
 
 describe('deploy health wait', () => {
-  const script = readFileSync(join(__dirname, '../scripts/deploy-cloudnex-connect-staging.sh'), 'utf8');
+  const script = readFileSync(join(__dirname, '../scripts/deploy-vps-lane.sh'), 'utf8');
 
-  it('does not print curl RST while Node is still binding', () => {
-    expect(script).toContain('curl -fsS --max-time 2 http://127.0.0.1:8080/healthz >/dev/null 2>&1');
+  it('polls loopback healthz without leaking curl RST', () => {
+    expect(script).toContain('curl -fsS --max-time 2 "http://127.0.0.1:${HEALTH_PORT}/healthz" >/dev/null 2>&1');
     expect(script).toContain('seq 1 30');
+    expect(script).toContain('REMOTE="${VPS_REMOTE_DIR:-/opt/cns-line-oa}"');
+    expect(script).toContain('REMOTE="${VPS_REMOTE_DIR:-/opt/cloudnex-connect}"');
+  });
+});
+
+describe('production compose', () => {
+  const yaml = readFileSync(join(__dirname, '../deploy/hostinger/docker-compose.production.yml'), 'utf8');
+
+  it('binds HMAC on 8080 with production APP_ENV and /admin', () => {
+    expect(yaml).toContain('APP_ENV: production');
+    expect(yaml).toContain('PUBLIC_ADMIN_BASE: /admin');
+    expect(yaml).toContain('127.0.0.1:8080:8080');
+    expect(yaml).toContain('ENABLE_DEMO_CONTROL_PANEL: "false"');
+  });
+});
+
+describe('sibling compose', () => {
+  const yaml = readFileSync(join(__dirname, '../deploy/hostinger/docker-compose.sibling.yml'), 'utf8');
+
+  it('binds staging Admin on 8081 with /admin/test', () => {
+    expect(yaml).toContain('APP_ENV: staging');
+    expect(yaml).toContain('PUBLIC_ADMIN_BASE: /admin/test');
+    expect(yaml).toContain('127.0.0.1:8081:8080');
   });
 });

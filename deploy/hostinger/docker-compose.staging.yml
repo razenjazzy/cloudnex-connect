@@ -1,4 +1,5 @@
-# Staging on Hostinger VPS. Env file is on the server only — never commit secrets.
+# Legacy staging compose on :8080. Prefer docker-compose.production.yml for HMAC.
+# Env file is on the server only — never commit secrets.
 # Runtime image is pulled from Docker Hub (built on laptop/CI). The VPS does not npm ci.
 # `environment:` overrides .env so LINE async cannot stay false while Redis is in this file.
 services:

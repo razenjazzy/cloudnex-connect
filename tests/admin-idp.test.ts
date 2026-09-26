@@ -70,6 +70,50 @@ describe('admin IdP mapping and LINE Login', () => {
     }
   });
 
+  it('uses the request origin for LINE Login callback in development', () => {
+    const prevApp = process.env.APP_ENV;
+    const prevBase = process.env.PUBLIC_ADMIN_BASE;
+    process.env.APP_ENV = 'development';
+    process.env.PUBLIC_ADMIN_BASE = '/admin';
+    resetRuntimeSettingsForTests({
+      PUBLIC_BASE_URL: 'https://amardhaka.io/cloudnex-connect',
+    });
+    try {
+      expect(describeAdminIdp('https://site.local').callbacks.lineLogin).toBe(
+        'https://site.local/cloudnex-connect/admin/api/session/line/callback',
+      );
+    } finally {
+      if (prevApp === undefined) delete process.env.APP_ENV;
+      else process.env.APP_ENV = prevApp;
+      if (prevBase === undefined) delete process.env.PUBLIC_ADMIN_BASE;
+      else process.env.PUBLIC_ADMIN_BASE = prevBase;
+    }
+  });
+
+  it('ignores request Host for LINE Login callback outside development', () => {
+    const prevApp = process.env.APP_ENV;
+    const prevNode = process.env.NODE_ENV;
+    const prevBase = process.env.PUBLIC_ADMIN_BASE;
+    process.env.APP_ENV = 'staging';
+    process.env.NODE_ENV = 'production';
+    process.env.PUBLIC_ADMIN_BASE = '/admin';
+    resetRuntimeSettingsForTests({
+      PUBLIC_BASE_URL: 'https://amardhaka.io/cloudnex-connect',
+    });
+    try {
+      expect(describeAdminIdp('https://evil.example').callbacks.lineLogin).toBe(
+        'https://amardhaka.io/cloudnex-connect/admin/api/session/line/callback',
+      );
+    } finally {
+      if (prevApp === undefined) delete process.env.APP_ENV;
+      else process.env.APP_ENV = prevApp;
+      if (prevNode === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = prevNode;
+      if (prevBase === undefined) delete process.env.PUBLIC_ADMIN_BASE;
+      else process.env.PUBLIC_ADMIN_BASE = prevBase;
+    }
+  });
+
   it('builds LINE authorize URL with PKCE when configured', () => {
     resetRuntimeSettingsForTests({
       LINE_LOGIN_CHANNEL_ID: '123456',
@@ -79,6 +123,8 @@ describe('admin IdP mapping and LINE Login', () => {
     expect(url).toContain('access.line.me/oauth2/v2.1/authorize');
     expect(url).toContain('client_id=123456');
     expect(url).toContain('code_challenge_method=S256');
+    expect(url).toContain('disable_auto_login=true');
+    expect(url).toContain('nonce=abc');
   });
 
   it('exchanges LINE Login code via profile when id_token has no LINE sub', async () => {

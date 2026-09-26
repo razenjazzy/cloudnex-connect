@@ -13,6 +13,11 @@ export default defineConfig({
     proxy: {
       '/graphql': 'http://127.0.0.1:8080',
       '/admin': 'http://127.0.0.1:8080',
+      '/cloudnex-connect': 'http://127.0.0.1:8080',
+      '/healthz': 'http://127.0.0.1:8080',
+      '/readyz': 'http://127.0.0.1:8080',
+      '/api-docs': 'http://127.0.0.1:8080',
+      '/webhook': 'http://127.0.0.1:8080',
     },
   },
 });

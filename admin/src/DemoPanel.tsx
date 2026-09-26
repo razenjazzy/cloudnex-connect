@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 
+import { CopyField, Steps } from './ui';
+
 type ApiFn = (path: string, init?: RequestInit) => Promise<Response>;
 
 type ModuleRow = {
@@ -108,7 +110,7 @@ export const DemoPanel = ({ adminBase, api }: { adminBase: string; api: ApiFn })
             </div>
           ))}
         </div>
-        <CopyPre value={script || 'Talk track loads with the module map.'} />
+        <CopyField label="Demo talk track" value={script || 'Talk track loads with the module map.'} />
       </div>
       <div className="overview-grid">
         <div className="card" id="demo-ops">
@@ -123,17 +125,17 @@ export const DemoPanel = ({ adminBase, api }: { adminBase: string; api: ApiFn })
               catch (error) { note('audit', String(error)); }
             }}>Workflow audit</button>
           </div>
-          <CopyPre value={out.connections || 'Not loaded.'} />
-          <CopyPre value={out.audit || 'Audit not run.'} />
+          <CopyField label="Connections" value={out.connections || 'Not loaded.'} />
+          <CopyField label="Audit" value={out.audit || 'Audit not run.'} />
         </div>
         <div className="card">
           <h2>Runbook</h2>
-          <ol className="howto">
-            <li>Refresh connections: LINE, Firestore, Odoo.</li>
-            <li>Web chat uses the real command router.</li>
-            <li>FORM QUOTE CREATE writes an Odoo quotation.</li>
-            <li>Journey + LINE simulator below.</li>
-          </ol>
+          <Steps items={[
+            <>Refresh connections: LINE, Firestore, Odoo.</>,
+            <>Web chat uses the real command router.</>,
+            <>FORM QUOTE CREATE writes an Odoo quotation.</>,
+            <>Journey + LINE simulator below.</>,
+          ]} />
         </div>
       </div>
       <div className="card" id="demo-chat">
@@ -190,7 +192,7 @@ export const DemoPanel = ({ adminBase, api }: { adminBase: string; api: ApiFn })
             </div>
           ))}
         </div>
-        <CopyPre value={out.pricing || out.sim || 'Load a model to begin.'} />
+        <CopyField label="Pricing JSON" value={out.pricing || out.sim || 'Load a model to begin.'} />
       </div>
       <div className="card" id="demo-journey">
         <h2>Journey + LINE simulator</h2>
@@ -217,12 +219,8 @@ export const DemoPanel = ({ adminBase, api }: { adminBase: string; api: ApiFn })
             note('line', await res.json());
           }}>POST /webhook-test</button>
         </div>
-        <CopyPre value={out.journey || out.line || 'Run a journey to see output.'} />
+        <CopyField label="Journey / webhook-test JSON" value={out.journey || out.line || 'Run a journey to see output.'} />
       </div>
     </>
   );
 };
-
-const CopyPre = ({ value }: { value: string }) => (
-  <pre><code>{value}</code></pre>
-);

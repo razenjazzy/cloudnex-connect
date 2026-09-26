@@ -29,20 +29,37 @@ const hmacSecret = (): string =>
 const pkceChallenge = (verifier: string): string =>
   createHash('sha256').update(verifier).digest('base64url');
 
-export const describeAdminIdp = () => ({
+const isDevLane = (): boolean =>
+  (process.env.APP_ENV || '').trim() === 'development'
+  || process.env.NODE_ENV === 'development';
+
+const originLooksAbsolute = (value: string): boolean => /^https?:\/\/.+/i.test(value);
+
+/** Dev only: request Host so local https://site.local matches LINE/Okta/SAML registered URIs. Staging/production stay PUBLIC_BASE_URL (fail closed on Host). */
+const callbackOrigin = (requestOrigin?: string): string => {
+  const cleaned = (requestOrigin || '').replace(/\/+$/, '');
+  if (isDevLane() && originLooksAbsolute(cleaned)) return cleaned;
+  return publicBase();
+};
+
+export const describeAdminIdp = (requestOrigin?: string) => ({
   lineLogin: Boolean(getRuntime('LINE_LOGIN_CHANNEL_ID') && getRuntime('LINE_LOGIN_CHANNEL_SECRET')),
   oktaOidc: Boolean(getRuntime('OKTA_ISSUER') && getRuntime('OKTA_CLIENT_ID') && getRuntime('OKTA_CLIENT_SECRET')),
   saml: Boolean(getRuntime('SAML_IDP_SSO_URL') && getRuntime('SAML_IDP_CERT')),
   callbacks: {
-    lineLogin: callbackUrl('/session/line/callback'),
-    oidc: callbackUrl('/session/oidc/callback'),
-    samlAcs: callbackUrl('/session/saml/acs'),
+    lineLogin: callbackUrl('/session/line/callback', requestOrigin),
+    oidc: callbackUrl('/session/oidc/callback', requestOrigin),
+    samlAcs: callbackUrl('/session/saml/acs', requestOrigin),
   },
 });
 
 export const publicBase = (): string => originFromPublicBaseUrl(getRuntime('PUBLIC_BASE_URL'));
 
-const callbackUrl = (path: string): string => `${publicBase()}${adminPublicPath(getRuntime('PUBLIC_BASE_URL'))}/api${path}`;
+/** Origin used in redirect_uri / ACS. Request Host only in development. */
+export const idpCallbackOrigin = (requestOrigin?: string): string => callbackOrigin(requestOrigin);
+
+const callbackUrl = (path: string, requestOrigin?: string): string =>
+  `${callbackOrigin(requestOrigin)}${adminPublicPath(getRuntime('PUBLIC_BASE_URL'))}/api${path}`;
 
 export const mapIdpSubjectToLineUserId = (subject: string, claimValue?: string): string | null => {
   const mappedClaim = (claimValue || '').trim();
@@ -102,21 +119,23 @@ export const consumeOauthState = async (
 const formBody = (params: Record<string, string>): string =>
   Object.entries(params).map(([k, v]) => `${encodeURIComponent(k)}=${encodeURIComponent(v)}`).join('&');
 
-export const buildLineAuthorizeUrl = (state: string, verifier: string): string | null => {
+export const buildLineAuthorizeUrl = (state: string, verifier: string, requestOrigin?: string): string | null => {
   const clientId = getRuntime('LINE_LOGIN_CHANNEL_ID');
-  if (!clientId || !publicBase()) return null;
+  if (!clientId || !callbackOrigin(requestOrigin)) return null;
   const url = new URL('https://access.line.me/oauth2/v2.1/authorize');
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('client_id', clientId);
-  url.searchParams.set('redirect_uri', callbackUrl('/session/line/callback'));
+  url.searchParams.set('redirect_uri', callbackUrl('/session/line/callback', requestOrigin));
   url.searchParams.set('state', state);
   url.searchParams.set('scope', 'profile openid');
+  url.searchParams.set('nonce', state);
+  url.searchParams.set('disable_auto_login', 'true');
   url.searchParams.set('code_challenge', pkceChallenge(verifier));
   url.searchParams.set('code_challenge_method', 'S256');
   return url.toString();
 };
 
-export const exchangeLineLoginCode = async (code: string, verifier: string): Promise<string | null> => {
+export const exchangeLineLoginCode = async (code: string, verifier: string, requestOrigin?: string): Promise<string | null> => {
   const clientId = getRuntime('LINE_LOGIN_CHANNEL_ID');
   const clientSecret = getRuntime('LINE_LOGIN_CHANNEL_SECRET');
   if (!clientId || !clientSecret) return null;
@@ -126,7 +145,7 @@ export const exchangeLineLoginCode = async (code: string, verifier: string): Pro
     body: formBody({
       grant_type: 'authorization_code',
       code,
-      redirect_uri: callbackUrl('/session/line/callback'),
+      redirect_uri: callbackUrl('/session/line/callback', requestOrigin),
       client_id: clientId,
       client_secret: clientSecret,
       code_verifier: verifier,
@@ -154,14 +173,14 @@ const oktaEndpoint = (issuer: string, name: 'authorize' | 'token' | 'keys'): str
   return `${base}/oauth2/v1/${name}`;
 };
 
-export const buildOktaAuthorizeUrl = (state: string, verifier: string): string | null => {
+export const buildOktaAuthorizeUrl = (state: string, verifier: string, requestOrigin?: string): string | null => {
   const issuer = getRuntime('OKTA_ISSUER').replace(/\/$/, '');
   const clientId = getRuntime('OKTA_CLIENT_ID');
-  if (!issuer || !clientId || !publicBase()) return null;
+  if (!issuer || !clientId || !callbackOrigin(requestOrigin)) return null;
   const url = new URL(oktaEndpoint(issuer, 'authorize'));
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('client_id', clientId);
-  url.searchParams.set('redirect_uri', callbackUrl('/session/oidc/callback'));
+  url.searchParams.set('redirect_uri', callbackUrl('/session/oidc/callback', requestOrigin));
   url.searchParams.set('state', state);
   url.searchParams.set('scope', 'openid profile');
   url.searchParams.set('code_challenge', pkceChallenge(verifier));
@@ -169,7 +188,7 @@ export const buildOktaAuthorizeUrl = (state: string, verifier: string): string |
   return url.toString();
 };
 
-export const exchangeOktaCode = async (code: string, verifier: string): Promise<string | null> => {
+export const exchangeOktaCode = async (code: string, verifier: string, requestOrigin?: string): Promise<string | null> => {
   const issuer = getRuntime('OKTA_ISSUER').replace(/\/$/, '');
   const clientId = getRuntime('OKTA_CLIENT_ID');
   const clientSecret = getRuntime('OKTA_CLIENT_SECRET');
@@ -180,7 +199,7 @@ export const exchangeOktaCode = async (code: string, verifier: string): Promise<
     body: formBody({
       grant_type: 'authorization_code',
       code,
-      redirect_uri: callbackUrl('/session/oidc/callback'),
+      redirect_uri: callbackUrl('/session/oidc/callback', requestOrigin),
       client_id: clientId,
       client_secret: clientSecret,
       code_verifier: verifier,
@@ -255,17 +274,19 @@ const verifyOidcIdToken = async (token: string, issuer: string, aud: string): Pr
   return verifyRs256Jwt(token, key, { iss: issuer, aud });
 };
 
-export const buildSamlMetadataXml = (): string => {
-  const entityId = getRuntime('SAML_SP_ENTITY_ID') || `${publicBase()}${adminPublicPath(getRuntime('PUBLIC_BASE_URL'))}/api/session/saml/metadata`;
-  const acs = callbackUrl('/session/saml/acs');
+export const buildSamlMetadataXml = (requestOrigin?: string): string => {
+  const origin = callbackOrigin(requestOrigin);
+  const entityId = getRuntime('SAML_SP_ENTITY_ID') || `${origin}${adminPublicPath(getRuntime('PUBLIC_BASE_URL'))}/api/session/saml/metadata`;
+  const acs = callbackUrl('/session/saml/acs', requestOrigin);
   return `<?xml version="1.0" encoding="UTF-8"?><EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata" entityID="${entityId}"><SPSSODescriptor AuthnRequestsSigned="false" WantAssertionsSigned="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol"><AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="${acs}" index="0" isDefault="true"/></SPSSODescriptor></EntityDescriptor>`;
 };
 
-export const buildSamlRedirectUrl = (state: string): string | null => {
+export const buildSamlRedirectUrl = (state: string, requestOrigin?: string): string | null => {
   const sso = getRuntime('SAML_IDP_SSO_URL');
-  const entityId = getRuntime('SAML_SP_ENTITY_ID') || `${publicBase()}${adminPublicPath(getRuntime('PUBLIC_BASE_URL'))}/api/session/saml/metadata`;
-  if (!sso || !publicBase()) return null;
-  const acs = callbackUrl('/session/saml/acs');
+  const origin = callbackOrigin(requestOrigin);
+  const entityId = getRuntime('SAML_SP_ENTITY_ID') || `${origin}${adminPublicPath(getRuntime('PUBLIC_BASE_URL'))}/api/session/saml/metadata`;
+  if (!sso || !origin) return null;
+  const acs = callbackUrl('/session/saml/acs', requestOrigin);
   const id = `_${randomBytes(12).toString('hex')}`;
   const xml = `<samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="${id}" Version="2.0" IssueInstant="${new Date().toISOString()}" AssertionConsumerServiceURL="${acs}"><saml:Issuer>${entityId}</saml:Issuer></samlp:AuthnRequest>`;
   const deflated = deflateRawSync(Buffer.from(xml, 'utf8')).toString('base64');

@@ -1,6 +1,6 @@
 {
   "name": "cloudnex-connect",
-  "version": "9.0.9",
+  "version": "9.0.10",
   "description": "LINE Official Account + Odoo for Cloudnex: Sales and Customer OAs, identity SoR, Flex quotes, enterprise Admin (campaigns, audit, IdP), dual LINE ingress, and consented messaging.",
   "main": "dist/index.js",
   "bin": {
@@ -12,7 +12,11 @@
   },
   "scripts": {
     "start": "node dist/index.js",
-    "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
+    "dev": "bash ./scripts/dev-background.sh",
+    "dev:fg": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
+    "dev:stop": "bash ./scripts/dev-background.sh stop",
+    "dev:status": "bash ./scripts/dev-background.sh status",
+    "dev:admin": "npm run build --prefix admin -- --watch",
     "postinstall": "npm ci --ignore-scripts --prefix admin",
     "build": "tsc && npm run build --prefix admin",
     "build:admin": "npm run build --prefix admin",
@@ -29,6 +33,7 @@
     "check:line-channels": "bash ./scripts/check-line-channels.sh",
     "deploy:staging-vm": "bash ./scripts/deploy-cloudnex-connect-staging.sh",
     "deploy:vps-staging": "bash ./scripts/deploy-cloudnex-connect-staging.sh",
+    "deploy:vps-prod": "bash ./scripts/deploy-cloudnex-connect-production.sh",
     "deploy:prod": "bash ./scripts/require-production-signoff.sh && bash ./scripts/deploy-cloudrun.sh production",
     "validate:staging": "bash ./scripts/validate-staging.sh",
     "release:staging": "npm test && npm run build && bash ./scripts/validate-staging.sh",

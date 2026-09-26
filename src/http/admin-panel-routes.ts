@@ -6,7 +6,7 @@ import { isOdooConfigured } from '../services/odoo';
 import { recordAuditEvent } from '../services/firestore';
 import { jsonParser } from './middleware';
 import { registerAdminApiRoutes, requireAdminPanelAccess } from './admin-api-routes';
-import { adminBase, demoBase } from './public-bases';
+import { adminBase, demoBase, originFromPublicBaseUrl } from './public-bases';
 
 const adminDist = path.resolve(__dirname, '../../admin/dist');
 const adminIndex = path.join(adminDist, 'index.html');
@@ -21,7 +21,7 @@ const spaFallback = (_req: Request, res: Response) => {
     .replace('<head>', `<head><base href="${base}" />`)
     .replace(
       '</head>',
-      `<script>window.__ADMIN_BASE__=${JSON.stringify(adminBase())};window.__DEMO_BASE__=${JSON.stringify(demoBase())};</script></head>`,
+      `<script>window.__ADMIN_BASE__=${JSON.stringify(adminBase())};window.__DEMO_BASE__=${JSON.stringify(demoBase())};window.__PUBLIC_ORIGIN__=${JSON.stringify(originFromPublicBaseUrl(process.env.PUBLIC_BASE_URL))};</script></head>`,
     );
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   return res.send(injected);

@@ -2,7 +2,7 @@
 
 LINE Official Account + Odoo for Cloudnex: Sales and Customer OAs, identity SoR, Flex quotes, enterprise Admin (campaigns, audit, IdP), dual LINE ingress, and consented messaging.
 
-## Status: Staging cut v9.0.9 (Odoo LINE OA v6). Production deploy is not this cut.
+## Status: v9.0.10 (Odoo LINE OA v6). VPS production `/opt/cloudnex-connect`; staging Admin `/opt/cns-line-oa`. Cloud Run production is not this cut.
 
 ### What this is
 
