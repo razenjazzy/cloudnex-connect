@@ -383,6 +383,44 @@ describe('Cloudnex Connect admin API', () => {
     expect(snap.chain).toEqual(expect.arrayContaining(['odooVerified', 'role=admin']));
     expect(snap.identityFormat).toMatch(/LINE user id/);
   });
+
+  it('aggregates dashboard audit volume by channel', async () => {
+    mockedAuditPage.mockResolvedValue({
+      events: [
+        { id: '1', action: 'quote_create', outcome: 'success', actorUserId: 'U1', createdAt: '2026-01-01T00:00:00.000Z', channelId: 'sales' },
+        { id: '2', action: 'secret_reveal_consumed', outcome: 'success', actorUserId: 'Usuper', createdAt: '2026-01-01T00:00:00.000Z' },
+      ],
+      nextCursor: undefined,
+    } as never);
+    const res = await fetch(`${base()}/admin/api/dashboard`, { headers: ops });
+    expect(res.status).toBe(200);
+    const body = await res.json() as {
+      count: number;
+      byChannel: Record<string, number>;
+      flags: { redisConfigured?: boolean; queueReady?: boolean };
+    };
+    expect(body.count).toBe(1);
+    expect(body.byChannel.sales).toBe(1);
+    expect(typeof body.flags.queueReady).toBe('boolean');
+  });
+
+  it('registers a custom PUBLIC_ADMIN_BASE prefix', async () => {
+    process.env.PUBLIC_ADMIN_BASE = '/cloudnex-admin';
+    const extra = express();
+    registerAdminApiRoutes(extra);
+    const srv = extra.listen(0);
+    const addr = srv.address();
+    const port = typeof addr === 'object' && addr ? addr.port : 0;
+    try {
+      const res = await fetch(`http://127.0.0.1:${port}/cloudnex-admin/api/settings`, { headers: ops });
+      expect(res.status).toBe(200);
+      const miss = await fetch(`http://127.0.0.1:${port}/admin/api/settings`, { headers: ops });
+      expect(miss.status).toBe(404);
+    } finally {
+      delete process.env.PUBLIC_ADMIN_BASE;
+      await new Promise<void>((resolve, reject) => srv.close(err => (err ? reject(err) : resolve())));
+    }
+  });
 });
 
 describe('OpenAPI Cloudnex Connect coverage', () => {

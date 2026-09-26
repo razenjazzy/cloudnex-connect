@@ -1,3 +1,16 @@
+# Release notes — v9.0.1
+
+**Date:** 2026-09-26  
+**Package version:** `9.0.1`  
+**Lane:** staging (no production deploy)  
+**Commit title:** `Release: v9.0.1 - Odoo Line OA v6 Staging Deploy`
+
+`PUBLIC_ADMIN_BASE` / `PUBLIC_DEMO_BASE` (defaults `/admin`, `/demo`) mount Admin SPA+API and demo. VPS primary: `/cloudnex-admin` and `/cloudnex-connect/demo`. Sibling compose on 8081 with `/cloudnex-admin/test`. Grouped hamburger Admin nav, auto-load Overview with CSS/SVG channel bars (no chart npm), scoped bind banner, Admin-styled demo. Cookie Path and OAuth callbacks follow the Admin prefix. HMAC `/webhook*` stays host root on the primary process. Dashboard `queueReady` is `flags.queueReady` (`isQueueBackendReady()`), not Redis config aliased.
+
+Remaining limitations: EN/TH only; placeholder ERP (no SAP RPC); e-sign/payment need installed Odoo modules; Mongo SoR default off and requires `MONGODB_URI`; no production cutover; Flex/tray not restyled. Sibling `.env` is operator-owned. Do not dual-bind the same LINE OA to 8080 and 8081.
+
+---
+
 # Release notes — v9.0.0
 
 **Date:** 2026-09-26  
@@ -7,7 +20,7 @@
 
 Included architecture: HMAC `/webhook` and `/webhook/:channelId` plus gated `/webhook-alt`; GraphQL `ingestLineEvents` → `processLineMessageJob`; one `resolveCommandReply`. `MONGO_USERS` on uses Mongo as identity SoR (Firestore may mirror; Odoo stays on `getErpAdapter()`). Non-odoo ERP is an unimplemented placeholder. Admin command overlay, `TENANT_KEY` overlay scoping, Directory/Privileges/Audit, e-sign/payment status fail-closed without fake PDFs.
 
-Remaining limitations: EN/TH only; placeholder ERP (no SAP RPC); e-sign/payment need installed Odoo modules; Mongo SoR default off and requires `MONGODB_URI`; no production cutover; Flex/tray not restyled; no chart npm kit.
+Remaining limitations: EN/TH only; placeholder ERP (no SAP RPC); e-sign/payment need installed Odoo modules; Mongo SoR default off and requires `MONGODB_URI`; no production cutover; Flex/tray not restyled. Overview volume uses CSS/SVG bars (no extra chart npm).
 
 ---
 

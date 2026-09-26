@@ -2,12 +2,13 @@ import { createHmac, createHash, createSign, createVerify, createPublicKey, rand
 import { deflateRawSync } from 'node:zlib';
 import { getPlatformConfig, setPlatformConfig } from './firestore';
 import { getRuntime } from './runtime-settings';
+import { adminBase, adminCookiePath } from '../http/public-bases';
 
 const STATE_KEY = 'adminOauthStatesV1';
 const cookieName = 'cloudnex_admin_oauth';
 
 export const clearOauthStateCookie = (): string =>
-  `${cookieName}=; Path=/admin; HttpOnly; SameSite=Lax; Max-Age=0`;
+  `${cookieName}=; Path=${adminCookiePath()}; HttpOnly; SameSite=Lax; Max-Age=0`;
 
 export type IdpProvider = 'line_login' | 'okta_oidc' | 'saml';
 
@@ -36,7 +37,7 @@ export const describeAdminIdp = () => ({
 
 export const publicBase = (): string => getRuntime('PUBLIC_BASE_URL').replace(/\/$/, '');
 
-const callbackUrl = (path: string): string => `${publicBase()}${path}`;
+const callbackUrl = (path: string): string => `${publicBase()}${adminBase()}/api${path}`;
 
 export const mapIdpSubjectToLineUserId = (subject: string, claimValue?: string): string | null => {
   const mappedClaim = (claimValue || '').trim();
@@ -66,7 +67,7 @@ export const issueOauthState = async (provider: IdpProvider): Promise<{ state: s
   await setPlatformConfig(STATE_KEY, stored as unknown as Record<string, unknown>);
   const sig = createHmac('sha256', hmacSecret()).update(state).digest('hex');
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  const cookie = `${cookieName}=${encodeURIComponent(`${state}.${sig}`)}; Path=/admin; HttpOnly; SameSite=Lax; Max-Age=600${secure}`;
+  const cookie = `${cookieName}=${encodeURIComponent(`${state}.${sig}`)}; Path=${adminCookiePath()}; HttpOnly; SameSite=Lax; Max-Age=600${secure}`;
   return { state, verifier, cookie };
 };
 
@@ -102,7 +103,7 @@ export const buildLineAuthorizeUrl = (state: string, verifier: string): string |
   const url = new URL('https://access.line.me/oauth2/v2.1/authorize');
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('client_id', clientId);
-  url.searchParams.set('redirect_uri', callbackUrl('/admin/api/session/line/callback'));
+  url.searchParams.set('redirect_uri', callbackUrl('/session/line/callback'));
   url.searchParams.set('state', state);
   url.searchParams.set('scope', 'profile openid');
   url.searchParams.set('code_challenge', pkceChallenge(verifier));
@@ -120,7 +121,7 @@ export const exchangeLineLoginCode = async (code: string, verifier: string): Pro
     body: formBody({
       grant_type: 'authorization_code',
       code,
-      redirect_uri: callbackUrl('/admin/api/session/line/callback'),
+      redirect_uri: callbackUrl('/session/line/callback'),
       client_id: clientId,
       client_secret: clientSecret,
       code_verifier: verifier,
@@ -155,7 +156,7 @@ export const buildOktaAuthorizeUrl = (state: string, verifier: string): string |
   const url = new URL(oktaEndpoint(issuer, 'authorize'));
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('client_id', clientId);
-  url.searchParams.set('redirect_uri', callbackUrl('/admin/api/session/oidc/callback'));
+  url.searchParams.set('redirect_uri', callbackUrl('/session/oidc/callback'));
   url.searchParams.set('state', state);
   url.searchParams.set('scope', 'openid profile');
   url.searchParams.set('code_challenge', pkceChallenge(verifier));
@@ -174,7 +175,7 @@ export const exchangeOktaCode = async (code: string, verifier: string): Promise<
     body: formBody({
       grant_type: 'authorization_code',
       code,
-      redirect_uri: callbackUrl('/admin/api/session/oidc/callback'),
+      redirect_uri: callbackUrl('/session/oidc/callback'),
       client_id: clientId,
       client_secret: clientSecret,
       code_verifier: verifier,
@@ -250,16 +251,16 @@ const verifyOidcIdToken = async (token: string, issuer: string, aud: string): Pr
 };
 
 export const buildSamlMetadataXml = (): string => {
-  const entityId = getRuntime('SAML_SP_ENTITY_ID') || `${publicBase()}/admin/api/session/saml/metadata`;
-  const acs = callbackUrl('/admin/api/session/saml/acs');
+  const entityId = getRuntime('SAML_SP_ENTITY_ID') || `${publicBase()}${adminBase()}/api/session/saml/metadata`;
+  const acs = callbackUrl('/session/saml/acs');
   return `<?xml version="1.0" encoding="UTF-8"?><EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata" entityID="${entityId}"><SPSSODescriptor AuthnRequestsSigned="false" WantAssertionsSigned="true" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol"><AssertionConsumerService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="${acs}" index="0" isDefault="true"/></SPSSODescriptor></EntityDescriptor>`;
 };
 
 export const buildSamlRedirectUrl = (state: string): string | null => {
   const sso = getRuntime('SAML_IDP_SSO_URL');
-  const entityId = getRuntime('SAML_SP_ENTITY_ID') || `${publicBase()}/admin/api/session/saml/metadata`;
+  const entityId = getRuntime('SAML_SP_ENTITY_ID') || `${publicBase()}${adminBase()}/api/session/saml/metadata`;
   if (!sso || !publicBase()) return null;
-  const acs = callbackUrl('/admin/api/session/saml/acs');
+  const acs = callbackUrl('/session/saml/acs');
   const id = `_${randomBytes(12).toString('hex')}`;
   const xml = `<samlp:AuthnRequest xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="${id}" Version="2.0" IssueInstant="${new Date().toISOString()}" AssertionConsumerServiceURL="${acs}"><saml:Issuer>${entityId}</saml:Issuer></samlp:AuthnRequest>`;
   const deflated = deflateRawSync(Buffer.from(xml, 'utf8')).toString('base64');

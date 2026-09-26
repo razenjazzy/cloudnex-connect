@@ -44,6 +44,7 @@ export type PlatformFlags = {
   mongoConfigured: boolean;
   mongoVectorEnabled: boolean;
   redisConfigured: boolean;
+  queueReady: boolean;
   graphqlEnabled: boolean;
   apiDocsEnabled: boolean;
   demoPanelEnabled: boolean;
@@ -99,6 +100,7 @@ export const getPlatformFlags = (): PlatformFlags => ({
   mongoConfigured: Boolean(mongoUri),
   mongoVectorEnabled: isMongoVectorEnabled,
   redisConfigured: isQueueBackendReady(),
+  queueReady: isQueueBackendReady(),
   graphqlEnabled: isGraphqlEnabled,
   apiDocsEnabled: isApiDocsEnabled,
   demoPanelEnabled: isDemoControlEnabled,

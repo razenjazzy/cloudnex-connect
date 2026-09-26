@@ -1,8 +1,9 @@
 import { createHmac, createHash, randomBytes, randomInt, timingSafeEqual } from 'node:crypto';
 import { getPlatformConfig, setPlatformConfig } from './firestore';
-import { getSecretRevealTtlSeconds, getSuperAdminUserIds } from './runtime-settings';
+import { adminCookiePath } from '../http/public-bases';
 import { isAuthorizedForAdminRole } from './admin-authorization';
 import type { UserProfile } from './firestore';
+import { getSecretRevealTtlSeconds, getSuperAdminUserIds } from './runtime-settings';
 
 const BIND_CONFIG_KEY = 'adminBindOtpsV1';
 const REVEAL_CONFIG_KEY = 'secretRevealTokensV1';
@@ -43,12 +44,12 @@ export const buildAdminActorCookie = (userId: string, ttlMs = 8 * 60 * 60 * 1000
   const exp = Date.now() + ttlMs;
   const value = `${userId}.${exp}.${signActor(userId, exp)}`;
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : '';
-  const cookie = `${cookieName}=${encodeURIComponent(value)}; Path=/admin; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(ttlMs / 1000)}${secure}`;
+  const cookie = `${cookieName}=${encodeURIComponent(value)}; Path=${adminCookiePath()}; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(ttlMs / 1000)}${secure}`;
   return { value, cookie };
 };
 
 export const clearAdminActorCookie = (): string =>
-  `${cookieName}=; Path=/admin; HttpOnly; SameSite=Lax; Max-Age=0`;
+  `${cookieName}=; Path=${adminCookiePath()}; HttpOnly; SameSite=Lax; Max-Age=0`;
 
 export const isSuperAdminActor = (userId: string, profile: { odooVerified: boolean }): boolean => {
   const supers = getSuperAdminUserIds();

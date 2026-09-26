@@ -1,5 +1,6 @@
-import type { Express, NextFunction, Request, Response } from 'express';
+import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import { getErpAdapter, isErpImplemented } from '../erp/registry';
+import { adminBase } from './public-bases';
 import { isOdooConfigured } from '../services/odoo';
 import { getOdooConfig } from '../services/odoo/client';
 import {
@@ -71,7 +72,7 @@ import { getPricingModel, updatePricingModel } from '../services/pricing-control
 import { getDemoPlatformPayload } from '../platform/service-modules';
 import { loadCommandOverlay, sanitizeCommandOverlay, saveCommandOverlay } from '../line/command-overlay';
 import { getActiveTenantKey } from '../services/tenant';
-import { getPlatformStatus } from '../platform/status';
+import { getPlatformFlags, getPlatformStatus } from '../platform/status';
 import { handleOdooHook } from './odoo-hook';
 import { decodeAuditCursor, parseAuditLogFilters } from '../services/audit-query';
 import { auditEnvParams } from './env-params';
@@ -179,7 +180,8 @@ const webhookTable = (base: string) => {
 };
 
 export const registerAdminApiRoutes = (app: Express): void => {
-  app.post('/admin/api/bootstrap', jsonParser, adminApiLimiter, async (req, res) => {
+  const router = express.Router();
+  router.post('/bootstrap', jsonParser, adminApiLimiter, async (req, res) => {
     const bootstrap = process.env.CONNECT_BOOTSTRAP_TOKEN?.trim() || '';
     if (!bootstrap || bootstrap.length < 16) {
       return res.status(503).json({ error: 'CONNECT_BOOTSTRAP_TOKEN is not configured.' });
@@ -207,7 +209,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ ok: true, bootstrapComplete: true });
   });
 
-  app.get('/admin/api/settings', adminApiLimiter, requireAdminPanelAccess, async (_req, res) => {
+  router.get('/settings', adminApiLimiter, requireAdminPanelAccess, async (_req, res) => {
     await hydrateRuntimeSettings();
     const base = getRuntime('PUBLIC_BASE_URL');
     const envAudit = auditEnvParams(appEnv);
@@ -228,12 +230,12 @@ export const registerAdminApiRoutes = (app: Express): void => {
     });
   });
 
-  app.get('/admin/api/commands', adminApiLimiter, requireAdminPanelAccess, async (_req, res) => {
+  router.get('/commands', adminApiLimiter, requireAdminPanelAccess, async (_req, res) => {
     await loadCommandOverlay();
     return res.json({ commands: getCommandGridPayload(), tenantKey: getActiveTenantKey() });
   });
 
-  app.put('/admin/api/commands', jsonParser, adminApiLimiter, requireOpsStrict, async (req, res) => {
+  router.put('/commands', jsonParser, adminApiLimiter, requireOpsStrict, async (req, res) => {
     const parsed = sanitizeCommandOverlay(req.body?.commands);
     if (!parsed.ok) return res.status(400).json({ error: parsed.error });
     const saved = await saveCommandOverlay(parsed.commands);
@@ -242,11 +244,11 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ ok: true, commands: getCommandGridPayload(), tenantKey: getActiveTenantKey() });
   });
 
-  app.get('/admin/api/tenant', requireAdminPanelAccess, (_req, res) => {
+  router.get('/tenant', requireAdminPanelAccess, (_req, res) => {
     return res.json({ tenantKey: getActiveTenantKey() });
   });
 
-  app.put('/admin/api/tenant', jsonParser, requireOpsStrict, async (req, res) => {
+  router.put('/tenant', jsonParser, requireOpsStrict, async (req, res) => {
     const tenantKey = String(req.body?.tenantKey || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
     if (!tenantKey) return res.status(400).json({ error: 'tenantKey is required.' });
     const result = await mergeRuntimeOverlay({ TENANT_KEY: tenantKey });
@@ -254,7 +256,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ ok: true, tenantKey: getActiveTenantKey() });
   });
 
-  app.put('/admin/api/secrets', jsonParser, adminApiLimiter, requireOpsStrict, async (req, res) => {
+  router.put('/secrets', jsonParser, adminApiLimiter, requireOpsStrict, async (req, res) => {
     const patch = req.body && typeof req.body === 'object' ? req.body as Record<string, unknown> : {};
     const next: Record<string, string> = {};
     for (const [key, value] of Object.entries(patch)) {
@@ -271,7 +273,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ ok: true, keys: Object.keys(next) });
   });
 
-  app.post('/admin/api/line-channels', jsonParser, adminApiLimiter, requireSuperAdmin, async (req, res) => {
+  router.post('/line-channels', jsonParser, adminApiLimiter, requireSuperAdmin, async (req, res) => {
     const channelId = String(req.body?.channelId || '').trim().toLowerCase();
     if (!/^[a-z][a-z0-9_-]{0,31}$/.test(channelId)) {
       return res.status(400).json({ error: 'channelId must be a lowercase slug (e.g. hr).' });
@@ -312,7 +314,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     });
   });
 
-  app.post('/admin/api/campaigns/preview', jsonParser, adminApiLimiter, requireSuperAdmin, async (req, res) => {
+  router.post('/campaigns/preview', jsonParser, adminApiLimiter, requireSuperAdmin, async (req, res) => {
     const parsed = parseCampaignAudienceRequest(req.body);
     if ('error' in parsed) return res.status(400).json({ error: parsed.error });
     const result = await resolveCampaignAudience(parsed);
@@ -327,7 +329,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     });
   });
 
-  app.post('/admin/api/campaigns/test', jsonParser, adminApiLimiter, requireSuperAdmin, async (req, res) => {
+  router.post('/campaigns/test', jsonParser, adminApiLimiter, requireSuperAdmin, async (req, res) => {
     const parsed = parseCampaignAudienceRequest(req.body);
     if ('error' in parsed) return res.status(400).json({ error: parsed.error });
     const text = parseCampaignTestText(req.body);
@@ -359,7 +361,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     });
   });
 
-  app.post('/admin/api/campaigns/send', jsonParser, adminApiLimiter, requireSuperAdmin, async (req, res) => {
+  router.post('/campaigns/send', jsonParser, adminApiLimiter, requireSuperAdmin, async (req, res) => {
     const parsed = parseCampaignSendRequest(req.body);
     if ('error' in parsed) return res.status(400).json({ error: parsed.error });
     if (!resolveChannelConfig(parsed.channelId)) {
@@ -399,7 +401,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.status(202).json({ ok: true, queued: true, jobId, campaign });
   });
 
-  app.post('/admin/api/campaigns/broadcast', jsonParser, adminApiLimiter, requireSuperAdmin, async (req, res) => {
+  router.post('/campaigns/broadcast', jsonParser, adminApiLimiter, requireSuperAdmin, async (req, res) => {
     const parsed = parseCampaignBroadcastRequest(req.body);
     if ('error' in parsed) return res.status(400).json({ error: parsed.error });
     if (!resolveChannelConfig(parsed.channelId)) {
@@ -417,12 +419,12 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ ok: true, delivery: 'broadcast', channelId: parsed.channelId });
   });
 
-  app.get('/admin/api/campaigns', adminApiLimiter, requireSuperAdmin, async (_req, res) => {
+  router.get('/campaigns', adminApiLimiter, requireSuperAdmin, async (_req, res) => {
     const campaigns = await listCampaigns(50);
     return res.json({ campaigns, count: campaigns.length });
   });
 
-  app.post('/admin/api/session/bind', jsonParser, adminApiLimiter, requireOpsStrict, async (req, res) => {
+  router.post('/session/bind', jsonParser, adminApiLimiter, requireOpsStrict, async (req, res) => {
     const userId = String(req.body?.lineUserId || '').trim();
     if (!userId) return res.status(400).json({ error: 'lineUserId is required.' });
     const profile = await getUserProfile(userId);
@@ -437,7 +439,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ ok: true, expiresInSec: issued.expiresInSec });
   });
 
-  app.post('/admin/api/session/confirm', jsonParser, adminApiLimiter, requireOpsStrict, async (req, res) => {
+  router.post('/session/confirm', jsonParser, adminApiLimiter, requireOpsStrict, async (req, res) => {
     const userId = String(req.body?.lineUserId || '').trim();
     const otp = String(req.body?.otp || '').trim();
     if (!userId || !otp) return res.status(400).json({ error: 'lineUserId and otp are required.' });
@@ -452,12 +454,12 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ ok: true, actorUserId: userId });
   });
 
-  app.post('/admin/api/session/logout', requireOpsStrict, (_req, res) => {
+  router.post('/session/logout', requireOpsStrict, (_req, res) => {
     res.setHeader('Set-Cookie', [clearAdminActorCookie(), clearOauthStateCookie()]);
     return res.json({ ok: true });
   });
 
-  app.get('/admin/api/session/me', adminApiLimiter, requireAdminPanelAccess, (req, res) => {
+  router.get('/session/me', adminApiLimiter, requireAdminPanelAccess, (req, res) => {
     const actor = parseAdminActorCookie(req.get('cookie'));
     return res.json({
       ok: true,
@@ -473,7 +475,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
 
   const denyIdp = async (res: Response, userId: string, detail: string, asRedirect: boolean) => {
     await recordAuditEvent({ action: 'admin_session_bind', outcome: 'failure', actorUserId: userId || 'unknown', detail });
-    if (asRedirect) return res.redirect(302, '/admin?idp_error=1');
+    if (asRedirect) return res.redirect(302, `${adminBase()}?idp_error=1`);
     return res.status(403).json({ error: 'Not authorized to bind.' });
   };
 
@@ -484,11 +486,11 @@ export const registerAdminApiRoutes = (app: Express): void => {
     const { cookie } = buildAdminActorCookie(userId);
     res.setHeader('Set-Cookie', [cookie, clearOauthStateCookie()]);
     await recordAuditEvent({ action: 'admin_session_bind', outcome: 'success', actorUserId: userId, detail });
-    if (asRedirect) return res.redirect(302, '/admin');
+    if (asRedirect) return res.redirect(302, adminBase());
     return res.json({ ok: true, actorUserId: userId });
   };
 
-  app.get('/admin/api/session/idp', adminApiLimiter, async (req, res) => {
+  router.get('/session/idp', adminApiLimiter, async (req, res) => {
     if (!ipAllowedForAdmin(req.ip || req.socket.remoteAddress || '')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
@@ -506,10 +508,10 @@ export const registerAdminApiRoutes = (app: Express): void => {
     if (redirect) return res.redirect(302, url);
     return res.json({ url });
   };
-  app.get('/admin/api/session/line/start', adminApiLimiter, (req, res) => void startLine(req, res, true));
-  app.post('/admin/api/session/line/start', adminApiLimiter, (req, res) => void startLine(req, res, false));
+  router.get('/session/line/start', adminApiLimiter, (req, res) => void startLine(req, res, true));
+  router.post('/session/line/start', adminApiLimiter, (req, res) => void startLine(req, res, false));
 
-  app.get('/admin/api/session/line/callback', adminApiLimiter, async (req, res) => {
+  router.get('/session/line/callback', adminApiLimiter, async (req, res) => {
     if (!ipAllowedForAdmin(req.ip || req.socket.remoteAddress || '')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
@@ -518,7 +520,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     const verifier = await consumeOauthState(state, req.get('cookie'), 'line_login');
     if (!verifier || !code) {
       await recordAuditEvent({ action: 'admin_session_bind', outcome: 'failure', actorUserId: 'unknown', detail: 'line_login_state' });
-      return res.redirect(302, '/admin?idp_error=1');
+      return res.redirect(302, `${adminBase()}?idp_error=1`);
     }
     const userId = await exchangeLineLoginCode(code, verifier);
     return completeIdp(res, userId, 'line_login', true);
@@ -535,10 +537,10 @@ export const registerAdminApiRoutes = (app: Express): void => {
     if (redirect) return res.redirect(302, url);
     return res.json({ url });
   };
-  app.get('/admin/api/session/oidc/start', adminApiLimiter, (req, res) => void startOidc(req, res, true));
-  app.post('/admin/api/session/oidc/start', adminApiLimiter, (req, res) => void startOidc(req, res, false));
+  router.get('/session/oidc/start', adminApiLimiter, (req, res) => void startOidc(req, res, true));
+  router.post('/session/oidc/start', adminApiLimiter, (req, res) => void startOidc(req, res, false));
 
-  app.get('/admin/api/session/oidc/callback', adminApiLimiter, async (req, res) => {
+  router.get('/session/oidc/callback', adminApiLimiter, async (req, res) => {
     if (!ipAllowedForAdmin(req.ip || req.socket.remoteAddress || '')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
@@ -547,13 +549,13 @@ export const registerAdminApiRoutes = (app: Express): void => {
     const verifier = await consumeOauthState(state, req.get('cookie'), 'okta_oidc');
     if (!verifier || !code) {
       await recordAuditEvent({ action: 'admin_session_bind', outcome: 'failure', actorUserId: 'unknown', detail: 'okta_oidc_state' });
-      return res.redirect(302, '/admin?idp_error=1');
+      return res.redirect(302, `${adminBase()}?idp_error=1`);
     }
     const userId = await exchangeOktaCode(code, verifier);
     return completeIdp(res, userId, 'okta_oidc', true);
   });
 
-  app.get('/admin/api/session/saml/metadata', adminApiLimiter, (req, res) => {
+  router.get('/session/saml/metadata', adminApiLimiter, (req, res) => {
     if (!ipAllowedForAdmin(req.ip || req.socket.remoteAddress || '')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
@@ -561,7 +563,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     res.type('application/xml').send(buildSamlMetadataXml());
   });
 
-  app.get('/admin/api/session/saml/start', adminApiLimiter, async (req, res) => {
+  router.get('/session/saml/start', adminApiLimiter, async (req, res) => {
     if (!ipAllowedForAdmin(req.ip || req.socket.remoteAddress || '')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
@@ -572,7 +574,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.redirect(302, url);
   });
 
-  app.post('/admin/api/session/saml/acs', formParser, adminApiLimiter, async (req, res) => {
+  router.post('/session/saml/acs', formParser, adminApiLimiter, async (req, res) => {
     if (!ipAllowedForAdmin(req.ip || req.socket.remoteAddress || '')) {
       return res.status(403).json({ error: 'Forbidden' });
     }
@@ -581,15 +583,15 @@ export const registerAdminApiRoutes = (app: Express): void => {
     const verifier = await consumeOauthState(relay, req.get('cookie'), 'saml');
     if (!verifier || !raw) {
       await recordAuditEvent({ action: 'admin_session_bind', outcome: 'failure', actorUserId: 'unknown', detail: 'saml_state' });
-      return res.redirect(302, '/admin?idp_error=1');
+      return res.redirect(302, `${adminBase()}?idp_error=1`);
     }
-    const audience = getRuntime('SAML_SP_ENTITY_ID') || `${getRuntime('PUBLIC_BASE_URL').replace(/\/$/, '')}/admin/api/session/saml/metadata`;
+    const audience = getRuntime('SAML_SP_ENTITY_ID') || `${getRuntime('PUBLIC_BASE_URL').replace(/\/$/, '')}${adminBase()}/api/session/saml/metadata`;
     const userId = verifySamlResponse(raw, audience, getRuntime('SAML_IDP_CERT'));
     return completeIdp(res, userId, 'saml', true);
   });
 
 
-  app.post('/admin/api/secrets/reveal-token', jsonParser, adminRevealLimiter, requireSuperAdmin, async (req, res) => {
+  router.post('/secrets/reveal-token', jsonParser, adminRevealLimiter, requireSuperAdmin, async (req, res) => {
     const secretKey = String(req.body?.secretKey || '').trim();
     const actor = (req as Request & { adminActor?: string }).adminActor || '';
     if (!secretKey || !isSecretSettingKey(secretKey)) {
@@ -601,7 +603,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ token: issued.token, expiresInSec: issued.expiresInSec });
   });
 
-  app.post('/admin/api/secrets/reveal', jsonParser, adminRevealLimiter, requireSuperAdmin, async (req, res) => {
+  router.post('/secrets/reveal', jsonParser, adminRevealLimiter, requireSuperAdmin, async (req, res) => {
     const actor = (req as Request & { adminActor?: string }).adminActor || '';
     const token = String(req.body?.token || '').trim();
     const row = await consumeRevealToken(token);
@@ -614,14 +616,14 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ key: row.secretKey, secret, expiresInSec: getSecretRevealTtlSeconds() });
   });
 
-  app.get('/admin/api/audit-log', adminApiLimiter, requireOpsStrict, async (req, res) => {
+  router.get('/audit-log', adminApiLimiter, requireOpsStrict, async (req, res) => {
     const filters = parseAuditLogFilters(req.query as Record<string, unknown>);
     const page = await listRecentAuditEventsPage(Number(req.query.limit) || 50, filters, decodeAuditCursor(req.query.cursor));
     const events = page.events.filter(event => !REVEAL_ACTIONS.has(event.action));
     return res.json({ events, nextCursor: page.nextCursor, count: events.length });
   });
 
-  app.get('/admin/api/audit-log/reveals', adminApiLimiter, requireSuperAdmin, async (req, res) => {
+  router.get('/audit-log/reveals', adminApiLimiter, requireSuperAdmin, async (req, res) => {
     const page = await listRecentAuditEventsPage(Number(req.query.limit) || 50, parseAuditLogFilters({
       ...req.query as Record<string, unknown>,
       action: typeof req.query.action === 'string' ? req.query.action : 'secret_reveal_consumed',
@@ -632,38 +634,38 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ events, count: events.length, nextCursor: page.nextCursor });
   });
 
-  app.get('/admin/api/toggles', requireAdminPanelAccess, async (_req, res) => {
+  router.get('/toggles', requireAdminPanelAccess, async (_req, res) => {
     await ensureFeatureTogglesLoaded();
     return res.json({ toggles: describeAllFeatureToggles() });
   });
 
-  app.put('/admin/api/toggles', jsonParser, requireOpsStrict, async (req, res) => {
+  router.put('/toggles', jsonParser, requireOpsStrict, async (req, res) => {
     const updated = await replaceFeatureToggles(req.body || {});
     return res.json({ ok: true, ...updated });
   });
 
-  app.get('/admin/api/pricing', requireAdminPanelAccess, async (_req, res) => {
+  router.get('/pricing', requireAdminPanelAccess, async (_req, res) => {
     return res.json({ model: await getPricingModel() });
   });
 
-  app.put('/admin/api/pricing', jsonParser, requireOpsStrict, async (req, res) => {
+  router.put('/pricing', jsonParser, requireOpsStrict, async (req, res) => {
     const model = await updatePricingModel(req.body || {});
     return res.json({ ok: true, model });
   });
 
-  app.get('/admin/api/channels/:id/services', requireAdminPanelAccess, async (req, res) => {
+  router.get('/channels/:id/services', requireAdminPanelAccess, async (req, res) => {
     const override = await getChannelServiceOverride(pathParam(req.params.id));
     return res.json({ channelId: pathParam(req.params.id), services: override ?? null });
   });
 
-  app.put('/admin/api/channels/:id/services', jsonParser, requireOpsStrict, async (req, res) => {
+  router.put('/channels/:id/services', jsonParser, requireOpsStrict, async (req, res) => {
     const services = Array.isArray(req.body?.services) ? req.body.services.map(String) : null;
     const result = await setChannelServiceOverride(pathParam(req.params.id), services);
     if (!result.ok) return res.status(503).json({ error: result.error });
     return res.json({ ok: true });
   });
 
-  app.get('/admin/api/users', adminApiLimiter, requireOpsStrict, async (req, res) => {
+  router.get('/users', adminApiLimiter, requireOpsStrict, async (req, res) => {
     if (req.query.sales === '1' || req.query.sales === 'true') {
       const ids = await listVerifiedSalesLineUserIds();
       const users = await Promise.all(ids.map(id => toAdminUserView(id)));
@@ -681,13 +683,13 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ users: [await toAdminUserView(resolved)] });
   });
 
-  app.get('/admin/api/users/:id', adminApiLimiter, requireOpsStrict, async (req, res) => {
+  router.get('/users/:id', adminApiLimiter, requireOpsStrict, async (req, res) => {
     const userId = normalizeLineUserId(pathParam(req.params.id));
     if (!userId) return res.status(400).json({ error: 'LINE user id is required.' });
     return res.json({ user: await toAdminUserView(userId) });
   });
 
-  app.get('/admin/api/users/:id/activity', adminApiLimiter, requireOpsStrict, async (req, res) => {
+  router.get('/users/:id/activity', adminApiLimiter, requireOpsStrict, async (req, res) => {
     const userId = normalizeLineUserId(pathParam(req.params.id));
     if (!userId) return res.status(400).json({ error: 'LINE user id is required.' });
     const page = await listRecentAuditEventsPage(
@@ -699,7 +701,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ userId, events, nextCursor: page.nextCursor, count: events.length });
   });
 
-  app.patch('/admin/api/users/:id', jsonParser, requireOpsStrict, async (req, res) => {
+  router.patch('/users/:id', jsonParser, requireOpsStrict, async (req, res) => {
     const userId = pathParam(req.params.id);
     if (req.body?.language === 'en' || req.body?.language === 'th') {
       await setUserLanguage(userId, req.body.language);
@@ -713,7 +715,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ ok: true, user: await toAdminUserView(userId) });
   });
 
-  app.get('/admin/api/privileges', requireOpsStrict, (_req, res) => {
+  router.get('/privileges', requireOpsStrict, (_req, res) => {
     return res.json({
       adminUserIds: [...getEffectiveAdminUserIds()],
       lock: isAdminConfigLocked(),
@@ -730,7 +732,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     });
   });
 
-  app.post('/admin/api/privileges/enable', jsonParser, requireSuperAdmin, async (req, res) => {
+  router.post('/privileges/enable', jsonParser, requireSuperAdmin, async (req, res) => {
     const userId = String(req.body?.userId || '').trim();
     const profile = await getUserProfile(userId);
     const authorization = isAuthorizedForAdminRole(userId, profile);
@@ -743,17 +745,17 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ ok: true });
   });
 
-  app.get('/admin/api/approvals', requireOpsStrict, async (req, res) => {
+  router.get('/approvals', requireOpsStrict, async (req, res) => {
     const records = await listRecentApprovals(Number(req.query.limit) || 50);
     return res.json({ records, count: records.length });
   });
 
-  app.post('/admin/api/odoo-hook', jsonParser, requireOpsStrict, async (req, res) => {
+  router.post('/odoo-hook', jsonParser, requireOpsStrict, async (req, res) => {
     const result = await handleOdooHook(req.body);
     return res.status(result.status).json(result);
   });
 
-  app.post('/admin/api/jobs/:name', jsonParser, adminApiLimiter, async (req, res) => {
+  router.post('/jobs/:name', jsonParser, adminApiLimiter, async (req, res) => {
     const token = req.get('authorization')?.startsWith('Bearer ') ? req.get('authorization')!.substring(7) : '';
     if (!isValidAdminToken(token)) return res.status(401).json({ error: 'ADMIN_SECRET_TOKEN required.' });
     const name = pathParam(req.params.name);
@@ -777,7 +779,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     }
   });
 
-  app.get('/admin/api/erp/test', requireOpsStrict, async (_req, res) => {
+  router.get('/erp/test', requireOpsStrict, async (_req, res) => {
     const cfg = getOdooConfig();
     const adapter = getErpAdapter();
     return res.json({
@@ -788,14 +790,42 @@ export const registerAdminApiRoutes = (app: Express): void => {
     });
   });
 
-  app.get('/admin/api/erp/status', requireOpsStrict, async (_req, res) => {
+  router.get('/erp/status', requireOpsStrict, async (_req, res) => {
     const adapter = getErpAdapter();
     const signature = await adapter.describeSignatureStatus?.() || { ok: false, message: 'Not available.' };
     const payment = await adapter.describePaymentStatus?.() || { ok: false, message: 'Not available.' };
     return res.json({ erpProvider: adapter.name, erpImplemented: isErpImplemented(), signature, payment });
   });
 
-  app.get('/admin/api/platform', requireAdminPanelAccess, async (_req, res) => {
+  router.get('/platform', requireAdminPanelAccess, async (_req, res) => {
     return res.json(await getPlatformStatus());
   });
+
+  router.get('/dashboard', requireAdminPanelAccess, async (req, res) => {
+    const page = await listRecentAuditEventsPage(50, parseAuditLogFilters(req.query as Record<string, unknown>), decodeAuditCursor(req.query.cursor));
+    const events = page.events.filter(event => !REVEAL_ACTIONS.has(event.action));
+    const byChannel: Record<string, number> = {};
+    for (const event of events) {
+      const channel = String((event as { channelId?: string }).channelId || 'unknown');
+      byChannel[channel] = (byChannel[channel] || 0) + 1;
+    }
+    const flags = getPlatformFlags();
+    return res.json({
+      count: events.length,
+      byChannel,
+      flags: {
+        appEnv: flags.appEnv,
+        lineConfigured: flags.lineConfigured,
+        lineCustomerConfigured: flags.lineCustomerConfigured,
+        odooConfigured: flags.odooConfigured,
+        firestoreProjectConfigured: flags.firestoreProjectConfigured,
+        redisConfigured: flags.redisConfigured,
+        queueReady: flags.queueReady,
+        erpImplemented: flags.erpImplemented,
+      },
+      actorBound: Boolean(parseAdminActorCookie(req.get('cookie'))),
+    });
+  });
+
+  app.use(`${adminBase()}/api`, router);
 };

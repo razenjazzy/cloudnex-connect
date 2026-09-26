@@ -15,9 +15,37 @@ type Quote = {
   salespersonName?: string;
 };
 
+declare global {
+  interface Window {
+    __ADMIN_BASE__?: string;
+    __DEMO_BASE__?: string;
+  }
+}
+
+const ADMIN_BASE = (() => {
+  if (typeof window === 'undefined') return '/admin';
+  if (window.__ADMIN_BASE__) return window.__ADMIN_BASE__.replace(/\/$/, '');
+  const href = document.querySelector('base')?.getAttribute('href');
+  if (href && href !== './') return href.replace(/\/$/, '') || '/admin';
+  const path = window.location.pathname;
+  const match = path.match(/^(\/cloudnex-admin(?:\/test)?|\/admin)(?=\/|$)/);
+  return match?.[1] || '/admin';
+})();
+
+const DEMO_BASE = typeof window !== 'undefined' && window.__DEMO_BASE__
+  ? window.__DEMO_BASE__.replace(/\/$/, '')
+  : '/demo';
+
 const pathOf = (): string => {
-  const raw = window.location.pathname.replace(/\/$/, '') || '/admin';
-  return raw.startsWith('/admin') ? raw : '/admin';
+  const raw = window.location.pathname.replace(/\/$/, '') || ADMIN_BASE;
+  return raw.startsWith(ADMIN_BASE) ? raw : ADMIN_BASE;
+};
+
+const channelBucket = (id: string): 'sales' | 'customer' | 'other' => {
+  const name = id.toLowerCase();
+  if (name === 'sales') return 'sales';
+  if (name === 'customer' || name === 'default') return 'customer';
+  return 'other';
 };
 
 const authHeaders = (): HeadersInit => {
@@ -57,22 +85,47 @@ const CopyField = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-const NAV: Array<{ id: string; href: string; label: string }> = [
-  { id: 'home', href: '/admin', label: 'Overview' },
-  { id: 'identity', href: '/admin/identity', label: 'Identity' },
-  { id: 'line', href: '/admin/line', label: 'LINE' },
-  { id: 'campaigns', href: '/admin/campaigns', label: 'Campaigns' },
-  { id: 'crm', href: '/admin/crm', label: 'CRM' },
-  { id: 'users', href: '/admin/users', label: 'Directory' },
-  { id: 'privileges', href: '/admin/privileges', label: 'Privileges' },
-  { id: 'language', href: '/admin/language', label: 'Language' },
-  { id: 'commands', href: '/admin/commands', label: 'Commands' },
-  { id: 'settings', href: '/admin/settings', label: 'Settings' },
-  { id: 'logs', href: '/admin/logs', label: 'Audit' },
-  { id: 'platform', href: '/admin/platform', label: 'Platform' },
-  { id: 'jobs', href: '/admin/jobs', label: 'Jobs' },
-  { id: 'advanced', href: '/admin/advanced', label: 'Advanced' },
-  { id: 'testing', href: '/admin/testing', label: 'Testing' },
+type NavItem = { id: string; href: string; label: string };
+const NAV_GROUPS: Array<{ id: string; label: string; items: NavItem[] }> = [
+  { id: 'home', label: 'Home', items: [{ id: 'home', href: ADMIN_BASE, label: 'Overview' }] },
+  {
+    id: 'identity',
+    label: 'Identity',
+    items: [
+      { id: 'identity', href: `${ADMIN_BASE}/identity`, label: 'Bind' },
+      { id: 'users', href: `${ADMIN_BASE}/users`, label: 'Directory' },
+      { id: 'privileges', href: `${ADMIN_BASE}/privileges`, label: 'Privileges' },
+      { id: 'language', href: `${ADMIN_BASE}/language`, label: 'Language' },
+    ],
+  },
+  {
+    id: 'line',
+    label: 'LINE',
+    items: [
+      { id: 'line', href: `${ADMIN_BASE}/line`, label: 'Channels' },
+      { id: 'campaigns', href: `${ADMIN_BASE}/campaigns`, label: 'Campaigns' },
+    ],
+  },
+  {
+    id: 'work',
+    label: 'Work',
+    items: [
+      { id: 'crm', href: `${ADMIN_BASE}/crm`, label: 'CRM' },
+      { id: 'commands', href: `${ADMIN_BASE}/commands`, label: 'Commands' },
+      { id: 'jobs', href: `${ADMIN_BASE}/jobs`, label: 'Jobs' },
+    ],
+  },
+  {
+    id: 'platform',
+    label: 'Platform',
+    items: [
+      { id: 'settings', href: `${ADMIN_BASE}/settings`, label: 'Settings' },
+      { id: 'logs', href: `${ADMIN_BASE}/logs`, label: 'Audit' },
+      { id: 'platform', href: `${ADMIN_BASE}/platform`, label: 'ERP' },
+      { id: 'advanced', href: `${ADMIN_BASE}/advanced`, label: 'Advanced' },
+    ],
+  },
+  { id: 'testing', label: 'Testing', items: [{ id: 'testing', href: `${ADMIN_BASE}/testing`, label: 'Demo' }] },
 ];
 
 export const App = () => {
@@ -122,6 +175,13 @@ export const App = () => {
   const [privilegeSnap, setPrivilegeSnap] = useState('');
   const [tenantKey, setTenantKey] = useState('default');
   const [erpStatus, setErpStatus] = useState('');
+  const [navOpen, setNavOpen] = useState(false);
+  const [dash, setDash] = useState<{
+    count: number;
+    byChannel: Record<string, number>;
+    flags: Record<string, unknown>;
+    actorBound: boolean;
+  } | null>(null);
 
   useEffect(() => {
     const onPop = () => setPath(pathOf());
@@ -133,11 +193,11 @@ export const App = () => {
     const existing = sessionStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(LEGACY_TOKEN_KEY);
     if (!existing) return;
     void (async () => {
-      const res = await api('/admin/api/settings');
+      const res = await api(`${ADMIN_BASE}/api/settings`);
       if (res.status === 401) return;
       setAuthed(true);
       if (res.ok) setSettings(await res.json());
-      const me = await api('/admin/api/session/me');
+      const me = await api(`${ADMIN_BASE}/api/session/me`);
       if (me.ok) {
         const body = await me.json() as { appEnv?: string; actorUserId?: string | null };
         setAppEnv(body.appEnv || '—');
@@ -170,7 +230,7 @@ export const App = () => {
     const next = token.trim();
     sessionStorage.setItem(TOKEN_KEY, next);
     sessionStorage.removeItem(LEGACY_TOKEN_KEY);
-    const res = await api('/admin/api/settings');
+    const res = await api(`${ADMIN_BASE}/api/settings`);
     if (res.status === 401) {
       setAuthed(false);
       setError('Unauthorized');
@@ -182,9 +242,9 @@ export const App = () => {
   };
 
   const loadSettings = async () => {
-    const res = await api('/admin/api/settings');
+    const res = await api(`${ADMIN_BASE}/api/settings`);
     if (res.ok) setSettings(await res.json());
-    const me = await api('/admin/api/session/me');
+    const me = await api(`${ADMIN_BASE}/api/session/me`);
     if (me.ok) {
       const body = await me.json() as { appEnv?: string; actorUserId?: string | null };
       setAppEnv(body.appEnv || '—');
@@ -193,13 +253,13 @@ export const App = () => {
   };
 
   const reveal = async (secretKey: string) => {
-    const issued = await api('/admin/api/secrets/reveal-token', { method: 'POST', body: JSON.stringify({ secretKey }) });
+    const issued = await api(`${ADMIN_BASE}/api/secrets/reveal-token`, { method: 'POST', body: JSON.stringify({ secretKey }) });
     const issuedBody = await issued.json() as { token?: string; expiresInSec?: number; error?: string };
     if (!issued.ok || !issuedBody.token) {
       setError(issuedBody.error || 'Reveal denied');
       return;
     }
-    const shown = await api('/admin/api/secrets/reveal', { method: 'POST', body: JSON.stringify({ token: issuedBody.token }) });
+    const shown = await api(`${ADMIN_BASE}/api/secrets/reveal`, { method: 'POST', body: JSON.stringify({ token: issuedBody.token }) });
     const body = await shown.json() as { secret?: string; expiresInSec?: number; error?: string };
     if (!shown.ok || typeof body.secret !== 'string') {
       setError(body.error || 'Reveal failed');
@@ -212,7 +272,7 @@ export const App = () => {
 
   const addLineChannel = async (event: FormEvent) => {
     event.preventDefault();
-    const res = await api('/admin/api/line-channels', {
+    const res = await api(`${ADMIN_BASE}/api/line-channels`, {
       method: 'POST',
       body: JSON.stringify({
         channelId: channelSlug,
@@ -259,12 +319,132 @@ export const App = () => {
     return 'home';
   }, [path]);
 
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setNavOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  useEffect(() => {
+    if (!authed) return;
+    void (async () => {
+      if (page === 'home') {
+        const h = await fetch('/healthz');
+        setHealth(`${h.status}`);
+        const r = await fetch('/readyz');
+        setReady(`${r.status}`);
+        const dashRes = await api(`${ADMIN_BASE}/api/dashboard`);
+        if (dashRes.ok) {
+          const body = await dashRes.json() as {
+            count?: number;
+            byChannel?: Record<string, number>;
+            flags?: Record<string, unknown>;
+            actorBound?: boolean;
+          };
+          setDash({
+            count: body.count || 0,
+            byChannel: body.byChannel || {},
+            flags: body.flags || {},
+            actorBound: Boolean(body.actorBound),
+          });
+        }
+        const plat = await api(`${ADMIN_BASE}/api/platform`);
+        if (plat.ok) {
+          const body = await plat.json() as { flags?: { redisConfigured?: boolean; appEnv?: string } };
+          setPlatformSnap({
+            redisConfigured: Boolean(body.flags?.redisConfigured),
+            appEnv: body.flags?.appEnv || '—',
+          });
+        }
+        if (actor) {
+          const hist = await api(`${ADMIN_BASE}/api/campaigns`);
+          if (hist.ok) {
+            const body = await hist.json() as { campaigns?: Array<Record<string, unknown>> };
+            setCampHistory(body.campaigns || []);
+          }
+        }
+        return;
+      }
+      if (page === 'settings') {
+        await loadSettings();
+        const revealsRes = await api(`${ADMIN_BASE}/api/audit-log/reveals?limit=50`);
+        if (revealsRes.ok) {
+          const body = await revealsRes.json() as { events?: Array<Record<string, unknown>> };
+          setReveals(body.events || []);
+        }
+        const tog = await api(`${ADMIN_BASE}/api/toggles`);
+        if (tog.ok) {
+          const body = await tog.json() as { toggles?: Array<{ key: string; effective: boolean; source: string }> };
+          setToggles(body.toggles || []);
+        }
+        return;
+      }
+      if (page === 'commands') {
+        const res = await api(`${ADMIN_BASE}/api/commands`);
+        if (res.ok) {
+          const body = await res.json() as { commands?: Array<Record<string, unknown>>; tenantKey?: string };
+          setCommands(body.commands || []);
+          if (body.tenantKey) setTenantKey(body.tenantKey);
+        }
+        return;
+      }
+      if (page === 'crm') {
+        const res = await api(`${ADMIN_BASE}/crm/quotes`);
+        if (res.ok) {
+          const body = await res.json() as { quotes?: Quote[] };
+          setQuotes(body.quotes || []);
+        }
+        return;
+      }
+      if (page === 'users') {
+        const res = await api(`${ADMIN_BASE}/api/users?sales=1`);
+        if (res.ok) {
+          const body = await res.json() as { users?: Array<Record<string, unknown>> };
+          setUsers(body.users || []);
+        }
+        return;
+      }
+      if (page === 'privileges') {
+        const res = await api(`${ADMIN_BASE}/api/privileges`);
+        if (res.ok) setPrivilegeSnap(JSON.stringify(await res.json(), null, 2));
+        return;
+      }
+      if (page === 'logs') {
+        const res = await api(`${ADMIN_BASE}/api/audit-log?limit=50`);
+        if (res.ok) {
+          const body = await res.json() as { events?: Array<Record<string, unknown>> };
+          setLogs(body.events || []);
+        }
+        return;
+      }
+      if (page === 'platform') {
+        await loadSettings();
+        const st = await api(`${ADMIN_BASE}/api/erp/status`);
+        if (st.ok) setErpStatus(JSON.stringify(await st.json(), null, 2));
+        return;
+      }
+      if (page === 'campaigns') {
+        const res = await api(`${ADMIN_BASE}/api/campaigns`);
+        if (res.status === 403) return;
+        if (res.ok) {
+          const body = await res.json() as { campaigns?: Array<Record<string, unknown>> };
+          setCampHistory(body.campaigns || []);
+        }
+      }
+    })();
+  }, [authed, page, actor]);
+
   if (!authed) {
     return (
       <main>
         <div className="card">
-          <img className="login-logo" src={logo} alt="Cloudnex Connect" />
-          <h1>Cloudnex Connect Admin</h1>
+          <div className="login-brand">
+            <img className="login-logo" src={logo} alt="" />
+            <span className="brand-name">Cloudnex Connect</span>
+          </div>
+          <h1>Admin</h1>
           <p>OPS token required. Super-admin identity: LINE Login, Okta (OIDC/SAML), or LINE OTP bind.</p>
           <form className="field-row" onSubmit={login}>
             <div className="field">
@@ -274,9 +454,9 @@ export const App = () => {
             <button type="submit">Sign in</button>
           </form>
           <div className="row">
-            <a href="/admin/api/session/line/start">LINE Login</a>
-            <a href="/admin/api/session/oidc/start">Okta OIDC</a>
-            <a href="/admin/api/session/saml/start">Okta/SAML</a>
+            <a href={`${ADMIN_BASE}/api/session/line/start`}>LINE Login</a>
+            <a href={`${ADMIN_BASE}/api/session/oidc/start`}>Okta OIDC</a>
+            <a href={`${ADMIN_BASE}/api/session/saml/start`}>Okta/SAML</a>
           </div>
           {error ? <p className="error">{error}</p> : null}
         </div>
@@ -303,7 +483,7 @@ export const App = () => {
   return (
     <>
       <header>
-        <a className="brand" href="/admin" onClick={e => { e.preventDefault(); go('/admin'); }}>
+        <a className="brand" href={ADMIN_BASE} onClick={e => { e.preventDefault(); go(ADMIN_BASE); }}>
           <img src={logo} alt="" />
           <span className="brand-name">Cloudnex Connect</span>
         </a>
@@ -312,13 +492,27 @@ export const App = () => {
             <span className="pill">{String(settings?.appEnv || appEnv)}</span>
             {actor ? <span className="pill">{actor}</span> : <span className="pill">not bound</span>}
           </div>
-          <nav>
-            {NAV.map(item => (
-              <a key={item.id} className={page === item.id ? 'active' : ''} href={item.href} onClick={e => { e.preventDefault(); go(item.href); }}>{item.label}</a>
+          <button className="nav-hamburger" type="button" aria-label="Open menu" aria-expanded={navOpen} onClick={() => setNavOpen(open => !open)}>Menu</button>
+          {navOpen ? <button type="button" className="nav-backdrop" aria-label="Close menu" onClick={() => setNavOpen(false)} /> : null}
+          <nav className={navOpen ? 'open' : ''}>
+            {NAV_GROUPS.map(group => (
+              <div key={group.id} className="nav-group">
+                <span className="nav-group-label">{group.label}</span>
+                <div className="nav-group-links">
+                  {group.items.map(item => (
+                    <a
+                      key={item.id}
+                      className={page === item.id ? 'active' : ''}
+                      href={item.href}
+                      onClick={e => { e.preventDefault(); setNavOpen(false); go(item.href); }}
+                    >{item.label}</a>
+                  ))}
+                </div>
+              </div>
             ))}
           </nav>
           <button className="secondary header-signout" type="button" onClick={async () => {
-            await api('/admin/api/session/logout', { method: 'POST' });
+            await api(`${ADMIN_BASE}/api/session/logout`, { method: 'POST' });
             sessionStorage.removeItem(TOKEN_KEY);
             setAuthed(false);
           }}>Sign out</button>
@@ -326,46 +520,104 @@ export const App = () => {
       </header>
       <main>
         {error ? <p className="error">{error}</p> : null}
-        {!actor ? (
+        {(page === 'campaigns' || page === 'settings' || page === 'jobs') && !actor ? (
           <p className="warn">Campaigns and secret reveal need a super-admin LINE bind. Open Identity, confirm OTP or LINE Login, then retry.</p>
         ) : null}
-        {page === 'home' ? (
-          <div className="card">
-            <h2>Overview</h2>
-            <p>HMAC LINE → Firestore → one command router. Demo is testing only. Lock: {String(settings?.lock)}</p>
-            <p>LINE user ids look like <code>U</code> plus 32 hex (header pill when bound). Directory looks up the Firestore dossier and live Odoo groups. Audit is every user’s ops log.</p>
-            <div className="row">
-              <button type="button" onClick={async () => {
-                const h = await fetch('/healthz');
-                setHealth(`${h.status}`);
-                const r = await fetch('/readyz');
-                setReady(`${r.status}`);
-                await loadSettings();
-                const plat = await api('/admin/api/platform');
-                if (plat.ok) {
-                  const body = await plat.json() as { flags?: { redisConfigured?: boolean; appEnv?: string } };
-                  setPlatformSnap({
-                    redisConfigured: Boolean(body.flags?.redisConfigured),
-                    appEnv: body.flags?.appEnv || '—',
-                  });
-                }
-              }}>Refresh health</button>
-              <a href="/healthz">/healthz {health}</a>
-              <a href="/readyz">/readyz {ready}</a>
-              <a href="/api-docs">OpenAPI</a>
+        {page === 'home' ? (() => {
+          const buckets = { sales: 0, customer: 0, other: 0 };
+          for (const [id, count] of Object.entries(dash?.byChannel || {})) {
+            buckets[channelBucket(id)] += count;
+          }
+          const maxBar = Math.max(1, buckets.sales, buckets.customer, buckets.other);
+          const probes = dash?.flags || {};
+          return (
+          <div className="overview-grid">
+            <div className="card">
+              <h2>Overview</h2>
+              <p>HMAC LINE → Firestore → one command router. Demo is testing only. Lock: {String(settings?.lock)}</p>
+              <div className="probe-row">
+                <span className="pill">{health === '200' ? 'app online' : `app ${health || '…'}`}</span>
+                <span className="pill">{Boolean(probes.firestoreProjectConfigured) ? 'Firestore' : 'Firestore off'}</span>
+                <span className="pill">{Boolean(probes.odooConfigured) ? 'Odoo' : 'Odoo off'}</span>
+                <span className="pill">{Boolean(probes.redisConfigured) ? 'Redis' : 'Redis off'}</span>
+                <span className="pill">{Boolean(probes.lineConfigured) ? 'LINE' : 'LINE off'}</span>
+                <span className="pill">{Boolean(probes.queueReady) ? 'queue' : 'queue off'}</span>
+                <span className="pill">{dash?.actorBound ? 'actor bound' : 'actor unbound'}</span>
+              </div>
+              <div className="row">
+                <button type="button" onClick={async () => {
+                  const h = await fetch('/healthz');
+                  setHealth(`${h.status}`);
+                  const r = await fetch('/readyz');
+                  setReady(`${r.status}`);
+                  await loadSettings();
+                  const plat = await api(`${ADMIN_BASE}/api/platform`);
+                  if (plat.ok) {
+                    const body = await plat.json() as { flags?: { redisConfigured?: boolean; appEnv?: string } };
+                    setPlatformSnap({
+                      redisConfigured: Boolean(body.flags?.redisConfigured),
+                      appEnv: body.flags?.appEnv || '—',
+                    });
+                  }
+                  const dashRes = await api(`${ADMIN_BASE}/api/dashboard`);
+                  if (dashRes.ok) {
+                    const body = await dashRes.json() as {
+                      count?: number;
+                      byChannel?: Record<string, number>;
+                      flags?: Record<string, unknown>;
+                      actorBound?: boolean;
+                    };
+                    setDash({
+                      count: body.count || 0,
+                      byChannel: body.byChannel || {},
+                      flags: body.flags || {},
+                      actorBound: Boolean(body.actorBound),
+                    });
+                  }
+                }}>Refresh</button>
+                <a href="/healthz">/healthz {health}</a>
+                <a href="/readyz">/readyz {ready}</a>
+                <a href="/api-docs">OpenAPI</a>
+              </div>
+              {platformSnap ? <CopyField label="Platform" value={JSON.stringify(platformSnap, null, 2)} /> : null}
             </div>
-            {platformSnap ? <CopyField label="Platform" value={JSON.stringify(platformSnap, null, 2)} /> : null}
+            <div className="card">
+              <h2>Message volume</h2>
+              <p>Last {dash?.count ?? 0} audit events (not secret reveals), grouped by channel.</p>
+              {(['sales', 'customer', 'other'] as const).map(key => (
+                <div className="bar-row" key={key}>
+                  <span>{key}</span>
+                  <div className="bar-track" aria-hidden="true">
+                    <div className="bar-fill" style={{ width: `${(buckets[key] / maxBar) * 100}%` }} />
+                  </div>
+                  <span>{buckets[key]}</span>
+                </div>
+              ))}
+              <svg className="spark" viewBox="0 0 120 36" role="img" aria-label="Channel volume">
+                {(['sales', 'customer', 'other'] as const).map((key, i) => {
+                  const h = (buckets[key] / maxBar) * 28;
+                  return <rect key={key} x={12 + i * 38} y={32 - h} width="22" height={h} rx="3" fill="#0f6e62" />;
+                })}
+              </svg>
+            </div>
           </div>
-        ) : null}
+          );
+        })() : null}
         {page === 'identity' ? (
           <div className="card">
             <h2>Identity</h2>
-            <p>Bind super admin (LINE OTP, LINE Login, or Okta). Fail-closed ADMIN_USER_ID then SUPER_ADMIN_USER_IDS. The bound actor is a LINE user id, not an Odoo login.</p>
+            <ol className="howto">
+              <li>Sign in with the OPS token.</li>
+              <li>Use LINE Login / Okta, or send OTP to a <code>U…</code> id on SUPER_ADMIN_USER_IDS.</li>
+              <li>Confirm OTP. The session cookie Path is this Admin URL prefix.</li>
+              <li>The header pill shows the bound LINE user id.</li>
+            </ol>
+            <p>Fail-closed ADMIN_USER_ID then SUPER_ADMIN_USER_IDS. The bound actor is a LINE user id, not an Odoo login.</p>
             {actor ? <CopyField label="Bound LINE user id" value={actor} /> : null}
             <div className="row">
-              <a href="/admin/api/session/line/start">LINE Login</a>
-              <a href="/admin/api/session/oidc/start">Okta OIDC</a>
-              <a href="/admin/api/session/saml/start">SAML</a>
+              <a href={`${ADMIN_BASE}/api/session/line/start`}>LINE Login</a>
+              <a href={`${ADMIN_BASE}/api/session/oidc/start`}>Okta OIDC</a>
+              <a href={`${ADMIN_BASE}/api/session/saml/start`}>SAML</a>
             </div>
             <div className="field-row">
               <div className="field">
@@ -373,7 +625,7 @@ export const App = () => {
                 <input value={bindUser} onChange={e => setBindUser(e.target.value)} placeholder="LINE user id" />
               </div>
               <button type="button" onClick={async () => {
-                const res = await api('/admin/api/session/bind', { method: 'POST', body: JSON.stringify({ lineUserId: bindUser }) });
+                const res = await api(`${ADMIN_BASE}/api/session/bind`, { method: 'POST', body: JSON.stringify({ lineUserId: bindUser }) });
                 setError(res.ok ? '' : await readError(res, 'Bind failed'));
               }}>Send code</button>
               <div className="field">
@@ -381,7 +633,7 @@ export const App = () => {
                 <input value={bindOtp} onChange={e => setBindOtp(e.target.value)} placeholder="OTP" />
               </div>
               <button type="button" onClick={async () => {
-                const res = await api('/admin/api/session/confirm', { method: 'POST', body: JSON.stringify({ lineUserId: bindUser, otp: bindOtp }) });
+                const res = await api(`${ADMIN_BASE}/api/session/confirm`, { method: 'POST', body: JSON.stringify({ lineUserId: bindUser, otp: bindOtp }) });
                 setError(res.ok ? '' : await readError(res, 'Confirm failed'));
                 await loadSettings();
               }}>Confirm</button>
@@ -414,7 +666,7 @@ export const App = () => {
             </div>
             <h3>Unmask log</h3>
             <button type="button" onClick={async () => {
-              const res = await api('/admin/api/audit-log/reveals?limit=50');
+              const res = await api(`${ADMIN_BASE}/api/audit-log/reveals?limit=50`);
               const body = await res.json() as { events?: Array<Record<string, unknown>>; error?: string };
               if (!res.ok) setError(body.error || 'Forbidden');
               setReveals(body.events || []);
@@ -431,7 +683,7 @@ export const App = () => {
             <p>Live overrides for commerce, directory, catalog, reporting, groupBuy. Env-forced keys cannot be turned on here.</p>
             <div className="field-row">
               <button type="button" onClick={async () => {
-                const res = await api('/admin/api/toggles');
+                const res = await api(`${ADMIN_BASE}/api/toggles`);
                 const body = await res.json() as { toggles?: Array<{ key: string; effective: boolean; source: string }> };
                 setToggles(body.toggles || []);
                 setError(res.ok ? '' : 'Could not load toggles');
@@ -439,7 +691,7 @@ export const App = () => {
               <button type="button" onClick={async () => {
                 const patch: Record<string, boolean> = {};
                 for (const row of toggles) patch[row.key] = row.effective;
-                const res = await api('/admin/api/toggles', { method: 'PUT', body: JSON.stringify(patch) });
+                const res = await api(`${ADMIN_BASE}/api/toggles`, { method: 'PUT', body: JSON.stringify(patch) });
                 const body = await res.json() as { toggles?: Array<{ key: string; effective: boolean; source: string }>; error?: string };
                 if (!res.ok) setError(body.error || 'Toggle save failed');
                 else {
@@ -480,7 +732,7 @@ export const App = () => {
                 <input value={langUser} onChange={e => setLangUser(e.target.value)} placeholder="U..." />
               </div>
               <button type="button" onClick={async () => {
-                const res = await api(`/admin/api/users?userId=${encodeURIComponent(langUser)}`);
+                const res = await api(`${ADMIN_BASE}/api/users?userId=${encodeURIComponent(langUser)}`);
                 const body = await res.json() as { users?: Array<{ userId?: string; language?: string }>; error?: string };
                 if (!res.ok) {
                   setError(body.error || 'Lookup failed');
@@ -491,12 +743,12 @@ export const App = () => {
                 setError('');
               }}>Lookup</button>
               <button type="button" onClick={async () => {
-                const res = await api(`/admin/api/users/${encodeURIComponent(langUser)}`, { method: 'PATCH', body: JSON.stringify({ language: 'en' }) });
+                const res = await api(`${ADMIN_BASE}/api/users/${encodeURIComponent(langUser)}`, { method: 'PATCH', body: JSON.stringify({ language: 'en' }) });
                 setError(res.ok ? '' : await readError(res, 'Set English failed'));
                 if (res.ok) setLangCurrent('en');
               }}>Set English</button>
               <button type="button" onClick={async () => {
-                const res = await api(`/admin/api/users/${encodeURIComponent(langUser)}`, { method: 'PATCH', body: JSON.stringify({ language: 'th' }) });
+                const res = await api(`${ADMIN_BASE}/api/users/${encodeURIComponent(langUser)}`, { method: 'PATCH', body: JSON.stringify({ language: 'th' }) });
                 setError(res.ok ? '' : await readError(res, 'Set Thai failed'));
                 if (res.ok) setLangCurrent('th');
               }}>Set Thai</button>
@@ -510,7 +762,7 @@ export const App = () => {
             <p>Overlay on <code>command-grid.ts</code>. Cannot invent prefixes. Cannot enable a command whose service is env-disabled. ADMIN CONFIG Flex still toggles channel services; this page is the command overlay.</p>
             <div className="field-row">
               <button type="button" onClick={async () => {
-                const res = await api('/admin/api/commands');
+                const res = await api(`${ADMIN_BASE}/api/commands`);
                 const body = await res.json() as { commands?: Array<Record<string, unknown>>; tenantKey?: string };
                 setCommands(body.commands || []);
                 if (body.tenantKey) setTenantKey(body.tenantKey);
@@ -521,7 +773,7 @@ export const App = () => {
                 for (const row of commands) {
                   if (typeof row.id === 'string') patch[row.id] = { enabled: row.enabled !== false };
                 }
-                const res = await api('/admin/api/commands', { method: 'PUT', body: JSON.stringify({ commands: patch }) });
+                const res = await api(`${ADMIN_BASE}/api/commands`, { method: 'PUT', body: JSON.stringify({ commands: patch }) });
                 const body = await res.json() as { commands?: Array<Record<string, unknown>>; error?: string };
                 if (!res.ok) setError(body.error || 'Save failed');
                 else {
@@ -560,12 +812,12 @@ export const App = () => {
             <h2>CRM quotes</h2>
             <div className="row">
               <button type="button" onClick={async () => {
-                const res = await api('/admin/crm/quotes?unassigned=1');
+                const res = await api(`${ADMIN_BASE}/crm/quotes?unassigned=1`);
                 const body = await res.json() as { quotes?: Quote[] };
                 setQuotes(body.quotes || []);
               }}>Unassigned</button>
               <button type="button" onClick={async () => {
-                const res = await api('/admin/crm/quotes');
+                const res = await api(`${ADMIN_BASE}/crm/quotes`);
                 const body = await res.json() as { quotes?: Quote[] };
                 setQuotes(body.quotes || []);
               }}>All</button>
@@ -588,10 +840,10 @@ export const App = () => {
                 <input value={assignSales} onChange={e => setAssignSales(e.target.value)} placeholder="Odoo user id" />
               </div>
               <button type="button" onClick={async () => {
-                const res = await api(`/admin/crm/quotes/${assignId}`, { method: 'PUT', body: JSON.stringify({ salespersonUserId: Number(assignSales) }) });
+                const res = await api(`${ADMIN_BASE}/crm/quotes/${assignId}`, { method: 'PUT', body: JSON.stringify({ salespersonUserId: Number(assignSales) }) });
                 setError(res.ok ? '' : 'Assign failed');
                 if (res.ok) {
-                  const list = await api('/admin/crm/quotes');
+                  const list = await api(`${ADMIN_BASE}/crm/quotes`);
                   const body = await list.json() as { quotes?: Quote[] };
                   setQuotes(body.quotes || []);
                 }
@@ -613,13 +865,13 @@ export const App = () => {
                 const q = raw.startsWith('U') ? `userId=${encodeURIComponent(raw)}`
                   : /^\d+$/.test(raw) ? `partnerId=${encodeURIComponent(raw)}`
                   : `phone=${encodeURIComponent(raw)}`;
-                const res = await api(`/admin/api/users?${q}`);
+                const res = await api(`${ADMIN_BASE}/api/users?${q}`);
                 const body = await res.json() as { users?: Array<Record<string, unknown>>; error?: string };
                 setUsers(body.users || []);
                 setError(res.ok ? '' : (body.error || 'Lookup failed'));
               }}>Lookup</button>
               <button type="button" onClick={async () => {
-                const res = await api('/admin/api/users?sales=1');
+                const res = await api(`${ADMIN_BASE}/api/users?sales=1`);
                 const body = await res.json() as { users?: Array<Record<string, unknown>> };
                 setUsers(body.users || []);
               }}>Verified sales</button>
@@ -639,7 +891,7 @@ export const App = () => {
                     <td>
                       <button type="button" onClick={async () => {
                         const id = String(u.userId || '');
-                        const res = await api(`/admin/api/users/${encodeURIComponent(id)}/activity?limit=50`);
+                        const res = await api(`${ADMIN_BASE}/api/users/${encodeURIComponent(id)}/activity?limit=50`);
                         const body = await res.json() as { events?: Array<Record<string, unknown>> };
                         setActivity(body.events || []);
                         setAuditUser(id);
@@ -677,7 +929,7 @@ export const App = () => {
             <p>LINE command role is Firestore <code>role</code> + verification. Admin grant still requires the fail-closed chain. Odoo groups are live from the ERP API on Directory lookup.</p>
             <div className="row">
               <button type="button" onClick={async () => {
-                const res = await api('/admin/api/privileges');
+                const res = await api(`${ADMIN_BASE}/api/privileges`);
                 const body = await res.json() as Record<string, unknown>;
                 setPrivilegeSnap(JSON.stringify(body, null, 2));
                 setError(res.ok ? '' : 'Privileges load failed');
@@ -690,7 +942,7 @@ export const App = () => {
                 <input value={grantUser} onChange={e => setGrantUser(e.target.value)} placeholder="U05594…" />
               </div>
               <button type="button" disabled={!actor} onClick={async () => {
-                const res = await api('/admin/api/privileges/enable', { method: 'POST', body: JSON.stringify({ userId: grantUser.trim() }) });
+                const res = await api(`${ADMIN_BASE}/api/privileges/enable`, { method: 'POST', body: JSON.stringify({ userId: grantUser.trim() }) });
                 setError(res.ok ? '' : await readError(res, 'Grant failed'));
               }}>Grant role=admin</button>
             </div>
@@ -713,7 +965,7 @@ export const App = () => {
                 const q = new URLSearchParams({ limit: '50' });
                 if (auditUser.trim()) q.set('userId', auditUser.trim());
                 if (auditAction.trim()) q.set('action', auditAction.trim());
-                const res = await api(`/admin/api/audit-log?${q.toString()}`);
+                const res = await api(`${ADMIN_BASE}/api/audit-log?${q.toString()}`);
                 const body = await res.json() as { events?: Array<Record<string, unknown>> };
                 setLogs(body.events || []);
               }}>Load</button>
@@ -740,7 +992,7 @@ export const App = () => {
           <div className="card">
             <h2>Testing (Demo)</h2>
             <p>Admin testing only. Off when APP_ENV=production. Same resolveCommandReply as LINE.</p>
-            <p><a href="/demo">Open /demo</a></p>
+            <p><a href={DEMO_BASE}>Open {DEMO_BASE}</a></p>
           </div>
         ) : null}
         {page === 'platform' ? (
@@ -752,7 +1004,7 @@ export const App = () => {
                 <input value={tenantKey} onChange={e => setTenantKey(e.target.value)} placeholder="default" />
               </div>
               <button type="button" onClick={async () => {
-                const res = await api('/admin/api/tenant', { method: 'PUT', body: JSON.stringify({ tenantKey }) });
+                const res = await api(`${ADMIN_BASE}/api/tenant`, { method: 'PUT', body: JSON.stringify({ tenantKey }) });
                 const body = await res.json() as { tenantKey?: string; error?: string };
                 if (!res.ok) setError(body.error || 'Tenant save failed (lock?)');
                 else {
@@ -762,10 +1014,10 @@ export const App = () => {
               }}>Save tenant</button>
               <button type="button" onClick={async () => {
                 await loadSettings();
-                const res = await api('/admin/api/erp/test');
+                const res = await api(`${ADMIN_BASE}/api/erp/test`);
                 const body = await res.json() as { erpImplemented?: boolean; erpProvider?: string };
                 setErp(res.ok ? JSON.stringify(body) : 'fail');
-                const st = await api('/admin/api/erp/status');
+                const st = await api(`${ADMIN_BASE}/api/erp/status`);
                 setErpStatus(JSON.stringify(await st.json(), null, 2));
               }}>Refresh ERP</button>
             </div>
@@ -783,7 +1035,7 @@ export const App = () => {
                 <input type="password" value={jobsToken} onChange={e => { setJobsToken(e.target.value); sessionStorage.setItem(JOBS_TOKEN_KEY, e.target.value); }} placeholder="ADMIN_SECRET_TOKEN" />
               </div>
               <button type="button" onClick={async () => {
-                const res = await fetch('/admin/api/jobs/daily-report', { method: 'POST', credentials: 'include', headers: { authorization: `Bearer ${jobsToken}` } });
+                const res = await fetch(`${ADMIN_BASE}/api/jobs/daily-report`, { method: 'POST', credentials: 'include', headers: { authorization: `Bearer ${jobsToken}` } });
                 setError(res.ok ? '' : 'Job failed');
               }}>Daily report</button>
             </div>
@@ -817,21 +1069,21 @@ export const App = () => {
             <textarea value={campText} onChange={e => setCampText(e.target.value)} rows={4} style={{ width: '100%' }} />
             <div className="row">
               <button type="button" disabled={!actor} onClick={async () => {
-                const res = await api('/admin/api/campaigns/preview', { method: 'POST', body: JSON.stringify(campaignBody()) });
+                const res = await api(`${ADMIN_BASE}/api/campaigns/preview`, { method: 'POST', body: JSON.stringify(campaignBody()) });
                 const body = await res.json() as { error?: string };
                 setCampPreview(JSON.stringify(body, null, 2));
                 setError(res.ok ? '' : (body.error || 'Preview failed'));
               }}>Preview</button>
               <button type="button" disabled={!actor} onClick={async () => {
-                const res = await api('/admin/api/campaigns/test', { method: 'POST', body: JSON.stringify(campaignBody()) });
+                const res = await api(`${ADMIN_BASE}/api/campaigns/test`, { method: 'POST', body: JSON.stringify(campaignBody()) });
                 setError(res.ok ? '' : await readError(res, 'Test failed'));
               }}>Test (actor only)</button>
               <button type="button" disabled={!actor || settings?.queueReady === false} onClick={async () => {
-                const res = await api('/admin/api/campaigns/send', { method: 'POST', body: JSON.stringify({ ...campaignBody(), confirm: 'SEND' }) });
+                const res = await api(`${ADMIN_BASE}/api/campaigns/send`, { method: 'POST', body: JSON.stringify({ ...campaignBody(), confirm: 'SEND' }) });
                 setError(res.status === 202 || res.ok ? '' : await readError(res, res.status === 503 ? 'Redis required (503)' : 'Send failed'));
               }}>Send multicast</button>
               <button type="button" disabled={!actor} onClick={async () => {
-                const res = await api('/admin/api/campaigns');
+                const res = await api(`${ADMIN_BASE}/api/campaigns`);
                 if (!res.ok) {
                   setError(await readError(res, 'History failed'));
                   return;
@@ -846,7 +1098,7 @@ export const App = () => {
             <div className="field-row">
               <input value={broadcastConfirm} onChange={e => setBroadcastConfirm(e.target.value)} placeholder="type BROADCAST" disabled={campClass === 'customers_promo'} />
               <button type="button" disabled={!actor || campClass === 'customers_promo'} onClick={async () => {
-                const res = await api('/admin/api/campaigns/broadcast', { method: 'POST', body: JSON.stringify({ channelId: campChannel, audienceType: campClass, text: campText, confirm: broadcastConfirm }) });
+                const res = await api(`${ADMIN_BASE}/api/campaigns/broadcast`, { method: 'POST', body: JSON.stringify({ channelId: campChannel, audienceType: campClass, text: campText, confirm: broadcastConfirm }) });
                 setError(res.ok ? '' : await readError(res, 'Broadcast denied or failed'));
               }}>Broadcast</button>
             </div>

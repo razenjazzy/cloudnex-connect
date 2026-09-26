@@ -68,8 +68,9 @@ Required for two OAs:
 - `SUPER_ADMIN_USER_IDS` = LINE ids allowed to bind/reveal (fail closed if unset)
 - `CONNECT_BOOTSTRAP_TOKEN` from `scripts/bootstrap-cloudnex-connect.sh` (printed once)
 - `APP_ENV=staging`, `PUBLIC_BASE_URL=https://amardhaka.io`
+- `PUBLIC_ADMIN_BASE=/cloudnex-admin`, `PUBLIC_DEMO_BASE=/cloudnex-connect/demo`
 
-Install (one-shot): `POST https://amardhaka.io/admin/api/bootstrap` with the bootstrap token (Swagger tag `install`). Second call is 410. Google credential JSON stays a mounted file/env secret on this same path.
+Install (one-shot): `POST https://amardhaka.io/cloudnex-admin/api/bootstrap` with the bootstrap token (Swagger tag `install`). Second call is 410. Google credential JSON stays a mounted file/env secret on this same path.
 
 Rotate channel secrets that were pasted in chat.
 
@@ -89,7 +90,7 @@ Repeat deploys from a machine logged into Docker Hub: `npm run deploy:staging-vm
 
 ## 5. Nginx + TLS
 
-Merge [deploy/hostinger/nginx-amardhaka.conf.example](../deploy/hostinger/nginx-amardhaka.conf.example) into the `amardhaka.io` server. `proxy_pass http://127.0.0.1:8080` **without** a `/webhook` URI suffix so `/webhook/sales` and `/webhook/customer` are preserved. Forward `X-Line-Signature`.
+Merge [deploy/hostinger/nginx-amardhaka.conf.example](../deploy/hostinger/nginx-amardhaka.conf.example) into the `amardhaka.io` server. `proxy_pass http://127.0.0.1:8080` **without** a `/webhook` URI suffix so `/webhook/sales` and `/webhook/customer` are preserved. Forward `X-Line-Signature`. Put `location ^~ /cloudnex-admin/test` **before** `/cloudnex-admin/` so the sibling (8081) wins. Old `/admin` and `/demo` 301 to the new prefixes.
 
 ```bash
 nginx -t && systemctl reload nginx
@@ -117,9 +118,22 @@ Paste the printed `LINE_RICH_MENU_JSON` / `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON`
 
 - `GET https://amardhaka.io/healthz` — `service` is `cloudnex-connect`
 - `GET https://amardhaka.io/readyz` (`bootstrapComplete`)
-- `GET https://amardhaka.io/admin` (OPS token; LINE bind for reveal)
-- `GET https://amardhaka.io/demo` (ops/demo tokens; testing only)
+- `GET https://amardhaka.io/cloudnex-admin/` (OPS token; LINE bind for reveal)
+- `GET https://amardhaka.io/cloudnex-connect/demo` (ops/demo tokens; testing only)
 - `GET /ops/platform` — `lineCustomerConfigured` true when Customer env is set
+
+## 7b. Sibling process (`/opt/cns-line-oa`, port 8081)
+
+Same image tag, `APP_ENV=staging`, Admin at `PUBLIC_ADMIN_BASE=/cloudnex-admin/test`. Copy `.env` from primary onto the server only — do not commit it. Own Redis in `deploy/hostinger/docker-compose.sibling.yml` so queue keys do not collide.
+
+```bash
+mkdir -p /opt/cns-line-oa
+# copy operator .env onto the sibling dir, then:
+docker compose -f deploy/hostinger/docker-compose.sibling.yml --env-file /opt/cns-line-oa/.env up -d --no-build --pull always
+curl -sS http://127.0.0.1:8081/healthz
+```
+
+Keep HMAC webhooks on **primary 8080** unless the sibling has **distinct** LINE credentials. Do not dual-bind the same OA to both ports.
 
 ## 8. Repeat deploy from laptop / GitHub
 

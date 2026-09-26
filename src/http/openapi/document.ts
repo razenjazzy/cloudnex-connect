@@ -297,6 +297,14 @@ const opsPaths: Record<string, OpenApiPath> = {
       responses: { '200': { description: 'Broadcast' }, '400': { description: 'Missing confirm' } },
     },
   },
+  '/admin/api/dashboard': {
+    get: {
+      tags: ['admin'],
+      summary: 'Overview probes and recent audit counts by channelId',
+      security: bearer,
+      responses: { '200': { description: 'Dashboard snapshot' } },
+    },
+  },
   '/admin/api/campaigns': {
     get: {
       tags: ['admin'],

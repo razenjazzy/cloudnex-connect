@@ -7,8 +7,8 @@ import { DEMO_PAGE_STYLES } from './styles';
 import { DEMO_PAGE_MARKUP } from './markup';
 import { DEMO_PAGE_SCRIPT } from './script';
 
-export const buildDemoPage = (): string => `<!DOCTYPE html>
-<html lang="en">
+export const buildDemoPage = (demoBase = '/demo'): string => `<!DOCTYPE html>
+<html lang="en" data-demo-base="${demoBase}">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />

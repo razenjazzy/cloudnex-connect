@@ -4,6 +4,7 @@
 // this whole inline script in the browser (no listeners attached at all).
 // Restored below.
 export const DEMO_PAGE_SCRIPT = `
+    const DEMO_BASE = document.documentElement.getAttribute('data-demo-base') || '/demo';
     const pretty = (value) => JSON.stringify(value, null, 2);
     const toNum = (value) => Number(String(value).trim());
 
@@ -49,7 +50,7 @@ export const DEMO_PAGE_SCRIPT = `
     async function loadConnections() {
       const output = document.getElementById('connections-output');
       output.textContent = 'Loading connection status...';
-      const data = await getJson('/demo/connections');
+      const data = await getJson(DEMO_BASE + '/connections');
       output.textContent = pretty(data);
       return data;
     }
@@ -58,7 +59,7 @@ export const DEMO_PAGE_SCRIPT = `
       const grid = document.getElementById('platform-modules');
       const stores = document.getElementById('platform-stores');
       const scriptOut = document.getElementById('platform-script');
-      const data = await getJson('/demo/platform');
+      const data = await getJson(DEMO_BASE + '/platform');
       stores.textContent = [
         'Firestore: ' + data.stores.firestore,
         'Odoo: ' + data.stores.odoo,
@@ -92,7 +93,7 @@ export const DEMO_PAGE_SCRIPT = `
         return;
       }
 
-      const response = await fetch('/demo/session/login', {
+      const response = await fetch(DEMO_BASE + '/session/login', {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
@@ -107,7 +108,7 @@ export const DEMO_PAGE_SCRIPT = `
     async function logoutDemoSession() {
       const output = document.getElementById('runbook-output');
       output.textContent = 'Logging out demo session...';
-      const response = await fetch('/demo/session/logout', {
+      const response = await fetch(DEMO_BASE + '/session/logout', {
         method: 'POST',
         credentials: 'same-origin',
       });
@@ -117,7 +118,7 @@ export const DEMO_PAGE_SCRIPT = `
     }
 
     async function loadSessionStatus() {
-      return getJson('/demo/session/status');
+      return getJson(DEMO_BASE + '/session/status');
     }
 
     function writeModelToForm(model) {
@@ -131,7 +132,7 @@ export const DEMO_PAGE_SCRIPT = `
     async function loadSalesFeatureToggles() {
       const output = document.getElementById('sales-feature-toggles-output');
       output.textContent = 'Loading sales feature toggles...';
-      const data = await getJson('/demo/sales-feature-toggles');
+      const data = await getJson(DEMO_BASE + '/sales-feature-toggles');
       const form = document.getElementById('sales-feature-toggles-form');
       (data.toggles || []).forEach((row) => {
         const input = form.elements.namedItem(row.key);
@@ -154,7 +155,7 @@ export const DEMO_PAGE_SCRIPT = `
         const input = form.elements.namedItem(key);
         if (input && !input.disabled) payload[key] = !!input.checked;
       });
-      const data = await postJson('/demo/sales-feature-toggles', 'PUT', payload);
+      const data = await postJson(DEMO_BASE + '/sales-feature-toggles', 'PUT', payload);
       (data.toggles || []).forEach((row) => {
         const input = form.elements.namedItem(row.key);
         if (input) {
@@ -171,7 +172,7 @@ export const DEMO_PAGE_SCRIPT = `
     async function loadPricingModel() {
       const output = document.getElementById('pricing-model-output');
       output.textContent = 'Loading pricing model...';
-      const data = await getJson('/demo/pricing-model');
+      const data = await getJson(DEMO_BASE + '/pricing-model');
       writeModelToForm(data.model || {});
       output.textContent = pretty(data);
       return data;
@@ -184,7 +185,7 @@ export const DEMO_PAGE_SCRIPT = `
       const form = new FormData(event.currentTarget);
       const payload = {};
       for (const [key, value] of form.entries()) payload[key] = toNum(value);
-      const data = await postJson('/demo/pricing-model', 'PUT', payload);
+      const data = await postJson(DEMO_BASE + '/pricing-model', 'PUT', payload);
       output.textContent = pretty(data);
       return data;
     }
@@ -198,7 +199,7 @@ export const DEMO_PAGE_SCRIPT = `
       for (const [key, value] of form.entries()) payload[key] = toNum(value);
       const expectedCustomers = document.getElementById('pricing-model-form').elements.namedItem('expectedCustomers');
       payload.expectedCustomers = toNum(expectedCustomers.value || 35);
-      const data = await postJson('/demo/pricing-simulation', 'POST', payload);
+      const data = await postJson(DEMO_BASE + '/pricing-simulation', 'POST', payload);
       output.textContent = pretty(data);
       return data;
     }
@@ -218,7 +219,7 @@ export const DEMO_PAGE_SCRIPT = `
         qty: toNum(form.get('qty')),
         seedOdoo: String(form.get('seedOdoo')).toLowerCase() !== 'false',
       };
-      const data = await postJson('/demo/journey', 'POST', payload);
+      const data = await postJson(DEMO_BASE + '/journey', 'POST', payload);
       output.textContent = pretty(data);
       return data;
     }
@@ -269,7 +270,7 @@ export const DEMO_PAGE_SCRIPT = `
     async function runWorkflowAudit() {
       const output = document.getElementById('audit-output');
       output.textContent = 'Running workflow audit...';
-      const data = await getJson('/demo/workflow-audit');
+      const data = await getJson(DEMO_BASE + '/workflow-audit');
       const session = await loadSessionStatus();
       const report = { ...data, session };
       output.textContent = pretty(report);
@@ -392,7 +393,7 @@ export const DEMO_PAGE_SCRIPT = `
       scrollChat();
 
       try {
-        const data = await postJson('/demo/chat', 'POST', { text: value, userId: 'web_demo_user' });
+        const data = await postJson(DEMO_BASE + '/chat', 'POST', { text: value, userId: 'web_demo_user' });
         meta.textContent = (data.agentName || 'Bot') + ' · powered by the LINE routing engine';
         for (const line of data.transcript || []) {
           const botRow = document.createElement('div');

@@ -1,4 +1,8 @@
 export const DEMO_PAGE_MARKUP = `
+  <header class="demo-top">
+    <span class="brand-name">Cloudnex Connect</span>
+    <span class="tag">Testing</span>
+  </header>
   <div class="shell">
     <section class="hero">
       <div class="panel hero-copy">

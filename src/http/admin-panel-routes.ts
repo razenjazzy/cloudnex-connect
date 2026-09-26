@@ -6,6 +6,7 @@ import { isOdooConfigured } from '../services/odoo';
 import { recordAuditEvent } from '../services/firestore';
 import { jsonParser } from './middleware';
 import { registerAdminApiRoutes, requireAdminPanelAccess } from './admin-api-routes';
+import { adminBase, demoBase } from './public-bases';
 
 const adminDist = path.resolve(__dirname, '../../admin/dist');
 const adminIndex = path.join(adminDist, 'index.html');
@@ -14,13 +15,23 @@ const spaFallback = (_req: Request, res: Response) => {
   if (!fs.existsSync(adminIndex)) {
     return res.status(503).json({ error: 'Admin UI is not built.' });
   }
-  return res.sendFile(adminIndex);
+  const html = fs.readFileSync(adminIndex, 'utf8');
+  const base = `${adminBase()}/`;
+  const injected = html
+    .replace('<head>', `<head><base href="${base}" />`)
+    .replace(
+      '</head>',
+      `<script>window.__ADMIN_BASE__=${JSON.stringify(adminBase())};window.__DEMO_BASE__=${JSON.stringify(demoBase())};</script></head>`,
+    );
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  return res.send(injected);
 };
 
 export const registerAdminPanelRoutes = (app: Express): void => {
   registerAdminApiRoutes(app);
+  const root = adminBase();
 
-  app.get('/admin/crm/quotes', requireAdminPanelAccess, async (req, res) => {
+  app.get(`${root}/crm/quotes`, requireAdminPanelAccess, async (req, res) => {
     if (!isOdooConfigured()) {
       return res.status(503).json({ error: 'Odoo is unavailable.' });
     }
@@ -35,7 +46,7 @@ export const registerAdminPanelRoutes = (app: Express): void => {
     return res.json({ quotes, count: quotes.length });
   });
 
-  app.put('/admin/crm/quotes/:id', jsonParser, requireAdminPanelAccess, async (req, res) => {
+  app.put(`${root}/crm/quotes/:id`, jsonParser, requireAdminPanelAccess, async (req, res) => {
     const orderId = Number(req.params.id);
     if (!Number.isInteger(orderId) || orderId <= 0) {
       return res.status(400).json({ error: 'Invalid quote id.' });
@@ -60,34 +71,12 @@ export const registerAdminPanelRoutes = (app: Express): void => {
   });
 
   if (fs.existsSync(adminDist)) {
-    app.use('/admin', express.static(adminDist, { index: false, maxAge: '1h' }));
+    app.use(root, express.static(adminDist, { index: false, maxAge: '1h' }));
   }
 
-  app.get([
-    '/admin',
-    '/admin/',
-    '/admin/demo',
-    '/admin/crm',
-    '/admin/login',
-    '/admin/setup',
-    '/admin/line',
-    '/admin/erp',
-    '/admin/users',
-    '/admin/privileges',
-    '/admin/approvals',
-    '/admin/settings',
-    '/admin/language',
-    '/admin/testing',
-    '/admin/jobs',
-    '/admin/audit',
-    '/admin/logs',
-    '/admin/unmask',
-    '/admin/platform',
-    '/admin/campaigns',
-    '/admin/identity',
-    '/admin/advanced',
-    '/admin/commands',
-    '/admin/directory',
-  ], spaFallback);
-  app.get(/^\/admin\/(?!crm\/quotes|api\/).*/, spaFallback);
+  const spaRegex = new RegExp(`^${root.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:/.*)?$`);
+  app.get(spaRegex, (req, res, next) => {
+    if (req.path.startsWith(`${root}/api`) || req.path.startsWith(`${root}/crm/quotes`)) return next();
+    return spaFallback(req, res);
+  });
 };

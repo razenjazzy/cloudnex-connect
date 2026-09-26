@@ -32,9 +32,11 @@ import {
     readyzTimeoutMs,
     webhookTestToken,
 } from './env';
+import { demoBase } from './public-bases';
 
 export const registerDemoRoutes = (app: Express): void => {
-    app.post('/demo/session/login', jsonParser, async (req, res) => {
+    const D = demoBase();
+    app.post(`${D}/session/login`, jsonParser, async (req, res) => {
         if (!isDemoControlEnabled) {
             return res.status(404).json({ error: 'Demo control panel is disabled.' });
         }
@@ -56,12 +58,12 @@ export const registerDemoRoutes = (app: Express): void => {
         return res.json({ ok: true, ttlMinutes: demoSessionTtlMinutes });
     });
 
-    app.post('/demo/session/logout', (_req, res) => {
+    app.post(`${D}/session/logout`, (_req, res) => {
         clearDemoSessionCookie(res);
         return res.json({ ok: true });
     });
 
-    app.get('/demo/session/status', (req, res) => {
+    app.get(`${D}/session/status`, (req, res) => {
         if (!isDemoControlEnabled) {
             return res.status(404).json({ error: 'Demo control panel is disabled.' });
         }
@@ -89,14 +91,14 @@ export const registerDemoRoutes = (app: Express): void => {
 
     // The HTML shell must stay reachable without a session so presenters can
     // paste DEMO_CONTROL_TOKEN and POST /demo/session/login. JSON APIs stay gated.
-    app.get('/demo', (_req, res) => {
+    app.get(D, (_req, res) => {
         if (!isDemoControlEnabled) {
             return res.status(404).json({ error: 'Demo control panel is disabled.' });
         }
-        res.type('html').send(buildDemoPage());
+        res.type('html').send(buildDemoPage(D));
     });
 
-    app.get('/demo/connections', requireDemoControlAccess, async (req, res) => {
+    app.get(`${D}/connections`, requireDemoControlAccess, async (req, res) => {
         try {
             const baseUrl = `${req.protocol}://${req.get('host')}`;
             const overview = await getDemoOverview(baseUrl);
@@ -107,11 +109,11 @@ export const registerDemoRoutes = (app: Express): void => {
         }
     });
 
-    app.get('/demo/platform', requireDemoControlAccess, (_req, res) => {
+    app.get(`${D}/platform`, requireDemoControlAccess, (_req, res) => {
         res.json({ ...getDemoPlatformPayload(), flags: getPlatformFlags() });
     });
 
-    app.post('/demo/journey', requireDemoControlAccess, jsonParser, async (req, res) => {
+    app.post(`${D}/journey`, requireDemoControlAccess, jsonParser, async (req, res) => {
         try {
             const result = await runDemoJourney(req.body || {});
             res.status(result.ok ? 200 : 400).json(result);
@@ -124,7 +126,7 @@ export const registerDemoRoutes = (app: Express): void => {
     // Interactive web chat widget: drives the exact same routing engine as the
     // LINE bot (resolveCommandReply), so the /demo panel previews real bot
     // behavior — including the auto-opened nav-button menu on first contact.
-    app.post('/demo/chat', requireDemoControlAccess, jsonParser, async (req, res) => {
+    app.post(`${D}/chat`, requireDemoControlAccess, jsonParser, async (req, res) => {
         try {
             const rawText = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
             if (!rawText) {
@@ -169,7 +171,7 @@ export const registerDemoRoutes = (app: Express): void => {
         }
     });
 
-    app.get('/demo/pricing-model', requireDemoControlAccess, (_req, res) => {
+    app.get(`${D}/pricing-model`, requireDemoControlAccess, (_req, res) => {
         return getPricingModel()
             .then(model => {
                 res.json({
@@ -182,7 +184,7 @@ export const registerDemoRoutes = (app: Express): void => {
             });
     });
 
-    app.get('/demo/sales-feature-toggles', requireDemoControlAccess, (_req, res) => {
+    app.get(`${D}/sales-feature-toggles`, requireDemoControlAccess, (_req, res) => {
         return ensureFeatureTogglesLoaded()
             .then(() => {
                 res.json({
@@ -195,7 +197,7 @@ export const registerDemoRoutes = (app: Express): void => {
             });
     });
 
-    app.put('/demo/sales-feature-toggles', requireDemoControlAccess, jsonParser, async (req, res) => {
+    app.put(`${D}/sales-feature-toggles`, requireDemoControlAccess, jsonParser, async (req, res) => {
         try {
             const updated = await replaceFeatureToggles(req.body || {});
             res.json({
@@ -208,7 +210,7 @@ export const registerDemoRoutes = (app: Express): void => {
         }
     });
 
-    app.put('/demo/pricing-model', requireDemoControlAccess, jsonParser, async (req, res) => {
+    app.put(`${D}/pricing-model`, requireDemoControlAccess, jsonParser, async (req, res) => {
         try {
             const updated = await updatePricingModel(req.body || {});
             res.json({
@@ -221,7 +223,7 @@ export const registerDemoRoutes = (app: Express): void => {
         }
     });
 
-    app.post('/demo/pricing-simulation', requireDemoControlAccess, jsonParser, async (req, res) => {
+    app.post(`${D}/pricing-simulation`, requireDemoControlAccess, jsonParser, async (req, res) => {
         try {
             await getPricingModel();
             const report = runPricingSimulation(req.body || {});
@@ -231,7 +233,7 @@ export const registerDemoRoutes = (app: Express): void => {
         }
     });
 
-    app.get('/demo/workflow-audit', requireDemoControlAccess, async (_req, res) => {
+    app.get(`${D}/workflow-audit`, requireDemoControlAccess, async (_req, res) => {
         await ensureDemoSessionStateLoaded();
 
         const failures: string[] = [];

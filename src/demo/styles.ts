@@ -1,15 +1,15 @@
 export const DEMO_PAGE_STYLES = `
     :root {
-      --bg: #f3ede4;
-      --panel: rgba(255, 252, 248, 0.88);
-      --ink: #1f2933;
-      --muted: #52606d;
-      --accent: #0f766e;
-      --accent-strong: #115e59;
-      --alert: #c2410c;
-      --line: #d9e2ec;
-      --shadow: 0 18px 38px rgba(15, 23, 42, 0.14);
-      --radius: 18px;
+      --bg: #f4f7f6;
+      --panel: #fff;
+      --ink: #102a27;
+      --muted: #3d5551;
+      --accent: #0f6e62;
+      --accent-strong: #102a27;
+      --alert: #a33;
+      --line: #c5d5d1;
+      --shadow: 0 1px 3px rgb(16 42 39 / 8%);
+      --radius: 12px;
     }
 
     * { box-sizing: border-box; }
@@ -17,16 +17,25 @@ export const DEMO_PAGE_STYLES = `
     body {
       margin: 0;
       min-height: 100vh;
-      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      font-family: ui-sans-serif, system-ui, sans-serif;
       color: var(--ink);
-      background:
-        radial-gradient(circle at 10% 0%, rgba(15, 118, 110, 0.2), transparent 34%),
-        radial-gradient(circle at 90% 0%, rgba(194, 65, 12, 0.2), transparent 32%),
-        linear-gradient(180deg, #faf6ef 0%, var(--bg) 100%);
-      padding: 26px 18px 40px;
+      background: var(--bg);
+      padding: 0 18px 40px;
     }
 
-    .shell { max-width: 1320px; margin: 0 auto; }
+    .demo-top {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      margin: 0 -18px 20px;
+      padding: 0.75rem 1.5rem;
+      background: #102a27;
+      color: #fff;
+    }
+    .demo-top .brand-name { font-weight: 650; letter-spacing: -0.02em; }
+    .demo-top .tag { font-size: 0.8rem; color: #b7d4ce; margin-left: auto; }
+
+    .shell { max-width: 1400px; margin: 0 auto; }
 
     .hero {
       display: grid;
@@ -174,25 +183,26 @@ export const DEMO_PAGE_STYLES = `
 
     button {
       border: 0;
-      border-radius: 12px;
+      border-radius: 8px;
       padding: 10px 14px;
       color: white;
-      font-weight: 700;
+      font-weight: 650;
       cursor: pointer;
-      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      min-height: 2.5rem;
+      background: #0f6e62;
     }
 
-    button.secondary { background: linear-gradient(135deg, #f97316, #c2410c); }
-    button.ghost { background: #0b1822; }
+    button.secondary { background: #5c6f6c; }
+    button.ghost { background: #1d4a44; }
 
     pre {
       margin: 0;
       min-height: 150px;
       max-height: 400px;
       overflow: auto;
-      border-radius: 14px;
-      background: #10202b;
-      color: #d8ebff;
+      border-radius: 8px;
+      background: #eef1f0;
+      color: #102a27;
       padding: 14px;
       font-size: 13px;
       white-space: pre-wrap;
