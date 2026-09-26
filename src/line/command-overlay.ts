@@ -17,12 +17,16 @@ const VALID_ROLES = new Set<CommandRole>(['guest', 'customer', 'staff', 'admin']
 const VALID_CHANNELS = new Set<CommandChannel>(['default', 'sales', 'customer']);
 
 let overlayCache: CommandOverlayMap = {};
+let overlayLoadedAt = 0;
+const OVERLAY_TTL_MS = 60_000;
 
 const overlayKey = (): string => tenantScopedKey('command-overlay');
 
 export const loadCommandOverlay = async (): Promise<CommandOverlayMap> => {
+  if (overlayLoadedAt && Date.now() - overlayLoadedAt < OVERLAY_TTL_MS) return overlayCache;
   const stored = await getPlatformConfig<{ commands?: CommandOverlayMap }>(overlayKey());
   overlayCache = stored?.commands && typeof stored.commands === 'object' ? stored.commands : {};
+  overlayLoadedAt = Date.now();
   return overlayCache;
 };
 
@@ -30,6 +34,32 @@ export const getCachedCommandOverlay = (): CommandOverlayMap => overlayCache;
 
 export const setCommandOverlayCacheForTests = (overlay: CommandOverlayMap): void => {
   overlayCache = overlay;
+  overlayLoadedAt = overlay && Object.keys(overlay).length ? Date.now() : 0;
+};
+
+const LINE_ACTION_LABEL_MAX = 20;
+
+/** LINE Flex / menu label from Admin Commands EN/TH overlay. Prefix itself is not editable. */
+export const overlayLabelForText = (
+  text: string,
+  language: 'en' | 'th',
+  fallback: string,
+): string => {
+  const upper = text.trim().toUpperCase();
+  let best: CommandGridEntry | null = null;
+  for (const entry of COMMAND_GRID) {
+    if (entry.uiOnly) continue;
+    const hit = entry.exact
+      ? upper === entry.prefix
+      : upper === entry.prefix || upper.startsWith(`${entry.prefix} `);
+    if (!hit) continue;
+    if (!best || entry.prefix.length > best.prefix.length) best = entry;
+  }
+  if (!best) return fallback.slice(0, LINE_ACTION_LABEL_MAX);
+  const patch = overlayCache[best.id] || {};
+  const overlayLabel = language === 'th' ? patch.labelTh : patch.labelEn;
+  const label = typeof overlayLabel === 'string' && overlayLabel.trim() ? overlayLabel.trim() : fallback;
+  return label.slice(0, LINE_ACTION_LABEL_MAX);
 };
 
 export const mergeCommandGridEntry = (entry: CommandGridEntry, overlay = overlayCache): CommandGridEntry & { enabled: boolean } => {
@@ -64,7 +94,7 @@ export const sanitizeCommandOverlay = (input: unknown): { ok: true; commands: Co
     const patch = raw as CommandOverlayPatch;
     const entry = COMMAND_GRID.find(item => item.id === id);
     if (!entry) return { ok: false, error: `Unknown command id: ${id}` };
-    if (patch.enabled === true) {
+    if (patch.enabled === true && !entry.uiOnly) {
       const service = resolveServiceForCommand(entry.prefix);
       if (service && !isServiceConfigured(service)) {
         return { ok: false, error: `Cannot enable ${id}; service ${service} is not configured.` };
@@ -93,5 +123,6 @@ export const saveCommandOverlay = async (commands: CommandOverlayMap): Promise<{
   const result = await mutatePlatformConfig<{ commands?: CommandOverlayMap }>(overlayKey(), () => ({ commands }));
   if (!result.ok) return result;
   overlayCache = commands;
+  overlayLoadedAt = Date.now();
   return { ok: true };
 };

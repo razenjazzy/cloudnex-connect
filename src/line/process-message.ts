@@ -3,7 +3,7 @@ import type { Readable } from 'node:stream';
 import { classifyIntent, transcribeAudioToText } from '../services/vertexai';
 import { resolveCommandReply, type CommandReplyContext } from './command-router';
 import { resolvePostbackToText } from './postback';
-import { getEscalationState, getUserLanguage, getUserProfile, setLastChannelId, setUserDisplayName, updateUserScore } from '../services/firestore';
+import { getUserProfile, setLastChannelId, setUserDisplayName, updateUserScore } from '../services/firestore';
 import { ChannelConfig, getAgentName } from './channels';
 import type { ChannelContext } from './channels';
 import { appLogger } from '../services/logger';
@@ -166,29 +166,26 @@ const deliverMessages = async (
 export const processLineMessageJob = async (input: LineMessageJobInput): Promise<unknown> => {
   return withSpan('line.processMessage', { 'line.user_id': input.conversationId, 'http.request_id': input.requestId || '' }, async () => {
     const client = new messagingApi.MessagingApiClient({ channelAccessToken: input.channelConfig.channelAccessToken });
-    const [userLanguage, profile] = await Promise.all([
-      getUserLanguage(input.conversationId),
-      getUserProfile(input.conversationId),
-    ]);
-    if (!profile.displayName) {
-      try {
-        const lineProfile = await client.getProfile(input.conversationId);
-        if (lineProfile.displayName) {
-          await setUserDisplayName(input.conversationId, lineProfile.displayName);
-          profile.displayName = lineProfile.displayName;
-        }
-      } catch (error) {
-        appLogger.warn('line_profile_fetch_failed', { error: String(error), requestId: input.requestId });
+    const profile = await getUserProfile(input.conversationId);
+    const userLanguage = profile.language;
+    const persistAfterReply = (): void => {
+      if (!profile.displayName) {
+        void client.getProfile(input.conversationId).then(lineProfile => {
+          if (lineProfile.displayName) {
+            profile.displayName = lineProfile.displayName;
+            void setUserDisplayName(input.conversationId, lineProfile.displayName);
+          }
+        }).catch(error => appLogger.warn('line_profile_fetch_failed', { error: String(error), requestId: input.requestId }));
       }
-    }
-    if (profile.lastChannelId !== input.channelConfig.channelId) {
-      await setLastChannelId(input.conversationId, input.channelConfig.channelId);
-    }
-    void maybeWriteMongoUser(input.conversationId, {
-      role: profile.role,
-      odooVerified: profile.odooVerified,
-      lastChannelId: input.channelConfig.channelId,
-    });
+      if (profile.lastChannelId !== input.channelConfig.channelId) {
+        void setLastChannelId(input.conversationId, input.channelConfig.channelId);
+      }
+      void maybeWriteMongoUser(input.conversationId, {
+        role: profile.role,
+        odooVerified: profile.odooVerified,
+        lastChannelId: input.channelConfig.channelId,
+      });
+    };
     const agentName = getAgentName(userLanguage);
 
     let inputText = input.text?.trim() || '';
@@ -296,7 +293,7 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
       }).catch(err => appLogger.error('intent_classification_failed', { error: String(err) }));
     }
 
-    const isEscalated = await getEscalationState(input.conversationId);
+    const isEscalated = Boolean(profile.escalatedToHuman);
     if (isEscalated) {
       return deliverMessages(client, input, [{
         type: 'text',
@@ -340,11 +337,12 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
           tone: 'warning',
           title: t('replyDeliverFailed', userLanguage),
           body: t('replyDeliverFailedBody', userLanguage),
-          actions: [{ label: t('myQuotations', userLanguage), text: 'QUOTE LIST', style: 'primary' }],
+          actions: [{ label: t('myOrders', userLanguage), text: 'QUOTE LIST', style: 'primary' }],
         })];
         delivered = await client.pushMessage({ to: input.conversationId, messages: fallback });
       }
     }
+    persistAfterReply();
     const { applyTrayAfterReply, unlinkUserRichMenu } = await import('./rich-menu');
     const { shouldApplyTrayAfterReply, replyExpectsKeyboard } = await import('./tray-policy');
     const { setLastTerminalAt } = await import('../services/firestore');

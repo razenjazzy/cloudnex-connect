@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { evaluateCommandGrid, COMMAND_GRID } from '../src/line/command-grid';
-import { mergeCommandGridEntry, sanitizeCommandOverlay, setCommandOverlayCacheForTests } from '../src/line/command-overlay';
+import { mergeCommandGridEntry, overlayLabelForText, sanitizeCommandOverlay, setCommandOverlayCacheForTests } from '../src/line/command-overlay';
 
 const verifiedAdmin = {
   language: 'en' as const,
@@ -41,5 +41,19 @@ describe('command overlay', () => {
     const merged = mergeCommandGridEntry(navHome!);
     expect(merged.labelEn).toBe('HQ Home');
     expect(merged.labelTh).toBe('หน้าแรก HQ');
+    expect(overlayLabelForText('NAV HOME', 'en', 'Home')).toBe('HQ Home');
+  });
+
+  it('keeps caller fallback when no overlay label is set', () => {
+    expect(overlayLabelForText('NAV COMMERCE', 'en', 'Products & Orders')).toBe('Products & Orders');
+  });
+
+  it('keeps catalog UI rows overlayable without matching typed commands', () => {
+    expect(COMMAND_GRID.some(entry => entry.id === 'ui-catalog-stock' && entry.uiOnly)).toBe(true);
+    expect(evaluateCommandGrid('PRODUCT FIND App', { profile: verifiedAdmin, channel: { channelId: 'customer' } })).toEqual({ ok: true });
+    const stock = COMMAND_GRID.find(entry => entry.id === 'ui-catalog-stock')!;
+    setCommandOverlayCacheForTests({ 'ui-catalog-stock': { enabled: true, channels: ['customer'] } });
+    expect(mergeCommandGridEntry(stock).enabled).toBe(true);
+    expect(mergeCommandGridEntry(stock).channels).toEqual(['customer']);
   });
 });

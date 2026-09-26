@@ -34,7 +34,7 @@ import { isServiceConfigured, isServiceEnabledForChannel, isCommandDisabled } fr
 import { resolveServiceForCommand } from '../services/service-catalog';
 import { FLOW_SPECS, getFlowByStartCommand, nextLinearFieldIndex } from '../services/guided-forms';
 import { createBotTextFlexMessage, createFormPromptFlexMessage, createOptionalSummaryFlexMessage, createRequiredResumeFlexMessage, createServiceHomeFlexMessage, createProductCarouselFlexMessage, createIdentityStripFlexMessage } from './templates';
-import { getAvailableServices } from '../services/service-catalog';
+import { getAvailableServices, serviceMenuLabel } from '../services/service-catalog';
 import { ChannelContext, CUSTOMER_CHANNEL_ID, getBrandTitle } from './channels';
 import { trayVariantForCommand } from './rich-menu';
 import { clearSalesLogin, hasActiveSalesSession, salesSessionExpired } from '../services/sales-session';
@@ -50,7 +50,7 @@ import { withSpan } from '../observability/tracing';
 import { appLogger } from '../services/logger';
 import { applyChannelPersona, isQuoteStaff, selfQuoteIdentity, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary } from './quote-access';
 import { evaluateCommandGrid, isGuestAllowedCommand, matchCommandGrid } from './command-grid';
-import { loadCommandOverlay } from './command-overlay';
+import { loadCommandOverlay, overlayLabelForText } from './command-overlay';
 import { getErpAdapter } from '../erp/registry';
 import { guidedFormTtlMinutes, shouldIdleHome } from './idle-home';
 
@@ -124,7 +124,14 @@ export const buildHomeMenuMessage = (
   const availableServices = getAvailableServices(channel, isAdmin, isStaff);
   const menuItems = [
     ...(!salesSessionActive && !identity ? [{ key: 'VERIFY', label: tr(language, 'ยืนยันตัวตน', 'Verify account') }] : []),
-    ...availableServices.map(svc => ({ key: svc.key, label: language === 'en' ? svc.labelEn : svc.labelTh })),
+    ...availableServices.map(svc => ({
+      key: svc.key,
+      label: overlayLabelForText(
+        `NAV ${svc.key.toUpperCase()}`,
+        language,
+        serviceMenuLabel(svc, language, channel?.channelId),
+      ),
+    })),
   ];
   return createServiceHomeFlexMessage(menuItems, language, agentName, salesSessionActive, identity);
 };
@@ -134,7 +141,7 @@ export const homeMenuFromContext = (ctx: Pick<CommandReplyContext, 'userLanguage
   const staff = isQuoteStaff(profile);
   if (ctx.channel?.channelId === CUSTOMER_CHANNEL_ID) {
     const cached = getErpAdapter().peekCachedProducts?.(10) || [];
-    if (cached.length) return createProductCarouselFlexMessage(cached, ctx.userLanguage);
+    if (cached.length) return createProductCarouselFlexMessage(cached, ctx.userLanguage, undefined, ctx.channel?.channelId);
   }
   const identity = !staff && profile.odooVerified && (profile.displayName || profile.phone)
     ? { name: profile.displayName, phone: profile.phone }
@@ -954,6 +961,11 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
       card,
       customerNotifyChannelId(),
     );
+    const customer = await getUserProfile(customerId);
+    if (customer.odooPartnerId) {
+      const { formatQuoteReplyNote } = await import('./quote-ask');
+      await getErpAdapter().postPartnerNote?.(customer.odooPartnerId, formatQuoteReplyNote(trimmed));
+    }
     return [text(tr(userLanguage, 'ส่งถึงลูกค้าแล้ว', 'Sent to the customer.'), userLanguage)];
   }
 

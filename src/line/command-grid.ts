@@ -18,6 +18,8 @@ export type CommandGridEntry = {
   requiresAdmin?: boolean;
   /** Match only the full token, not `PREFIX ...`. */
   exact?: boolean;
+  /** Admin overlay row only — not a typed LINE command. */
+  uiOnly?: boolean;
 };
 
 /**
@@ -38,10 +40,19 @@ export const COMMAND_GRID: CommandGridEntry[] = [
   { id: 'verify', prefix: 'VERIFY', labelEn: 'Verify', labelTh: 'ยืนยันตัวตน', category: 'identity', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'product-find-form', prefix: 'FORM PRODUCT FIND', labelEn: 'Find a product', labelTh: 'ค้นหาสินค้า', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'product-find', prefix: 'PRODUCT FIND', labelEn: 'Find a product', labelTh: 'ค้นหาสินค้า', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
-  { id: 'quote-from-card', prefix: 'FORM QUOTE CREATE FROM CARD', labelEn: 'Quote this item', labelTh: 'เสนอราคาสินค้านี้', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
+  { id: 'quote-from-card', prefix: 'FORM QUOTE CREATE FROM CARD', labelEn: 'Order Now', labelTh: 'สั่งซื้อเลย', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
+  { id: 'ui-catalog-stock', prefix: 'UI CATALOG STOCK', labelEn: 'Stock', labelTh: 'คงเหลือ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [SALES_CHANNEL_ID, DEFAULT_CHANNEL_ID], uiOnly: true },
+  { id: 'ui-catalog-image', prefix: 'UI CATALOG IMAGE', labelEn: 'Product image', labelTh: 'รูปสินค้า', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], uiOnly: true },
+  { id: 'ui-catalog-view', prefix: 'UI CATALOG VIEW', labelEn: 'View Details', labelTh: 'ดูรายละเอียด', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], uiOnly: true },
+  { id: 'ui-catalog-message', prefix: 'UI CATALOG MESSAGE', labelEn: 'Send message', labelTh: 'ส่งข้อความ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], uiOnly: true },
+  { id: 'ui-product-detail-quote', prefix: 'UI PRODUCT DETAIL QUOTE', labelEn: 'Create quote', labelTh: 'สร้างใบเสนอราคา', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [SALES_CHANNEL_ID, DEFAULT_CHANNEL_ID], uiOnly: true },
+  { id: 'ui-product-detail-message', prefix: 'UI PRODUCT DETAIL MESSAGE', labelEn: 'Send message', labelTh: 'ส่งข้อความ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [SALES_CHANNEL_ID, DEFAULT_CHANNEL_ID], uiOnly: true },
+  { id: 'ui-product-detail-description', prefix: 'UI PRODUCT DETAIL DESCRIPTION', labelEn: 'Description', labelTh: 'รายละเอียด', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], uiOnly: true },
+  { id: 'ui-product-detail-back', prefix: 'UI PRODUCT DETAIL BACK', labelEn: 'Back', labelTh: 'กลับ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], uiOnly: true },
   { id: 'form-quote-add', prefix: 'FORM QUOTE ADD', labelEn: 'Add more products', labelTh: 'เพิ่มสินค้า', category: 'commerce', roles: ['customer', 'staff', 'admin'] },
   { id: 'message-request-form', prefix: 'FORM MESSAGE REQUEST', labelEn: 'Send message', labelTh: 'ส่งข้อความ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'message-request', prefix: 'MESSAGE REQUEST', labelEn: 'Send message', labelTh: 'ส่งข้อความ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
+  { id: 'quote-ask', prefix: 'QUOTE ASK', labelEn: 'Ask for Quotations', labelTh: 'ขอใบเสนอราคา', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID] },
   { id: 'service-list', prefix: 'SERVICE LIST', labelEn: 'Browse catalog', labelTh: 'รายการบริการ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'service-read', prefix: 'SERVICE READ', labelEn: 'View a service', labelTh: 'ดูบริการ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'lang', prefix: 'LANG', labelEn: 'Language', labelTh: 'ภาษา', category: 'help', roles: ['guest', 'customer', 'staff', 'admin'] },
@@ -80,6 +91,7 @@ export const commandActor = (profile: Pick<UserProfile, 'odooVerified' | 'role' 
 export const matchCommandGrid = (upperText: string): CommandGridEntry | null => {
   let best: CommandGridEntry | null = null;
   for (const entry of COMMAND_GRID) {
+    if (entry.uiOnly) continue;
     const hit = entry.exact
       ? upperText === entry.prefix
       : upperText === entry.prefix || upperText.startsWith(`${entry.prefix} `);
@@ -128,8 +140,9 @@ export const getCommandGridPayload = () =>
       labelTh: merged.labelTh,
       category: merged.category,
       roles: merged.roles,
-      channels: merged.channels || ['any'],
+      channels: merged.channels || [],
       requiresAdmin: Boolean(merged.requiresAdmin),
       enabled: merged.enabled,
+      uiOnly: Boolean(merged.uiOnly),
     };
   });

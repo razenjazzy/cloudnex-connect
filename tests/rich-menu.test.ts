@@ -22,7 +22,7 @@ describe('native LINE rich menu layout', () => {
     ]);
     expect(layout.areas.map(area => area.labelEn)).toEqual([
       'Home',
-      'Products & Quotes',
+      'Products & Orders',
       'Order Status',
       'Verify',
       'Language',
@@ -37,7 +37,7 @@ describe('native LINE rich menu layout', () => {
     expect(layout.chatBarTextTh).toBe('เมนู');
     expect(layout.areas.map(area => area.labelTh)).toEqual([
       'หน้าหลัก',
-      'สินค้าและใบเสนอราคา',
+      'สินค้าและคำสั่งซื้อ',
       'สถานะออเดอร์',
       'ยืนยันตัวตน',
       'ภาษา',
@@ -52,7 +52,7 @@ describe('rich menu SVG type', () => {
     expect(svg).toContain('font-size: 48px');
     expect(svg).toContain('>Home<');
     expect(svg).toContain('>Verify<');
-    expect(svg).toContain('>Products &amp; Quotes<');
+    expect(svg).toContain('>Products &amp; Orders<');
     expect(svg).toContain('stroke-width="10"');
     expect(svg).toContain('#A97A2B');
     expect(svg).toContain('#FFFFFF');

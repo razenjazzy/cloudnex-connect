@@ -23,6 +23,7 @@ type CachedProfileState = {
     lastInboundSnippet?: string;
     waitingSalesUserId?: string;
     waitingCustomerUserId?: string;
+    escalatedToHuman?: boolean;
 };
 
 type PendingFlowPredicate = (pendingFlow: PendingFlowState | undefined | null) => pendingFlow is PendingFlowState;
@@ -54,6 +55,7 @@ export const buildFallbackUserProfile = (
     lastInboundSnippet: cached.lastInboundSnippet,
     waitingSalesUserId: cached.waitingSalesUserId,
     waitingCustomerUserId: cached.waitingCustomerUserId,
+    escalatedToHuman: cached.escalatedToHuman,
 });
 
 /**
@@ -112,5 +114,6 @@ export const parseStoredUserProfile = (
         lastInboundSnippet: typeof data.lastInboundSnippet === 'string' ? data.lastInboundSnippet : undefined,
         waitingSalesUserId: typeof data.waitingSalesUserId === 'string' ? data.waitingSalesUserId : undefined,
         waitingCustomerUserId: typeof data.waitingCustomerUserId === 'string' ? data.waitingCustomerUserId : undefined,
+        escalatedToHuman: data.escalatedToHuman === true,
     };
 };

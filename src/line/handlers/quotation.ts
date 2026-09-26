@@ -527,7 +527,7 @@ const quoteApproveHandler: CommandHandler = {
       tone: 'success',
       title: t('done', userLanguage),
       body: t('quoteApproved', userLanguage),
-      actions: [{ label: t('myQuotations', userLanguage), text: 'QUOTE LIST', style: 'primary' }],
+          actions: [{ label: t('myOrders', userLanguage), text: 'QUOTE LIST', style: 'primary' }],
     }), [createQuotationJourneyFlexMessage(confirmed, { role: 'customer', portalLink, pdfLink }, userLanguage)]);
   },
 };

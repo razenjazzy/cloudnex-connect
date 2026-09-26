@@ -250,7 +250,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ commands: getCommandGridPayload(), tenantKey: getActiveTenantKey() });
   });
 
-  router.put('/commands', jsonParser, adminApiLimiter, requireOpsStrict, async (req, res) => {
+  router.put('/commands', jsonParser, adminApiLimiter, requireAdminPanelAccess, async (req, res) => {
     const parsed = sanitizeCommandOverlay(req.body?.commands);
     if (!parsed.ok) return res.status(400).json({ error: parsed.error });
     const saved = await saveCommandOverlay(parsed.commands);

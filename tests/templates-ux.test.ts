@@ -56,6 +56,20 @@ describe('product card quote CTA', () => {
     expect(JSON.stringify(message)).toContain('"type":"image"');
     expect(JSON.stringify(message)).toContain('/catalog/product/11/image');
   });
+
+  it('on Customer OA omits detail quote/message, shows Back and a short description', () => {
+    const message = createProductCardFlexMessage('App Premium', 100, 3, 'en', 11, undefined, {
+      channelId: 'customer',
+      description: 'Short product copy from Odoo.',
+    });
+    const json = JSON.stringify(message);
+    expect(json).toContain('Short product copy from Odoo.');
+    expect(json).toContain('"text":"BACK"');
+    expect(json).toContain('Back');
+    expect(json).not.toContain('FORM QUOTE CREATE FROM CARD');
+    expect(json).not.toContain('FORM MESSAGE REQUEST');
+    expect(json).not.toContain('"text":"Stock"');
+  });
 });
 
 describe('optional summary', () => {
@@ -208,12 +222,13 @@ describe('quotation journey state actions', () => {
     expect(json).not.toContain('Download PDF');
     expect(json).toContain('NAV HOME');
     expect(json).toContain('QUOTE LIST');
+    expect(json).toContain('My Orders');
     expect(json).not.toContain('QUOTE CONFIRM');
     expect(json).not.toContain('QUOTE SEND');
     expect(json).not.toContain('QUOTE MORE');
   });
 
-  it('gives the customer Invoice, View Quote, Home, and My quotations on a sales order', () => {
+  it('gives the customer Invoice, View Quote, Home, and My Orders on a sales order', () => {
     const json = JSON.stringify(createQuotationJourneyFlexMessage(
       { ...order, state: 'sale', invoice_status: 'invoiced' },
       { role: 'customer', portalLink: 'https://example.com/q', pdfLink: 'https://example.com/p' },
@@ -225,14 +240,15 @@ describe('quotation journey state actions', () => {
     expect(json).toContain('Download');
     expect(json).not.toContain('Download PDF');
     expect(json).toContain('View Quote');
+    expect(json).toContain('NAV HOME');
+    expect(json).toContain('QUOTE LIST');
+    expect(json).toContain('My Orders');
     expect(json).not.toContain('QUOTE APPROVE');
     expect(json).not.toContain('QUOTE INVOICE');
     expect(json).not.toContain('QUOTE CONFIRM');
-    expect(json).toContain('NAV HOME');
-    expect(json).toContain('QUOTE LIST');
   });
 
-  it('tells the customer to wait for sales send on a draft, with Home and My quotations', () => {
+  it('tells the customer to wait for sales send on a draft, with Home and My Orders', () => {
     const json = JSON.stringify(createQuotationJourneyFlexMessage(
       { ...order, state: 'draft' },
       { role: 'customer' },
@@ -242,6 +258,7 @@ describe('quotation journey state actions', () => {
     expect(json).toContain('FORM QUOTE ADD 17');
     expect(json).toContain('NAV HOME');
     expect(json).toContain('QUOTE LIST');
+    expect(json).toContain('My Orders');
     expect(json).not.toContain('QUOTE CONFIRM');
     expect(json).not.toContain('QUOTE SEND');
     expect(json).not.toContain('QUOTE MORE');

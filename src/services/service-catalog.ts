@@ -1,4 +1,4 @@
-import { ChannelContext } from '../line/channels';
+import { ChannelContext, CUSTOMER_CHANNEL_ID } from '../line/channels';
 import { isLiveOverrideEnabled } from './feature-toggles';
 
 export type ServiceKey = 'commerce' | 'directory' | 'catalog' | 'reporting' | 'groupBuy';
@@ -52,7 +52,8 @@ export const SERVICE_CATALOG: ServiceDefinition[] = [
       { text: 'FORM QUOTE CREATE', labelTh: 'สร้างใบเสนอราคา', labelEn: 'Create a quote', audience: 'staff' },
       { text: 'FORM ORDER STATUS', labelTh: 'ค้นหาออเดอร์', labelEn: 'Look up an order', audience: 'staff' },
       { text: 'QUOTE LIST', labelTh: 'ใบเสนอราคา', labelEn: 'Quotations', audience: 'staff' },
-      { text: 'QUOTE LIST', labelTh: 'ใบเสนอราคาของฉัน', labelEn: 'My quotations', audience: 'customer' },
+      { text: 'QUOTE LIST', labelTh: 'คำสั่งซื้อของฉัน', labelEn: 'My Orders', audience: 'customer' },
+      { text: 'QUOTE ASK', labelTh: 'ขอใบเสนอราคา', labelEn: 'Ask for Quotations', audience: 'customer' },
       { text: 'FORM MESSAGE CUSTOMER', labelTh: 'ส่งข้อความหาลูกค้า (แอดมิน)', labelEn: 'Message a customer (admin)', requiresAdmin: true, audience: 'staff' },
     ],
   },
@@ -133,6 +134,7 @@ const COMMAND_PREFIX_SERVICE_MAP: CommandPrefixMapping[] = [
   { prefix: 'QUOTE INVOICE SEND', service: 'commerce' },
   { prefix: 'QUOTE INVOICE', service: 'commerce', requiresOtp: true },
   { prefix: 'QUOTE LIST', service: 'commerce' },
+  { prefix: 'QUOTE ASK', service: 'commerce' },
   { prefix: 'QUOTE MESSAGE', service: 'commerce', requiresOtp: true },
   { prefix: 'MESSAGE CUSTOMER', service: 'commerce', requiresOtp: true },
   { prefix: 'FORM MESSAGE CUSTOMER', service: 'commerce' },
@@ -190,6 +192,18 @@ export const isCommandDisabled = (upperText: string): boolean => {
 
 export const getServiceDefinition = (key: string): ServiceDefinition | null => {
   return SERVICE_CATALOG.find(svc => svc.key === key) || null;
+};
+
+/** Customer OA uses Orders copy; Sales OA keeps Quotes. Overlay still wins at the nav label helper. */
+export const serviceMenuLabel = (
+  svc: ServiceDefinition,
+  language: 'en' | 'th',
+  channelId?: string,
+): string => {
+  if (svc.key === 'commerce' && channelId === CUSTOMER_CHANNEL_ID) {
+    return language === 'en' ? 'Products & Orders' : 'สินค้าและคำสั่งซื้อ';
+  }
+  return language === 'en' ? svc.labelEn : svc.labelTh;
 };
 
 /**

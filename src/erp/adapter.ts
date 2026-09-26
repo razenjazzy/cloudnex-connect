@@ -25,6 +25,7 @@ export type ErpProduct = {
   quantity?: number;
   currency?: string;
   imageUrl?: string;
+  description?: string;
 };
 
 export type ErpService = {
@@ -174,6 +175,7 @@ export type ErpAdapter = {
   getOrderLinks: (orderId: number) => Promise<{ portal?: string; pdf?: string }>;
   permissionFor: (action: ErpWriteAction) => ErpPermission;
   postPartnerNote?: (partnerId: number, body: string) => Promise<boolean>;
+  listPartnerNotes?: (partnerId: number, limit?: number) => Promise<{ id: number; body: string; date: string }[]>;
   listQuotations?: (opts?: ErpCrmQuoteListOpts) => Promise<ErpCrmQuote[]>;
   assignQuotationSalesperson?: (orderId: number, salespersonUserId: number | null) => Promise<boolean>;
   describePartnerPrivileges?: (partnerId: number) => Promise<ErpPartnerPrivileges>;

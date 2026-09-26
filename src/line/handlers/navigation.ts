@@ -1,10 +1,11 @@
 import { messagingApi } from '@line/bot-sdk';
 import type { CommandHandler } from './index';
 import { homeMenuFromContext, homeReplyFromContext } from '../command-router';
-import { getServiceDefinition, getVisibleCommands, isServiceEnabledForChannel } from '../../services/service-catalog';
+import { getServiceDefinition, getVisibleCommands, isServiceEnabledForChannel, serviceMenuLabel } from '../../services/service-catalog';
 import { createServiceActionFlexMessage } from '../templates';
 import { isQuoteStaff } from '../quote-access';
 import { commerceFollowUpMessages, catalogFollowUpMessages } from '../commerce-followup';
+import { overlayLabelForText } from '../command-overlay';
 
 const tr = (language: string, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -39,8 +40,15 @@ const navServiceHandler: CommandHandler = {
     }
 
     const actionMenu = createServiceActionFlexMessage(
-      userLanguage === 'en' ? serviceDef.labelEn : serviceDef.labelTh,
-      visibleCommands.map(c => ({ text: c.text, label: userLanguage === 'en' ? c.labelEn : c.labelTh })),
+      overlayLabelForText(
+        `NAV ${serviceDef.key.toUpperCase()}`,
+        userLanguage,
+        serviceMenuLabel(serviceDef, userLanguage, channel?.channelId),
+      ),
+      visibleCommands.map(c => ({
+        text: c.text,
+        label: overlayLabelForText(c.text, userLanguage, userLanguage === 'en' ? c.labelEn : c.labelTh),
+      })),
       userLanguage,
     );
     if (key === 'commerce') {

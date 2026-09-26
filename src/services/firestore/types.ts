@@ -83,6 +83,8 @@ export type UserProfile = {
     lastInboundSnippet?: string;
     waitingSalesUserId?: string;
     waitingCustomerUserId?: string;
+    /** From the same user doc as getUserProfile — do not extra-read Firestore before LINE reply. */
+    escalatedToHuman?: boolean;
 };
 
 export type OdooVerificationChallenge = {

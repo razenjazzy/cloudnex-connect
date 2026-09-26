@@ -1,5 +1,5 @@
 import { messagingApi } from '@line/bot-sdk';
-import { getServiceDefinition, getVisibleCommands, isServiceEnabledForChannel } from '../services/service-catalog';
+import { getServiceDefinition, getVisibleCommands, isServiceEnabledForChannel, serviceMenuLabel } from '../services/service-catalog';
 import { createServiceActionFlexMessage, createProductCarouselFlexMessage, createBotTextFlexMessage } from './templates';
 import { isQuoteStaff } from './quote-access';
 import { getErpAdapter } from '../erp/registry';
@@ -7,6 +7,7 @@ import { sendTargetedFlexMessage } from './messaging';
 import { DEFAULT_CHANNEL_ID, type ChannelContext } from './channels';
 import type { UserLanguage, UserProfile } from '../services/firestore';
 import { appLogger } from '../services/logger';
+import { overlayLabelForText } from './command-overlay';
 
 type CommerceFollowCtx = {
   userId?: string;
@@ -33,8 +34,11 @@ const commerceActionMenu = (ctx: CommerceFollowCtx) => {
   const visibleCommands = serviceDef ? getVisibleCommands(serviceDef, isAdmin, isStaff) : [];
   if (!serviceDef || !isServiceEnabledForChannel(serviceDef.key, channel) || !visibleCommands.length) return null;
   return createServiceActionFlexMessage(
-    userLanguage === 'en' ? serviceDef.labelEn : serviceDef.labelTh,
-    visibleCommands.map(c => ({ text: c.text, label: userLanguage === 'en' ? c.labelEn : c.labelTh })),
+    overlayLabelForText(`NAV COMMERCE`, userLanguage, serviceMenuLabel(serviceDef, userLanguage, channel?.channelId)),
+    visibleCommands.map(c => ({
+      text: c.text,
+      label: overlayLabelForText(c.text, userLanguage, userLanguage === 'en' ? c.labelEn : c.labelTh),
+    })),
     userLanguage,
   );
 };
@@ -55,7 +59,7 @@ export const commerceFollowUpMessages = async (
   options: { deferCatalogMiss?: boolean } = {},
 ): Promise<messagingApi.Message[]> => {
   if (room <= 0) return [];
-  const { userLanguage, profile } = ctx;
+  const { userLanguage, profile, channel } = ctx;
   const actionMenu = commerceActionMenu(ctx);
   if (!actionMenu) return [];
   const isStaff = isQuoteStaff(profile);
@@ -63,13 +67,13 @@ export const commerceFollowUpMessages = async (
   if (!isStaff && room >= 2) {
     const cached = getErpAdapter().peekCachedProducts?.(10) || [];
     if (cached.length) {
-      messages.push(createProductCarouselFlexMessage(cached, userLanguage));
+      messages.push(createProductCarouselFlexMessage(cached, userLanguage, undefined, channel?.channelId));
     } else if (options.deferCatalogMiss) {
       ctx.pendingCatalogPush = true;
     } else {
       try {
         const catalog = await getErpAdapter().searchProducts('', 10);
-        if (catalog.length) messages.push(createProductCarouselFlexMessage(catalog, userLanguage));
+        if (catalog.length) messages.push(createProductCarouselFlexMessage(catalog, userLanguage, undefined, channel?.channelId));
         else {
           messages.push(createServiceActionFlexMessage(
             userLanguage === 'en' ? 'Catalog' : 'สินค้า',
@@ -110,7 +114,7 @@ export const pushDeferredCommerceCatalog = async (input: {
       await sendTargetedFlexMessage([input.userId], empty, channelId);
       return;
     }
-    const carousel = createProductCarouselFlexMessage(catalog, input.userLanguage);
+    const carousel = createProductCarouselFlexMessage(catalog, input.userLanguage, undefined, input.channelId);
     await sendTargetedFlexMessage([input.userId], carousel, channelId);
   } catch (error) {
     appLogger.warn('commerce_catalog_push_failed', { error: String(error), userId: input.userId });
@@ -136,14 +140,17 @@ export const catalogFollowUpMessages = async (
   if (!serviceDef || !isServiceEnabledForChannel(serviceDef.key, channel) || !visibleCommands.length) return [];
   const actionMenu = createServiceActionFlexMessage(
     userLanguage === 'en' ? serviceDef.labelEn : serviceDef.labelTh,
-    visibleCommands.map(c => ({ text: c.text, label: userLanguage === 'en' ? c.labelEn : c.labelTh })),
+    visibleCommands.map(c => ({
+      text: c.text,
+      label: overlayLabelForText(c.text, userLanguage, userLanguage === 'en' ? c.labelEn : c.labelTh),
+    })),
     userLanguage,
   );
   const messages: messagingApi.Message[] = [];
   if (room >= 2) {
     const services = await getErpAdapter().listServices(10);
     if (services.length) {
-      messages.push(createProductCarouselFlexMessage(services, userLanguage, item => `SERVICE READ ${item.sku || item.name}`));
+      messages.push(createProductCarouselFlexMessage(services, userLanguage, item => `SERVICE READ ${item.sku || item.name}`, channel?.channelId));
     }
   }
   messages.push(actionMenu);

@@ -40,6 +40,7 @@ export const createUnimplementedAdapter = (name: ErpProviderName): ErpAdapter =>
   getOrderLinks: async () => ({}),
   permissionFor: (_action: ErpWriteAction): ErpPermission => ({ role: 'admin', channel: 'ops' }),
   postPartnerNote: async () => false,
+  listPartnerNotes: async () => [],
   listQuotations: async () => [],
   assignQuotationSalesperson: async () => false,
   describePartnerPrivileges: async () => ({ configured: false, groups: [] }),

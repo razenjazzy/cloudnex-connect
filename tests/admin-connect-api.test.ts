@@ -149,6 +149,18 @@ describe('Cloudnex Connect admin API', () => {
     expect(body.commands.some(row => row.prefix === 'NAV HOME')).toBe(true);
   });
 
+  it('saves command EN/TH labels', async () => {
+    const res = await fetch(`${base()}/admin/api/commands`, {
+      method: 'PUT',
+      headers: { ...ops, 'content-type': 'application/json' },
+      body: JSON.stringify({ commands: { 'product-find': { enabled: true, labelEn: 'Find sku', labelTh: 'ค้นหาสินค้า' } } }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { ok?: boolean; commands?: Array<{ id: string; labelEn?: string }> };
+    expect(body.ok).toBe(true);
+    expect(body.commands?.find(row => row.id === 'product-find')?.labelEn).toBe('Find sku');
+  });
+
   it('rejects unknown command overlay ids', async () => {
     const res = await fetch(`${base()}/admin/api/commands`, {
       method: 'PUT',

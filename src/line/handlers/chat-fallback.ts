@@ -16,7 +16,6 @@ import { messagingApi } from '@line/bot-sdk';
 import { processChatMessage } from '../../services/chat';
 import { createBotTextFlexMessage } from '../templates';
 import { homeMenuFromContext, type CommandReplyContext } from '../command-router';
-import { getEscalationState } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
 import { searchSimilarFaqs } from '../../infra/mongo/embeddings';
 
@@ -64,7 +63,7 @@ export const handleChatFallback = async (
   // conflicting answer) would be worse than a short "still connected"
   // notice. Every other command (typed or guided-form) still works
   // normally; only this last-resort AI-chat path is gated.
-  if (await getEscalationState(userId)) {
+  if (ctx.profile.escalatedToHuman) {
     return [createBotTextFlexMessage({
       title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
       body: tr(userLanguage,

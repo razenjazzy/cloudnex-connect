@@ -231,7 +231,7 @@ const heuristicFallback = async (
       handled: true,
       messages: [
         { type: 'text', text: isThai ? `${agentName} พบสินค้าจาก Odoo แล้วค่ะ` : `${agentName} found this product in Odoo.` },
-        createProductCardFlexMessage(product.name, product.list_price, product.qty_available, isThai ? 'th' : 'en', product.id, publicCatalogProductImageUrl(product.id)),
+        createProductCardFlexMessage(product.name, product.list_price, product.qty_available, isThai ? 'th' : 'en', product.id, publicCatalogProductImageUrl(product.id), { description: product.description }),
       ],
     };
   }
@@ -273,7 +273,7 @@ const processGeminiResponse = async (
         const odooProduct = await findProductByQuery(query);
         if (odooProduct) {
           aiTextResponse += `[Product card: ${odooProduct.name}]`;
-          messages.push(createProductCardFlexMessage(odooProduct.name, odooProduct.list_price, odooProduct.qty_available, isThai ? 'th' : 'en', odooProduct.id, publicCatalogProductImageUrl(odooProduct.id)));
+          messages.push(createProductCardFlexMessage(odooProduct.name, odooProduct.list_price, odooProduct.qty_available, isThai ? 'th' : 'en', odooProduct.id, publicCatalogProductImageUrl(odooProduct.id), { description: odooProduct.description }));
         } else {
           const msg = isThai
             ? `${agentName} ไม่พบสินค้า "${query}" ใน Odoo ค่ะ`

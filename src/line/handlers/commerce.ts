@@ -3,6 +3,7 @@ import {
   createProductCardFlexMessage,
   createProductCarouselFlexMessage,
   createQuotationJourneyFlexMessage,
+  createQuoteAskListFlexMessage,
   createBotTextFlexMessage,
   formatMoney,
 } from '../templates';
@@ -23,6 +24,7 @@ import { CUSTOMER_CHANNEL_ID, salesNotifyChannelId } from '../channels';
 import { findOdooUserIdByPartnerId } from '../../services/odoo/admin';
 import { sendTargetedFlexMessage } from '../messaging';
 import { beginQuoteCreate, completeQuoteCreate, failQuoteCreate, quoteCreateLockKey } from '../../services/quote-idempotency';
+import { formatQuoteAskNote, pairQuoteAskThreads } from '../quote-ask';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -53,7 +55,7 @@ const demoProductHandler: CommandHandler = {
       if (!isQuoteStaff(ctx.profile)) {
         try {
           const catalog = await getErpAdapter().searchProducts('', 10);
-          if (catalog.length) return [createProductCarouselFlexMessage(catalog, userLanguage)];
+          if (catalog.length) return [createProductCarouselFlexMessage(catalog, userLanguage, undefined, ctx.channel?.channelId)];
           return [botText(tr(userLanguage, 'ยังไม่มีสินค้าให้แสดง กรุณาค้นหาด้วยชื่อสินค้า', 'No products to show yet. Search by product name.'), userLanguage, [
             { label: tr(userLanguage, 'ค้นหาสินค้า', 'Search products'), text: 'FORM PRODUCT FIND', style: 'primary' },
           ])];
@@ -73,15 +75,18 @@ const demoProductHandler: CommandHandler = {
       ])];
     }
     if (products.length > 1) {
-      return [createProductCarouselFlexMessage(products, userLanguage)];
+      return [createProductCarouselFlexMessage(products, userLanguage, undefined, ctx.channel?.channelId)];
     }
     const product = products[0];
-    await setLastProductContext(userId, {
+    void setLastProductContext(userId, {
       productId: product.id,
       productName: product.name,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
     });
-    return [createProductCardFlexMessage(product.name, product.price || 0, product.quantity || 0, userLanguage, product.id, product.imageUrl)];
+    return [createProductCardFlexMessage(product.name, product.price || 0, product.quantity || 0, userLanguage, product.id, product.imageUrl, {
+      channelId: ctx.channel?.channelId,
+      description: product.description,
+    })];
   },
 };
 
@@ -431,7 +436,7 @@ const messageRequestConfirmHandler: CommandHandler = {
         { label: tr(userLanguage, 'ส่งข้อความ', 'Send Message'), text: 'FORM MESSAGE REQUEST', style: 'primary' },
       ])];
     }
-    const note = [productToken && /^\d+$/.test(productToken) ? `productId=${productToken}` : productToken, body].filter(Boolean).join('\n');
+    const note = formatQuoteAskNote(body, productToken);
     const posted = await getErpAdapter().postPartnerNote?.(profile.odooPartnerId, note);
     if (!posted) {
       return [botText(tr(userLanguage, 'ส่งข้อความไม่สำเร็จ กรุณาลองใหม่', 'Could not send the message. Please try again.'), userLanguage, [
@@ -449,8 +454,25 @@ const messageRequestConfirmHandler: CommandHandler = {
     }
     recordAuditEvent({ action: 'quote_message', outcome: 'success', actorUserId: userId, channelId: channel?.channelId, detail: String(profile.odooPartnerId) });
     return [botText(tr(userLanguage, 'ส่งข้อความถึงฝ่ายขายแล้ว', 'Message sent to sales.'), userLanguage, [
-      { label: tr(userLanguage, 'หน้าแรก', 'Home'), text: 'NAV HOME', style: 'primary' },
+      { label: tr(userLanguage, 'ขอใบเสนอราคา', 'Ask for Quotations'), text: 'QUOTE ASK', style: 'primary' },
+      { label: tr(userLanguage, 'หน้าแรก', 'Home'), text: 'NAV HOME', style: 'secondary' },
     ])];
+  },
+};
+
+const quoteAskHandler: CommandHandler = {
+  name: 'commerce-quote-ask',
+  match: (u) => u === 'QUOTE ASK' || u.startsWith('QUOTE ASK '),
+  handle: async (ctx) => {
+    const { userLanguage, profile } = ctx;
+    if (!profile.odooVerified || !profile.odooPartnerId) {
+      return [botText(tr(userLanguage, 'ยืนยันตัวตนก่อนดูคำขอใบเสนอราคา', 'Verify your account before viewing quotation requests.'), userLanguage, [
+        { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
+      ])];
+    }
+    const notes = await getErpAdapter().listPartnerNotes?.(profile.odooPartnerId, 30) || [];
+    const threads = pairQuoteAskThreads(notes);
+    return [createQuoteAskListFlexMessage(threads, userLanguage)];
   },
 };
 
@@ -485,6 +507,7 @@ export const commerceHandlers: CommandHandler[] = [
   demoOrderHandler,
   demoQuoteHandler,
   messageRequestConfirmHandler,
+  quoteAskHandler,
   qtyProductUtteranceHandler,
   demoOdooHandler,
   demoSeedHandler,

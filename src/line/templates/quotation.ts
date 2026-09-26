@@ -3,7 +3,9 @@ import type { OdooSaleOrder } from '../../services/odoo/types';
 import type { ErpDeliveryStatus } from '../../erp/adapter';
 import { t, tFill, stateLabel, invoiceStatusLabel, type Lang } from '../../services/i18n';
 import { bindPostbackData } from '../postback';
+import { overlayLabelForText } from '../command-overlay';
 import { BRAND, createDatePickerButton, createMessageActionButton, createPrefillButton, createUriActionButton, flexBubbleStyles, flexHeaderBox, formatMoney, truncate } from './shared';
+import type { QuoteAskThread } from '../quote-ask';
 
 const tr = (language: Lang, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -183,7 +185,7 @@ export const createQuotationJourneyFlexMessage = (
     footerContents.push(createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint));
   } else {
     footerContents.push(createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint));
-    footerContents.push(createMessageActionButton(t('myQuotations', language), 'QUOTE LIST', 'secondary', BRAND.tealTint));
+    footerContents.push(createMessageActionButton(t('myOrders', language), 'QUOTE LIST', 'secondary', BRAND.tealTint));
   }
 
   return {
@@ -456,7 +458,7 @@ export const createQuoteSendComposerFlexMessage = (
 };
 
 /**
- * "My quotations" — three rows, More, optional date filter.
+ * Customer "My Orders" / staff "My quotations" — three rows, More, optional date filter.
  */
 export const createQuotationListFlexMessage = (
   orders: OdooSaleOrder[],
@@ -468,16 +470,19 @@ export const createQuotationListFlexMessage = (
   userId = '',
   listOptions: { staff?: boolean; admin?: boolean } = {},
 ): messagingApi.FlexMessage => {
+  const listTitle = listOptions.staff ? t('myQuotations', language) : t('myOrders', language);
+  const emptyTitle = listOptions.staff ? t('noQuotationsYet', language) : t('noOrdersYet', language);
+  const emptyBody = listOptions.staff ? t('noQuotations', language) : t('noOrders', language);
   const dateQuery = dateFrom && dateTo ? ` FROM ${dateFrom} TO ${dateTo}` : '';
   return {
     type: 'flex',
-    altText: truncate(t('myQuotations', language), 390),
+    altText: truncate(listTitle, 390),
     contents: {
       type: 'bubble',
       styles: flexBubbleStyles,
       header: flexHeaderBox(
-        t('myQuotations', language),
-        orders.length ? tFill('listTapHint', language, { n: orders.length }) : t('noQuotationsYet', language),
+        listTitle,
+        orders.length ? tFill('listTapHint', language, { n: orders.length }) : emptyTitle,
       ),
       body: {
         type: 'box',
@@ -522,7 +527,7 @@ export const createQuotationListFlexMessage = (
                 ],
               };
             })
-          : [{ type: 'text', text: t('noQuotations', language), size: 'sm', color: BRAND.inkSoft, wrap: true }],
+          : [{ type: 'text', text: emptyBody, size: 'sm', color: BRAND.inkSoft, wrap: true }],
       },
       footer: {
         type: 'box',
@@ -535,10 +540,71 @@ export const createQuotationListFlexMessage = (
             { ...createDatePickerButton(t('dateTo', language), bindPostbackData('quote.list.to', userId)), flex: 1 },
           ] },
           ...(hasMore && nextCursor ? [createMessageActionButton(t('moreActions', language), `QUOTE LIST CURSOR ${nextCursor}${dateQuery}`, 'secondary', BRAND.tealTint)] : []),
-          ...(listOptions.staff ? [createMessageActionButton(t('createQuote', language), 'FORM QUOTE CREATE', 'primary', BRAND.teal)] : []),
+          ...(listOptions.staff ? [createMessageActionButton(overlayLabelForText('FORM QUOTE CREATE', language, t('createQuote', language)), 'FORM QUOTE CREATE', 'primary', BRAND.teal)] : []),
           createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint),
         ],
       },
     },
   };
 };
+
+export const createQuoteAskListFlexMessage = (
+  threads: QuoteAskThread[],
+  language: Lang,
+): messagingApi.FlexMessage => ({
+  type: 'flex',
+  altText: truncate(t('askForQuotations', language), 390),
+  contents: {
+    type: 'bubble',
+    styles: flexBubbleStyles,
+    header: flexHeaderBox(
+      t('askForQuotations', language),
+      threads.length ? tFill('listTapHint', language, { n: threads.length }) : t('noQuoteAsks', language),
+    ),
+    body: {
+      type: 'box',
+      layout: 'vertical',
+      spacing: 'sm',
+      paddingAll: 'lg',
+      contents: threads.length
+        ? threads.slice(0, 5).map(thread => ({
+            type: 'box' as const,
+            layout: 'vertical' as const,
+            backgroundColor: BRAND.paper,
+            cornerRadius: BRAND.radius,
+            paddingAll: 'sm' as const,
+            spacing: 'xs' as const,
+            contents: [
+              { type: 'text' as const, text: truncate(thread.ask, 80), size: 'sm' as const, color: BRAND.ink, wrap: true },
+              {
+                type: 'text' as const,
+                text: thread.status === 'replied' ? t('quoteAskReplied', language) : t('quoteAskPending', language),
+                size: 'xs' as const,
+                color: thread.status === 'replied' ? BRAND.tealStrong : BRAND.inkSoft,
+                wrap: true,
+              },
+              ...(thread.reply
+                ? [{
+                    type: 'text' as const,
+                    text: tFill('quoteAskReply', language, { text: truncate(thread.reply, 80) }),
+                    size: 'xs' as const,
+                    color: BRAND.inkSoft,
+                    wrap: true,
+                  }]
+                : []),
+            ],
+          }))
+        : [{ type: 'text', text: t('noQuoteAsks', language), size: 'sm', color: BRAND.inkSoft, wrap: true }],
+    },
+    footer: {
+      type: 'box',
+      layout: 'vertical',
+      spacing: 'sm',
+      paddingAll: 'lg',
+      contents: [
+        createMessageActionButton(t('sendMessage', language), 'FORM MESSAGE REQUEST', 'primary', BRAND.teal),
+        createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint),
+      ],
+    },
+  },
+});

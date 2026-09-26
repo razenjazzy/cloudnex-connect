@@ -19,6 +19,17 @@ describe('product catalogue carousel', () => {
     expect(checkMessageAgainstLineLimits(message)).toEqual([]);
   });
 
+  it('hides stock on Cloudnex Customer and uses Order Now / View Details', () => {
+    const message = createProductCarouselFlexMessage([
+      { id: 11, name: 'App Premium', sku: 'APP-PREMIUM', price: 990, quantity: 4 },
+    ], 'en', undefined, 'customer');
+    const json = JSON.stringify(message);
+    expect(json).toContain('Order Now');
+    expect(json).toContain('View Details');
+    expect(json).not.toContain('"text":"Stock"');
+    expect(json).not.toContain('Create quote');
+  });
+
   it('puts https product images on the hero and can strip them for LINE retry', () => {
     const message = createProductCarouselFlexMessage([
       { id: 11, name: 'App Premium', price: 990, quantity: 4, imageUrl: 'https://amardhaka.io/cloudnex-connect/admin/catalog/product/11/image' },

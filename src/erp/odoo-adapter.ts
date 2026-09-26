@@ -3,7 +3,7 @@ import { addSaleOrderLine, cancelSaleOrder, confirmSaleOrder, createInvoiceForSa
 import { createPartnerFromLine, deletePartnerFromLine, getPartnerByName, getPartnerByPhone, updatePartnerFromLine } from '../services/odoo/partners';
 import { getDailySalesSnapshot } from '../services/odoo/reporting';
 import { getOutgoingPickingForOrder } from '../services/odoo/delivery';
-import { postPartnerNote, listCrmQuotations, assignSaleOrderSalesperson } from '../services/odoo';
+import { postPartnerNote, listPartnerNotes, listCrmQuotations, assignSaleOrderSalesperson } from '../services/odoo';
 import { describeOdooPrivilegesByPartnerId } from '../services/odoo/admin';
 import { describeOdooPaymentStatus, describeOdooSignatureStatus } from '../services/odoo/commerce-status';
 import type { OdooProduct, OdooSaleOrder } from '../services/odoo/types';
@@ -20,6 +20,7 @@ const toErpProduct = (product: OdooProduct): ErpProduct => {
     quantity: product.qty_available,
     currency: 'THB',
     ...(imageUrl ? { imageUrl } : {}),
+    ...(product.description ? { description: product.description } : {}),
   };
 };
 
@@ -103,13 +104,19 @@ export const odooAdapter: ErpAdapter = {
   },
   async searchProducts(query: string, limit = 10): Promise<ErpProduct[]> {
     const normalized = query.trim().toLowerCase();
-    if (!normalized) {
-      if (productCatalogCache?.items.length) {
+    if (productCatalogCache?.items.length) {
+      if (!normalized) {
         if (Date.now() - productCatalogCache.at >= PRODUCT_CATALOG_CACHE_MS) {
           void refreshProductCatalog(Math.max(limit, 10)).catch(() => undefined);
         }
         return productCatalogCache.items.slice(0, limit);
       }
+      const hits = productCatalogCache.items.filter(item =>
+        item.name.toLowerCase().includes(normalized) || (item.sku || '').toLowerCase().includes(normalized),
+      );
+      if (hits.length) return hits.slice(0, limit);
+    }
+    if (!normalized) {
       await refreshProductCatalog(Math.max(limit, 10));
       return (productCatalogCache?.items || []).slice(0, limit);
     }
@@ -241,6 +248,7 @@ export const odooAdapter: ErpAdapter = {
     };
   },
   postPartnerNote,
+  listPartnerNotes,
   async listQuotations(opts?: ErpCrmQuoteListOpts): Promise<ErpCrmQuote[]> {
     const rows = await listCrmQuotations(opts);
     return rows.map(toErpCrmQuote);

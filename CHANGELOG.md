@@ -1,5 +1,10 @@
 # Changelog
 
+## v10.0.3 — Odoo LINE OA v7 (2026-09-26)
+
+- Customer OA commerce: Products & Orders, My Orders, and Ask for Quotations (`QUOTE ASK`) with status and sales replies.
+- Catalog card UI gated from Admin Commands; overlay labels apply to Flex CTAs without changing command prefixes.
+
 ## v10.0.2 — Odoo LINE OA v7 (2026-09-26)
 
 - Serve product thumbnails at `{PUBLIC_BASE_URL}/admin/catalog/product/{id}/image` via Odoo RPC instead of session-gated `/web/image`.

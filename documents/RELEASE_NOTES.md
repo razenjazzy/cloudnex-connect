@@ -1,3 +1,14 @@
+# Release notes — v10.0.3
+
+**Date:** 2026-09-26  
+**Package version:** `10.0.3`  
+**Lane:** VPS production `/opt/cloudnex-connect` (`:8080` HMAC) + staging sibling `/opt/cns-line-oa`  
+**Commit title:** `Release: v10.0.3 - Odoo Line OA v7 Bug Fix`
+
+Customer OA uses Products & Orders / My Orders, plus Ask for Quotations for tagged partner notes (status and LINE sales replies). Sales OA quote copy is unchanged. Cloud Run `deploy:prod` still requires signoff.
+
+---
+
 # Release notes — v10.0.2
 
 **Date:** 2026-09-26  

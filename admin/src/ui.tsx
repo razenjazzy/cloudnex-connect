@@ -38,14 +38,16 @@ export const CopyField = ({
   url,
   src,
   load,
+  defaultOpen = false,
 }: {
   label: string;
   value: string;
   url?: string;
   src?: string;
   load?: () => Promise<string>;
+  defaultOpen?: boolean;
 }) => {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [copied, setCopied] = useState(false);
   const [live, setLive] = useState(value);
 

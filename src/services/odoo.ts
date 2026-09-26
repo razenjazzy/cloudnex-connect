@@ -39,7 +39,15 @@ const parseProduct = (row: Record<string, unknown>): OdooProduct => ({
   list_price: num(row.list_price),
   qty_available: num(row.qty_available),
   default_code: str(row.default_code),
+  description: stripHtml(str(row.description_sale) || str(row.description)),
 });
+
+const stripHtml = (value: string): string | undefined => {
+  const text = value.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  return text ? text.slice(0, 400) : undefined;
+};
+
+const PRODUCT_READ_FIELDS = ['id', 'name', 'list_price', 'qty_available', 'default_code', 'description_sale'];
 
 const parseMany2one = (value: unknown): [number, string] | undefined => {
   if (!Array.isArray(value) || value.length < 2) return undefined;
@@ -131,7 +139,7 @@ export const findProductByQuery = async (query: string): Promise<OdooProduct | n
     'search_read',
     [[['name', 'ilike', normalizedQuery]]],
     {
-      fields: ['id', 'name', 'list_price', 'qty_available', 'default_code'],
+      fields: PRODUCT_READ_FIELDS,
       limit: 1,
     }
   );
@@ -152,7 +160,7 @@ export const getProductById = async (productId: number): Promise<OdooProduct | n
     'product.product',
     'search_read',
     [[['id', '=', productId]]],
-    { fields: ['id', 'name', 'list_price', 'qty_available', 'default_code'], limit: 1 },
+    { fields: PRODUCT_READ_FIELDS, limit: 1 },
   );
   if (!rows.length) return null;
   return parseProduct(rows[0]);
@@ -184,7 +192,7 @@ export const findProductsByQuery = async (query: string, limit = 5): Promise<Odo
     'search_read',
     [[['sale_ok', '=', true], ['name', 'ilike', normalizedQuery]]],
     {
-      fields: ['id', 'name', 'list_price', 'qty_available', 'default_code'],
+      fields: PRODUCT_READ_FIELDS,
       limit,
     }
   );
@@ -211,7 +219,7 @@ export const listProducts = async (limit = 10): Promise<OdooProduct[]> => {
     'search_read',
     [[['sale_ok', '=', true]]],
     {
-      fields: ['id', 'name', 'list_price', 'qty_available', 'default_code'],
+      fields: PRODUCT_READ_FIELDS,
       limit,
       order: 'write_date desc',
     }
@@ -816,6 +824,32 @@ export const postPartnerNote = async (partnerId: number, body: string): Promise<
   } catch (error) {
     console.error('postPartnerNote failed:', error);
     return false;
+  }
+};
+
+export const listPartnerNotes = async (partnerId: number, limit = 30): Promise<{ id: number; body: string; date: string }[]> => {
+  if (!Number.isInteger(partnerId) || partnerId <= 0) return [];
+  const config = getConfig();
+  if (!config) return [];
+  const uid = await loginRead(config);
+  if (!uid) return [];
+  try {
+    const rows = await executeKwRead<Record<string, unknown>[]>(
+      config,
+      uid,
+      'mail.message',
+      'search_read',
+      [[['model', '=', 'res.partner'], ['res_id', '=', partnerId], ['message_type', '=', 'comment']]],
+      { fields: ['body', 'date'], limit, order: 'date desc' },
+    );
+    return (rows || []).map(row => ({
+      id: num(row.id),
+      body: str(row.body),
+      date: str(row.date),
+    }));
+  } catch (error) {
+    console.error('listPartnerNotes failed:', error);
+    return [];
   }
 };
 

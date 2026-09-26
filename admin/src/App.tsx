@@ -10,6 +10,29 @@ const TOKEN_KEY = 'cloudnex_ops_token';
 const LEGACY_TOKEN_KEY = 'cns_ops_token';
 const JOBS_TOKEN_KEY = 'cloudnex_admin_jobs_token';
 
+const commandGridJson = (rows: Array<Record<string, unknown>>): string => {
+  const out: Record<string, Record<string, unknown>> = {};
+  for (const row of rows) {
+    const id = String(row.id || '').trim();
+    if (!id) continue;
+    const channels = Array.isArray(row.channels)
+      ? row.channels.map(String).filter(ch => ch && ch !== 'any')
+      : [];
+    out[id] = {
+      enabled: row.enabled !== false,
+      prefix: String(row.prefix || ''),
+      labelEn: String(row.labelEn || ''),
+      labelTh: String(row.labelTh || ''),
+      category: String(row.category || ''),
+      roles: Array.isArray(row.roles) ? row.roles.map(String) : [],
+      channels,
+      requiresAdmin: Boolean(row.requiresAdmin),
+      uiOnly: Boolean(row.uiOnly),
+    };
+  }
+  return JSON.stringify(out, null, 2);
+};
+
 type Quote = {
   id: number;
   name: string;
@@ -1147,17 +1170,25 @@ export const App = () => {
         ) : null}
         {page === 'commands' ? (
           <div className="card">
-            <h2>Command config</h2>
-            <p>Overlay on <code>command-grid.ts</code>. Cannot invent prefixes. Cannot enable a command whose service is env-disabled. ADMIN CONFIG Flex still toggles channel services; this page is the command overlay.</p>
+            <h2>Command labels</h2>
+            <p>{t(uiLang, 'cmdLead')}</p>
             <div className="field-row">
               <button type="button" onClick={async () => {
                 const res = await api(`${ADMIN_BASE}/api/commands`);
-                const body = await res.json() as { commands?: Array<Record<string, unknown>>; tenantKey?: string };
+                const body = await res.json() as { commands?: Array<Record<string, unknown>>; tenantKey?: string; error?: string };
                 setCommands(body.commands || []);
                 if (body.tenantKey) setTenantKey(body.tenantKey);
-                setError(res.ok ? '' : 'Could not load commands');
-              }}>Load commands</button>
+                if (!res.ok) {
+                  const msg = body.error || t(uiLang, 'toastUnauthorized');
+                  setError(msg);
+                  toast(msg, 'error');
+                } else setError('');
+              }}>{t(uiLang, 'cmdReload')}</button>
               <button type="button" onClick={async () => {
+                if (!commands.length) {
+                  toast(t(uiLang, 'cmdReload'), 'error');
+                  return;
+                }
                 const patch: Record<string, { enabled: boolean; labelEn?: string; labelTh?: string; roles?: string[]; channels?: string[] }> = {};
                 for (const row of commands) {
                   if (typeof row.id === 'string') {
@@ -1174,16 +1205,20 @@ export const App = () => {
                 }
                 const res = await api(`${ADMIN_BASE}/api/commands`, { method: 'PUT', body: JSON.stringify({ commands: patch }) });
                 const body = await res.json() as { commands?: Array<Record<string, unknown>>; error?: string };
-                if (!res.ok) setError(body.error || 'Save failed');
-                else {
+                if (!res.ok) {
+                  const msg = body.error || t(uiLang, 'toastUnauthorized');
+                  setError(msg);
+                  toast(msg, 'error');
+                } else {
                   setCommands(body.commands || commands);
                   setError('');
+                  toast(t(uiLang, 'cmdSaved'), 'ok');
                 }
-              }}>Save overlay</button>
+              }}>{t(uiLang, 'cmdSave')}</button>
             </div>
             <div className="table-wrap">
               <table>
-                <thead><tr><th>On</th><th>Prefix</th><th>EN</th><th>TH</th><th>Category</th><th>Roles</th><th>Channels</th></tr></thead>
+                <thead><tr><th>On</th><th>Prefix (LINE command)</th><th>EN label</th><th>TH label</th><th>Category</th><th>Roles</th><th>Channels</th></tr></thead>
                 <tbody>
                   {commands.map((row, i) => (
                     <tr key={String(row.id || i)}>
@@ -1224,7 +1259,7 @@ export const App = () => {
                 </tbody>
               </table>
             </div>
-            {commands.length ? <CopyField label="Command grid JSON" value={JSON.stringify(commands, null, 2)} /> : null}
+            {commands.length ? <CopyField label="Command grid JSON" value={commandGridJson(commands)} defaultOpen /> : null}
           </div>
         ) : null}
         {page === 'crm' ? (
