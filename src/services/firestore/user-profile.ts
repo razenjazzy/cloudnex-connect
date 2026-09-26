@@ -74,7 +74,8 @@ const parseLastProductContext = (raw: unknown): LastProductContext | undefined =
         return undefined;
     }
     if (new Date(value.expiresAt).getTime() <= Date.now()) return undefined;
-    return { productId: value.productId, productName: value.productName, expiresAt: value.expiresAt };
+    const qty = typeof value.qty === 'number' && Number.isInteger(value.qty) && value.qty > 0 ? value.qty : undefined;
+    return { productId: value.productId, productName: value.productName, expiresAt: value.expiresAt, ...(qty ? { qty } : {}) };
 };
 
 const sanitizePendingFlow = (raw: PendingFlowState | undefined): PendingFlowState | undefined => {

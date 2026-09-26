@@ -4,6 +4,7 @@ import type { ErpDeliveryStatus } from '../../erp/adapter';
 import { t, tFill, stateLabel, invoiceStatusLabel, type Lang } from '../../services/i18n';
 import { bindPostbackData } from '../postback';
 import { overlayLabelForText } from '../command-overlay';
+import { catalogUiLabel } from '../catalog-ui';
 import { BRAND, createDatePickerButton, createMessageActionButton, createPrefillButton, createUriActionButton, flexBubbleStyles, flexHeaderBox, formatMoney, truncate } from './shared';
 import type { QuoteAskThread } from '../quote-ask';
 
@@ -35,6 +36,8 @@ export const createQuotationJourneyFlexMessage = (
   options: { role: 'admin' | 'customer'; salesTier?: 'salesperson' | 'sales_manager'; canManageLines?: boolean; portalLink?: string; pdfLink?: string; delivery?: ErpDeliveryStatus },
   language: Lang
 ): messagingApi.FlexMessage => {
+  const customerView = options.role === 'customer';
+  const audience = customerView ? 'customer' : 'staff';
   const customerName = order.partner_id?.[1] || '-';
   const isCancelled = order.state === 'cancel';
   const currentIndex = isCancelled ? -1 : QUOTATION_STATE_SEQUENCE.indexOf(order.state as typeof QUOTATION_STATE_SEQUENCE[number]);
@@ -88,7 +91,7 @@ export const createQuotationJourneyFlexMessage = (
         cornerRadius: BRAND.radius,
         paddingAll: 'sm',
         contents: [
-          { type: 'text', text: stateLabel('cancel', language), align: 'center', weight: 'bold', size: 'sm', color: '#7A271A' },
+          { type: 'text', text: stateLabel('cancel', language, audience), align: 'center', weight: 'bold', size: 'sm', color: '#7A271A' },
         ],
       }
     : {
@@ -105,7 +108,9 @@ export const createQuotationJourneyFlexMessage = (
           contents: [
             {
               type: 'text',
-              text: stateLabel(state, language),
+              text: state === 'sent' && customerView
+                ? catalogUiLabel('glossary-quotation-received', language, { en: 'Quotation Received', th: 'รับใบเสนอราคาแล้ว' })
+                : stateLabel(state, language, audience),
               size: 'xxs',
               align: 'center',
               wrap: true,
@@ -173,7 +178,14 @@ export const createQuotationJourneyFlexMessage = (
   const footerContents: messagingApi.FlexComponent[] = [];
   if (!isCancelled && (options.portalLink || options.pdfLink)) {
     const linkRow = [
-      ...(options.portalLink ? [createUriActionButton(t('viewFullQuotation', language), options.portalLink, 'secondary', BRAND.goldTint)] : []),
+      ...(options.portalLink ? [createUriActionButton(
+        customerView
+          ? catalogUiLabel('glossary-order-details', language, { en: 'Order Details', th: 'รายละเอียดออเดอร์' })
+          : t('viewFullQuotation', language),
+        options.portalLink,
+        'secondary',
+        BRAND.goldTint,
+      )] : []),
       ...(options.pdfLink ? [createUriActionButton(t('downloadPdf', language), options.pdfLink, 'secondary', BRAND.goldTint)] : []),
     ];
     footerContents.push(linkRow.length === 1
@@ -185,12 +197,17 @@ export const createQuotationJourneyFlexMessage = (
     footerContents.push(createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint));
   } else {
     footerContents.push(createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint));
-    footerContents.push(createMessageActionButton(t('myOrders', language), 'QUOTE LIST', 'secondary', BRAND.tealTint));
+    footerContents.push(createMessageActionButton(
+      overlayLabelForText('QUOTE LIST', language, t('customerOrderHistory', language), 'customer'),
+      'QUOTE LIST',
+      'secondary',
+      BRAND.tealTint,
+    ));
   }
 
   return {
     type: 'flex',
-    altText: truncate(`${t('quotation', language)} ${order.name} — ${customerName} — ${formatMoney(order.amount_total, language)}`, 390),
+    altText: truncate(`${customerView ? catalogUiLabel('glossary-order-noun', language, { en: 'Order', th: 'คำสั่งซื้อ' }) : t('quotation', language)} ${order.name} — ${customerName} — ${formatMoney(order.amount_total, language)}`, 390),
     contents: {
       type: 'bubble',
       styles: flexBubbleStyles,
@@ -470,7 +487,7 @@ export const createQuotationListFlexMessage = (
   userId = '',
   listOptions: { staff?: boolean; admin?: boolean } = {},
 ): messagingApi.FlexMessage => {
-  const listTitle = listOptions.staff ? t('myQuotations', language) : t('myOrders', language);
+  const listTitle = listOptions.staff ? t('myQuotations', language) : t('customerOrderHistory', language);
   const emptyTitle = listOptions.staff ? t('noQuotationsYet', language) : t('noOrdersYet', language);
   const emptyBody = listOptions.staff ? t('noQuotations', language) : t('noOrders', language);
   const dateQuery = dateFrom && dateTo ? ` FROM ${dateFrom} TO ${dateTo}` : '';
@@ -491,7 +508,11 @@ export const createQuotationListFlexMessage = (
         paddingAll: 'lg',
         contents: orders.length
           ? orders.map(order => {
-              const kind = order.state === 'sale' || order.state === 'done' ? t('orderKind', language) : t('quotation', language);
+              const kind = order.state === 'sale' || order.state === 'done'
+                ? t('orderKind', language)
+                : (listOptions.staff
+                  ? t('quotation', language)
+                  : catalogUiLabel('glossary-order-noun', language, { en: 'Order', th: 'คำสั่งซื้อ' }));
               const datePart = order.date_order ? order.date_order.split(' ')[0] : '';
               const customer = order.partner_id?.[1] || '-';
               const assignHint = listOptions.admin && !order.user_id?.[0] ? ` · ${t('assignSalesperson', language)}` : '';
@@ -539,7 +560,7 @@ export const createQuotationListFlexMessage = (
             { ...createDatePickerButton(t('dateFrom', language), bindPostbackData('quote.list.from', userId)), flex: 1 },
             { ...createDatePickerButton(t('dateTo', language), bindPostbackData('quote.list.to', userId)), flex: 1 },
           ] },
-          ...(hasMore && nextCursor ? [createMessageActionButton(t('moreActions', language), `QUOTE LIST CURSOR ${nextCursor}${dateQuery}`, 'secondary', BRAND.tealTint)] : []),
+          ...(hasMore && nextCursor ? [createMessageActionButton(t('nextPage', language), `QUOTE LIST CURSOR ${nextCursor}${dateQuery}`, 'secondary', BRAND.tealTint)] : []),
           ...(listOptions.staff ? [createMessageActionButton(overlayLabelForText('FORM QUOTE CREATE', language, t('createQuote', language)), 'FORM QUOTE CREATE', 'primary', BRAND.teal)] : []),
           createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint),
         ],

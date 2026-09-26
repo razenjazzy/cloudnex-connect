@@ -92,6 +92,27 @@ export type CatalogFlexOptions = {
 };
 
 const priceStockRow = (price: number, stock: number, language: ReportLanguage, channelId?: string): messagingApi.FlexBox => {
+  if (!isCatalogUiVisible('ui-catalog-stock', channelId)) {
+    return {
+      type: 'box',
+      layout: 'horizontal',
+      spacing: 'md',
+      contents: [
+        { type: 'text', text: t('price', language), size: 'sm', color: BRAND.inkSoft, flex: 0, gravity: 'center' },
+        {
+          type: 'text',
+          text: formatMoney(price, language),
+          size: 'xl',
+          weight: 'bold',
+          color: BRAND.tealStrong,
+          align: 'end',
+          flex: 1,
+          wrap: true,
+          gravity: 'center',
+        },
+      ],
+    };
+  }
   const priceBox: messagingApi.FlexBox = {
     type: 'box',
     layout: 'vertical',
@@ -104,9 +125,6 @@ const priceStockRow = (price: number, stock: number, language: ReportLanguage, c
       { type: 'text', text: formatMoney(price, language), size: 'sm', color: BRAND.tealStrong, weight: 'bold', wrap: true },
     ],
   };
-  if (!isCatalogUiVisible('ui-catalog-stock', channelId)) {
-    return { type: 'box', layout: 'horizontal', spacing: 'sm', contents: [priceBox] };
-  }
   return {
     type: 'box',
     layout: 'horizontal',
@@ -167,8 +185,8 @@ export const createProductCardFlexMessage = (
     layout: 'horizontal',
     spacing: 'md',
     contents: [
-      { ...createMessageActionButton(catalogUiLabel('ui-product-detail-back', language, { en: 'Back', th: 'กลับ' }), 'BACK', 'secondary', BRAND.tealTint), flex: 1 },
       { ...createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint), flex: 1 },
+      { ...createMessageActionButton(catalogUiLabel('ui-product-detail-back', language, { en: 'Back', th: 'กลับ' }), 'BACK', 'secondary', BRAND.tealTint), flex: 1 },
     ],
   });
   const bodyContents: messagingApi.FlexComponent[] = [

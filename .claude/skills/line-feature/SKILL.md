@@ -2,6 +2,8 @@
 
 Use this skill for features affecting LINE interactions.
 
+Before changing Customer/Sales OA journeys, Flex labels, command overlay, or keyboard tray, read [documents/LINE_OA_AGENT.md](../../../documents/LINE_OA_AGENT.md) (canonical prefix vs readable EN/TH). Do not duplicate those tables here.
+
 ## Relevant architecture
 
 Primary flow:

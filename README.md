@@ -4,12 +4,12 @@ Cloudnex Connect is the Cloudnex LINE Official Account platform: HMAC webhooks (
 
 TypeScript Express backend that connects LINE Official Accounts to Odoo ERP. Users work in LINE Flex cards (Thai/English). Identity is Firestore unless `MONGO_USERS` is on. Sales, partners, and products live in Odoo.
 
-**Release:** v10.0.4 — Odoo LINE OA v7. Catalog Flex omits empty image URLs; product detail shows Odoo short description. Staging/dev this cut. Cloud Run `deploy:prod` stays gated.  
+**Release:** v11.0.1 — Odoo LINE OA v8. Customer OA catalog/keyboard/glossary; Sales dual Home, RFQ create quote, list page 5; Admin prefix read-only + aliases. Staging this cut. Cloud Run `deploy:prod` stays gated.  
 **Runtime:** Node 22+. **Persona:** Sora / โซระ. **Package:** `cloudnex-connect`.
 
 The git root on disk is `.../Code/cloudnex-connect`. `cns-line-oa` is only a symlink. In Cursor: **File → Open Folder** and choose `cloudnex-connect` (not the symlink) so the sidebar name matches. GCP project id `cns-line-oa` is unrelated.
 
-This README is the map. Implementation details stay in `documents/` and `CLAUDE.md`. If a document disagrees with running code, the code wins.
+This README is the map. Implementation details stay in `documents/` and `CLAUDE.md`. LINE **commands vs readable labels**, Customer/Sales storyboard, and Action→Result tables: [documents/LINE_OA_AGENT.md](documents/LINE_OA_AGENT.md) (agent prompt: [documents/AGENTIC_PROMPT.md](documents/AGENTIC_PROMPT.md)). Buttons post canonical prefixes (`NAV COMMERCE`, `QUOTE LIST`); Admin Commands edits EN/TH (and optional typed aliases). Catalog heroes attach HTTPS `imageUrl` only when Odoo image bytes exist. Customer qty uses a Console **keyboard** rich-menu id (`LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` `en.keyboard` / `th.keyboard` or `LINE_CHANNEL_CUSTOMER_KEYBOARD_RICH_MENU`). If a document disagrees with running code, the code wins.
 
 ---
 
@@ -145,9 +145,9 @@ Full tap order, filenames, and freeze rules: **[documents/USER_JOURNEY.md](docum
 
 **Setup:** friend the OA → English default → tray 2×3 (**Home | Products & Quotes | Order Status** / **Verify | Language | Help**). Gold is **Language** while English is on, and **Verify** while a sales VERIFY session is on (`SALES_SESSION_TTL_HOURS`). Publish trays with `npm run rich-menu:generate` then `npm run rich-menu:upload` on a laptop; set `LINE_RICH_MENU_EN` / `_TH` / `_JSON` and `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` on the VPS. The image host does not publish LINE rich menus.
 
-**Staff (verified sales):** Products & Quotes → Create quote (chips under the composer) → Action Verify on create → card with **Confirm | Send**, footer **View Quote | Download**, **More**, **Home**. Send is a guided form (channel, template, email). LINE is skipped until the customer is an OA friend (Add-friend URL). Staff wait for approval; NAV HOME only after **Send Invoice** or cancel. Confirm after action-verify opens the Odoo portal when the action is a portal command; Send returns to chat with the next Flex.
+**Staff (verified sales):** Home is the commerce menu **plus** My quotations (page of 5). Unassigned rows open `QUOTE ASSIGN`. Inbound customer messages include **Create quote** (`FORM QUOTE CREATE FROM CARD`). Products & Quotes → Create quote → Action Verify → card **Confirm | Send**. Send is guided (LINE / email / both). Staff wait for customer **QUOTE APPROVE**; then Invoice.
 
-**Customer:** Confirm / View Quote / Download (portal URIs). No Send or More. Footer **Home** + **My quotations**. After sale: Invoice link on the customer card.
+**Customer:** Home carousel + Products & Orders. Order Now → qty chips → unassigned draft. Send Message / Ask for Quotations → accepted copy. When sales sends: **Quotation Received** + Confirm (`QUOTE APPROVE`). After approve, salesperson name when Odoo has `user_id`. Footer Order History. No Send or More on the customer journey card.
 
 Captured stills currently in-repo:
 

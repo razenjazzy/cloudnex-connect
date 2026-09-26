@@ -3,7 +3,6 @@ import {
   createProductCardFlexMessage,
   createProductCarouselFlexMessage,
   createQuotationJourneyFlexMessage,
-  createQuoteAskListFlexMessage,
   createBotTextFlexMessage,
   formatMoney,
 } from '../templates';
@@ -20,13 +19,16 @@ import { commerceFollowUpMessages } from '../commerce-followup';
 import { LINE_LIMITS } from '../message-limits';
 import { getErpAdapter } from '../../erp/registry';
 import { getPlatformStatus } from '../../platform/status';
-import { CUSTOMER_CHANNEL_ID, salesNotifyChannelId } from '../channels';
+import { CUSTOMER_CHANNEL_ID, getAgentSpeakPrefix, salesNotifyChannelId } from '../channels';
 import { findOdooUserIdByPartnerId } from '../../services/odoo/admin';
 import { sendTargetedFlexMessage } from '../messaging';
 import { beginQuoteCreate, completeQuoteCreate, failQuoteCreate, quoteCreateLockKey } from '../../services/quote-idempotency';
-import { formatQuoteAskNote, pairQuoteAskThreads } from '../quote-ask';
+import { formatQuoteAskNote } from '../quote-ask';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
+
+const customerRequestAcceptedBody = (language: UserLanguage): string =>
+  `${getAgentSpeakPrefix(language)}${t('customerRequestAccepted', language)}`;
 
 const inferTone = (value: string): 'info' | 'success' | 'warning' | 'error' => {
   const lower = value.toLowerCase();
@@ -216,7 +218,8 @@ const demoQuoteHandler: CommandHandler = {
     }
 
     let salespersonUserId: number | false | undefined;
-    if (channel?.channelId === CUSTOMER_CHANNEL_ID || !isQuoteStaff(profile)) {
+    const rfqUnassigned = customerReference === 'RFQ';
+    if (channel?.channelId === CUSTOMER_CHANNEL_ID || !isQuoteStaff(profile) || rfqUnassigned) {
       salespersonUserId = false;
     } else if (profile.odooPartnerId) {
       salespersonUserId = await findOdooUserIdByPartnerId(profile.odooPartnerId);
@@ -224,7 +227,7 @@ const demoQuoteHandler: CommandHandler = {
 
     const quotation = await getErpAdapter().createQuotation(customerName, phone, product.name, qty, {
       partnerId,
-      customerRef: customerReference,
+      ...(rfqUnassigned || !customerReference ? {} : { customerRef: customerReference }),
       discountPercent,
       validityDate,
       note,
@@ -453,7 +456,7 @@ const messageRequestConfirmHandler: CommandHandler = {
       sendTargetedFlexMessage(salesIds, ping, salesNotifyChannelId()).catch(() => undefined);
     }
     recordAuditEvent({ action: 'quote_message', outcome: 'success', actorUserId: userId, channelId: channel?.channelId, detail: String(profile.odooPartnerId) });
-    return [botText(tr(userLanguage, 'ส่งข้อความถึงฝ่ายขายแล้ว', 'Message sent to sales.'), userLanguage, [
+    return [botText(customerRequestAcceptedBody(userLanguage), userLanguage, [
       { label: tr(userLanguage, 'ขอใบเสนอราคา', 'Ask for Quotations'), text: 'QUOTE ASK', style: 'primary' },
       { label: tr(userLanguage, 'หน้าแรก', 'Home'), text: 'NAV HOME', style: 'secondary' },
     ])];
@@ -464,15 +467,33 @@ const quoteAskHandler: CommandHandler = {
   name: 'commerce-quote-ask',
   match: (u) => u === 'QUOTE ASK' || u.startsWith('QUOTE ASK '),
   handle: async (ctx) => {
-    const { userLanguage, profile } = ctx;
+    const { userLanguage, profile, userId, channel } = ctx;
     if (!profile.odooVerified || !profile.odooPartnerId) {
       return [botText(tr(userLanguage, 'ยืนยันตัวตนก่อนดูคำขอใบเสนอราคา', 'Verify your account before viewing quotation requests.'), userLanguage, [
         { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
       ])];
     }
-    const notes = await getErpAdapter().listPartnerNotes?.(profile.odooPartnerId, 30) || [];
-    const threads = pairQuoteAskThreads(notes);
-    return [createQuoteAskListFlexMessage(threads, userLanguage)];
+    const posted = await getErpAdapter().postPartnerNote?.(
+      profile.odooPartnerId,
+      formatQuoteAskNote(t('customerRequestForOrder', userLanguage)),
+    );
+    if (!posted) {
+      return [botText(tr(userLanguage, 'ส่งคำขอไม่สำเร็จ กรุณาลองใหม่', 'Could not send the request. Please try again.'), userLanguage, [
+        { label: tr(userLanguage, 'ลองอีกครั้ง', 'Try again'), text: 'QUOTE ASK', style: 'primary' },
+      ])];
+    }
+    const salesIds = await listVerifiedSalesLineUserIds();
+    if (salesIds.length) {
+      const ping = botText(tr(userLanguage,
+        `ลูกค้าขอใบเสนอราคา: ${profile.displayName || userId}`,
+        `Customer asked for quotations: ${profile.displayName || userId}`,
+      ), userLanguage);
+      sendTargetedFlexMessage(salesIds, ping, salesNotifyChannelId()).catch(() => undefined);
+    }
+    recordAuditEvent({ action: 'quote_message', outcome: 'success', actorUserId: userId, channelId: channel?.channelId, detail: String(profile.odooPartnerId) });
+    return [botText(customerRequestAcceptedBody(userLanguage), userLanguage, [
+      { label: tr(userLanguage, 'หน้าแรก', 'Home'), text: 'NAV HOME', style: 'primary' },
+    ])];
   },
 };
 

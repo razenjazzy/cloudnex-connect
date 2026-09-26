@@ -46,6 +46,19 @@ describe('command overlay', () => {
 
   it('keeps caller fallback when no overlay label is set', () => {
     expect(overlayLabelForText('NAV COMMERCE', 'en', 'Products & Orders')).toBe('Products & Orders');
+    expect(overlayLabelForText('QUOTE LIST', 'en', 'My Orders')).toBe('My Orders');
+    expect(overlayLabelForText('QUOTE LIST', 'en', 'My Orders', 'customer')).toBe('Order History');
+    expect(overlayLabelForText('QUOTE LIST', 'th', 'ออเดอร์', 'customer')).toBe('ประวัติคำสั่งซื้อ');
+  });
+
+  it('uses the customer glossary row for QUOTE LIST, not a sales overlay', () => {
+    setCommandOverlayCacheForTests({
+      'quote-list-customer': { labelEn: 'Past orders' },
+      'nav-commerce': { labelEn: 'Shop floor' },
+    });
+    expect(overlayLabelForText('QUOTE LIST', 'en', 'My Orders', 'customer')).toBe('Past orders');
+    expect(overlayLabelForText('QUOTE LIST', 'en', 'My Orders', 'sales')).toBe('My Orders');
+    expect(overlayLabelForText('NAV COMMERCE', 'en', 'Products & Orders', 'customer')).toBe('Shop floor');
   });
 
   it('keeps catalog UI rows overlayable without matching typed commands', () => {

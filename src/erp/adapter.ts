@@ -124,6 +124,10 @@ export type ErpCrmQuoteListOpts = {
   state?: string;
   unassigned?: boolean;
   limit?: number;
+  offset?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  cursor?: { dateOrder: string; id: number };
 };
 
 export type ErpPartnerPrivileges = {

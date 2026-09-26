@@ -22,6 +22,21 @@ describe('form prompt options', () => {
     expect(json).toContain('CANCEL');
   });
 
+  it('caps qty chips plus Cancel so quickReply stays at 13', () => {
+    const chips = ['10', '15', '20', '25', '30', '35', '40', '45', '50', '55', '60', '65'];
+    const message = createFormPromptFlexMessage({
+      title: 'Sora: Request for Order',
+      prompt: 'Quantity?',
+      stepIndex: 1,
+      totalSteps: 2,
+      language: 'en',
+      options: chips,
+    });
+    expect(message.quickReply?.items?.length).toBeLessThanOrEqual(13);
+    expect(JSON.stringify(message.quickReply)).toContain('"text":"10"');
+    expect(JSON.stringify(message.quickReply)).toContain('CANCEL');
+  });
+
   it('shows Saved in Odoo as the only extra phone note', () => {
     const message = createFormPromptFlexMessage({
       title: 'Sora Create a quote',
@@ -58,18 +73,21 @@ describe('product card quote CTA', () => {
     expect(JSON.stringify(message)).toContain('/catalog/product/11/image');
   });
 
-  it('on Customer OA omits detail quote/message, shows Back and a short description', () => {
+  it('on Customer OA shows Order Now then Send Message above Home/Back', () => {
     const message = createProductCardFlexMessage('App Premium', 100, 3, 'en', 11, undefined, {
       channelId: 'customer',
       description: 'Short product copy from Odoo.',
     });
     const json = JSON.stringify(message);
     expect(json).toContain('Short product copy from Odoo.');
-    expect(json).toContain('"text":"BACK"');
-    expect(json).toContain('Back');
-    expect(json).not.toContain('FORM QUOTE CREATE FROM CARD');
-    expect(json).not.toContain('FORM MESSAGE REQUEST');
+    expect(json).toContain('FORM QUOTE CREATE FROM CARD 11');
+    expect(json).toContain('FORM MESSAGE REQUEST 11');
+    expect(json).toContain('Order Now');
+    expect(json).toContain('Send message');
+    expect(json.indexOf('FORM QUOTE CREATE FROM CARD')).toBeLessThan(json.indexOf('FORM MESSAGE REQUEST'));
+    expect(json.indexOf('"text":"NAV HOME"')).toBeLessThan(json.indexOf('"text":"BACK"'));
     expect(json).not.toContain('"text":"Stock"');
+    expect(json).toContain('"size":"xl"');
   });
 
   it('still shows a short description on Customer OA when the overlay row is off', () => {
@@ -228,18 +246,21 @@ describe('quotation journey state actions', () => {
     expect(json).toContain('Confirm');
     expect(json).toContain('QUOTE APPROVE 17');
     expect(json).toContain('FORM QUOTE ADD 17');
-    expect(json).toContain('View Quote');
+    expect(json).toContain('Order Details');
     expect(json).toContain('Download');
     expect(json).not.toContain('Download PDF');
     expect(json).toContain('NAV HOME');
     expect(json).toContain('QUOTE LIST');
-    expect(json).toContain('My Orders');
+    expect(json).toContain('Order History');
+    expect(json).toContain('Quotation Received');
+    expect(json).not.toContain('Quotation Sent');
+    expect(json).not.toContain('My Orders');
     expect(json).not.toContain('QUOTE CONFIRM');
     expect(json).not.toContain('QUOTE SEND');
     expect(json).not.toContain('QUOTE MORE');
   });
 
-  it('gives the customer Invoice, View Quote, Home, and My Orders on a sales order', () => {
+  it('gives the customer Invoice, Order Details, Home, and Order History on a sales order', () => {
     const json = JSON.stringify(createQuotationJourneyFlexMessage(
       { ...order, state: 'sale', invoice_status: 'invoiced' },
       { role: 'customer', portalLink: 'https://example.com/q', pdfLink: 'https://example.com/p' },
@@ -250,16 +271,17 @@ describe('quotation journey state actions', () => {
     expect(json).toContain('https://example.com/q');
     expect(json).toContain('Download');
     expect(json).not.toContain('Download PDF');
-    expect(json).toContain('View Quote');
+    expect(json).toContain('Order Details');
     expect(json).toContain('NAV HOME');
     expect(json).toContain('QUOTE LIST');
-    expect(json).toContain('My Orders');
+    expect(json).toContain('Order History');
+    expect(json).not.toContain('My Orders');
     expect(json).not.toContain('QUOTE APPROVE');
     expect(json).not.toContain('QUOTE INVOICE');
     expect(json).not.toContain('QUOTE CONFIRM');
   });
 
-  it('tells the customer to wait for sales send on a draft, with Home and My Orders', () => {
+  it('tells the customer to wait for sales send on a draft, with Home and Order History', () => {
     const json = JSON.stringify(createQuotationJourneyFlexMessage(
       { ...order, state: 'draft' },
       { role: 'customer' },
@@ -269,7 +291,8 @@ describe('quotation journey state actions', () => {
     expect(json).toContain('FORM QUOTE ADD 17');
     expect(json).toContain('NAV HOME');
     expect(json).toContain('QUOTE LIST');
-    expect(json).toContain('My Orders');
+    expect(json).toContain('Order History');
+    expect(json).not.toContain('My Orders');
     expect(json).not.toContain('QUOTE CONFIRM');
     expect(json).not.toContain('QUOTE SEND');
     expect(json).not.toContain('QUOTE MORE');
@@ -383,7 +406,7 @@ describe('quotation list subtitle', () => {
         partner_id: [9, 'Somchai'],
         date_order: '2026-09-05 10:00:00',
       },
-    ], false, 'en', undefined, undefined, undefined, 'Utest');
+    ], false, 'en', undefined, undefined, undefined, 'Utest', { staff: true });
     expect(JSON.stringify(message)).toContain('Quotation: 2026-09-05 | Somchai');
     expect(JSON.stringify(message)).toContain('quote.list.from|Utest');
   });
@@ -397,8 +420,14 @@ describe('quotation list subtitle', () => {
       partner_id: [9, 'Somchai'] as [number, string],
       date_order: '2026-09-05 10:00:00',
     };
-    const json = JSON.stringify(createQuotationListFlexMessage([order], true, 'en', 'cursor1', undefined, undefined, 'Utest'));
-    expect(json).toContain('More');
+    const json = JSON.stringify(createQuotationListFlexMessage([order], true, 'en', 'cursor1', undefined, undefined, 'Utest', { staff: true }));
+    expect(json).toContain('Next 5');
     expect(json).toContain('QUOTE LIST CURSOR cursor1');
+  });
+
+  it('titles the customer list Order History', () => {
+    const json = JSON.stringify(createQuotationListFlexMessage([], false, 'en'));
+    expect(json).toContain('Order History');
+    expect(json).not.toContain('My quotations');
   });
 });

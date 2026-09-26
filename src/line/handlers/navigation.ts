@@ -1,6 +1,6 @@
 import { messagingApi } from '@line/bot-sdk';
 import type { CommandHandler } from './index';
-import { homeMenuFromContext, homeReplyFromContext } from '../command-router';
+import { homeReplyFromContext } from '../command-router';
 import { getServiceDefinition, getVisibleCommands, isServiceEnabledForChannel, serviceMenuLabel } from '../../services/service-catalog';
 import { createServiceActionFlexMessage } from '../templates';
 import { isQuoteStaff } from '../quote-access';
@@ -44,10 +44,11 @@ const navServiceHandler: CommandHandler = {
         `NAV ${serviceDef.key.toUpperCase()}`,
         userLanguage,
         serviceMenuLabel(serviceDef, userLanguage, channel?.channelId),
+        channel?.channelId,
       ),
       visibleCommands.map(c => ({
         text: c.text,
-        label: overlayLabelForText(c.text, userLanguage, userLanguage === 'en' ? c.labelEn : c.labelTh),
+        label: overlayLabelForText(c.text, userLanguage, userLanguage === 'en' ? c.labelEn : c.labelTh, channel?.channelId),
       })),
       userLanguage,
     );

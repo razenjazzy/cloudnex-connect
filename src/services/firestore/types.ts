@@ -57,6 +57,7 @@ export type LastProductContext = {
     productId: number;
     productName: string;
     expiresAt: string;
+    qty?: number;
 };
 
 export type UserProfile = {

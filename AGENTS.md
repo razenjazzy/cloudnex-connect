@@ -5,7 +5,7 @@ This repository is optimized for low-token, low-cost agent work. Follow these ru
 ## Core budget rules
 
 1. Read the smallest possible context.
-   - Start with [CLAUDE.md](CLAUDE.md) and [documents/REFACTOR_PLAN.md](documents/REFACTOR_PLAN.md).
+   - Start with [CLAUDE.md](CLAUDE.md) and [documents/REFACTOR_PLAN.md](documents/REFACTOR_PLAN.md). For LINE OA / Flex / Commands overlay / Customer vs Sales journeys, also open [documents/LINE_OA_AGENT.md](documents/LINE_OA_AGENT.md) (do not duplicate those tables elsewhere).
    - Use search and symbol signatures first; avoid broad full-file reads unless the exact function or route is already identified.
    - Prefer narrow reads around known ranges, not whole files.
 
@@ -73,7 +73,7 @@ Examples:
 
 ## Workflow for agents
 
-1. Identify the exact file and symbol.
+1. Identify the exact file and symbol. If the task is LINE OA copy, overlay labels, or Sales/Customer journeys, read [documents/LINE_OA_AGENT.md](documents/LINE_OA_AGENT.md) first.
 2. Check the existing plan before broad exploration.
 3. Make one root-cause fix or one refactor step.
 4. Verify with the smallest command that checks the changed behavior.

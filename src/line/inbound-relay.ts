@@ -18,9 +18,49 @@ import type { CommandReplyContext } from './command-router';
 
 const snippet = (text: string): string => text.replace(/\s+/g, ' ').trim().slice(0, 200);
 
+export const parseInboundRfq = (raw: string): { productId?: number; qty?: number; text: string } => {
+  const lines = raw.split('\n').map(line => line.trim()).filter(Boolean);
+  let productId: number | undefined;
+  let qty: number | undefined;
+  const rest: string[] = [];
+  for (const line of lines) {
+    const product = /^productId=(\d+)$/i.exec(line);
+    if (product) {
+      productId = Number(product[1]);
+      continue;
+    }
+    const qtyMatch = /^qty=(\d+)$/i.exec(line);
+    if (qtyMatch) {
+      qty = Number(qtyMatch[1]);
+      continue;
+    }
+    rest.push(line);
+  }
+  return { text: rest.join('\n').trim() || raw, ...(productId ? { productId } : {}), ...(qty ? { qty } : {}) };
+};
+
+/** Canonical Create-quote payload. Prefix stays FORM QUOTE CREATE FROM CARD. */
+export const inboundCreateQuoteCommand = (input: {
+  customerUserId: string;
+  productId?: number;
+  qty?: number;
+}): string => {
+  if (!input.productId) return 'FORM QUOTE CREATE';
+  const parts = ['FORM QUOTE CREATE FROM CARD', String(input.productId)];
+  if (input.qty && input.qty > 0) parts.push(String(input.qty));
+  if (input.customerUserId.startsWith('U')) parts.push(input.customerUserId);
+  return parts.join(' ');
+};
+
 export const notifyAdminsOfCustomerInbound = async (ctx: CommandReplyContext): Promise<void> => {
   const quoted = ctx.quotedText ? `Re: ${ctx.quotedText}\n` : '';
-  const text = snippet(`${quoted}${ctx.text}`);
+  const product = ctx.profile.lastProductContext;
+  const qty = product?.qty;
+  const text = [
+    product?.productId ? `productId=${product.productId}` : '',
+    qty ? `qty=${qty}` : '',
+    snippet(`${quoted}${ctx.text}`),
+  ].filter(Boolean).join('\n');
   await setLastInboundSnippet(ctx.userId, text);
   const adminIds = [...getEffectiveAdminUserIds()];
   const salesIds = await listVerifiedSalesLineUserIds();
@@ -31,9 +71,15 @@ export const notifyAdminsOfCustomerInbound = async (ctx: CommandReplyContext): P
     chips.push({ label, text: `RELAY TO ${ctx.userId}` });
   }
   const language = ctx.userLanguage;
-  const overflow = chips.length > 4;
+  const overflow = chips.length > 2;
+  const createQuote = inboundCreateQuoteCommand({
+    customerUserId: ctx.userId,
+    productId: product?.productId,
+    qty,
+  });
   const actions = [
-    ...chips.slice(0, 4).map(chip => ({ label: chip.label, text: chip.text, style: 'primary' as const })),
+    { label: t('createQuote', language), text: createQuote, style: 'primary' as const },
+    ...chips.slice(0, 2).map(chip => ({ label: chip.label, text: chip.text, style: 'primary' as const })),
     ...(overflow ? [{ label: 'More', text: `STAFF PICK ${ctx.userId}`, style: 'secondary' as const }] : []),
   ];
   const message = createBotTextFlexMessage({
@@ -80,12 +126,21 @@ export const completeRelayAssign = async (
   const customer = await getUserProfile(customerUserId);
   const note = customer.lastInboundSnippet || '';
   const language = ctx.userLanguage;
+  const rfq = parseInboundRfq(note);
   const card = createBotTextFlexMessage({
     title: t('inboundLeadTitle', language),
-    body: note || t('inboundAssigned', language),
+    body: rfq.text || t('inboundAssigned', language),
     language,
     tone: 'info',
-    actions: [{ label: t('createQuote', language), text: 'FORM QUOTE CREATE', style: 'primary' }],
+    actions: [{
+      label: t('createQuote', language),
+      text: inboundCreateQuoteCommand({
+        customerUserId,
+        productId: rfq.productId || customer.lastProductContext?.productId,
+        qty: rfq.qty || customer.lastProductContext?.qty,
+      }),
+      style: 'primary',
+    }],
   });
   await sendTargetedFlexMessage([salesLineId], card, SALES_CHANNEL_ID);
   return salesLineId;

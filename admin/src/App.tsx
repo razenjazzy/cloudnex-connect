@@ -28,6 +28,7 @@ const commandGridJson = (rows: Array<Record<string, unknown>>): string => {
       channels,
       requiresAdmin: Boolean(row.requiresAdmin),
       uiOnly: Boolean(row.uiOnly),
+      aliases: Array.isArray(row.aliases) ? row.aliases.map(String) : [],
     };
   }
   return JSON.stringify(out, null, 2);
@@ -1189,7 +1190,7 @@ export const App = () => {
                   toast(t(uiLang, 'cmdReload'), 'error');
                   return;
                 }
-                const patch: Record<string, { enabled: boolean; labelEn?: string; labelTh?: string; roles?: string[]; channels?: string[] }> = {};
+                const patch: Record<string, { enabled: boolean; labelEn?: string; labelTh?: string; roles?: string[]; channels?: string[]; aliases?: string[] }> = {};
                 for (const row of commands) {
                   if (typeof row.id === 'string') {
                     patch[row.id] = {
@@ -1199,6 +1200,9 @@ export const App = () => {
                       ...(Array.isArray(row.roles) && row.roles.length ? { roles: row.roles.map(String) } : {}),
                       ...(Array.isArray(row.channels) && row.channels.filter(ch => ch !== 'any').length
                         ? { channels: row.channels.map(String).filter(ch => ch !== 'any') }
+                        : {}),
+                      ...(Array.isArray(row.aliases) && row.aliases.length
+                        ? { aliases: row.aliases.map(String).map(part => part.trim()).filter(Boolean) }
                         : {}),
                     };
                   }
@@ -1218,7 +1222,7 @@ export const App = () => {
             </div>
             <div className="table-wrap">
               <table>
-                <thead><tr><th>On</th><th>Prefix (LINE command)</th><th>EN label</th><th>TH label</th><th>Category</th><th>Roles</th><th>Channels</th></tr></thead>
+                <thead><tr><th>On</th><th>Prefix (read-only)</th><th>EN label</th><th>TH label</th><th>Aliases</th><th>Category</th><th>Roles</th><th>Channels</th></tr></thead>
                 <tbody>
                   {commands.map((row, i) => (
                     <tr key={String(row.id || i)}>
@@ -1240,6 +1244,12 @@ export const App = () => {
                           const labelTh = e.target.value;
                           setCommands(prev => prev.map(item => item.id === row.id ? { ...item, labelTh } : item));
                         }} />
+                      </td>
+                      <td>
+                        <input value={Array.isArray(row.aliases) ? row.aliases.join(',') : ''} onChange={e => {
+                          const aliases = e.target.value.split(',').map(part => part.trim()).filter(Boolean);
+                          setCommands(prev => prev.map(item => item.id === row.id ? { ...item, aliases } : item));
+                        }} placeholder="typed shortcuts" />
                       </td>
                       <td>{String(row.category || '')}</td>
                       <td>

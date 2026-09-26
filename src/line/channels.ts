@@ -37,6 +37,19 @@ export const getAgentName = (language: 'th' | 'en' = 'en'): string => {
   return getRuntime('LINE_AGENT_NAME_EN') || 'Sora';
 };
 
+/** Visible Sora / โซระ copy in bot Flex titles and bodies uses a colon. Product names stay untouched. */
+export const withAgentColon = (visible: string): string => {
+  const name = visible.trim();
+  if (!name) return name;
+  if (/^(Sora|โซระ)\s*:/.test(name)) return name.endsWith(' ') ? name : `${name.replace(/:+\s*$/, '')}: `;
+  if (name === 'Sora' || name.startsWith('Sora ')) return name === 'Sora' ? 'Sora: ' : `Sora: ${name.slice(5)}`;
+  if (name === 'โซระ' || name.startsWith('โซระ ')) return name === 'โซระ' ? 'โซระ: ' : `โซระ: ${name.slice('โซระ '.length)}`;
+  return name.endsWith(':') || name.endsWith(': ') ? (name.endsWith(' ') ? name : `${name} `) : `${name}: `;
+};
+
+export const getAgentSpeakPrefix = (language: 'th' | 'en' = 'en'): string =>
+  withAgentColon(getAgentName(language));
+
 export const getBrandTitle = (language: 'th' | 'en' = 'en'): string =>
   `${APP_NAME}: ${getAgentName(language)}`;
 

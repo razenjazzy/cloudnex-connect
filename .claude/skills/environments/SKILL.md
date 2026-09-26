@@ -5,7 +5,7 @@ description: Use when changing APP_ENV, Railway staging, production flags, .env.
 
 # Environment lanes
 
-Read `documents/ENVIRONMENTS.md` and `src/http/env-params.ts`.
+Read `documents/ENVIRONMENTS.md` and `src/http/env-params.ts`. Keyboard tray, catalog images, and env Action→Result: `documents/LINE_OA_AGENT.md`.
 
 - `development`: local + `/demo` + `/webhook-test`
 - `staging`: Hostinger sibling `/opt/cns-line-oa` (`:8081`, Admin `/cloudnex-connect/admin/test`). Must set `APP_ENV=staging` (image `NODE_ENV=production` otherwise fail-closes). Keys: `deploy/env/staging.example`. Plan: `documents/VPS_STAGING.md`.

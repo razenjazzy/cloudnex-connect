@@ -1,5 +1,12 @@
 # Changelog
 
+## v11.0.1 — Odoo LINE OA v8 (2026-09-27)
+
+- Customer OA: HTTPS heroes only when image bytes exist; keyboard rich-menu; qty chips; glossary; `Sora:`.
+- Sales OA: Home is commerce menu plus quote list (page 5); inbound Create quote RFQ; salesperson name after approve.
+- Admin Commands: prefix read-only; optional inbound aliases; channel glossary labels prefer uiOnly rows.
+- Agent contract: `documents/LINE_OA_AGENT.md` and `documents/AGENTIC_PROMPT.md`.
+
 ## v10.0.4 — Odoo LINE OA v7 (2026-09-26)
 
 - Attach product photos only when Odoo has `image_128` so LINE does not render a blank hero or stampede Odoo on 404s.

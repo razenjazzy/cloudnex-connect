@@ -69,6 +69,7 @@ describe('assign and overlay channels', () => {
     const inbound = readFileSync('src/line/inbound-relay.ts', 'utf8');
     expect(inbound).toContain('RELAY TO ${ctx.userId}');
     expect(inbound).not.toContain('RELAY ASSIGN ${ctx.userId}');
+    expect(inbound).toContain('inboundCreateQuoteCommand');
   });
 
   it('resolves overlay LINE_CHANNEL_HR_* and still rejects unknown ids', () => {

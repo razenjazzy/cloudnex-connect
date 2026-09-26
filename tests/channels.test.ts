@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { APP_NAME, CUSTOMER_CHANNEL_ID, DEFAULT_CHANNEL_ID, SALES_CHANNEL_ID, customerNotifyChannelId, getAgentName, getBrandTitle, oaChatDeepLink, resolveChannelConfig, salesNotifyChannelId } from '../src/line/channels';
+import { APP_NAME, CUSTOMER_CHANNEL_ID, DEFAULT_CHANNEL_ID, SALES_CHANNEL_ID, customerNotifyChannelId, getAgentName, getAgentSpeakPrefix, getBrandTitle, oaChatDeepLink, resolveChannelConfig, salesNotifyChannelId, withAgentColon } from '../src/line/channels';
 
 const ENV_KEYS = [
   'LINE_CHANNEL_SECRET',
@@ -138,6 +138,11 @@ describe('agent name', () => {
     expect(APP_NAME).toBe('CloudNex Connect');
     expect(getBrandTitle('en')).toBe('CloudNex Connect: Sora');
     expect(getBrandTitle('th')).toBe('CloudNex Connect: โซระ');
+    expect(withAgentColon('Sora')).toBe('Sora: ');
+    expect(withAgentColon('โซระ')).toBe('โซระ: ');
+    expect(withAgentColon('Sora hello')).toBe('Sora: hello');
+    expect(getAgentSpeakPrefix('en')).toBe('Sora: ');
+    expect(getAgentSpeakPrefix('th')).toBe('โซระ: ');
   });
 });
 

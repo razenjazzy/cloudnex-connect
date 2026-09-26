@@ -34,10 +34,10 @@ const commerceActionMenu = (ctx: CommerceFollowCtx) => {
   const visibleCommands = serviceDef ? getVisibleCommands(serviceDef, isAdmin, isStaff) : [];
   if (!serviceDef || !isServiceEnabledForChannel(serviceDef.key, channel) || !visibleCommands.length) return null;
   return createServiceActionFlexMessage(
-    overlayLabelForText(`NAV COMMERCE`, userLanguage, serviceMenuLabel(serviceDef, userLanguage, channel?.channelId)),
+    overlayLabelForText(`NAV COMMERCE`, userLanguage, serviceMenuLabel(serviceDef, userLanguage, channel?.channelId), channel?.channelId),
     visibleCommands.map(c => ({
       text: c.text,
-      label: overlayLabelForText(c.text, userLanguage, userLanguage === 'en' ? c.labelEn : c.labelTh),
+      label: overlayLabelForText(c.text, userLanguage, userLanguage === 'en' ? c.labelEn : c.labelTh, channel?.channelId),
     })),
     userLanguage,
   );
@@ -142,7 +142,7 @@ export const catalogFollowUpMessages = async (
     userLanguage === 'en' ? serviceDef.labelEn : serviceDef.labelTh,
     visibleCommands.map(c => ({
       text: c.text,
-      label: overlayLabelForText(c.text, userLanguage, userLanguage === 'en' ? c.labelEn : c.labelTh),
+      label: overlayLabelForText(c.text, userLanguage, userLanguage === 'en' ? c.labelEn : c.labelTh, channel?.channelId),
     })),
     userLanguage,
   );

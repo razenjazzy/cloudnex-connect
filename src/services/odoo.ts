@@ -394,6 +394,10 @@ export type CrmQuoteListOpts = {
   state?: string;
   unassigned?: boolean;
   limit?: number;
+  offset?: number;
+  dateFrom?: string;
+  dateTo?: string;
+  cursor?: { dateOrder: string; id: number };
 };
 
 export const listCrmQuotations = async (opts: CrmQuoteListOpts = {}): Promise<OdooSaleOrder[]> => {
@@ -402,8 +406,13 @@ export const listCrmQuotations = async (opts: CrmQuoteListOpts = {}): Promise<Od
   if (state && ['draft', 'sent', 'sale'].includes(state)) domain.push(['state', '=', state]);
   else domain.push(['state', 'in', ['draft', 'sent', 'sale']]);
   if (opts.unassigned) domain.push(['user_id', '=', false]);
-  const limit = Math.min(Math.max(opts.limit ?? 50, 1), 100);
-  return listSaleOrders(domain, { limit });
+  return listSaleOrders(domain, {
+    limit: Math.min(Math.max(opts.limit ?? 50, 1), 100),
+    offset: opts.offset,
+    dateFrom: opts.dateFrom,
+    dateTo: opts.dateTo,
+    cursor: opts.cursor,
+  });
 };
 
 /** Assign or unassign salesperson. Unassign writes false — never defaults to the XML-RPC admin uid. */

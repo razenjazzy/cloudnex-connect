@@ -4,7 +4,7 @@ import { addSaleOrderLine, cancelSaleOrder, confirmSaleOrder, createInvoiceForSa
 import { createPartnerFromLine, deletePartnerFromLine, getPartnerByName, getPartnerByPhone, updatePartnerFromLine } from '../src/services/odoo/partners';
 import { getOutgoingPickingForOrder } from '../src/services/odoo/delivery';
 import { getDailySalesSnapshot } from '../src/services/odoo/reporting';
-import { productIdsWithImage128 } from '../src/services/odoo/product-image';
+import { productIdsWithImage128, readProductImage128 } from '../src/services/odoo/product-image';
 import { odooAdapter, seedProductCatalogCacheForTests } from '../src/erp/odoo-adapter';
 import { getErpAdapter, isErpImplemented } from '../src/erp/registry';
 
@@ -47,7 +47,7 @@ vi.mock('../src/services/odoo/reporting', () => ({
 }));
 vi.mock('../src/services/odoo/product-image', () => ({
   productIdsWithImage128: vi.fn(async (ids: number[]) => new Set(ids)),
-  readProductImage128: vi.fn(),
+  readProductImage128: vi.fn(async () => Buffer.alloc(64, 1)),
   sniffImageContentType: vi.fn(),
 }));
 
@@ -133,6 +133,19 @@ describe('Odoo ERP adapter', () => {
     const previousBase = process.env.PUBLIC_BASE_URL;
     process.env.PUBLIC_BASE_URL = 'https://amardhaka.io/cloudnex-connect';
     vi.mocked(productIdsWithImage128).mockResolvedValueOnce(new Set());
+    mockedFindProducts.mockResolvedValue([{ id: 1, name: 'Widget Pro', default_code: 'WP-1', list_price: 125, qty_available: 8 }]);
+    await expect(odooAdapter.searchProducts('widget', 5)).resolves.toEqual([
+      { id: 1, name: 'Widget Pro', sku: 'WP-1', price: 125, quantity: 8, currency: 'THB' },
+    ]);
+    if (previousBase === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = previousBase;
+  });
+
+  it('omits Flex hero URLs when image_128 metadata is set but bytes are empty', async () => {
+    const previousBase = process.env.PUBLIC_BASE_URL;
+    process.env.PUBLIC_BASE_URL = 'https://amardhaka.io/cloudnex-connect';
+    vi.mocked(productIdsWithImage128).mockResolvedValueOnce(new Set([1]));
+    vi.mocked(readProductImage128).mockResolvedValueOnce(null);
     mockedFindProducts.mockResolvedValue([{ id: 1, name: 'Widget Pro', default_code: 'WP-1', list_price: 125, qty_available: 8 }]);
     await expect(odooAdapter.searchProducts('widget', 5)).resolves.toEqual([
       { id: 1, name: 'Widget Pro', sku: 'WP-1', price: 125, quantity: 8, currency: 'THB' },

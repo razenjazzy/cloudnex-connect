@@ -22,7 +22,7 @@ import type { OdooSaleOrder } from '../../services/odoo/types';
 import { recordAuditEvent, saveApprovalRecord, setLastQuoteListFrom, setUserPendingFlow, transitionStoredApproval, getUserLanguage } from '../../services/firestore';
 import type { UserLanguage, UserProfile } from '../../services/firestore';
 import { createApprovalRecord } from '../../services/approval-policy';
-import { t } from '../../services/i18n';
+import { t, tFill } from '../../services/i18n';
 import { outcomeFlex, withOutcome } from '../outcome-reply';
 import { sendTargetedFlexMessage } from '../messaging';
 import { notifyQuoteParties, resolveCustomerLineUserId, type QuoteSendChannel } from '../quote-notify';
@@ -35,6 +35,8 @@ import { decodeQuoteListCursor, encodeQuoteListCursor } from '../quote-list-curs
 import { FLOW_SPECS } from '../../services/guided-forms';
 import { canManageQuoteLines, canViewOrderAsCustomer, isQuoteStaff, quoteJourneyRole, syncStaffProfile } from '../quote-access';
 import { appLogger } from '../../services/logger';
+
+export const QUOTE_LIST_PAGE_SIZE = 5;
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -522,11 +524,15 @@ const quoteApproveHandler: CommandHandler = {
     }).catch(err => console.warn('quote-approve: sales notify failed (non-fatal):', err));
     await clearSalesWaiting(userId);
 
+    const salespersonName = confirmed.user_id?.[1] || '';
+    const approveBody = salespersonName
+      ? tFill('quoteApprovedProcessing', userLanguage, { name: salespersonName })
+      : t('quoteApproved', userLanguage);
     return withOutcome(userLanguage, outcomeFlex({
       language: userLanguage,
       tone: 'success',
       title: t('done', userLanguage),
-      body: t('quoteApproved', userLanguage),
+      body: approveBody,
           actions: [{ label: t('myOrders', userLanguage), text: 'QUOTE LIST', style: 'primary' }],
     }), [createQuotationJourneyFlexMessage(confirmed, { role: 'customer', portalLink, pdfLink }, userLanguage)]);
   },
@@ -948,7 +954,7 @@ const quoteListHandler: CommandHandler = {
       return [botText(t('quoteNotLinked', userLanguage), userLanguage)];
     }
 
-    const DISPLAY_LIMIT = 3;
+    const DISPLAY_LIMIT = QUOTE_LIST_PAGE_SIZE;
     const listOpts = {
       limit: DISPLAY_LIMIT + 1,
       offset: cursor ? 0 : offset,
@@ -959,7 +965,13 @@ const quoteListHandler: CommandHandler = {
     let fetched: OdooSaleOrder[] = [];
     try {
       if (listMode !== 'lookup' && profile.role === 'admin' && !phoneArg) {
-        fetched = await listCrmQuotations({ limit: DISPLAY_LIMIT + 1 });
+        fetched = await listCrmQuotations({
+          limit: DISPLAY_LIMIT + 1,
+          offset: listOpts.offset,
+          cursor: listOpts.cursor,
+          dateFrom: listOpts.dateFrom,
+          dateTo: listOpts.dateTo,
+        });
         listMode = 'salesperson';
       } else if (listMode !== 'lookup' && isQuoteStaff(profile) && partnerId) {
         const odooUserId = await findOdooUserIdByPartnerId(partnerId);
@@ -980,6 +992,9 @@ const quoteListHandler: CommandHandler = {
     }
     const hasMore = fetched.length > DISPLAY_LIMIT;
     const page = fetched.slice(0, DISPLAY_LIMIT);
+    if (profile.role === 'admin' && listMode === 'salesperson') {
+      page.sort((a, b) => Number(Boolean(a.user_id?.[0])) - Number(Boolean(b.user_id?.[0])));
+    }
     appLogger.info('quote_list', {
       gitCommit: process.env.RAILWAY_GIT_COMMIT_SHA || process.env.GIT_COMMIT || null,
       listMode,

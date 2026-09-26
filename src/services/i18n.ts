@@ -30,6 +30,15 @@ export const ODOO_STATE_LABELS: Record<OdooSaleOrderState, { en: string; th: str
   done: { en: 'Locked', th: 'ล็อกแล้ว' },
 };
 
+/** Customer OA journey chips. Sales OA keeps ODOO_STATE_LABELS. */
+export const ODOO_STATE_LABELS_CUSTOMER: Record<OdooSaleOrderState, { en: string; th: string }> = {
+  draft: { en: 'Order', th: 'คำสั่งซื้อ' },
+  sent: { en: 'Quotation Received', th: 'รับใบเสนอราคาแล้ว' },
+  sale: { en: 'Sales Order', th: 'คำสั่งขาย' },
+  cancel: { en: 'Cancelled', th: 'ยกเลิกแล้ว' },
+  done: { en: 'Locked', th: 'ล็อกแล้ว' },
+};
+
 export const UI_STRINGS = {
   quotation: { en: 'Quotation', th: 'ใบเสนอราคา' },
   customer: { en: 'Customer', th: 'ลูกค้า' },
@@ -87,6 +96,10 @@ export const UI_STRINGS = {
   trackingField: { en: 'Tracking', th: 'เลขติดตาม' },
   deliveryPerson: { en: 'Responsible', th: 'ผู้รับผิดชอบ' },
   quoteApproved: { en: 'Quotation approved. Thank you!', th: 'อนุมัติใบเสนอราคาแล้ว ขอบคุณค่ะ' },
+  quoteApprovedProcessing: {
+    en: '{name} is processing your order.',
+    th: '{name} กำลังดำเนินการคำสั่งซื้อของคุณ',
+  },
   quoteApprovedStaff: { en: 'Customer approved. Next: Invoice or Send Invoice.', th: 'ลูกค้าอนุมัติแล้ว ขั้นถัดไป: ใบแจ้งหนี้ หรือ ส่งใบแจ้งหนี้' },
   quoteNotFound: { en: 'Quotation not found.', th: 'ไม่พบใบเสนอราคานี้' },
   addItem: { en: 'Add item', th: 'เพิ่มรายการ' },
@@ -101,6 +114,10 @@ export const UI_STRINGS = {
   print: { en: 'Print', th: 'พิมพ์' },
   myQuotations: { en: 'My quotations', th: 'ใบเสนอราคาของฉัน' },
   myOrders: { en: 'My Orders', th: 'คำสั่งซื้อของฉัน' },
+  customerOrderHistory: { en: 'Order History', th: 'ประวัติคำสั่งซื้อ' },
+  customerOrderDetails: { en: 'Order Details', th: 'รายละเอียดออเดอร์' },
+  customerRequestForOrder: { en: 'Request for Order', th: 'ขอสั่งซื้อ' },
+  customerRequestAccepted: { en: 'Request accepted. We will get back to you soon.', th: 'รับคำขอแล้ว เราจะติดต่อกลับโดยเร็ว' },
   askForQuotations: { en: 'Ask for Quotations', th: 'ขอใบเสนอราคา' },
   quoteAskPending: { en: 'Status: Pending', th: 'สถานะ: รอตอบ' },
   quoteAskReplied: { en: 'Status: Replied', th: 'สถานะ: ตอบแล้ว' },
@@ -247,7 +264,8 @@ export const invoiceStatusLabel = (status: string | undefined, language: Lang): 
   return '';
 };
 
-export const stateLabel = (state: string, language: Lang): string => {
-  const entry = ODOO_STATE_LABELS[state as OdooSaleOrderState];
+export const stateLabel = (state: string, language: Lang, audience: 'customer' | 'staff' = 'staff'): string => {
+  const table = audience === 'customer' ? ODOO_STATE_LABELS_CUSTOMER : ODOO_STATE_LABELS;
+  const entry = table[state as OdooSaleOrderState];
   return entry ? entry[language] : state;
 };

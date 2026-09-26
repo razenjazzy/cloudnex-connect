@@ -9,7 +9,7 @@ import { describeOdooPaymentStatus, describeOdooSignatureStatus } from '../servi
 import type { OdooProduct, OdooSaleOrder } from '../services/odoo/types';
 import type { ErpAdapter, ErpCrmQuote, ErpCrmQuoteListOpts, ErpCustomerUpdate, ErpPartner, ErpPermission, ErpProduct, ErpProviderName, ErpQuoteDraft, ErpQuotationOptions, ErpService, ErpServiceUpdate, ErpWriteAction } from './adapter';
 import { publicCatalogProductImageUrl } from './product-image-url';
-import { productIdsWithImage128 } from '../services/odoo/product-image';
+import { productIdsWithImage128, readProductImage128 } from '../services/odoo/product-image';
 
 const toErpProduct = (product: OdooProduct, imageUrl?: string): ErpProduct => ({
   id: product.id,
@@ -24,9 +24,14 @@ const toErpProduct = (product: OdooProduct, imageUrl?: string): ErpProduct => ({
 
 const withPublicImages = async (products: OdooProduct[]): Promise<ErpProduct[]> => {
   if (!products.length) return [];
-  const withImage = await productIdsWithImage128(products.map(product => product.id));
+  const candidates = await productIdsWithImage128(products.map(product => product.id));
+  const withBytes = new Set<number>();
+  await Promise.all([...candidates].map(async (id) => {
+    const buffer = await readProductImage128(id);
+    if (buffer && buffer.length >= 32) withBytes.add(id);
+  }));
   return products.map(product => {
-    const url = withImage.has(product.id) ? publicCatalogProductImageUrl(product.id) : undefined;
+    const url = withBytes.has(product.id) ? publicCatalogProductImageUrl(product.id) : undefined;
     return toErpProduct(product, url);
   });
 };

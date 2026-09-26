@@ -100,6 +100,8 @@ Existing navigation/interaction patterns to reuse rather than duplicate:
 - `FORM <underlying command>` (e.g. `FORM USER CREATE`): guided, one-field-at-a-time quick-reply flow for multi-field commands, defined in `src/services/guided-forms.ts`. State lives in `profile.pendingFlow` (short TTL) and is intentionally disabled in group/room chats, since that state is shared per-conversation, not per-person. On completion it reconstructs the single-line command and re-enters `resolveCommandReply` — never duplicate the underlying command logic in a flow.
 - Voice messages are transcribed (`src/services/vertexai.ts`, reusing the existing Gemini client) and fed into `resolveCommandReply` exactly like typed text — new commands do not need separate voice handling.
 
+Sales vs Customer journeys, canonical prefixes vs Admin `labelEn`/`labelTh`, env Action→Result: [documents/LINE_OA_AGENT.md](documents/LINE_OA_AGENT.md). Buttons still submit **canonical** command text (not overlay labels).
+
 ## Odoo Services
 
 Current Odoo functionality is primarily command-driven.
@@ -160,7 +162,7 @@ Use MCP only when it provides information or actions unavailable from:
 
 Do not invoke MCP servers automatically.
 
-The existing LINE MCP server should be used only when external LINE platform inspection or LINE-specific operations are needed.
+The existing LINE MCP server should be used only when external LINE platform inspection or LINE-specific operations are needed. LINE **command catalog, labels, and journeys** are [documents/LINE_OA_AGENT.md](documents/LINE_OA_AGENT.md), not MCP tools. Project MCP (`healthz` / `readyz` / `/ops/platform`) does not define commands.
 
 ## Testing
 

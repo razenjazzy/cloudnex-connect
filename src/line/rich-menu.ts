@@ -3,7 +3,7 @@ import { DEFAULT_CHANNEL_ID, resolveChannelConfig } from './channels';
 import { getRuntime } from '../services/runtime-settings';
 import { appLogger } from '../services/logger';
 
-export type RichMenuVariant = 'default' | 'home' | 'verify' | 'commerce' | 'orders' | 'help' | 'language';
+export type RichMenuVariant = 'default' | 'home' | 'verify' | 'commerce' | 'orders' | 'help' | 'language' | 'keyboard';
 
 const parseMenuMap = (env: NodeJS.ProcessEnv, channelId = DEFAULT_CHANNEL_ID): Record<string, Record<string, string>> => {
   const envKey = channelId.trim().toUpperCase().replace(/[^A-Z0-9]/g, '_');
@@ -22,6 +22,11 @@ const parseMenuMap = (env: NodeJS.ProcessEnv, channelId = DEFAULT_CHANNEL_ID): R
 
 export type TrayRestState = { language: UserLanguage; salesSessionActive: boolean };
 
+const keyboardMenuEnvKey = (channelId: string): string => {
+  const envKey = channelId.trim().toUpperCase().replace(/[^A-Z0-9]/g, '_');
+  return `LINE_CHANNEL_${envKey}_KEYBOARD_RICH_MENU`;
+};
+
 export const richMenuIdForLanguage = (
   language: UserLanguage,
   env: NodeJS.ProcessEnv = process.env,
@@ -30,6 +35,13 @@ export const richMenuIdForLanguage = (
   channelId = DEFAULT_CHANNEL_ID,
 ): string | undefined => {
   const map = parseMenuMap(env, channelId)[language] || {};
+  if (variant === 'keyboard') {
+    const fromJson = map.keyboard?.trim();
+    if (fromJson) return fromJson;
+    return env[keyboardMenuEnvKey(channelId)]?.trim()
+      || env.LINE_CHANNEL_CUSTOMER_KEYBOARD_RICH_MENU?.trim()
+      || undefined;
+  }
   // Tap = dark teal on that cell (and keep Language/Verify rest colors on the others).
   // Rest after success = default (EN gold Language, idle Verify tint) or default-verified (gold Verify).
   if (variant !== 'default') {
@@ -109,6 +121,19 @@ export const queueTrayRestAfterReply = (
       appLogger.warn('rich_menu_rest_failed', { error: String(error) });
     });
   }, 750);
+};
+
+/**
+ * Unlink falls back to the OA default tray. Customer qty/forms then link a blank/keyboard menu.
+ * Operator must create that menu in LINE Console and set en.keyboard / LINE_CHANNEL_CUSTOMER_KEYBOARD_RICH_MENU.
+ */
+export const applyKeyboardRichMenu = async (
+  userId: string,
+  language: UserLanguage,
+  channelId: string = DEFAULT_CHANNEL_ID,
+): Promise<void> => {
+  await unlinkUserRichMenu(userId, channelId);
+  await linkUserRichMenu(userId, language, channelId, 'keyboard');
 };
 
 export const unlinkUserRichMenu = async (

@@ -4,7 +4,7 @@ import { classifyIntent, transcribeAudioToText } from '../services/vertexai';
 import { resolveCommandReply, type CommandReplyContext } from './command-router';
 import { resolvePostbackToText } from './postback';
 import { getUserProfile, setLastChannelId, setUserDisplayName, updateUserScore } from '../services/firestore';
-import { ChannelConfig, getAgentName } from './channels';
+import { ChannelConfig, CUSTOMER_CHANNEL_ID, getAgentName } from './channels';
 import type { ChannelContext } from './channels';
 import { appLogger } from '../services/logger';
 import { withSpan } from '../observability/tracing';
@@ -343,7 +343,7 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
       }
     }
     persistAfterReply();
-    const { applyTrayAfterReply, unlinkUserRichMenu } = await import('./rich-menu');
+    const { applyTrayAfterReply, applyKeyboardRichMenu, unlinkUserRichMenu } = await import('./rich-menu');
     const { shouldApplyTrayAfterReply, replyExpectsKeyboard } = await import('./tray-policy');
     const { setLastTerminalAt } = await import('../services/firestore');
     const afterProfile = await getUserProfile(input.conversationId);
@@ -363,9 +363,13 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
       );
       await setLastTerminalAt(input.conversationId, new Date().toISOString());
     } else if (!input.isGroupContext && (afterProfile.pendingFlow || replyExpectsKeyboard(messages))) {
-      void unlinkUserRichMenu(input.conversationId, input.channelConfig.channelId);
+      if (input.channelConfig.channelId === CUSTOMER_CHANNEL_ID) {
+        await applyKeyboardRichMenu(input.conversationId, ctx.userLanguage, input.channelConfig.channelId);
+      } else {
+        void unlinkUserRichMenu(input.conversationId, input.channelConfig.channelId);
+      }
     }
-    if (ctx.pendingCatalogPush && !input.isGroupContext) {
+    if (ctx.pendingCatalogPush && !input.isGroupContext && applyTray && !afterProfile.pendingFlow) {
       void pushDeferredCommerceCatalog({
         userId: input.conversationId,
         generation: trayGeneration,

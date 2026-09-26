@@ -100,6 +100,24 @@ describe('richMenuIdForLanguage', () => {
       LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON: JSON.stringify({ en: { default: 'customer-rest' } }),
     }, 'default', false, 'customer')).toBe('customer-rest');
   });
+
+  it('resolves the Customer keyboard rich-menu from JSON or CHANNEL env', () => {
+    expect(richMenuIdForLanguage('en', {
+      LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON: JSON.stringify({
+        en: { default: 'cust-rest', keyboard: 'cust-keyboard-en' },
+        th: { default: 'cust-rest-th', keyboard: 'cust-keyboard-th' },
+      }),
+    }, 'keyboard', false, 'customer')).toBe('cust-keyboard-en');
+    expect(richMenuIdForLanguage('th', {
+      LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON: JSON.stringify({
+        en: { default: 'cust-rest' },
+      }),
+      LINE_CHANNEL_CUSTOMER_KEYBOARD_RICH_MENU: 'cust-keyboard-fallback',
+    }, 'keyboard', false, 'customer')).toBe('cust-keyboard-fallback');
+    expect(richMenuIdForLanguage('en', {
+      LINE_RICH_MENU_JSON: JSON.stringify({ en: { default: 'sales-rest' } }),
+    }, 'keyboard', false, 'customer')).toBeUndefined();
+  });
 });
 
 describe('trayVariantForCommand', () => {

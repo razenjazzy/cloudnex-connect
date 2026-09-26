@@ -35,7 +35,7 @@ import { resolveServiceForCommand } from '../services/service-catalog';
 import { FLOW_SPECS, getFlowByStartCommand, nextLinearFieldIndex } from '../services/guided-forms';
 import { createBotTextFlexMessage, createFormPromptFlexMessage, createOptionalSummaryFlexMessage, createRequiredResumeFlexMessage, createServiceHomeFlexMessage, createProductCarouselFlexMessage, createIdentityStripFlexMessage } from './templates';
 import { getAvailableServices, serviceMenuLabel } from '../services/service-catalog';
-import { ChannelContext, CUSTOMER_CHANNEL_ID, getBrandTitle } from './channels';
+import { ChannelContext, CUSTOMER_CHANNEL_ID, getBrandTitle, withAgentColon } from './channels';
 import { trayVariantForCommand } from './rich-menu';
 import { clearSalesLogin, hasActiveSalesSession, salesSessionExpired } from '../services/sales-session';
 import type { FlowSpec } from '../services/guided-forms';
@@ -50,7 +50,9 @@ import { withSpan } from '../observability/tracing';
 import { appLogger } from '../services/logger';
 import { applyChannelPersona, isQuoteStaff, selfQuoteIdentity, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary } from './quote-access';
 import { evaluateCommandGrid, isGuestAllowedCommand, matchCommandGrid } from './command-grid';
-import { loadCommandOverlay, overlayLabelForText } from './command-overlay';
+import { canonicalizeInboundCommand, loadCommandOverlay, overlayLabelForText } from './command-overlay';
+import { catalogUiLabel } from './catalog-ui';
+import { customerQtyChipLabels } from './customer-qty';
 import { getErpAdapter } from '../erp/registry';
 import { guidedFormTtlMinutes, shouldIdleHome } from './idle-home';
 
@@ -126,11 +128,7 @@ export const buildHomeMenuMessage = (
     ...(!salesSessionActive && !identity ? [{ key: 'VERIFY', label: tr(language, 'ยืนยันตัวตน', 'Verify account') }] : []),
     ...availableServices.map(svc => ({
       key: svc.key,
-      label: overlayLabelForText(
-        `NAV ${svc.key.toUpperCase()}`,
-        language,
-        serviceMenuLabel(svc, language, channel?.channelId),
-      ),
+      label: overlayLabelForText(`NAV ${svc.key.toUpperCase()}`, language, serviceMenuLabel(svc, language, channel?.channelId), channel?.channelId),
     })),
   ];
   return createServiceHomeFlexMessage(menuItems, language, agentName, salesSessionActive, identity);
@@ -172,7 +170,10 @@ export const homeReplyFromContext = async (ctx: CommandReplyContext): Promise<me
   }
   const persona = applyChannelPersona(ctx.profile, ctx.channel?.channelId);
   if (isQuoteStaff(persona)) {
-    return resolveCommandReply({ ...ctx, profile: persona, text: 'QUOTE LIST', skipIdleHome: true });
+    const { commerceFollowUpMessages } = await import('./commerce-followup');
+    const menu = await commerceFollowUpMessages({ ...ctx, profile: persona }, 1);
+    const list = await resolveCommandReply({ ...ctx, profile: persona, text: 'QUOTE LIST', skipIdleHome: true });
+    return [...menu.slice(0, 1), ...list.slice(0, 1)].slice(0, 2);
   }
   return [homeMenuFromContext(ctx)];
 };
@@ -195,17 +196,22 @@ const buildFormPromptMessage = async (
   profile: UserProfile = { language, role: 'user', odooVerified: false, marketingOptIn: false },
 ): Promise<messagingApi.Message> => {
   const field = flowSpec.fields[stepIndex];
-  const options = field.loadOptions
+  const loaded = field.loadOptions
     ? await field.loadOptions(collected).catch(err => { console.warn('buildFormPromptMessage: loadOptions failed (non-fatal):', err); return []; })
     : undefined;
+  const qtyChips = field.key === 'qty' && !isQuoteStaff(profile) ? customerQtyChipLabels() : undefined;
+  const options = loaded?.length ? loaded : qtyChips;
   const savedPhoneNote = field.key === 'phone' && options?.[0]
     ? tr(language,
       `เบอร์ที่บันทึกไว้: ${options[0]}`,
       `Saved on file: ${options[0]}`,
     )
     : undefined;
+  const formLabel = flowSpec.key === 'QUOTE_CREATE' && !isQuoteStaff(profile)
+    ? catalogUiLabel('glossary-request-for-order', language, { en: 'Request for Order', th: 'ขอสั่งซื้อ' })
+    : tr(language, flowSpec.labelTh, flowSpec.labelEn);
   return createFormPromptFlexMessage({
-    title: tr(language, `${agentName} ${flowSpec.labelTh}`, `${agentName} ${flowSpec.labelEn}`),
+    title: `${withAgentColon(agentName)}${formLabel}`.trim(),
     prompt: promptOverride || tr(language, field.promptTh, field.promptEn),
     stepIndex,
     totalSteps: customerQuoteFormStepCount(flowSpec.key, flowSpec.fields.length, profile),
@@ -654,10 +660,16 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
     return [await buildFormPromptMessage(userLanguage, agentName, flowSpec, 0, userId, undefined, undefined, formCollected, profile)];
   }
 
-  const fromCard = /^FORM QUOTE CREATE FROM CARD(?:\s+(\d+))?$/i.exec(ctx.text.trim());
+  const fromCard = /^FORM QUOTE CREATE FROM CARD(?:\s+(\d+))?(?:\s+(\d+))?(?:\s+(U[A-Za-z0-9]+))?$/i.exec(ctx.text.trim());
   if (fromCard) {
     const cardProductId = fromCard[1] ? Number(fromCard[1]) : undefined;
+    const cardQty = fromCard[2] ? Number(fromCard[2]) : undefined;
+    const rfqCustomerId = fromCard[3];
     let product = profile.lastProductContext;
+    if (rfqCustomerId && isQuoteStaff(profile)) {
+      const buyer = await getUserProfile(rfqCustomerId);
+      if (!cardProductId && buyer.lastProductContext) product = buyer.lastProductContext;
+    }
     const ttlMs = profile.odooVerified ? 10 * 60 * 1000 : 2 * 60 * 60 * 1000;
     if (cardProductId && Number.isFinite(cardProductId)) {
       const erp = getErpAdapter();
@@ -668,6 +680,7 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
           productId: found.id,
           productName: found.name,
           expiresAt: new Date(Date.now() + ttlMs).toISOString(),
+          ...(cardQty && cardQty > 0 ? { qty: cardQty } : {}),
         };
         await setLastProductContext(userId, product);
       }
@@ -699,9 +712,29 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
         `${agentName} step-by-step forms aren't available in group chats.`,
       ), userLanguage)];
     }
+    const rfqCustomer = rfqCustomerId && isQuoteStaff(profile) ? await getUserProfile(rfqCustomerId) : null;
     const qtyIndex = Math.max(flowSpec.fields.findIndex(field => field.key === 'qty'), 1);
-    const identity = isQuoteStaff(profile) ? {} : selfQuoteIdentity(profile);
-    const seeded = { productName: product.productName, productId: String(product.productId), ...identity };
+    const identity = isQuoteStaff(profile)
+      ? (rfqCustomer?.displayName && rfqCustomer.phone
+        ? { customerName: rfqCustomer.displayName, phone: rfqCustomer.phone, rfqUnassigned: '1' }
+        : {})
+      : selfQuoteIdentity(profile);
+    const qtySeed = cardQty && cardQty > 0 ? String(cardQty) : (product?.qty && product.qty > 0 ? String(product.qty) : undefined);
+    const seeded: Record<string, string> = {
+      productName: product.productName,
+      productId: String(product.productId),
+    };
+    if (identity && 'customerName' in identity && identity.customerName) seeded.customerName = identity.customerName;
+    if (identity && 'phone' in identity && identity.phone) seeded.phone = identity.phone;
+    if (identity && 'rfqUnassigned' in identity && identity.rfqUnassigned) seeded.rfqUnassigned = identity.rfqUnassigned;
+    if (qtySeed) seeded.qty = qtySeed;
+    if (seeded.rfqUnassigned === '1' && seeded.qty && seeded.customerName && seeded.phone) {
+      const productToken = `id:${product.productId}`;
+      return resolveCommandReply({
+        ...ctx,
+        text: `QUOTE CREATE ${productToken},${seeded.qty},${seeded.customerName},${seeded.phone},RFQ,,,,,`,
+      });
+    }
     if (isQuoteStaff(profile) && hasForwardRequiredPrefill(flowSpec, seeded, qtyIndex)) {
       await setUserPendingFlow(userId, {
         flow: flowSpec.key,
@@ -726,7 +759,7 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
       userId,
       undefined,
       tr(userLanguage, `ใช้สินค้า: ${product.productName}`, `Using: ${product.productName}`),
-      { productName: product.productName, productId: String(product.productId), ...identity },
+      seeded,
       profile,
     )];
   }
@@ -827,7 +860,9 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
   }
   ctx.profile = applyChannelPersona(ctx.profile, ctx.channel?.channelId);
   const { profile } = ctx;
-  const trimmed = ctx.text.trim();
+  await loadCommandOverlay();
+  const trimmed = canonicalizeInboundCommand(ctx.text.trim());
+  if (trimmed !== ctx.text.trim()) ctx.text = trimmed;
   const upperText = trimmed.toUpperCase();
   const sessionOn = hasActiveSalesSession(profile);
   const trayVariant = trayVariantForCommand(trimmed);

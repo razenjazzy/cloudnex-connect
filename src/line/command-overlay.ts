@@ -2,6 +2,7 @@ import { getPlatformConfig, mutatePlatformConfig } from '../services/firestore';
 import { isServiceConfigured, resolveServiceForCommand } from '../services/service-catalog';
 import { tenantScopedKey } from '../services/tenant';
 import { COMMAND_GRID, type CommandChannel, type CommandGridEntry, type CommandRole } from './command-grid';
+import { DEFAULT_CHANNEL_ID } from './channels';
 
 export type CommandOverlayPatch = {
   enabled?: boolean;
@@ -9,6 +10,7 @@ export type CommandOverlayPatch = {
   channels?: CommandChannel[];
   labelEn?: string;
   labelTh?: string;
+  aliases?: string[];
 };
 
 export type CommandOverlayMap = Record<string, CommandOverlayPatch>;
@@ -39,27 +41,45 @@ export const setCommandOverlayCacheForTests = (overlay: CommandOverlayMap): void
 
 const LINE_ACTION_LABEL_MAX = 20;
 
+const clipLabel = (value: string): string => value.slice(0, LINE_ACTION_LABEL_MAX);
+
+/** Prefer longest prefix, then this-channel rows, then uiOnly glossary (not typed commands). */
+const isBetterLabelEntry = (entry: CommandGridEntry, best: CommandGridEntry, channel: CommandChannel): boolean => {
+  if (entry.prefix.length !== best.prefix.length) return entry.prefix.length > best.prefix.length;
+  const entryScoped = Boolean(entry.channels?.includes(channel));
+  const bestScoped = Boolean(best.channels?.includes(channel));
+  if (entryScoped !== bestScoped) return entryScoped;
+  if (Boolean(entry.uiOnly) !== Boolean(best.uiOnly)) return Boolean(entry.uiOnly);
+  return false;
+};
+
 /** LINE Flex / menu label from Admin Commands EN/TH overlay. Prefix itself is not editable. */
 export const overlayLabelForText = (
   text: string,
   language: 'en' | 'th',
   fallback: string,
+  channelId?: string,
 ): string => {
   const upper = text.trim().toUpperCase();
+  const channel = (channelId || DEFAULT_CHANNEL_ID) as CommandChannel;
   let best: CommandGridEntry | null = null;
   for (const entry of COMMAND_GRID) {
-    if (entry.uiOnly) continue;
+    if (entry.channels?.length && !entry.channels.includes(channel)) continue;
     const hit = entry.exact
       ? upper === entry.prefix
       : upper === entry.prefix || upper.startsWith(`${entry.prefix} `);
     if (!hit) continue;
-    if (!best || entry.prefix.length > best.prefix.length) best = entry;
+    if (!best || isBetterLabelEntry(entry, best, channel)) best = entry;
   }
-  if (!best) return fallback.slice(0, LINE_ACTION_LABEL_MAX);
+  if (!best) return clipLabel(fallback);
   const patch = overlayCache[best.id] || {};
   const overlayLabel = language === 'th' ? patch.labelTh : patch.labelEn;
-  const label = typeof overlayLabel === 'string' && overlayLabel.trim() ? overlayLabel.trim() : fallback;
-  return label.slice(0, LINE_ACTION_LABEL_MAX);
+  const gridLabel = language === 'th' ? best.labelTh : best.labelEn;
+  const channelGlossary = Boolean(best.uiOnly || best.channels?.length);
+  // Overlay on this row wins. Empty overlay still uses the channel glossary grid label.
+  if (typeof overlayLabel === 'string' && overlayLabel.trim()) return clipLabel(overlayLabel.trim());
+  if (channelGlossary && gridLabel.trim()) return clipLabel(gridLabel.trim());
+  return clipLabel(fallback);
 };
 
 export const mergeCommandGridEntry = (entry: CommandGridEntry, overlay = overlayCache): CommandGridEntry & { enabled: boolean } => {
@@ -79,6 +99,7 @@ export const mergeCommandGridEntry = (entry: CommandGridEntry, overlay = overlay
     labelEn: typeof patch.labelEn === 'string' && patch.labelEn.trim() ? patch.labelEn.trim() : entry.labelEn,
     labelTh: typeof patch.labelTh === 'string' && patch.labelTh.trim() ? patch.labelTh.trim() : entry.labelTh,
     enabled: patch.enabled !== false,
+    ...(Array.isArray(patch.aliases) ? { aliases: patch.aliases } : {}),
   };
 };
 
@@ -114,7 +135,31 @@ export const sanitizeCommandOverlay = (input: unknown): { ok: true; commands: Co
     }
     if (typeof patch.labelEn === 'string') next.labelEn = patch.labelEn.trim().slice(0, 80);
     if (typeof patch.labelTh === 'string') next.labelTh = patch.labelTh.trim().slice(0, 80);
+    if (Array.isArray(patch.aliases)) {
+      const aliases: string[] = [];
+      for (const rawAlias of patch.aliases.slice(0, 8)) {
+        if (typeof rawAlias !== 'string') continue;
+        const alias = rawAlias.replace(/\s+/g, ' ').trim().toUpperCase();
+        if (alias.length < 2 || alias.length > 40) {
+          return { ok: false, error: `Invalid alias for ${id}.` };
+        }
+        if (alias === entry.prefix) continue;
+        if (COMMAND_GRID.some(item => !item.uiOnly && item.prefix === alias && item.id !== id)) {
+          return { ok: false, error: `Alias ${alias} collides with a canonical prefix.` };
+        }
+        if (!aliases.includes(alias)) aliases.push(alias);
+      }
+      if (aliases.length) next.aliases = aliases;
+    }
     commands[id] = next;
+  }
+  const claimed = new Map<string, string>();
+  for (const [id, patch] of Object.entries(commands)) {
+    for (const alias of patch.aliases || []) {
+      const owner = claimed.get(alias);
+      if (owner && owner !== id) return { ok: false, error: `Alias ${alias} is used by ${owner} and ${id}.` };
+      claimed.set(alias, id);
+    }
   }
   return { ok: true, commands };
 };
@@ -125,4 +170,26 @@ export const saveCommandOverlay = async (commands: CommandOverlayMap): Promise<{
   overlayCache = commands;
   overlayLoadedAt = Date.now();
   return { ok: true };
+};
+
+/** Map overlay aliases to canonical prefixes. Buttons still emit canonical text. */
+export const canonicalizeInboundCommand = (text: string): string => {
+  const trimmed = text.trim();
+  if (!trimmed) return trimmed;
+  const upper = trimmed.toUpperCase();
+  let best: { alias: string; prefix: string } | null = null;
+  for (const entry of COMMAND_GRID) {
+    if (entry.uiOnly) continue;
+    const aliases = overlayCache[entry.id]?.aliases || [];
+    for (const alias of aliases) {
+      const token = alias.trim().toUpperCase();
+      if (!token) continue;
+      const hit = upper === token || upper.startsWith(`${token} `);
+      if (!hit) continue;
+      if (!best || token.length > best.alias.length) best = { alias: token, prefix: entry.prefix };
+    }
+  }
+  if (!best) return trimmed;
+  if (upper === best.alias) return best.prefix;
+  return `${best.prefix}${trimmed.slice(best.alias.length)}`;
 };

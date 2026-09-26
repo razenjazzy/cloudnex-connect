@@ -12,6 +12,8 @@ Non-odoo `ERP_PROVIDER` values use an unimplemented placeholder adapter (fail cl
 
 Admin chain (fail closed): LINE id → profile (SoR) → `odooVerified` → `ADMIN_USER_ID` → Odoo admin capability → `role=admin`.
 
+LINE user-facing copy vs canonical prefixes, Sales/Customer journeys, env Action→Result: `documents/LINE_OA_AGENT.md`.
+
 ## Environments
 
 | `APP_ENV` | Host | Purpose |

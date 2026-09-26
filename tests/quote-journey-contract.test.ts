@@ -38,6 +38,7 @@ describe('quote journey home and approve', () => {
     const approve = sliceHandler(quotation, 'quote-approve', 'quote-add');
     expect(approve).toContain('salesIntro');
     expect(approve).toContain('quoteApprovedStaff');
+    expect(approve).toContain('quoteApprovedProcessing');
     expect(approve).toContain('notifyCustomer: false');
     expect(approve).not.toContain('buildHomeMenuMessage');
   });

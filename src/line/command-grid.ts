@@ -20,6 +20,7 @@ export type CommandGridEntry = {
   exact?: boolean;
   /** Admin overlay row only — not a typed LINE command. */
   uiOnly?: boolean;
+  aliases?: string[];
 };
 
 /**
@@ -45,14 +46,19 @@ export const COMMAND_GRID: CommandGridEntry[] = [
   { id: 'ui-catalog-image', prefix: 'UI CATALOG IMAGE', labelEn: 'Product image', labelTh: 'รูปสินค้า', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], uiOnly: true },
   { id: 'ui-catalog-view', prefix: 'UI CATALOG VIEW', labelEn: 'View Details', labelTh: 'ดูรายละเอียด', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], uiOnly: true },
   { id: 'ui-catalog-message', prefix: 'UI CATALOG MESSAGE', labelEn: 'Send message', labelTh: 'ส่งข้อความ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], uiOnly: true },
-  { id: 'ui-product-detail-quote', prefix: 'UI PRODUCT DETAIL QUOTE', labelEn: 'Create quote', labelTh: 'สร้างใบเสนอราคา', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [SALES_CHANNEL_ID, DEFAULT_CHANNEL_ID], uiOnly: true },
-  { id: 'ui-product-detail-message', prefix: 'UI PRODUCT DETAIL MESSAGE', labelEn: 'Send message', labelTh: 'ส่งข้อความ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [SALES_CHANNEL_ID, DEFAULT_CHANNEL_ID], uiOnly: true },
+  { id: 'ui-product-detail-quote', prefix: 'UI PRODUCT DETAIL QUOTE', labelEn: 'Create quote', labelTh: 'สร้างใบเสนอราคา', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], uiOnly: true },
+  { id: 'ui-product-detail-message', prefix: 'UI PRODUCT DETAIL MESSAGE', labelEn: 'Send message', labelTh: 'ส่งข้อความ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], uiOnly: true },
   { id: 'ui-product-detail-description', prefix: 'UI PRODUCT DETAIL DESCRIPTION', labelEn: 'Description', labelTh: 'รายละเอียด', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], uiOnly: true },
   { id: 'ui-product-detail-back', prefix: 'UI PRODUCT DETAIL BACK', labelEn: 'Back', labelTh: 'กลับ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], uiOnly: true },
   { id: 'form-quote-add', prefix: 'FORM QUOTE ADD', labelEn: 'Add more products', labelTh: 'เพิ่มสินค้า', category: 'commerce', roles: ['customer', 'staff', 'admin'] },
   { id: 'message-request-form', prefix: 'FORM MESSAGE REQUEST', labelEn: 'Send message', labelTh: 'ส่งข้อความ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'message-request', prefix: 'MESSAGE REQUEST', labelEn: 'Send message', labelTh: 'ส่งข้อความ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'quote-ask', prefix: 'QUOTE ASK', labelEn: 'Ask for Quotations', labelTh: 'ขอใบเสนอราคา', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID] },
+  { id: 'quote-list-customer', prefix: 'QUOTE LIST', labelEn: 'Order History', labelTh: 'ประวัติคำสั่งซื้อ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID], uiOnly: true },
+  { id: 'glossary-order-details', prefix: 'UI VIEW ORDER DETAILS', labelEn: 'Order Details', labelTh: 'รายละเอียดออเดอร์', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID], uiOnly: true },
+  { id: 'glossary-request-for-order', prefix: 'UI REQUEST FOR ORDER', labelEn: 'Request for Order', labelTh: 'ขอสั่งซื้อ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID], uiOnly: true },
+  { id: 'glossary-quotation-received', prefix: 'UI QUOTATION RECEIVED', labelEn: 'Quotation Received', labelTh: 'รับใบเสนอราคาแล้ว', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID], uiOnly: true },
+  { id: 'glossary-order-noun', prefix: 'UI ORDER NOUN', labelEn: 'Order', labelTh: 'คำสั่งซื้อ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID], uiOnly: true },
   { id: 'service-list', prefix: 'SERVICE LIST', labelEn: 'Browse catalog', labelTh: 'รายการบริการ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'service-read', prefix: 'SERVICE READ', labelEn: 'View a service', labelTh: 'ดูบริการ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'lang', prefix: 'LANG', labelEn: 'Language', labelTh: 'ภาษา', category: 'help', roles: ['guest', 'customer', 'staff', 'admin'] },
@@ -144,5 +150,6 @@ export const getCommandGridPayload = () =>
       requiresAdmin: Boolean(merged.requiresAdmin),
       enabled: merged.enabled,
       uiOnly: Boolean(merged.uiOnly),
+      aliases: merged.aliases || [],
     };
   });
