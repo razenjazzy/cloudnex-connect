@@ -197,6 +197,12 @@ header nav > a.active {
 }
 .chart-empty p { margin: 0; }
 .chart-legend { font-size: 0.85rem; min-width: 0; margin-top: 0.75rem; }
+.kpi-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; margin: 0 0 1rem; }
+.kpi { background: #eef1f0; border-radius: 8px; padding: 0.7rem 0.8rem; }
+.kpi-value { display: block; font-size: 1.6rem; font-weight: 700; color: #102a27; }
+.kpi-label { font-size: 0.8rem; color: #3d5551; }
+.muted { color: #3d5551; font-size: 0.88rem; }
+.card h3 { margin: 1rem 0 0.4rem; font-size: 0.95rem; }
 .legend-swatch {
   display: inline-block;
   width: 0.7rem;
@@ -244,6 +250,7 @@ header nav > a.active {
   header nav > a { min-height: 40px; }
   .overview-grid { grid-template-columns: 1fr; }
   .status-grid { grid-template-columns: 1fr; }
+  .kpi-row { grid-template-columns: 1fr; }
 }
 header .header-signout {
   flex: 0 0 auto;

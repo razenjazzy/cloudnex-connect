@@ -300,7 +300,7 @@ const opsPaths: Record<string, OpenApiPath> = {
   '/admin/api/dashboard': {
     get: {
       tags: ['admin'],
-      summary: 'Overview probes and recent audit counts by channelId',
+      summary: 'Overview probes, active LINE users, and inbound volume by Official Account',
       security: bearer,
       responses: { '200': { description: 'Dashboard snapshot' } },
     },

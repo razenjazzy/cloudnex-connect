@@ -1,3 +1,14 @@
+# Release notes — v9.0.6
+
+**Date:** 2026-09-26  
+**Package version:** `9.0.6`  
+**Lane:** staging (no production deploy)  
+**Commit title:** `Release: v9.0.6 - Odoo Line OA v6 Bug Fix`
+
+Admin Overview tracks live LINE traffic (active users, inbound volume, last 12 hours) instead of the last 50 audit rows. Identity documents OTP bind as the working path and marks LINE Login / Okta / SAML off until their env keys are set.
+
+---
+
 # Release notes — v9.0.5
 
 **Date:** 2026-09-26  

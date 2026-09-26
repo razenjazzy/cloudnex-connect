@@ -73,6 +73,7 @@ import { getDemoPlatformPayload } from '../platform/service-modules';
 import { loadCommandOverlay, sanitizeCommandOverlay, saveCommandOverlay } from '../line/command-overlay';
 import { getActiveTenantKey } from '../services/tenant';
 import { getPlatformFlags, getPlatformStatus } from '../platform/status';
+import { snapshotChannelTraffic } from '../services/channel-traffic';
 import { handleOdooHook } from './odoo-hook';
 import { decodeAuditCursor, parseAuditLogFilters } from '../services/audit-query';
 import { auditEnvParams } from './env-params';
@@ -801,18 +802,11 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json(await getPlatformStatus());
   });
 
-  router.get('/dashboard', requireAdminPanelAccess, async (req, res) => {
-    const page = await listRecentAuditEventsPage(50, parseAuditLogFilters(req.query as Record<string, unknown>), decodeAuditCursor(req.query.cursor));
-    const events = page.events.filter(event => !REVEAL_ACTIONS.has(event.action));
-    const byChannel: Record<string, number> = {};
-    for (const event of events) {
-      const channel = String((event as { channelId?: string }).channelId || 'unknown');
-      byChannel[channel] = (byChannel[channel] || 0) + 1;
-    }
+  router.get('/dashboard', requireAdminPanelAccess, (_req, res) => {
     const flags = getPlatformFlags();
+    const traffic = snapshotChannelTraffic();
     return res.json({
-      count: events.length,
-      byChannel,
+      traffic,
       flags: {
         appEnv: flags.appEnv,
         lineConfigured: flags.lineConfigured,
@@ -823,7 +817,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
         queueReady: flags.queueReady,
         erpImplemented: flags.erpImplemented,
       },
-      actorBound: Boolean(parseAdminActorCookie(req.get('cookie'))),
+      actorBound: Boolean(parseAdminActorCookie(_req.get('cookie'))),
     });
   });
 

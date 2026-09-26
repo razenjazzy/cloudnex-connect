@@ -85,25 +85,36 @@ const pathOf = (): string => {
   return raw.startsWith(ADMIN_BASE) ? raw : ADMIN_BASE;
 };
 
-const channelBucket = (id: string): 'sales' | 'customer' | 'other' => {
-  const name = id.toLowerCase();
-  if (name === 'sales') return 'sales';
-  if (name === 'customer' || name === 'default') return 'customer';
-  return 'other';
-};
-
 const VOLUME_SERIES = [
   { key: 'sales' as const, label: 'Sales OA', color: '#0f6e62' },
   { key: 'customer' as const, label: 'Customer OA', color: '#1a6f9a' },
   { key: 'other' as const, label: 'Unscoped', color: '#8a6a2a' },
 ];
 
-const VolumeChart = ({
+type ChannelCounts = { sales: number; customer: number; other: number; total: number };
+type TrafficSnap = {
+  windowSeconds: number;
+  activeUsers: ChannelCounts;
+  messages: ChannelCounts;
+  hourly: Array<{ hour: string; sales: number; customer: number; other: number; total: number }>;
+};
+type IdpStatus = {
+  lineLogin?: boolean;
+  oktaOidc?: boolean;
+  saml?: boolean;
+  callbacks?: { lineLogin?: string; oidc?: string; samlAcs?: string };
+};
+
+const emptyCounts = (): ChannelCounts => ({ sales: 0, customer: 0, other: 0, total: 0 });
+
+const ColumnChart = ({
   buckets,
-  total,
+  unit,
+  empty,
 }: {
-  buckets: { sales: number; customer: number; other: number };
-  total: number;
+  buckets: ChannelCounts;
+  unit: string;
+  empty: string;
 }) => {
   const max = Math.max(buckets.sales, buckets.customer, buckets.other, 0);
   const width = 360;
@@ -117,25 +128,17 @@ const VolumeChart = ({
   const ticks = 4;
   const scaleMax = max <= 0 ? 1 : max;
   const plotted = VOLUME_SERIES.filter(series => buckets[series.key] > 0);
-  const slot = innerW / plotted.length;
+  const slot = plotted.length ? innerW / plotted.length : innerW;
   const barW = slot * 0.55;
 
   if (max === 0) {
-    return (
-      <div className="chart-empty">
-        <p>
-          {total === 0
-            ? 'No audit events in this window yet. After LINE traffic is logged, this chart shows event counts by Official Account.'
-            : `${total} audit events in this window have no Sales or Customer channel id, so there is nothing to plot.`}
-        </p>
-      </div>
-    );
+    return <div className="chart-empty"><p>{empty}</p></div>;
   }
 
   return (
     <div className="chart-wrap">
-      <svg className="volume-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Audit events by LINE Official Account">
-        <text x={12} y={14} fontSize="10" fill="#3d5551">Events</text>
+      <svg className="volume-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${unit} by LINE Official Account`}>
+        <text x={12} y={14} fontSize="10" fill="#3d5551">{unit}</text>
         {Array.from({ length: ticks + 1 }, (_, i) => {
           const t = i / ticks;
           const y = padT + innerH * (1 - t);
@@ -162,11 +165,11 @@ const VolumeChart = ({
         })}
       </svg>
       <table className="chart-legend">
-        <thead><tr><th>Channel</th><th>Events</th><th>Share</th></tr></thead>
+        <thead><tr><th>Channel</th><th>{unit}</th><th>Share</th></tr></thead>
         <tbody>
           {VOLUME_SERIES.map(series => {
             const value = buckets[series.key];
-            const share = total ? Math.round((value / total) * 100) : 0;
+            const share = buckets.total ? Math.round((value / buckets.total) * 100) : 0;
             return (
               <tr key={series.key}>
                 <td><span className="legend-swatch" style={{ background: series.color }} />{series.label}</td>
@@ -178,6 +181,43 @@ const VolumeChart = ({
         </tbody>
       </table>
     </div>
+  );
+};
+
+const HourlyChart = ({ rows }: { rows: TrafficSnap['hourly'] }) => {
+  const max = Math.max(0, ...rows.map(row => row.total));
+  const width = 420;
+  const height = 160;
+  const padL = 28;
+  const padR = 8;
+  const padT = 16;
+  const padB = 28;
+  const innerW = width - padL - padR;
+  const innerH = height - padT - padB;
+  const slot = innerW / rows.length;
+  const barW = slot * 0.7;
+  if (max === 0) {
+    return <div className="chart-empty"><p>No inbound LINE messages in the last 12 hours on this process. Hourly columns appear after users chat.</p></div>;
+  }
+  return (
+    <svg className="volume-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Inbound messages last 12 hours">
+      {rows.map((row, i) => {
+        const x = padL + slot * i + (slot - barW) / 2;
+        let y = padT + innerH;
+        return (
+          <g key={`${row.hour}-${i}`}>
+            {VOLUME_SERIES.map(series => {
+              const value = row[series.key];
+              if (!value) return null;
+              const h = (value / max) * innerH;
+              y -= h;
+              return <rect key={series.key} x={x} y={y} width={barW} height={h} fill={series.color} />;
+            })}
+            {i % 2 === 0 ? <text x={x + barW / 2} y={height - 8} textAnchor="middle" fontSize="9" fill="#3d5551">{row.hour}</text> : null}
+          </g>
+        );
+      })}
+    </svg>
   );
 };
 
@@ -207,6 +247,21 @@ const readError = async (res: Response, fallback: string): Promise<string> => {
     return fallback;
   }
 };
+
+const parseDash = (body: {
+  traffic?: Partial<TrafficSnap>;
+  flags?: Record<string, unknown>;
+  actorBound?: boolean;
+}) => ({
+  traffic: {
+    windowSeconds: Number(body.traffic?.windowSeconds) || 3600,
+    activeUsers: { ...emptyCounts(), ...(body.traffic?.activeUsers || {}) },
+    messages: { ...emptyCounts(), ...(body.traffic?.messages || {}) },
+    hourly: Array.isArray(body.traffic?.hourly) ? body.traffic!.hourly : [],
+  } as TrafficSnap,
+  flags: body.flags || {},
+  actorBound: Boolean(body.actorBound),
+});
 
 const CopyField = ({ label, value }: { label: string; value: string }) => (
   <div className="snippet">
@@ -311,11 +366,18 @@ export const App = () => {
   const [navOpen, setNavOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [dash, setDash] = useState<{
-    count: number;
-    byChannel: Record<string, number>;
+    traffic: TrafficSnap;
     flags: Record<string, unknown>;
     actorBound: boolean;
   } | null>(null);
+  const [idp, setIdp] = useState<IdpStatus | null>(null);
+
+  useEffect(() => {
+    void (async () => {
+      const res = await fetch(`${ADMIN_BASE}/api/session/idp`);
+      if (res.ok) setIdp(await res.json() as IdpStatus);
+    })();
+  }, []);
 
   useEffect(() => {
     const onPop = () => setPath(pathOf());
@@ -330,7 +392,11 @@ export const App = () => {
       const res = await api(`${ADMIN_BASE}/api/settings`);
       if (res.status === 401) return;
       setAuthed(true);
-      if (res.ok) setSettings(await res.json());
+      if (res.ok) {
+        const body = await res.json() as Record<string, unknown>;
+        setSettings(body);
+        if (body.idp && typeof body.idp === 'object') setIdp(body.idp as IdpStatus);
+      }
       const me = await api(`${ADMIN_BASE}/api/session/me`);
       if (me.ok) {
         const body = await me.json() as { appEnv?: string; actorUserId?: string | null };
@@ -472,20 +538,7 @@ export const App = () => {
         const r = await fetch('/readyz');
         setReady(`${r.status}`);
         const dashRes = await api(`${ADMIN_BASE}/api/dashboard`);
-        if (dashRes.ok) {
-          const body = await dashRes.json() as {
-            count?: number;
-            byChannel?: Record<string, number>;
-            flags?: Record<string, unknown>;
-            actorBound?: boolean;
-          };
-          setDash({
-            count: body.count || 0,
-            byChannel: body.byChannel || {},
-            flags: body.flags || {},
-            actorBound: Boolean(body.actorBound),
-          });
-        }
+        if (dashRes.ok) setDash(parseDash(await dashRes.json()));
         const plat = await api(`${ADMIN_BASE}/api/platform`);
         if (plat.ok) {
           const body = await plat.json() as { flags?: { redisConfigured?: boolean; appEnv?: string } };
@@ -572,6 +625,20 @@ export const App = () => {
     })();
   }, [authed, page, actor]);
 
+  const idpLinks = (
+    <div className="row">
+      {idp?.lineLogin
+        ? <a href={`${ADMIN_BASE}/api/session/line/start`}>LINE Login</a>
+        : <span className="muted">LINE Login off</span>}
+      {idp?.oktaOidc
+        ? <a href={`${ADMIN_BASE}/api/session/oidc/start`}>Okta OIDC</a>
+        : <span className="muted">Okta OIDC off</span>}
+      {idp?.saml
+        ? <a href={`${ADMIN_BASE}/api/session/saml/start`}>SAML</a>
+        : <span className="muted">SAML off</span>}
+    </div>
+  );
+
   if (!authed) {
     return (
       <main>
@@ -581,7 +648,7 @@ export const App = () => {
             <span className="brand-name">Cloudnex Connect</span>
           </div>
           <h1>Admin</h1>
-          <p>OPS token required. Super-admin identity: LINE Login, Okta (OIDC/SAML), or LINE OTP bind.</p>
+          <p>Sign in with the OPS token first. Super-admin bind uses LINE OTP on Identity. LINE Login and Okta stay off until their env keys are set on the VPS.</p>
           <form className="field-row" onSubmit={login}>
             <div className="field">
               <label htmlFor="ops-token">OPS token</label>
@@ -589,11 +656,8 @@ export const App = () => {
             </div>
             <button type="submit">Sign in</button>
           </form>
-          <div className="row">
-            <a href={`${ADMIN_BASE}/api/session/line/start`}>LINE Login</a>
-            <a href={`${ADMIN_BASE}/api/session/oidc/start`}>Okta OIDC</a>
-            <a href={`${ADMIN_BASE}/api/session/saml/start`}>Okta/SAML</a>
-          </div>
+          {idpLinks}
+          <p className="muted">After OPS sign-in, open Identity. Paste your LINE user id (U…), Send code, then enter the OTP from Cloudnex Sales.</p>
           {error ? <p className="error">{error}</p> : null}
         </div>
       </main>
@@ -681,11 +745,11 @@ export const App = () => {
           <p className="warn">Campaigns and secret reveal need a super-admin LINE bind. Open Identity, confirm OTP or LINE Login, then retry.</p>
         ) : null}
         {page === 'home' ? (() => {
-          const buckets = { sales: 0, customer: 0, other: 0 };
-          for (const [id, count] of Object.entries(dash?.byChannel || {})) {
-            buckets[channelBucket(id)] += count;
-          }
           const probes = dash?.flags || {};
+          const traffic = dash?.traffic;
+          const active = traffic?.activeUsers || emptyCounts();
+          const volume = traffic?.messages || emptyCounts();
+          const windowMin = Math.round((traffic?.windowSeconds || 3600) / 60);
           const statusRows = [
             { label: 'App', on: health === '200', detail: health ? `HTTP ${health}` : 'probing' },
             { label: 'Firestore', on: Boolean(probes.firestoreProjectConfigured), detail: Boolean(probes.firestoreProjectConfigured) ? 'project set' : 'off' },
@@ -725,20 +789,7 @@ export const App = () => {
                     });
                   }
                   const dashRes = await api(`${ADMIN_BASE}/api/dashboard`);
-                  if (dashRes.ok) {
-                    const body = await dashRes.json() as {
-                      count?: number;
-                      byChannel?: Record<string, number>;
-                      flags?: Record<string, unknown>;
-                      actorBound?: boolean;
-                    };
-                    setDash({
-                      count: body.count || 0,
-                      byChannel: body.byChannel || {},
-                      flags: body.flags || {},
-                      actorBound: Boolean(body.actorBound),
-                    });
-                  }
+                  if (dashRes.ok) setDash(parseDash(await dashRes.json()));
                 }}>Refresh</button>
                 <a href="/healthz">/healthz {health}</a>
                 <a href="/readyz">/readyz {ready}</a>
@@ -747,9 +798,18 @@ export const App = () => {
               {platformSnap ? <CopyField label="Platform" value={JSON.stringify(platformSnap, null, 2)} /> : null}
             </div>
             <div className="card">
-              <h2>Message volume</h2>
-              <p>{dash?.count ?? 0} recent audit events (secret reveals excluded), split by LINE Official Account.</p>
-              <VolumeChart buckets={buckets} total={dash?.count ?? 0} />
+              <h2>LINE traffic</h2>
+              <p>Live inbound from Sales and Customer Official Accounts on this process. Not the audit log.</p>
+              <div className="kpi-row">
+                <div className="kpi"><span className="kpi-value">{active.total}</span><span className="kpi-label">users chatting now ({windowMin} min)</span></div>
+                <div className="kpi"><span className="kpi-value">{volume.total}</span><span className="kpi-label">messages since last deploy</span></div>
+              </div>
+              <h3>Active users</h3>
+              <ColumnChart buckets={active} unit="Users" empty="Nobody is chatting on Sales or Customer right now. After a LINE message, that user counts here until idle." />
+              <h3>Message volume</h3>
+              <ColumnChart buckets={volume} unit="Messages" empty="No inbound LINE text yet on this process. Totals count real webhook messages, not Admin audit rows." />
+              <h3>Last 12 hours</h3>
+              <HourlyChart rows={traffic?.hourly || []} />
             </div>
           </div>
           );
@@ -758,18 +818,18 @@ export const App = () => {
           <div className="card">
             <h2>Identity</h2>
             <ol className="howto">
-              <li>Sign in with the OPS token.</li>
-              <li>Use LINE Login / Okta, or send OTP to a <code>U…</code> id on SUPER_ADMIN_USER_IDS.</li>
-              <li>Confirm OTP. The session cookie Path is this Admin URL prefix.</li>
-              <li>The header pill shows the bound LINE user id.</li>
+              <li>Sign in with OPS_API_TOKEN (this page already did that).</li>
+              <li>On the VPS <code>/opt/cloudnex-connect/.env</code>, set your LINE id on <code>SUPER_ADMIN_USER_IDS</code> and <code>ADMIN_USER_ID</code>. The same id must be Odoo-verified in Firestore.</li>
+              <li>Paste that <code>U…</code> id below, Send code. Cloudnex Sales pushes a 6-digit OTP (you must have talked to the Sales OA at least once).</li>
+              <li>Confirm OTP. The header pill shows the bound LINE user id. Campaigns and secret reveal need this cookie.</li>
+              <li>LINE Login / Okta are optional. They stay “off” until LINE Developers Login (or Okta) credentials are in that same .env, plus the callback URLs below.</li>
             </ol>
-            <p>Fail-closed ADMIN_USER_ID then SUPER_ADMIN_USER_IDS. The bound actor is a LINE user id, not an Odoo login.</p>
+            <p>Fail-closed chain: LINE id → profile → odooVerified → ADMIN_USER_ID → SUPER_ADMIN_USER_IDS. The bound actor is a LINE user id, not an Odoo login.</p>
             {actor ? <CopyField label="Bound LINE user id" value={actor} /> : null}
-            <div className="row">
-              <a href={`${ADMIN_BASE}/api/session/line/start`}>LINE Login</a>
-              <a href={`${ADMIN_BASE}/api/session/oidc/start`}>Okta OIDC</a>
-              <a href={`${ADMIN_BASE}/api/session/saml/start`}>SAML</a>
-            </div>
+            {idpLinks}
+            {idp?.callbacks?.lineLogin ? <CopyField label="LINE Login callback" value={idp.callbacks.lineLogin} /> : null}
+            {idp?.callbacks?.oidc ? <CopyField label="Okta OIDC callback" value={idp.callbacks.oidc} /> : null}
+            {idp?.callbacks?.samlAcs ? <CopyField label="SAML ACS" value={idp.callbacks.samlAcs} /> : null}
             <div className="field-row">
               <div className="field">
                 <label>LINE user id</label>

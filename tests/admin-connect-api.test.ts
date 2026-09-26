@@ -384,24 +384,25 @@ describe('Cloudnex Connect admin API', () => {
     expect(snap.identityFormat).toMatch(/LINE user id/);
   });
 
-  it('aggregates dashboard audit volume by channel', async () => {
-    mockedAuditPage.mockResolvedValue({
-      events: [
-        { id: '1', action: 'quote_create', outcome: 'success', actorUserId: 'U1', createdAt: '2026-01-01T00:00:00.000Z', channelId: 'sales' },
-        { id: '2', action: 'secret_reveal_consumed', outcome: 'success', actorUserId: 'Usuper', createdAt: '2026-01-01T00:00:00.000Z' },
-      ],
-      nextCursor: undefined,
-    } as never);
+  it('returns live channel traffic on dashboard, not audit rows', async () => {
+    const { recordChannelInbound, resetChannelTrafficForTests } = await import('../src/services/channel-traffic');
+    resetChannelTrafficForTests();
+    recordChannelInbound('sales', 'U1');
+    recordChannelInbound('customer', 'U2');
     const res = await fetch(`${base()}/admin/api/dashboard`, { headers: ops });
     expect(res.status).toBe(200);
     const body = await res.json() as {
-      count: number;
-      byChannel: Record<string, number>;
+      traffic: {
+        activeUsers: { sales: number; customer: number; total: number };
+        messages: { sales: number; customer: number; total: number };
+      };
       flags: { redisConfigured?: boolean; queueReady?: boolean };
     };
-    expect(body.count).toBe(1);
-    expect(body.byChannel.sales).toBe(1);
+    expect(body.traffic.activeUsers.total).toBe(2);
+    expect(body.traffic.messages.sales).toBe(1);
+    expect(body.traffic.messages.customer).toBe(1);
     expect(typeof body.flags.queueReady).toBe('boolean');
+    resetChannelTrafficForTests();
   });
 
   it('registers a custom PUBLIC_ADMIN_BASE prefix', async () => {

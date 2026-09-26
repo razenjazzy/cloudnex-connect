@@ -54,6 +54,22 @@ describe('admin IdP mapping and LINE Login', () => {
     expect(describeAdminIdp().saml).toBe(false);
   });
 
+  it('exposes LINE Login callback under PUBLIC_ADMIN_BASE', () => {
+    const prevBase = process.env.PUBLIC_ADMIN_BASE;
+    process.env.PUBLIC_ADMIN_BASE = '/cloudnex-connect/admin';
+    resetRuntimeSettingsForTests({
+      PUBLIC_BASE_URL: 'https://amardhaka.io',
+    });
+    try {
+      expect(describeAdminIdp().callbacks.lineLogin).toBe(
+        'https://amardhaka.io/cloudnex-connect/admin/api/session/line/callback',
+      );
+    } finally {
+      if (prevBase === undefined) delete process.env.PUBLIC_ADMIN_BASE;
+      else process.env.PUBLIC_ADMIN_BASE = prevBase;
+    }
+  });
+
   it('builds LINE authorize URL with PKCE when configured', () => {
     resetRuntimeSettingsForTests({
       LINE_LOGIN_CHANNEL_ID: '123456',

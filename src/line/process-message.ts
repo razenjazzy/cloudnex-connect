@@ -11,6 +11,7 @@ import { withSpan } from '../observability/tracing';
 import { createBotTextFlexMessage } from './templates';
 import { isLineGroupRoomsEnabled } from '../http/optional-flags';
 import { maybeWriteMongoUser } from '../services/mongo-users';
+import { recordChannelInbound } from '../services/channel-traffic';
 
 const streamToBuffer = async (stream: Readable): Promise<Buffer> => {
   const chunks: Buffer[] = [];
@@ -278,6 +279,7 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
     }
 
     if (!inputText) return null;
+    recordChannelInbound(input.channelConfig.channelId, input.conversationId);
 
     appLogger.info('line_message', {
       source: input.sourceType || 'unknown',

@@ -33,6 +33,11 @@ export const describeAdminIdp = () => ({
   lineLogin: Boolean(getRuntime('LINE_LOGIN_CHANNEL_ID') && getRuntime('LINE_LOGIN_CHANNEL_SECRET')),
   oktaOidc: Boolean(getRuntime('OKTA_ISSUER') && getRuntime('OKTA_CLIENT_ID') && getRuntime('OKTA_CLIENT_SECRET')),
   saml: Boolean(getRuntime('SAML_IDP_SSO_URL') && getRuntime('SAML_IDP_CERT')),
+  callbacks: {
+    lineLogin: callbackUrl('/session/line/callback'),
+    oidc: callbackUrl('/session/oidc/callback'),
+    samlAcs: callbackUrl('/session/saml/acs'),
+  },
 });
 
 export const publicBase = (): string => getRuntime('PUBLIC_BASE_URL').replace(/\/$/, '');
