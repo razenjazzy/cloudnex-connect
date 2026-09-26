@@ -1,10 +1,18 @@
 export const DEMO_PAGE_MARKUP = `
   <header class="demo-top">
-    <span class="brand-name">Cloudnex Connect</span>
+    <a class="brand" href="#demo-home">Cloudnex Connect</a>
+    <nav>
+      <a href="#demo-home">Home</a>
+      <a href="#demo-modules">Modules</a>
+      <a href="#demo-ops">Ops</a>
+      <a href="#demo-chat">Chat</a>
+      <a href="#demo-pricing">Pricing</a>
+      <a href="#demo-journey">Journey</a>
+    </nav>
     <span class="tag">Testing</span>
   </header>
   <div class="shell">
-    <section class="hero">
+    <section class="hero" id="demo-home">
       <div class="panel hero-copy">
         <div class="eyebrow">Cloudnex Connect Testing</div>
         <h1>Walk LINE → Firestore → Odoo in one panel. Mongo and GraphQL stay optional ops add-ons.</h1>
@@ -33,7 +41,7 @@ export const DEMO_PAGE_MARKUP = `
     </section>
 
     <section class="grid">
-      <article class="panel card span-12">
+      <article class="panel card span-12" id="demo-modules">
         <h2>Service modules</h2>
         <p>Canonical LINE and ops inventory. Buttons still send real command text. Mongo is FAQ/RAG only.</p>
         <p class="store-note" id="platform-stores">Loading module map...</p>
@@ -41,7 +49,7 @@ export const DEMO_PAGE_MARKUP = `
         <pre id="platform-script">Demo-day talk track loads with the module map.</pre>
       </article>
 
-      <article class="panel card span-6">
+      <article class="panel card span-6" id="demo-ops">
         <h2>Operations Snapshot</h2>
         <p>Instant health view for app, Firestore, Odoo, and demo endpoints.</p>
         <div class="actions">
@@ -77,7 +85,7 @@ export const DEMO_PAGE_MARKUP = `
         <pre id="audit-output">No audit executed yet.</pre>
       </article>
 
-      <article class="panel card span-12 chat-card">
+      <article class="panel card span-12 chat-card" id="demo-chat">
         <h2>Interactive Bot — Web Chat</h2>
         <p>Preview the assistant exactly as LINE users see it: the nav-button menu opens on the first click, and the chat box collects whatever info the guided commands need.</p>
         <div class="chat-display" id="chat-display"></div>
@@ -94,7 +102,7 @@ export const DEMO_PAGE_MARKUP = `
         </form>
       </article>
 
-      <article class="panel card span-12">
+      <article class="panel card span-12" id="demo-pricing">
         <h2>Pricing Model Control</h2>
         <form id="pricing-model-form">
           <div class="three-up">
@@ -219,7 +227,7 @@ export const DEMO_PAGE_MARKUP = `
         <pre id="simulation-output">No simulation executed yet.</pre>
       </article>
 
-      <article class="panel card span-6">
+      <article class="panel card span-6" id="demo-journey">
         <h2>Journey + LINE Simulator</h2>
         <form id="journey-form">
           <div class="two-up">

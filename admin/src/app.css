@@ -159,18 +159,52 @@ header nav > a.active {
   gap: 1rem;
   margin-bottom: 1rem;
 }
-.probe-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0 0 1rem; }
-.bar-row {
+.status-grid {
   display: grid;
-  grid-template-columns: 5.5rem 1fr 2.5rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.5rem;
-  align-items: center;
-  margin: 0.4rem 0;
-  font-size: 0.85rem;
+  margin: 0 0 1rem;
 }
-.bar-track { height: 10px; background: #eef1f0; border-radius: 999px; overflow: hidden; }
-.bar-fill { height: 100%; background: #0f6e62; border-radius: 999px; }
-.spark { width: 100%; max-width: 16rem; height: 48px; margin-top: 0.75rem; }
+.status-cell {
+  display: grid;
+  grid-template-columns: 0.7rem 1fr auto;
+  gap: 0.45rem;
+  align-items: center;
+  padding: 0.55rem 0.7rem;
+  border-radius: 8px;
+  background: #eef1f0;
+  font-size: 0.82rem;
+}
+.status-cell.on { background: #e4f3ef; }
+.status-cell.off { background: #f3eeee; }
+.status-dot {
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: #8a5a00;
+}
+.status-cell.on .status-dot { background: #0f6e62; }
+.status-cell.off .status-dot { background: #a33; }
+.status-label { font-weight: 650; color: #102a27; }
+.status-value { color: #3d5551; }
+.chart-wrap { margin-top: 0.5rem; }
+.volume-chart { width: 100%; height: auto; display: block; }
+.chart-empty {
+  background: #eef1f0;
+  border-radius: 8px;
+  padding: 1.25rem 1rem;
+  color: #3d5551;
+}
+.chart-empty p { margin: 0; }
+.chart-legend { font-size: 0.85rem; min-width: 0; margin-top: 0.75rem; }
+.legend-swatch {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 2px;
+  margin-right: 0.4rem;
+  vertical-align: middle;
+}
 .howto { margin: 0 0 1rem; padding-left: 1.2rem; color: #3d5551; }
 @media (max-width: 900px) {
   header { align-items: center; }
@@ -209,6 +243,7 @@ header nav > a.active {
   .nav-dropdown-menu a.active { background: #1d4a44; color: #fff; }
   header nav > a { min-height: 40px; }
   .overview-grid { grid-template-columns: 1fr; }
+  .status-grid { grid-template-columns: 1fr; }
 }
 header .header-signout {
   flex: 0 0 auto;
@@ -223,10 +258,6 @@ header .header-signout {
   padding: 0.15rem 0.45rem;
   border-radius: 999px;
   word-break: break-all;
-}
-.probe-row .pill {
-  background: #0f6e62;
-  color: #fff;
 }
 main { padding: 1.25rem; max-width: 1400px; width: 100%; margin: 0 auto; }
 .card {

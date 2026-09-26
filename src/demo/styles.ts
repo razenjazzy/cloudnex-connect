@@ -20,28 +20,61 @@ export const DEMO_PAGE_STYLES = `
       font-family: ui-sans-serif, system-ui, sans-serif;
       color: var(--ink);
       background: var(--bg);
-      padding: 0 18px 40px;
+      padding: 0;
     }
 
     .demo-top {
       display: flex;
       align-items: center;
-      gap: 0.7rem;
-      margin: 0 -18px 20px;
-      padding: 0.75rem 1.5rem;
+      gap: 1rem 1.25rem;
+      margin: 0;
+      padding: 0.65rem 1.5rem;
       background: #102a27;
       color: #fff;
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      border-bottom: 1px solid rgb(255 255 255 / 8%);
     }
-    .demo-top .brand-name { font-weight: 650; letter-spacing: -0.02em; }
-    .demo-top .tag { font-size: 0.8rem; color: #b7d4ce; margin-left: auto; }
+    .demo-top .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 650;
+      letter-spacing: -0.02em;
+      flex: 0 0 auto;
+    }
+    .demo-top nav {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.15rem;
+      margin-left: auto;
+      justify-content: flex-end;
+    }
+    .demo-top nav a {
+      color: #b7d4ce;
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 500;
+      padding: 0.38rem 0.55rem;
+      border-radius: 7px;
+      min-height: 40px;
+      display: inline-flex;
+      align-items: center;
+    }
+    .demo-top nav a:hover { color: #fff; background: rgb(255 255 255 / 8%); }
+    .demo-top .tag { font-size: 0.8rem; color: #b7d4ce; flex: 0 0 auto; }
 
-    .shell { max-width: 1400px; margin: 0 auto; }
+    .shell { max-width: 1400px; margin: 0 auto; padding: 28px 18px 48px; }
 
     .hero {
       display: grid;
       grid-template-columns: 1.6fr 1fr;
-      gap: 16px;
-      margin-bottom: 20px;
+      gap: 24px;
+      margin: 0 0 28px;
+      scroll-margin-top: 72px;
     }
 
     .panel {
@@ -92,7 +125,7 @@ export const DEMO_PAGE_STYLES = `
     .grid {
       display: grid;
       grid-template-columns: repeat(12, minmax(0, 1fr));
-      gap: 16px;
+      gap: 24px;
     }
 
     .module-grid {
@@ -126,7 +159,7 @@ export const DEMO_PAGE_STYLES = `
       margin: 8px 0 0;
     }
 
-    .card { padding: 20px; }
+    .card { padding: 24px; scroll-margin-top: 72px; }
     .span-6 { grid-column: span 6; }
     .span-12 { grid-column: span 12; }
 
@@ -341,5 +374,7 @@ export const DEMO_PAGE_STYLES = `
       .three-up { grid-template-columns: 1fr; }
       .two-up { grid-template-columns: 1fr; }
       .module-grid { grid-template-columns: 1fr; }
+      .demo-top { flex-wrap: wrap; }
+      .demo-top nav { width: 100%; margin-left: 0; justify-content: flex-start; }
     }
 `;

@@ -92,6 +92,95 @@ const channelBucket = (id: string): 'sales' | 'customer' | 'other' => {
   return 'other';
 };
 
+const VOLUME_SERIES = [
+  { key: 'sales' as const, label: 'Sales OA', color: '#0f6e62' },
+  { key: 'customer' as const, label: 'Customer OA', color: '#1a6f9a' },
+  { key: 'other' as const, label: 'Unscoped', color: '#8a6a2a' },
+];
+
+const VolumeChart = ({
+  buckets,
+  total,
+}: {
+  buckets: { sales: number; customer: number; other: number };
+  total: number;
+}) => {
+  const max = Math.max(buckets.sales, buckets.customer, buckets.other, 0);
+  const width = 360;
+  const height = 200;
+  const padL = 36;
+  const padR = 12;
+  const padT = 22;
+  const padB = 36;
+  const innerW = width - padL - padR;
+  const innerH = height - padT - padB;
+  const ticks = 4;
+  const scaleMax = max <= 0 ? 1 : max;
+  const plotted = VOLUME_SERIES.filter(series => buckets[series.key] > 0);
+  const slot = innerW / plotted.length;
+  const barW = slot * 0.55;
+
+  if (max === 0) {
+    return (
+      <div className="chart-empty">
+        <p>
+          {total === 0
+            ? 'No audit events in this window yet. After LINE traffic is logged, this chart shows event counts by Official Account.'
+            : `${total} audit events in this window have no Sales or Customer channel id, so there is nothing to plot.`}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="chart-wrap">
+      <svg className="volume-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Audit events by LINE Official Account">
+        <text x={12} y={14} fontSize="10" fill="#3d5551">Events</text>
+        {Array.from({ length: ticks + 1 }, (_, i) => {
+          const t = i / ticks;
+          const y = padT + innerH * (1 - t);
+          const val = Math.round(scaleMax * t);
+          return (
+            <g key={i}>
+              <line x1={padL} x2={width - padR} y1={y} y2={y} stroke="#e6eeec" />
+              <text x={padL - 8} y={y + 3} textAnchor="end" fontSize="10" fill="#3d5551">{val}</text>
+            </g>
+          );
+        })}
+        {plotted.map((series, i) => {
+          const value = buckets[series.key];
+          const barH = Math.max((value / scaleMax) * innerH, 2);
+          const x = padL + slot * i + (slot - barW) / 2;
+          const y = padT + innerH - barH;
+          return (
+            <g key={series.key}>
+              <rect x={x} y={y} width={barW} height={barH} rx="4" fill={series.color} />
+              <text x={x + barW / 2} y={y - 6} textAnchor="middle" fontSize="11" fontWeight="650" fill="#102a27">{value}</text>
+              <text x={x + barW / 2} y={height - 12} textAnchor="middle" fontSize="11" fill="#3d5551">{series.label}</text>
+            </g>
+          );
+        })}
+      </svg>
+      <table className="chart-legend">
+        <thead><tr><th>Channel</th><th>Events</th><th>Share</th></tr></thead>
+        <tbody>
+          {VOLUME_SERIES.map(series => {
+            const value = buckets[series.key];
+            const share = total ? Math.round((value / total) * 100) : 0;
+            return (
+              <tr key={series.key}>
+                <td><span className="legend-swatch" style={{ background: series.color }} />{series.label}</td>
+                <td>{value}</td>
+                <td>{share}%</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 const authHeaders = (): HeadersInit => {
   const token = sessionStorage.getItem(TOKEN_KEY) || '';
   return token ? { authorization: `Bearer ${token}` } : {};
@@ -596,21 +685,29 @@ export const App = () => {
           for (const [id, count] of Object.entries(dash?.byChannel || {})) {
             buckets[channelBucket(id)] += count;
           }
-          const maxBar = Math.max(1, buckets.sales, buckets.customer, buckets.other);
           const probes = dash?.flags || {};
+          const statusRows = [
+            { label: 'App', on: health === '200', detail: health ? `HTTP ${health}` : 'probing' },
+            { label: 'Firestore', on: Boolean(probes.firestoreProjectConfigured), detail: Boolean(probes.firestoreProjectConfigured) ? 'project set' : 'off' },
+            { label: 'Odoo', on: Boolean(probes.odooConfigured), detail: Boolean(probes.odooConfigured) ? 'configured' : 'off' },
+            { label: 'Redis', on: Boolean(probes.redisConfigured), detail: Boolean(probes.redisConfigured) ? 'configured' : 'off' },
+            { label: 'LINE', on: Boolean(probes.lineConfigured), detail: Boolean(probes.lineConfigured) ? 'channel set' : 'off' },
+            { label: 'Queue', on: Boolean(probes.queueReady), detail: Boolean(probes.queueReady) ? 'ready' : 'off' },
+            { label: 'Actor', on: Boolean(dash?.actorBound), detail: dash?.actorBound ? 'bound' : 'unbound' },
+          ];
           return (
           <div className="overview-grid">
             <div className="card">
               <h2>Overview</h2>
               <p>HMAC LINE → Firestore → one command router. Demo is testing only. Lock: {String(settings?.lock)}</p>
-              <div className="probe-row">
-                <span className="pill">{health === '200' ? 'app online' : `app ${health || '…'}`}</span>
-                <span className="pill">{Boolean(probes.firestoreProjectConfigured) ? 'Firestore' : 'Firestore off'}</span>
-                <span className="pill">{Boolean(probes.odooConfigured) ? 'Odoo' : 'Odoo off'}</span>
-                <span className="pill">{Boolean(probes.redisConfigured) ? 'Redis' : 'Redis off'}</span>
-                <span className="pill">{Boolean(probes.lineConfigured) ? 'LINE' : 'LINE off'}</span>
-                <span className="pill">{Boolean(probes.queueReady) ? 'queue' : 'queue off'}</span>
-                <span className="pill">{dash?.actorBound ? 'actor bound' : 'actor unbound'}</span>
+              <div className="status-grid">
+                {statusRows.map(row => (
+                  <div key={row.label} className={`status-cell ${row.on ? 'on' : 'off'}`}>
+                    <span className="status-dot" aria-hidden="true" />
+                    <span className="status-label">{row.label}</span>
+                    <span className="status-value">{row.detail}</span>
+                  </div>
+                ))}
               </div>
               <div className="row">
                 <button type="button" onClick={async () => {
@@ -651,36 +748,8 @@ export const App = () => {
             </div>
             <div className="card">
               <h2>Message volume</h2>
-              <p>Last {dash?.count ?? 0} audit events (not secret reveals). Bars are LINE channel ids: Sales OA, Customer OA, or other.</p>
-              {(() => {
-                const rows = ([
-                  { key: 'sales' as const, label: 'Sales OA' },
-                  { key: 'customer' as const, label: 'Customer OA' },
-                  { key: 'other' as const, label: 'Other / unknown' },
-                ]).filter(row => buckets[row.key] > 0);
-                if (!rows.length) {
-                  return <p>No channel volume in this window yet.</p>;
-                }
-                return (
-                  <>
-                    {rows.map(row => (
-                      <div className="bar-row" key={row.key}>
-                        <span>{row.label}</span>
-                        <div className="bar-track" aria-hidden="true">
-                          <div className="bar-fill" style={{ width: `${(buckets[row.key] / maxBar) * 100}%` }} />
-                        </div>
-                        <span>{buckets[row.key]}</span>
-                      </div>
-                    ))}
-                    <svg className="spark" viewBox={`0 0 ${rows.length * 40} 36`} role="img" aria-label="Channel volume">
-                      {rows.map((row, i) => {
-                        const h = (buckets[row.key] / maxBar) * 28;
-                        return <rect key={row.key} x={8 + i * 38} y={32 - h} width="22" height={h} rx="3" fill="#0f6e62" />;
-                      })}
-                    </svg>
-                  </>
-                );
-              })()}
+              <p>{dash?.count ?? 0} recent audit events (secret reveals excluded), split by LINE Official Account.</p>
+              <VolumeChart buckets={buckets} total={dash?.count ?? 0} />
             </div>
           </div>
           );

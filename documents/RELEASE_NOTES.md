@@ -1,3 +1,16 @@
+# Release notes — v9.0.5
+
+**Date:** 2026-09-26  
+**Package version:** `9.0.5`  
+**Lane:** staging (no production deploy)  
+**Commit title:** `Release: v9.0.5 - Odoo Line OA v6 Bug Fix`
+
+Demo uses a sticky header nav (Home / Modules / Ops / Chat / Pricing / Journey) matching Admin chrome. Content cards have gap above and below.
+
+Admin Overview replaces empty CSS bars with an SVG column chart (axes, counts, share table; no zero-height columns) and a status grid for app, Firestore, Odoo, Redis, LINE, queue, and actor.
+
+---
+
 # Release notes — v9.0.4
 
 **Date:** 2026-09-26  
