@@ -220,6 +220,7 @@ export const App = () => {
   const [tenantKey, setTenantKey] = useState('default');
   const [erpStatus, setErpStatus] = useState('');
   const [navOpen, setNavOpen] = useState(false);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
   const [dash, setDash] = useState<{
     count: number;
     byChannel: Record<string, number>;
@@ -354,10 +355,23 @@ export const App = () => {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setNavOpen(false);
+      if (event.key === 'Escape') {
+        setNavOpen(false);
+        setOpenGroup(null);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+  }, []);
+
+  useEffect(() => {
+    const onDoc = (event: MouseEvent) => {
+      const node = event.target as Node | null;
+      if (node instanceof Element && node.closest('.nav-dropdown')) return;
+      setOpenGroup(null);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
   }, []);
 
   useEffect(() => {
@@ -528,21 +542,42 @@ export const App = () => {
           <button className="nav-hamburger" type="button" aria-label="Open menu" aria-expanded={navOpen} onClick={() => setNavOpen(open => !open)}>Menu</button>
           {navOpen ? <button type="button" className="nav-backdrop" aria-label="Close menu" onClick={() => setNavOpen(false)} /> : null}
           <nav className={navOpen ? 'open' : ''}>
-            {NAV_GROUPS.map(group => (
-              <div key={group.id} className="nav-group">
-                <span className="nav-group-label">{group.label}</span>
-                <div className="nav-group-links">
-                  {group.items.map(item => (
-                    <a
-                      key={item.id}
-                      className={page === item.id ? 'active' : ''}
-                      href={item.href}
-                      onClick={e => { e.preventDefault(); setNavOpen(false); go(item.href); }}
-                    >{item.label}</a>
-                  ))}
+            {NAV_GROUPS.map(group => {
+              const current = group.items.some(item => item.id === page);
+              if (group.items.length === 1) {
+                const item = group.items[0];
+                return (
+                  <a
+                    key={group.id}
+                    className={current ? 'active' : ''}
+                    href={item.href}
+                    onClick={e => { e.preventDefault(); setNavOpen(false); setOpenGroup(null); go(item.href); }}
+                  >{group.label}</a>
+                );
+              }
+              return (
+                <div key={group.id} className={`nav-dropdown${openGroup === group.id ? ' open' : ''}${current ? ' current' : ''}`}>
+                  <button
+                    type="button"
+                    className="nav-dropdown-toggle"
+                    aria-expanded={openGroup === group.id}
+                    aria-haspopup="menu"
+                    onClick={() => setOpenGroup(id => id === group.id ? null : group.id)}
+                  >{group.label}</button>
+                  <div className="nav-dropdown-menu" role="menu">
+                    {group.items.map(item => (
+                      <a
+                        key={item.id}
+                        role="menuitem"
+                        className={page === item.id ? 'active' : ''}
+                        href={item.href}
+                        onClick={e => { e.preventDefault(); setNavOpen(false); setOpenGroup(null); go(item.href); }}
+                      >{item.label}</a>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </nav>
           <button className="secondary header-signout" type="button" onClick={async () => {
             await api(`${ADMIN_BASE}/api/session/logout`, { method: 'POST' });
@@ -616,22 +651,36 @@ export const App = () => {
             </div>
             <div className="card">
               <h2>Message volume</h2>
-              <p>Last {dash?.count ?? 0} audit events (not secret reveals), grouped by channel.</p>
-              {(['sales', 'customer', 'other'] as const).map(key => (
-                <div className="bar-row" key={key}>
-                  <span>{key}</span>
-                  <div className="bar-track" aria-hidden="true">
-                    <div className="bar-fill" style={{ width: `${(buckets[key] / maxBar) * 100}%` }} />
-                  </div>
-                  <span>{buckets[key]}</span>
-                </div>
-              ))}
-              <svg className="spark" viewBox="0 0 120 36" role="img" aria-label="Channel volume">
-                {(['sales', 'customer', 'other'] as const).map((key, i) => {
-                  const h = (buckets[key] / maxBar) * 28;
-                  return <rect key={key} x={12 + i * 38} y={32 - h} width="22" height={h} rx="3" fill="#0f6e62" />;
-                })}
-              </svg>
+              <p>Last {dash?.count ?? 0} audit events (not secret reveals). Bars are LINE channel ids: Sales OA, Customer OA, or other.</p>
+              {(() => {
+                const rows = ([
+                  { key: 'sales' as const, label: 'Sales OA' },
+                  { key: 'customer' as const, label: 'Customer OA' },
+                  { key: 'other' as const, label: 'Other / unknown' },
+                ]).filter(row => buckets[row.key] > 0);
+                if (!rows.length) {
+                  return <p>No channel volume in this window yet.</p>;
+                }
+                return (
+                  <>
+                    {rows.map(row => (
+                      <div className="bar-row" key={row.key}>
+                        <span>{row.label}</span>
+                        <div className="bar-track" aria-hidden="true">
+                          <div className="bar-fill" style={{ width: `${(buckets[row.key] / maxBar) * 100}%` }} />
+                        </div>
+                        <span>{buckets[row.key]}</span>
+                      </div>
+                    ))}
+                    <svg className="spark" viewBox={`0 0 ${rows.length * 40} 36`} role="img" aria-label="Channel volume">
+                      {rows.map((row, i) => {
+                        const h = (buckets[row.key] / maxBar) * 28;
+                        return <rect key={row.key} x={8 + i * 38} y={32 - h} width="22" height={h} rx="3" fill="#0f6e62" />;
+                      })}
+                    </svg>
+                  </>
+                );
+              })()}
             </div>
           </div>
           );

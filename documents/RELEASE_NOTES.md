@@ -1,3 +1,14 @@
+# Release notes — v9.0.4
+
+**Date:** 2026-09-26  
+**Package version:** `9.0.4`  
+**Lane:** staging (no production deploy)  
+**Commit title:** `Release: v9.0.4 - Odoo Line OA v6 Bug Fix`
+
+Admin nav groups are dropdowns. Pills use light text on teal. Overview volume hides zero-count channel bars (no empty “other”).
+
+---
+
 # Release notes — v9.0.3
 
 **Date:** 2026-09-26  
