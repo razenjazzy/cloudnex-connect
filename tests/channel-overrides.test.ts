@@ -27,14 +27,14 @@ describe('channel service overrides', () => {
     mockedGetPlatformConfig.mockResolvedValue(undefined);
 
     await expect(getChannelServiceOverride('sales')).resolves.toBeUndefined();
-    expect(mockedGetPlatformConfig).toHaveBeenCalledWith('channelServices:sales');
+    expect(mockedGetPlatformConfig).toHaveBeenCalledWith('default:channelServices:sales');
   });
 
   it('persists a service override under the channel-specific platform key', async () => {
     mockedSetPlatformConfig.mockResolvedValue({ ok: true });
 
     await expect(setChannelServiceOverride('sales', ['catalog'])).resolves.toEqual({ ok: true });
-    expect(mockedSetPlatformConfig).toHaveBeenCalledWith('channelServices:sales', { services: ['catalog'] });
+    expect(mockedSetPlatformConfig).toHaveBeenCalledWith('default:channelServices:sales', { services: ['catalog'] });
   });
 
   it('lets an explicit unrestricted override replace the env default', async () => {

@@ -4,6 +4,7 @@ import { getPlatformConfig, getUserProfile, listRecentAuditEventsPage, listVerif
 import { sendTargetedMessage } from '../src/line/messaging';
 import { enqueueCampaignSend } from '../src/jobs/queue';
 import { resetRuntimeSettingsForTests } from '../src/services/runtime-settings';
+import * as runtimeSettings from '../src/services/runtime-settings';
 import { registerAdminApiRoutes } from '../src/http/admin-api-routes';
 import { buildAdminActorCookie } from '../src/services/admin-session';
 import { buildOpenApiDocument } from '../src/http/openapi/document';
@@ -187,18 +188,28 @@ describe('Cloudnex Connect admin API', () => {
 
   it('burns bootstrap after the first success', async () => {
     delete process.env.OPS_API_TOKEN;
-    const first = await fetch(`${base()}/admin/api/bootstrap`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ token: 'bootstrap-token-16chars' }),
+    let complete = false;
+    const isComplete = vi.spyOn(runtimeSettings, 'isBootstrapComplete').mockImplementation(async () => complete);
+    const markComplete = vi.spyOn(runtimeSettings, 'markBootstrapComplete').mockImplementation(async () => {
+      complete = true;
     });
-    expect(first.status).toBe(200);
-    const second = await fetch(`${base()}/admin/api/bootstrap`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ token: 'bootstrap-token-16chars' }),
-    });
-    expect(second.status).toBe(410);
+    try {
+      const first = await fetch(`${base()}/admin/api/bootstrap`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: 'bootstrap-token-16chars' }),
+      });
+      expect(first.status).toBe(200);
+      const second = await fetch(`${base()}/admin/api/bootstrap`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token: 'bootstrap-token-16chars' }),
+      });
+      expect(second.status).toBe(410);
+    } finally {
+      isComplete.mockRestore();
+      markComplete.mockRestore();
+    }
   });
 
   it('denies reveal without a bound LINE cookie even if JSON claims an actor', async () => {

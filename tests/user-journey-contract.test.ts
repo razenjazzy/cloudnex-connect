@@ -19,7 +19,7 @@ describe('USER_JOURNEY C0–C5 source contract', () => {
     expect(nav).toContain('deferCatalogMiss');
     expect(followup).toContain('createProductCarouselFlexMessage');
     expect(followup).toContain('peekCachedProducts');
-    expect(commerce).toContain('createProductCarouselFlexMessage(catalog, userLanguage)');
+    expect(commerce).toContain('createProductCarouselFlexMessage(catalog, userLanguage, undefined, ctx.channel?.channelId)');
   });
 
   it('C3: guests must VERIFY before quote; customers skip optional summary', () => {
