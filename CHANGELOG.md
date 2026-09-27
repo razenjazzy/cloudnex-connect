@@ -1,5 +1,9 @@
 # Changelog
 
+## v11.0.3 — Odoo LINE OA v8 (2026-09-27)
+
+- CI tests match tenant-scoped channel overlay keys, catalog carousel channel args, and locked Admin bootstrap.
+
 ## v11.0.2 — Odoo LINE OA v8 (2026-09-27)
 
 - Catalog product images use the public `/catalog` path; FIND by id no longer falls through to name search; details attach heroes when Odoo has `image_128`.

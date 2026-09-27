@@ -1,3 +1,14 @@
+# Release notes — v11.0.3
+
+**Date:** 2026-09-27  
+**Package version:** `11.0.3`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`) + local `APP_ENV=development`. Production HMAC `:8080` is not this cut.  
+**Commit title:** `Release: v11.0.3 - Odoo Line OA v8 Bug Fix`
+
+CI tests for tenant-scoped channel keys, catalog carousel args, and bootstrap under lock. Cloud Run `deploy:prod` still requires signoff.
+
+---
+
 # Release notes — v11.0.2
 
 **Date:** 2026-09-27  
