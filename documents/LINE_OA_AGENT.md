@@ -43,7 +43,7 @@ If this file disagrees with running TypeScript, **the code wins**. Update this f
 
 **P4 (optional):** overlay `aliases[]` normalize **inbound** to canonical; still **emit** canonical on buttons. Reject collisions.
 
-Sales copy: Quotation / Quotation Sent / View Quote / My quotations. Customer: Order History, Order Details, Request for Order, Quotation Received, Order. Pass `channelId` or `audience: 'customer' | 'staff'` into `stateLabel` and journey Flex.
+Sales copy: Quotation / Quotation Sent / View Quote / My quotations. Customer: Order History, Order Details, Request for Order, Quote Received, Order. Pass `channelId` or `audience: 'customer' | 'staff'` into `stateLabel` and journey Flex.
 
 How to read tables below: **Command** = wire/gate. **User sees** = EN / TH. **Action** = user or operator. **Result** = system + next UI. Do not ship a new command or env without an Action→Result row.
 
@@ -79,7 +79,7 @@ flowchart TD
   so --> inv[QUOTE INVOICE]
 ```
 
-**Customer Home:** carousel (HTTPS hero `{PUBLIC_BASE_URL}/catalog/product/{id}/image` when `readProductImage128` ≥32 bytes) + commerce actions. Price: label left, amount bold `xl` right; hide stock.
+**Customer Home:** carousel (HTTPS hero `{PUBLIC_BASE_URL}/catalog/product/{id}/image` when `readProductImage128` ≥32 bytes) + commerce actions. Price uses the same teal highlight box as Order **Total** (label `xs` over amount `xl`); hide stock.
 
 | Step | Canonical | Result |
 |---|---|---|
@@ -88,7 +88,7 @@ flowchart TD
 | Send Message | `FORM MESSAGE REQUEST` → `MESSAGE REQUEST CONFIRM` | Partner note; sales ping; `{agent}: Request accepted. We will get back to you soon.` |
 | Ask for Quotations | `QUOTE ASK` | Same accepted copy; no new SO |
 | Order History | `QUOTE LIST` | Partner orders |
-| After sales send | Journey `sent` | Customer **Quotation Received**; Confirm = `QUOTE APPROVE {id}` |
+| After sales send | Journey `sent` | Customer **Quote Received**; Confirm = `QUOTE APPROVE {id}` |
 | After SO | Portal / invoice Flex | Existing invoice path |
 
 **Keyboard:** `pendingFlow` or qty `quickReply` → do not `applyTrayAfterReply`; await unlink then await link `keyboard`. Ids: `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` `en.keyboard` / `th.keyboard` or `LINE_CHANNEL_CUSTOMER_KEYBOARD_RICH_MENU`. LINE Console must publish a blank/chat-bar menu; unlink alone restores the **OA default tray**. Skip `pendingCatalogPush` until the flow ends.
@@ -232,7 +232,7 @@ Also: `QUOTE LIST OFFSET`, `QUOTE LIST FROM … TO …`.
 | `quote-list-customer` | Order History / ประวัติคำสั่งซื้อ | Save | Customer `QUOTE LIST` label |
 | `glossary-order-details` | Order Details / รายละเอียดออเดอร์ | Save | Portal button |
 | `glossary-request-for-order` | Request for Order / ขอสั่งซื้อ | Save | Quote-create title |
-| `glossary-quotation-received` | Quotation Received / รับใบเสนอราคาแล้ว | Save | Customer `sent` |
+| `glossary-quotation-received` | Quote Received / รับใบเสนอราคาแล้ว | Save | Customer `sent` |
 | Overlay `aliases[]` | Typed shortcuts | Save aliases | Inbound maps to canonical; buttons still emit prefix. Collisions rejected |
 
 ---
@@ -316,7 +316,7 @@ Staff states: `ODOO_STATE_LABELS`. Customer: `ODOO_STATE_LABELS_CUSTOMER`. New s
 | `quoteApprovedProcessing` | `QUOTE APPROVE` when `user_id[1]` set | {name} is processing your order. | {name} กำลังดำเนินการคำสั่งซื้อของคุณ |
 | `quoteApprovedStaff` | Sales notified | Customer approved. Next: Invoice or Send Invoice. | pair |
 | `quoteCreatedStaffUnassigned` | Customer-origin draft | Unassigned; assign | pair |
-| Customer `sent` | Journey chip | Quotation Received | รับใบเสนอราคาแล้ว |
+| Customer `sent` | Journey chip | Quote Received | รับใบเสนอราคาแล้ว |
 | Sales `sent` | Journey chip | Quotation Sent | ส่งใบเสนอราคาแล้ว |
 | `nextPage` | More | Next 5 | ถัดไป 5 รายการ |
 | `tapOptionOrType` | Qty/form | Tap an option below, or type your own answer. | แตะเลือกตัวเลือกด้านล่าง หรือพิมพ์คำตอบเอง |

@@ -15,9 +15,9 @@ describe('customer qty chips', () => {
 });
 
 describe('customer glossary', () => {
-  it('keeps Sales quotation sent copy and uses Quotation Received for customers', () => {
+  it('keeps Sales quotation sent copy and uses Quote Received for customers', () => {
     expect(stateLabel('sent', 'en')).toBe('Quotation Sent');
-    expect(stateLabel('sent', 'en', 'customer')).toBe('Quotation Received');
+    expect(stateLabel('sent', 'en', 'customer')).toBe('Quote Received');
     expect(stateLabel('draft', 'en', 'customer')).toBe('Order');
     expect(catalogUiLabel('glossary-request-for-order', 'en', { en: 'Request for Order', th: 'ขอสั่งซื้อ' })).toBe('Request for Order');
     expect(catalogUiLabel('quote-list-customer', 'en', { en: 'Order History', th: 'ประวัติคำสั่งซื้อ' })).toBe('Order History');

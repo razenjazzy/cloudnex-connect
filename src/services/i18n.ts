@@ -33,7 +33,7 @@ export const ODOO_STATE_LABELS: Record<OdooSaleOrderState, { en: string; th: str
 /** Customer OA journey chips. Sales OA keeps ODOO_STATE_LABELS. */
 export const ODOO_STATE_LABELS_CUSTOMER: Record<OdooSaleOrderState, { en: string; th: string }> = {
   draft: { en: 'Order', th: 'คำสั่งซื้อ' },
-  sent: { en: 'Quotation Received', th: 'รับใบเสนอราคาแล้ว' },
+  sent: { en: 'Quote Received', th: 'รับใบเสนอราคาแล้ว' },
   sale: { en: 'Sales Order', th: 'คำสั่งขาย' },
   cancel: { en: 'Cancelled', th: 'ยกเลิกแล้ว' },
   done: { en: 'Locked', th: 'ล็อกแล้ว' },

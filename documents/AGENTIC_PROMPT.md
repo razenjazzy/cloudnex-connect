@@ -41,20 +41,20 @@ flowchart TD
   sendMsg --> accepted[Sora Request accepted]
   ask --> accepted
   draft --> waitSales[Waiting for sales to send]
-  waitSales --> received[Quotation Received]
+  waitSales --> received[Quote Received]
   received --> approve[QUOTE APPROVE]
   approve --> processing[Salesperson name is processing your order]
 ```
 
 | Beat | What the user sees | Wire command | System result |
 |---|---|---|---|
-| Home | Product carousel (hero only if `readProductImage128` ≥32 bytes) + commerce actions. Price left, amount `xl` right. No stock. | `NAV HOME` | ≤5 LINE messages. Catalog miss may push later; skip push while qty/form keyboard is up. |
+| Home | Product carousel (hero only if `readProductImage128` ≥32 bytes) + commerce actions. Price matches Order Total highlight box. No stock. | `NAV HOME` | ≤5 LINE messages. Catalog miss may push later; skip push while qty/form keyboard is up. |
 | Order Now | Qty chips (`CUSTOMER_QTY_CHIPS`, default 10–50; chips+Cancel+Skip ≤13) | `FORM QUOTE CREATE FROM CARD {id}` → `QUOTE CREATE` | Unassigned draft (`user_id` empty). OTP on create. Waiting card. |
 | View Details | Description if Odoo has it. Footer Order Now, Send Message, Home, Back | `PRODUCT FIND {name}` | Details bubble, not qty. |
 | Send Message | Guided body | `FORM MESSAGE REQUEST {id}` → `MESSAGE REQUEST CONFIRM` | Partner note with `productId=`; sales ping; `{agent}: Request accepted. We will get back to you soon.` |
 | Ask for Quotations | Same accepted copy | `QUOTE ASK` | Chatter note; **no** new SO. |
 | Order History | List of partner SOs | `QUOTE LIST` | Page size **5**; More = `QUOTE LIST CURSOR` labeled Next 5. |
-| Sales sent quote | State **Quotation Received**; Confirm | `QUOTE APPROVE {id}` | SO; sales notified; if `user_id[1]` present, `{name} is processing your order.` |
+| Sales sent quote | State **Quote Received**; Confirm | `QUOTE APPROVE {id}` | SO; sales notified; if `user_id[1]` present, `{name} is processing your order.` |
 | Keyboard | Chat-bar / blank rich menu | (no extra command) | Await unlink then link `keyboard` id. Unlink alone restores OA **default** tray. |
 
 Customer OA must not run: `ADMIN *`, `QUOTE ASSIGN`, `RELAY *`, `STAFF PICK`, `SALES FEATURES`, `MESSAGE CUSTOMER`, directory/catalog writes, `DAILY REPORT`, `SEGMENT CUSTOMERS`, `SEED SAMPLE DATA`. Staff convert is `QUOTE CONFIRM`; customer confirm is `QUOTE APPROVE`.

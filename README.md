@@ -4,7 +4,7 @@ Cloudnex Connect is the Cloudnex LINE Official Account platform: HMAC webhooks (
 
 TypeScript Express backend that connects LINE Official Accounts to Odoo ERP. Users work in LINE Flex cards (Thai/English). Identity is Firestore unless `MONGO_USERS` is on. Sales, partners, and products live in Odoo.
 
-**Release:** v11.0.4 — Odoo LINE OA v8 bug fix. VPS Hub-or-SSH deploy, overlay lock honesty on Jobs, staging-vps always green. Cloud Run `deploy:prod` stays gated.  
+**Release:** v11.0.5 — Odoo LINE OA v8 staging deploy. Customer Price matches Total; Quote Received; tighter quote footers. Cloud Run `deploy:prod` stays gated.  
 **Runtime:** Node 22+. **Persona:** Sora / โซระ. **Package:** `cloudnex-connect`.
 
 The git root on disk is `.../Code/cloudnex-connect`. `cns-line-oa` is only a symlink. In Cursor: **File → Open Folder** and choose `cloudnex-connect` (not the symlink) so the sidebar name matches. GCP project id `cns-line-oa` is unrelated.
@@ -147,7 +147,7 @@ Full tap order, filenames, and freeze rules: **[documents/USER_JOURNEY.md](docum
 
 **Staff (verified sales):** Home is the commerce menu **plus** My quotations (page of 5). Unassigned rows open `QUOTE ASSIGN`. Inbound customer messages include **Create quote** (`FORM QUOTE CREATE FROM CARD`). Products & Quotes → Create quote → Action Verify → card **Confirm | Send**. Send is guided (LINE / email / both). Staff wait for customer **QUOTE APPROVE**; then Invoice.
 
-**Customer:** Home carousel + Products & Orders. Order Now → qty chips → unassigned draft. Send Message / Ask for Quotations → accepted copy. When sales sends: **Quotation Received** + Confirm (`QUOTE APPROVE`). After approve, salesperson name when Odoo has `user_id`. Footer Order History. No Send or More on the customer journey card.
+**Customer:** Home carousel + Products & Orders. Order Now → qty chips → unassigned draft. Send Message / Ask for Quotations → accepted copy. When sales sends: **Quote Received** + Confirm (`QUOTE APPROVE`). After approve, salesperson name when Odoo has `user_id`. Footer Order History above Home. No Send or More on the customer journey card.
 
 Captured stills currently in-repo:
 

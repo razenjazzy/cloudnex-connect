@@ -100,8 +100,8 @@ describe('product card quote CTA', () => {
     expect(json).not.toContain('"text":"Stock"');
     expect(json).toContain('"size":"xl"');
     expect(json).toContain('THB');
-    expect(json).toContain('"paddingStart":"xl"');
-    expect(json).toContain('"paddingEnd":"xl"');
+    expect(json).toContain('"backgroundColor":"#E3F0EE"');
+    expect(json).toContain('"paddingAll":"md"');
   });
 
   it('still shows a short description on Customer OA when the overlay row is off', () => {
@@ -209,7 +209,7 @@ describe('quotation journey state actions', () => {
     );
     const json = JSON.stringify(message);
     const bubble = message.contents as { body?: { contents?: unknown[] }; footer?: { contents?: unknown[] } };
-    expect(bubble.footer?.contents).toHaveLength(3);
+    expect(bubble.footer?.contents).toHaveLength(2);
     expect(JSON.stringify(bubble.body)).toContain('QUOTE CONFIRM 17');
     expect(JSON.stringify(bubble.body)).toContain('QUOTE SEND 17');
     expect(JSON.stringify(bubble.body)).toContain('FORM QUOTE ADD 17');
@@ -219,7 +219,7 @@ describe('quotation journey state actions', () => {
     expect(JSON.stringify(bubble.footer?.contents?.[0])).toContain('Download');
     expect(JSON.stringify(bubble.footer?.contents?.[0])).not.toContain('Download PDF');
     expect(JSON.stringify(bubble.footer?.contents?.[1])).toContain('QUOTE MORE 17');
-    expect(JSON.stringify(bubble.footer?.contents?.[2])).toContain('NAV HOME');
+    expect(JSON.stringify(bubble.footer?.contents?.[1])).toContain('NAV HOME');
     expect(json).toContain('Quotation');
     expect(json).toContain('"text":"S0017"');
   });
@@ -251,11 +251,13 @@ describe('quotation journey state actions', () => {
   });
 
   it('gives the customer Confirm, View Quote, and Download on a sent quotation', () => {
-    const json = JSON.stringify(createQuotationJourneyFlexMessage(
+    const message = createQuotationJourneyFlexMessage(
       { ...order, state: 'sent' },
       { role: 'customer', portalLink: 'https://example.com/q', pdfLink: 'https://example.com/p' },
       'en',
-    ));
+    );
+    const json = JSON.stringify(message);
+    const footer = JSON.stringify((message.contents as { footer?: unknown }).footer);
     expect(json).toContain('https://example.com/q');
     expect(json).toContain('Confirm');
     expect(json).toContain('QUOTE APPROVE 17');
@@ -266,7 +268,8 @@ describe('quotation journey state actions', () => {
     expect(json).toContain('NAV HOME');
     expect(json).toContain('QUOTE LIST');
     expect(json).toContain('Order History');
-    expect(json).toContain('Quotation Received');
+    expect(footer.indexOf('QUOTE LIST')).toBeLessThan(footer.indexOf('NAV HOME'));
+    expect(json).toContain('Quote Received');
     expect(json).not.toContain('Quotation Sent');
     expect(json).not.toContain('My Orders');
     expect(json).not.toContain('QUOTE CONFIRM');
@@ -275,11 +278,13 @@ describe('quotation journey state actions', () => {
   });
 
   it('gives the customer Invoice, Order Details, Home, and Order History on a sales order', () => {
-    const json = JSON.stringify(createQuotationJourneyFlexMessage(
+    const message = createQuotationJourneyFlexMessage(
       { ...order, state: 'sale', invoice_status: 'invoiced' },
       { role: 'customer', portalLink: 'https://example.com/q', pdfLink: 'https://example.com/p' },
       'en',
-    ));
+    );
+    const json = JSON.stringify(message);
+    const footer = JSON.stringify((message.contents as { footer?: unknown }).footer);
     expect(json).toContain('Sales Order');
     expect(json).toContain('Invoice');
     expect(json).toContain('https://example.com/q');
@@ -289,6 +294,7 @@ describe('quotation journey state actions', () => {
     expect(json).toContain('NAV HOME');
     expect(json).toContain('QUOTE LIST');
     expect(json).toContain('Order History');
+    expect(footer.indexOf('QUOTE LIST')).toBeLessThan(footer.indexOf('NAV HOME'));
     expect(json).not.toContain('My Orders');
     expect(json).not.toContain('QUOTE APPROVE');
     expect(json).not.toContain('QUOTE INVOICE');
@@ -296,16 +302,19 @@ describe('quotation journey state actions', () => {
   });
 
   it('tells the customer to wait for sales send on a draft, with Home and Order History', () => {
-    const json = JSON.stringify(createQuotationJourneyFlexMessage(
+    const message = createQuotationJourneyFlexMessage(
       { ...order, state: 'draft' },
       { role: 'customer' },
       'en',
-    ));
+    );
+    const json = JSON.stringify(message);
+    const footer = JSON.stringify((message.contents as { footer?: unknown }).footer);
     expect(json).toContain('Sales will send this quote');
     expect(json).toContain('FORM QUOTE ADD 17');
     expect(json).toContain('NAV HOME');
     expect(json).toContain('QUOTE LIST');
     expect(json).toContain('Order History');
+    expect(footer.indexOf('QUOTE LIST')).toBeLessThan(footer.indexOf('NAV HOME'));
     expect(json).not.toContain('My Orders');
     expect(json).not.toContain('QUOTE CONFIRM');
     expect(json).not.toContain('QUOTE SEND');
@@ -323,12 +332,12 @@ describe('quotation journey state actions', () => {
     expect(json).toContain('Sales Order');
     expect(JSON.stringify(bubble.body)).toContain('QUOTE INVOICE 17');
     expect(JSON.stringify(bubble.body)).toContain('QUOTE INVOICE SEND 17');
-    expect(bubble.footer?.contents).toHaveLength(3);
+    expect(bubble.footer?.contents).toHaveLength(2);
     expect(JSON.stringify(bubble.footer?.contents?.[0])).toContain('View Quote');
     expect(JSON.stringify(bubble.footer?.contents?.[0])).toContain('Download');
     expect(JSON.stringify(bubble.footer?.contents?.[0])).not.toContain('Download PDF');
     expect(JSON.stringify(bubble.footer?.contents?.[1])).toContain('QUOTE MORE 17');
-    expect(JSON.stringify(bubble.footer?.contents?.[2])).toContain('NAV HOME');
+    expect(JSON.stringify(bubble.footer?.contents?.[1])).toContain('NAV HOME');
     expect(json).not.toContain('QUOTE APPROVE');
     expect(JSON.stringify(bubble.body)).not.toContain('QUOTE CONFIRM');
   });
@@ -357,6 +366,8 @@ describe('quotation edit card', () => {
     }, {}, 'en'));
     expect(json).toContain('Edit Quote');
     expect(json).toContain('QUOTE LINES 17');
+    expect(json).toContain('QUOTE CANCEL 17');
+    expect(json.indexOf('QUOTE CANCEL 17')).toBeLessThan(json.indexOf('QUOTE STATUS 17'));
   });
 
   it('lists lines with edit and remove prefills from More', () => {

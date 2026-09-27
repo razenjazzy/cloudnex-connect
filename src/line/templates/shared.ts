@@ -67,6 +67,25 @@ export const formatMoney = (value: number, language: ReportLanguage): string => 
   return language === 'en' ? `${formatted} THB` : `${formatted} บาท`;
 };
 
+/** Label on top, amount `xl` below — Order Total and catalog Price. */
+export const amountHighlightBox = (
+  label: string,
+  amount: string,
+  extra: messagingApi.FlexComponent[] = [],
+): messagingApi.FlexBox => ({
+  type: 'box',
+  layout: 'vertical',
+  backgroundColor: BRAND.tealTint,
+  cornerRadius: BRAND.radius,
+  paddingAll: 'md',
+  contents: [
+    { type: 'text', text: label, size: 'xs', color: BRAND.inkSoft },
+    { type: 'text', text: amount, size: 'xl', color: BRAND.tealStrong, weight: 'bold', wrap: true },
+    ...extra,
+  ],
+});
+
+
 export const createMessageActionButton = (
   label: string,
   actionText: string,

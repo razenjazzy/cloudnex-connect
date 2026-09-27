@@ -1,6 +1,6 @@
 import { messagingApi } from '@line/bot-sdk';
 import { t } from '../../services/i18n';
-import { BRAND, createMessageActionButton, createTapRow, flexBubbleStyles, flexHeaderBox, formatMoney, truncate, type ReportLanguage } from './shared';
+import { BRAND, amountHighlightBox, createMessageActionButton, createTapRow, flexBubbleStyles, flexHeaderBox, formatMoney, truncate, type ReportLanguage } from './shared';
 import { catalogUiLabel, isCatalogUiVisible } from '../catalog-ui';
 import { CUSTOMER_CHANNEL_ID } from '../channels';
 import { catalogProductHeroUrl } from '../../erp/product-image-url';
@@ -94,38 +94,7 @@ export type CatalogFlexOptions = {
 
 const priceStockRow = (price: number, stock: number, language: ReportLanguage, channelId?: string): messagingApi.FlexBox => {
   if (channelId === CUSTOMER_CHANNEL_ID || !isCatalogUiVisible('ui-catalog-stock', channelId)) {
-    return {
-      type: 'box',
-      layout: 'horizontal',
-      spacing: 'md',
-      paddingStart: 'xl',
-      paddingEnd: 'xl',
-      paddingTop: 'md',
-      paddingBottom: 'md',
-      contents: [
-        {
-          type: 'text',
-          text: t('price', language),
-          size: 'sm',
-          color: BRAND.inkSoft,
-          flex: 0,
-          gravity: 'center',
-          align: 'start',
-          margin: 'none',
-        },
-        {
-          type: 'text',
-          text: formatMoney(price, language),
-          size: 'xl',
-          weight: 'bold',
-          color: BRAND.tealStrong,
-          align: 'end',
-          flex: 1,
-          wrap: true,
-          gravity: 'center',
-        },
-      ],
-    };
+    return amountHighlightBox(t('price', language), formatMoney(price, language));
   }
   const priceBox: messagingApi.FlexBox = {
     type: 'box',
@@ -341,17 +310,7 @@ export const createOrderSummaryFlexMessage = (total: number, language: ReportLan
         spacing: 'md',
         paddingAll: 'lg',
         contents: [
-          {
-            type: 'box',
-            layout: 'vertical',
-            backgroundColor: BRAND.tealTint,
-            cornerRadius: BRAND.radius,
-            paddingAll: 'md',
-            contents: [
-              { type: 'text', text: t('total', language), size: 'xs', color: BRAND.inkSoft },
-              { type: 'text', text: formatMoney(total, language), size: 'xl', color: BRAND.tealStrong, weight: 'bold', wrap: true },
-            ],
-          },
+          amountHighlightBox(t('total', language), formatMoney(total, language)),
           { type: 'text', text: language === 'en' ? 'Please follow your payment workflow.' : 'กรุณาชำระเงินตามขั้นตอนที่ร้านกำหนด', size: 'sm', wrap: true, color: BRAND.inkSoft },
         ],
       },

@@ -29,8 +29,8 @@ describe('product catalogue carousel', () => {
     expect(json).not.toContain('"text":"Stock"');
     expect(json).toContain('"size":"xl"');
     expect(json).toContain('Price');
-    expect(json).toContain('"paddingStart":"xl"');
-    expect(json).toContain('"paddingEnd":"xl"');
+    expect(json).toContain('"backgroundColor":"#E3F0EE"');
+    expect(json).toContain('"paddingAll":"md"');
   });
 
   it('puts https product images on the hero and can strip them for LINE retry', () => {

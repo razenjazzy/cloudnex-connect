@@ -1,3 +1,14 @@
+# Release notes — v11.0.5
+
+**Date:** 2026-09-28  
+**Package version:** `11.0.5`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`) + production HMAC `:8080`.  
+**Commit title:** `Release: v11.0.5 - Odoo Line OA v8 Staging Deploy`
+
+Customer Price matches Order Total. Quote Received, Order History above Home, Sales More|Home, More Cancel|Back. Cloud Run `deploy:prod` still requires signoff.
+
+---
+
 # Release notes — v11.0.4
 
 **Date:** 2026-09-28  

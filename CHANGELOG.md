@@ -1,5 +1,9 @@
 # Changelog
 
+## v11.0.5 — Odoo LINE OA v8 (2026-09-28)
+
+- Customer catalog Price uses the same teal highlight box as Order Total. Quote Received, Order History above Home, Sales More|Home, More Cancel|Back.
+
 ## v11.0.4 — Odoo LINE OA v8 (2026-09-28)
 
 - VPS deploy ships the image over SSH when Docker Hub push is denied; staging and production Compose projects stay isolated.

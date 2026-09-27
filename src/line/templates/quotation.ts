@@ -5,7 +5,7 @@ import { t, tFill, stateLabel, invoiceStatusLabel, type Lang } from '../../servi
 import { bindPostbackData } from '../postback';
 import { overlayLabelForText } from '../command-overlay';
 import { catalogUiLabel } from '../catalog-ui';
-import { BRAND, createDatePickerButton, createMessageActionButton, createPrefillButton, createUriActionButton, flexBubbleStyles, flexHeaderBox, formatMoney, truncate } from './shared';
+import { BRAND, amountHighlightBox, createDatePickerButton, createMessageActionButton, createPrefillButton, createUriActionButton, flexBubbleStyles, flexHeaderBox, formatMoney, truncate } from './shared';
 import type { QuoteAskThread } from '../quote-ask';
 
 const tr = (language: Lang, th: string, en: string): string => (language === 'en' ? en : th);
@@ -109,7 +109,7 @@ export const createQuotationJourneyFlexMessage = (
             {
               type: 'text',
               text: state === 'sent' && customerView
-                ? catalogUiLabel('glossary-quotation-received', language, { en: 'Quotation Received', th: 'รับใบเสนอราคาแล้ว' })
+                ? catalogUiLabel('glossary-quotation-received', language, { en: 'Quote Received', th: 'รับใบเสนอราคาแล้ว' })
                 : stateLabel(state, language, audience),
               size: 'xxs',
               align: 'center',
@@ -125,8 +125,7 @@ export const createQuotationJourneyFlexMessage = (
   const isSent = order.state === 'sent';
   const isSale = order.state === 'sale';
 
-  // Screenshot layout: Confirm|Send in the body; footer is exactly three
-  // rows — View Quote|Download PDF, More, Home.
+  // Footer: View Quote|PDF, then More|Home (Sales) or Order History above Home (Customer).
   const bodyActions: messagingApi.FlexComponent[] = [];
   if (options.role === 'admin') {
     if (!isCancelled && (isDraft || isSent)) {
@@ -193,16 +192,18 @@ export const createQuotationJourneyFlexMessage = (
       : { type: 'box', layout: 'horizontal', spacing: 'md', contents: linkRow.map(button => ({ ...button, flex: 1 })) });
   }
   if (options.role === 'admin') {
-    footerContents.push(createMessageActionButton(t('moreActions', language), `QUOTE MORE ${order.id}`, 'secondary', BRAND.tealTint));
-    footerContents.push(createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint));
+    footerContents.push(pairButtons(
+      createMessageActionButton(t('moreActions', language), `QUOTE MORE ${order.id}`, 'secondary', BRAND.tealTint),
+      createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint),
+    ));
   } else {
-    footerContents.push(createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint));
     footerContents.push(createMessageActionButton(
       overlayLabelForText('QUOTE LIST', language, t('customerOrderHistory', language), 'customer'),
       'QUOTE LIST',
       'secondary',
       BRAND.tealTint,
     ));
+    footerContents.push(createMessageActionButton(t('home', language), 'NAV HOME', 'secondary', BRAND.tealTint));
   }
 
   return {
@@ -251,20 +252,13 @@ export const createQuotationJourneyFlexMessage = (
               { type: 'text' as const, text: truncate(order.note, 200), size: 'xs' as const, color: BRAND.inkSoft, wrap: true },
             ],
           }] : []),
-          {
-            type: 'box',
-            layout: 'vertical',
-            backgroundColor: BRAND.tealTint,
-            cornerRadius: BRAND.radius,
-            paddingAll: 'md',
-            contents: [
-              { type: 'text', text: t('total', language), size: 'xs', color: BRAND.inkSoft },
-              { type: 'text', text: formatMoney(order.amount_total, language), size: 'xl', color: BRAND.tealStrong, weight: 'bold', wrap: true },
-              ...(order.amount_invoiced
-                ? [{ type: 'text' as const, text: `${t('invoiceInvoiced', language)}: ${formatMoney(order.amount_invoiced, language)}`, size: 'xs' as const, color: BRAND.inkSoft, wrap: true }]
-                : []),
-            ],
-          },
+          amountHighlightBox(
+            t('total', language),
+            formatMoney(order.amount_total, language),
+            order.amount_invoiced
+              ? [{ type: 'text' as const, text: `${t('invoiceInvoiced', language)}: ${formatMoney(order.amount_invoiced, language)}`, size: 'xs' as const, color: BRAND.inkSoft, wrap: true }]
+              : [],
+          ),
           ...bodyActions,
         ],
       },
@@ -290,13 +284,14 @@ export const createQuotationMoreFlexMessage = (
   const canInvoice = order.state === 'sale' && (order.invoice_status === 'to invoice' || order.invoice_status === 'upselling');
   const isRestrictedToSalesperson = options.salesTier === 'salesperson';
   const rows: messagingApi.FlexComponent[] = [];
+  let cancelButton: messagingApi.FlexButton | null = null;
   if (canStillAct) {
     rows.push(createMessageActionButton(tr(language, 'แก้ไขใบเสนอราคา', 'Edit Quote'), `QUOTE LINES ${order.id}`, 'primary', BRAND.teal));
     if (order.state === 'draft' || order.state === 'sent') {
       rows.push(createMessageActionButton(t('sendViaEmail', language), `QUOTE SEND OPTIONS ${order.id}`, 'secondary', BRAND.tealTint));
     }
     if (!isRestrictedToSalesperson) {
-      rows.push(createMessageActionButton(t('cancelQuote', language), `QUOTE CANCEL ${order.id}`, 'secondary', BRAND.goldTint));
+      cancelButton = createMessageActionButton(t('cancelQuote', language), `QUOTE CANCEL ${order.id}`, 'secondary', BRAND.goldTint);
     }
   }
   if (order.state === 'sale') {
@@ -305,7 +300,7 @@ export const createQuotationMoreFlexMessage = (
     }
     rows.push(createMessageActionButton(t('sendInvoice', language), `QUOTE INVOICE SEND ${order.id}`, 'secondary', BRAND.tealTint));
     if (!isRestrictedToSalesperson && order.invoice_status !== 'invoiced') {
-      rows.push(createMessageActionButton(t('cancelQuote', language), `QUOTE CANCEL ${order.id}`, 'secondary', BRAND.goldTint));
+      cancelButton = createMessageActionButton(t('cancelQuote', language), `QUOTE CANCEL ${order.id}`, 'secondary', BRAND.goldTint);
     }
   }
   rows.push(createPrefillButton(t('messageCustomer', language), `QUOTE MESSAGE ${order.id} `, 'secondary', BRAND.tealTint));
@@ -315,7 +310,8 @@ export const createQuotationMoreFlexMessage = (
       createMessageActionButton(t('skip', language), 'NAV HOME', 'secondary', BRAND.goldTint),
     ));
   }
-  rows.push(createMessageActionButton(t('back', language), `QUOTE STATUS ${order.id}`, 'secondary', BRAND.goldTint));
+  const backButton = createMessageActionButton(t('back', language), `QUOTE STATUS ${order.id}`, 'secondary', BRAND.goldTint);
+  rows.push(cancelButton ? pairButtons(cancelButton, backButton) : backButton);
 
   return {
     type: 'flex',
