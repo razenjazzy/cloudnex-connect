@@ -1,3 +1,14 @@
+# Release notes — v12.0.3
+
+**Date:** 2026-09-29  
+**Package version:** `12.0.3`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`) + production HMAC `:8080`.  
+**Commit title:** `Release: v12.0.3 - Odoo Line OA v9 Bug Fix`
+
+PRODUCT FIND still skips catalog search after an id hit. CI checks that skip, not a frozen `erp.searchProducts` snippet. Cloud Run `deploy:prod` still requires signoff.
+
+---
+
 # Release notes — v12.0.2
 
 **Date:** 2026-09-29  

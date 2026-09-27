@@ -1,5 +1,9 @@
 # Changelog
 
+## v12.0.3 — Odoo LINE OA v9 (2026-09-29)
+
+- CI: PRODUCT FIND no longer asserts a staff-only `searchProducts` source string.
+
 ## v12.0.2 — Odoo LINE OA v9 (2026-09-29)
 
 - CI: Customer PRODUCT FIND source assertion matches shop vs staff catalog search.
