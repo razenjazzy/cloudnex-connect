@@ -24,6 +24,10 @@ describe('deploy health wait', () => {
     expect(script).toContain('seq 1 30');
     expect(script).toContain('REMOTE="${VPS_REMOTE_DIR:-/opt/cns-line-oa}"');
     expect(script).toContain('REMOTE="${VPS_REMOTE_DIR:-/opt/cloudnex-connect}"');
+    expect(script).toContain('docker save');
+    expect(script).toContain('IMAGE_VIA_LOAD');
+    expect(script).toContain('COMPOSE_PROJECT="cns-line-oa-staging"');
+    expect(script).toContain('COMPOSE_PROJECT="cloudnex-connect-production"');
   });
 });
 
@@ -31,6 +35,7 @@ describe('production compose', () => {
   const yaml = readFileSync(join(__dirname, '../deploy/hostinger/docker-compose.production.yml'), 'utf8');
 
   it('binds HMAC on 8080 with production APP_ENV and /admin', () => {
+    expect(yaml).toContain('name: cloudnex-connect-production');
     expect(yaml).toContain('APP_ENV: production');
     expect(yaml).toContain('PUBLIC_ADMIN_BASE: /admin');
     expect(yaml).toContain('127.0.0.1:8080:8080');
@@ -42,6 +47,7 @@ describe('sibling compose', () => {
   const yaml = readFileSync(join(__dirname, '../deploy/hostinger/docker-compose.sibling.yml'), 'utf8');
 
   it('binds staging Admin on 8081 with /admin/test', () => {
+    expect(yaml).toContain('name: cns-line-oa-staging');
     expect(yaml).toContain('APP_ENV: staging');
     expect(yaml).toContain('PUBLIC_ADMIN_BASE: /admin/test');
     expect(yaml).toContain('127.0.0.1:8081:8080');

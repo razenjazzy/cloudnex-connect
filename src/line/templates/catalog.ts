@@ -116,7 +116,7 @@ const priceStockRow = (price: number, stock: number, language: ReportLanguage, c
         {
           type: 'text',
           text: formatMoney(price, language),
-          size: 'xxl',
+          size: 'xl',
           weight: 'bold',
           color: BRAND.tealStrong,
           align: 'end',

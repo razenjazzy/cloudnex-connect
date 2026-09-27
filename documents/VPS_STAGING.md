@@ -145,7 +145,7 @@ SKIP_BUILD=1 npm run deploy:vps-prod
 
 That rsync uses `deploy/staging-rsync.allowlist` only (compose + channel check + lockfile). It never uses `--delete` and never copies `.env`.
 
-GitHub → repository variable `ENABLE_STAGING_VPS_DEPLOY=true`, Environments → **staging**: `VPS_SSH_KEY` (SSH private key only), `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`, optional `VPS_HOST`. Then push `main` runs `.github/workflows/staging-vps.yml`. Unset variable → job skipped. It **never** writes `.env`.
+GitHub → repository variable `ENABLE_STAGING_VPS_DEPLOY=true`, Environments → **staging**: `VPS_SSH_KEY` (SSH private key only), `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`, optional `VPS_HOST`. Then push `main` runs `.github/workflows/staging-vps.yml` and mutates `/opt/cns-line-oa`. When the variable is not `true`, the job still **succeeds** (no Skipped). It **never** writes `.env`. Hub push failure falls back to `docker save` over SSH.
 
 ## 9. Rollback
 

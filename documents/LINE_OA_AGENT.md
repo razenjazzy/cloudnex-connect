@@ -355,7 +355,7 @@ Keep remaining `UI_STRINGS` keys in `i18n.ts` bilingual (invoice fields, reply f
 1. **P0 shipped** — Customer images-if-bytes, keyboard unlink+link, qty chips, details CTAs, glossary, `Sora:`. Keyboard Console id still required in env.
 2. **P1 shipped** — Sales dual Home, RFQ Create quote, list page 5, salesperson name after approve. One router.
 3. **P2 shipped** — Admin Commands = human language; prefix read-only; aliases field.
-4. **P3** — Fix CI (`lint` / `build` / `npm test` / `npm audit --omit=dev --audit-level=high`). Staging only if `ENABLE_STAGING_VPS_DEPLOY` is exactly `true`. Do not delete failed GitHub runs as the fix. Health: `https://amardhaka.io/healthz`, Admin `/cloudnex-connect/admin/test`.
+4. **P3** — Fix CI (`lint` / `build` / `npm test` / `npm audit --omit=dev --audit-level=high`). `staging-vps` always runs; VPS mutate only if `ENABLE_STAGING_VPS_DEPLOY` is exactly `true`. Do not delete failed GitHub runs as the fix. Health: `https://amardhaka.io/healthz`, Admin `/cloudnex-connect/admin/test`.
 5. **P4 shipped** — Overlay aliases; emit canonical.
 
 Latency: no extra Odoo on the HMAC reply path; catalog cache; notify sales async.

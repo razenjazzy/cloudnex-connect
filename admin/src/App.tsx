@@ -624,7 +624,10 @@ export const App = () => {
 
   const loadI18nCatalog = async () => {
     const res = await api(`${ADMIN_BASE}/api/i18n`);
-    if (!res.ok) return;
+    if (!res.ok) {
+      toast(await readError(res, 'Could not load translation keys'));
+      return;
+    }
     const body = await res.json() as {
       api?: Array<{ key: string; en: string; th: string; source?: string }>;
       portal?: Record<string, { en?: string; th?: string }>;

@@ -98,7 +98,7 @@ describe('product card quote CTA', () => {
     expect(json.indexOf('FORM QUOTE CREATE FROM CARD')).toBeLessThan(json.indexOf('FORM MESSAGE REQUEST'));
     expect(json.indexOf('"text":"NAV HOME"')).toBeLessThan(json.indexOf('"text":"BACK"'));
     expect(json).not.toContain('"text":"Stock"');
-    expect(json).toContain('"size":"xxl"');
+    expect(json).toContain('"size":"xl"');
     expect(json).toContain('THB');
     expect(json).toContain('"paddingStart":"xl"');
     expect(json).toContain('"paddingEnd":"xl"');

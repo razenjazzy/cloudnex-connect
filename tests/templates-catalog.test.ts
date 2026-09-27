@@ -27,7 +27,7 @@ describe('product catalogue carousel', () => {
     expect(json).toContain('Order Now');
     expect(json).toContain('View Details');
     expect(json).not.toContain('"text":"Stock"');
-    expect(json).toContain('"size":"xxl"');
+    expect(json).toContain('"size":"xl"');
     expect(json).toContain('Price');
     expect(json).toContain('"paddingStart":"xl"');
     expect(json).toContain('"paddingEnd":"xl"');

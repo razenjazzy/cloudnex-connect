@@ -1,6 +1,7 @@
 # Second staging copy at /opt/cns-line-oa (Admin under /cloudnex-connect/admin/test).
 # Same image tag as primary. Operator-owned .env — copy from primary, do not commit.
 # Own Redis so BullMQ keys do not collide with the primary stack.
+name: cns-line-oa-staging
 # Do not point the same LINE OA webhook at this process unless it has distinct
 # LINE_CHANNEL_* credentials. HMAC /webhook* stays on primary 8080 by default.
 services:

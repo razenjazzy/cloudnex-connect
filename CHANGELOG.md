@@ -1,5 +1,11 @@
 # Changelog
 
+## v11.0.4 — Odoo LINE OA v8 (2026-09-28)
+
+- VPS deploy ships the image over SSH when Docker Hub push is denied; staging and production Compose projects stay isolated.
+- Jobs Save accepts a pasted token that matches the VPS `ADMIN_SECRET_TOKEN` without overlay overwrite while `ADMIN_CONFIG_LOCK` is on.
+- `staging-vps` Actions job always runs (green when opt-in is off). Customer catalog amount stays Flex `xl`.
+
 ## v11.0.3 — Odoo LINE OA v8 (2026-09-27)
 
 - CI tests match tenant-scoped channel overlay keys, catalog carousel channel args, and locked Admin bootstrap.

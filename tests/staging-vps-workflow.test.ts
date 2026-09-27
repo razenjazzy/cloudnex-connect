@@ -9,8 +9,10 @@ describe('staging-vps workflow', () => {
     expect(yaml).not.toMatch(/if:\s*\$\{\{\s*secrets\./);
   });
 
-  it('opts in via repository variable ENABLE_STAGING_VPS_DEPLOY', () => {
-    expect(yaml).toContain("vars.ENABLE_STAGING_VPS_DEPLOY == 'true'");
+  it('opts in via repository variable ENABLE_STAGING_VPS_DEPLOY without skipping the job', () => {
+    expect(yaml).toContain('ENABLE_STAGING_VPS_DEPLOY');
+    expect(yaml).toContain('echo "run=false"');
+    expect(yaml).not.toMatch(/^\s{4}if:\s*\$\{\{\s*vars\.ENABLE_STAGING_VPS_DEPLOY/m);
   });
 
   it('deploys the sibling staging lane, not host-root validate-staging', () => {

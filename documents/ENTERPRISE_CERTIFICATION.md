@@ -101,7 +101,7 @@ Flex under [src/line/templates/](../src/line/templates/); title **CloudNEx Conne
 | Customer webhook | `https://amardhaka.io/webhook/customer` active, test OK |
 | Git | [razenjazzy/cloudnex-connect](https://github.com/razenjazzy/cloudnex-connect) |
 | Image | `razenjazzy/cloudnex-connect:staging` |
-| Deploy | `npm run deploy:staging-vm`; Actions opt-in via `ENABLE_STAGING_VPS_DEPLOY` |
+| Deploy | `npm run deploy:staging-vm` (Hub or SSH load); Actions opt-in via `ENABLE_STAGING_VPS_DEPLOY` (job always green) |
 
 ---
 

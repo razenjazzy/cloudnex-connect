@@ -327,7 +327,11 @@ export const registerAdminApiRoutes = (app: Express): void => {
     await hydrateRuntimeSettings();
     const token = String(req.body?.token || '').trim();
     if (token.length < 16) return res.status(400).json({ error: 'ADMIN_SECRET_TOKEN must be at least 16 characters.' });
-    if (process.env.ADMIN_SECRET_TOKEN?.trim() && isAdminConfigLocked()) {
+    const envToken = process.env.ADMIN_SECRET_TOKEN?.trim() || '';
+    if (envToken && isAdminConfigLocked()) {
+      if (safeTokenMatch(token, envToken)) {
+        return res.json({ ok: true, stored: 'env' });
+      }
       return res.status(403).json({
         error: 'ADMIN_SECRET_TOKEN is set on the VPS. Paste that value in the Jobs field (this browser). Unlock ADMIN_CONFIG_LOCK=false to replace it from Admin.',
         stored: 'env',

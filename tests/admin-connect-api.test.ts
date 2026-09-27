@@ -72,6 +72,7 @@ describe('Cloudnex Connect admin API', () => {
     'LINE_CHANNEL_SECRET',
     'LINE_CHANNEL_ACCESS_TOKEN',
     'ADMIN_CONFIG_LOCK',
+    'ADMIN_SECRET_TOKEN',
     'SECRET_REVEAL_TTL_SECONDS',
     'SECRETS_ENCRYPTION_KEY',
   ];
@@ -155,6 +156,36 @@ describe('Cloudnex Connect admin API', () => {
     expect(body.ok).not.toBe(true);
     expect(body.lock).toBe(true);
     expect(body.error).toMatch(/ADMIN_CONFIG_LOCK/);
+    expect(mockedSetConfig).not.toHaveBeenCalled();
+  });
+
+  it('keeps a matching VPS ADMIN_SECRET_TOKEN in the browser when lock is on', async () => {
+    process.env.ADMIN_SECRET_TOKEN = 'vps-admin-token-16';
+    mockedSetConfig.mockClear();
+    const res = await fetch(`${base()}/admin/api/jobs-token`, {
+      method: 'PUT',
+      headers: { ...ops, 'content-type': 'application/json' },
+      body: JSON.stringify({ token: 'vps-admin-token-16' }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { ok?: boolean; stored?: string };
+    expect(body.ok).toBe(true);
+    expect(body.stored).toBe('env');
+    expect(mockedSetConfig).not.toHaveBeenCalled();
+  });
+
+  it('does not overwrite the VPS ADMIN_SECRET_TOKEN from Jobs when lock is on', async () => {
+    process.env.ADMIN_SECRET_TOKEN = 'vps-admin-token-16';
+    const res = await fetch(`${base()}/admin/api/jobs-token`, {
+      method: 'PUT',
+      headers: { ...ops, 'content-type': 'application/json' },
+      body: JSON.stringify({ token: 'different-token-16' }),
+    });
+    expect(res.status).toBe(403);
+    const body = await res.json() as { ok?: boolean; stored?: string; error?: string };
+    expect(body.ok).not.toBe(true);
+    expect(body.stored).toBe('env');
+    expect(body.error).toMatch(/ADMIN_CONFIG_LOCK|VPS/);
     expect(mockedSetConfig).not.toHaveBeenCalled();
   });
 

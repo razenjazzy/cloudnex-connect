@@ -1,3 +1,14 @@
+# Release notes — v11.0.4
+
+**Date:** 2026-09-28  
+**Package version:** `11.0.4`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`) + production HMAC `:8080`.  
+**Commit title:** `Release: v11.0.4 - Odoo Line OA v8 Bug Fix`
+
+Same image on both VPS lanes. Hub push is optional; SSH `docker load` when Hub denies. Jobs cannot replace a locked VPS secret; a matching paste is kept in the browser. Cloud Run `deploy:prod` still requires signoff.
+
+---
+
 # Release notes — v11.0.3
 
 **Date:** 2026-09-27  

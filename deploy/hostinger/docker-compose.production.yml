@@ -1,5 +1,6 @@
 # Production on Hostinger VPS (/opt/cloudnex-connect). HMAC /webhook* on :8080.
 # Demo and webhook-test stay off. Env file is on the server only.
+name: cloudnex-connect-production
 services:
   redis:
     image: redis:7-alpine
