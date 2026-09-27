@@ -1,5 +1,9 @@
 # Changelog
 
+## v12.0.2 — Odoo LINE OA v9 (2026-09-29)
+
+- CI: Customer PRODUCT FIND source assertion matches shop vs staff catalog search.
+
 ## v12.0.1 — Odoo LINE OA v9 (2026-09-29)
 
 - Customer commerce is exclusive quote XOR shop (`CUSTOMER_COMMERCE`). Shop Flex: cart, order process, optional coupon, web Pay, payment callback, Order completed.

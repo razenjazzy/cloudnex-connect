@@ -42,7 +42,8 @@ describe('product find selection', () => {
     expect(productFindId('11')).toBe(11);
     expect(productFindId('App Premium')).toBeNull();
     const commerce = readFileSync('src/line/handlers/commerce.ts', 'utf8');
-    expect(commerce).toContain('lookedUp ? [] : await erp.searchProducts');
+    expect(commerce).toContain('lookedUp ? [] : await (isQuoteStaff(ctx.profile) ? erp.searchProducts');
+    expect(commerce).toContain('searchAudienceProducts(query, 10)');
     expect(commerce).not.toContain('lookedUp || id');
   });
 });
