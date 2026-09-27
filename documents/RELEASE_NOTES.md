@@ -1,3 +1,14 @@
+# Release notes — v12.0.1
+
+**Date:** 2026-09-29  
+**Package version:** `12.0.1`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`) + production HMAC `:8080`.  
+**Commit title:** `Release: v12.0.1 - Odoo Line OA v9 Staging Deploy`
+
+Customer OA quote XOR shop. Shop cart → checkout → optional coupon → `/shop/pay` → Odoo pay → `payment.done` / `CART STATUS` → Order completed. Cloud Run `deploy:prod` still requires signoff.
+
+---
+
 # Release notes — v11.0.5
 
 **Date:** 2026-09-28  

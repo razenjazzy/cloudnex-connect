@@ -1,5 +1,6 @@
+import { getRuntime } from '../services/runtime-settings';
 import { createServiceCatalogItem, deleteServiceCatalogItem, findProductsByQuery, getProductById, getServiceByIdentifier, listProducts, listServiceCatalogItems, updateServiceCatalogItem } from '../services/odoo/catalog';
-import { addSaleOrderLine, cancelSaleOrder, confirmSaleOrder, createInvoiceForSaleOrder, createQuotationFromLine, findOrderByReference, findPaymentTermByName, getSaleOrderById, getSaleOrderPdfLink, getSaleOrderPortalLink, removeSaleOrderLine, sendQuotationEmail, updateSaleOrderLineQty } from '../services/odoo/sales';
+import { addSaleOrderLine, addToShopCart as addToShopCartOrder, applyShopCoupon, cancelSaleOrder, confirmSaleOrder, createInvoiceForSaleOrder, createQuotationFromLine, findLatestShopOrder, findOpenShopCart, findOrderByReference, findPaymentTermByName, getSaleOrderById, getSaleOrderPdfLink, getSaleOrderPortalLink, getShopWebLinks, removeSaleOrderLine, sendQuotationEmail, updateSaleOrderLineQty } from '../services/odoo/sales';
 import { createPartnerFromLine, deletePartnerFromLine, getPartnerByName, getPartnerByPhone, updatePartnerFromLine } from '../services/odoo/partners';
 import { getDailySalesSnapshot } from '../services/odoo/reporting';
 import { getOutgoingPickingForOrder } from '../services/odoo/delivery';
@@ -113,6 +114,7 @@ export const odooAdapter: ErpAdapter = {
     supportsOrderConfirmation: true,
     supportsInvoiceCreation: true,
     supportsDailyReport: true,
+    supportsWebsiteShop: true,
   },
   async searchProducts(query: string, limit = 10): Promise<ErpProduct[]> {
     const normalized = query.trim().toLowerCase();
@@ -134,6 +136,46 @@ export const odooAdapter: ErpAdapter = {
     }
     const products = await findProductsByQuery(normalized, limit);
     return withPublicImages(products);
+  },
+  async listShopProducts(query = '', limit = 10): Promise<ErpProduct[]> {
+    const websiteId = Number.parseInt(getRuntime('ODOO_WEBSITE_ID') || '', 10);
+    if (!Number.isInteger(websiteId) || websiteId <= 0) return [];
+    const normalized = query.trim();
+    const products = normalized
+      ? await findProductsByQuery(normalized, limit, { websiteId })
+      : await listProducts(limit, { websiteId });
+    return withPublicImages(products);
+  },
+  async getCheckoutLink(orderId: number): Promise<string | null> {
+    const portal = await getSaleOrderPortalLink(orderId);
+    if (!portal || !portal.toLowerCase().startsWith('https://')) return null;
+    return portal;
+  },
+  async getShopWebLinks() {
+    return getShopWebLinks();
+  },
+  async findOpenShopCart(partnerId: number, websiteId: number): Promise<number | null> {
+    const cart = await findOpenShopCart(partnerId, websiteId);
+    return cart?.id ?? null;
+  },
+  async findLatestShopOrder(partnerId: number, websiteId: number): Promise<number | null> {
+    const order = await findLatestShopOrder(partnerId, websiteId);
+    return order?.id ?? null;
+  },
+  async addToShopCart(input: {
+    partnerId: number;
+    customerName: string;
+    phone: string;
+    productId: number;
+    qty: number;
+    websiteId: number;
+  }): Promise<ErpQuoteDraft | null> {
+    const order = await addToShopCartOrder(input);
+    if (!order) return null;
+    return { id: order.id, name: order.name, total: order.amount_total, currency: 'THB' };
+  },
+  async applyShopCoupon(orderId: number, code: string) {
+    return applyShopCoupon(orderId, code);
   },
   peekCachedProducts,
   async listServices(limit = 10): Promise<ErpService[]> {

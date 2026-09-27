@@ -91,6 +91,8 @@ describe('product card quote CTA', () => {
     });
     const json = JSON.stringify(message);
     expect(json).toContain('Short product copy from Odoo.');
+    expect(json).toContain('"size":"xs"');
+    expect(json).toContain('"backgroundColor":"#F1F4F2"');
     expect(json).toContain('FORM QUOTE CREATE FROM CARD 11');
     expect(json).toContain('FORM MESSAGE REQUEST 11');
     expect(json).toContain('Order Now');
@@ -98,10 +100,10 @@ describe('product card quote CTA', () => {
     expect(json.indexOf('FORM QUOTE CREATE FROM CARD')).toBeLessThan(json.indexOf('FORM MESSAGE REQUEST'));
     expect(json.indexOf('"text":"NAV HOME"')).toBeLessThan(json.indexOf('"text":"BACK"'));
     expect(json).not.toContain('"text":"Stock"');
-    expect(json).toContain('"size":"xl"');
-    expect(json).toContain('THB');
-    expect(json).toContain('"backgroundColor":"#E3F0EE"');
-    expect(json).toContain('"paddingAll":"md"');
+    const priceBox = (message.contents as { body?: { contents?: Array<{ backgroundColor?: string; paddingAll?: string; contents?: Array<{ text?: string; size?: string; color?: string; weight?: string }> }> } }).body?.contents?.find(row => row.backgroundColor === '#E3F0EE');
+    expect(priceBox?.paddingAll).toBe('md');
+    expect(priceBox?.contents?.[0]).toMatchObject({ text: 'Price', size: 'xs' });
+    expect(priceBox?.contents?.[1]).toMatchObject({ text: '100 THB', size: 'xl', weight: 'bold', color: '#063F3D' });
   });
 
   it('still shows a short description on Customer OA when the overlay row is off', () => {
@@ -277,6 +279,19 @@ describe('quotation journey state actions', () => {
     expect(json).not.toContain('QUOTE MORE');
   });
 
+  it('uses Pay URI and omits Quote Received in shop mode', () => {
+    const json = JSON.stringify(createQuotationJourneyFlexMessage(
+      { ...order, state: 'draft' },
+      { role: 'customer', shopMode: true, portalLink: 'https://example.com/pay' },
+      'en',
+    ));
+    expect(json).toContain('https://example.com/pay');
+    expect(json).toContain('Pay');
+    expect(json).not.toContain('QUOTE APPROVE');
+    expect(json).not.toContain('Waiting for sales');
+    expect(json).not.toContain('Quote Received');
+  });
+
   it('gives the customer Invoice, Order Details, Home, and Order History on a sales order', () => {
     const message = createQuotationJourneyFlexMessage(
       { ...order, state: 'sale', invoice_status: 'invoiced' },
@@ -368,6 +383,7 @@ describe('quotation edit card', () => {
     expect(json).toContain('QUOTE LINES 17');
     expect(json).toContain('QUOTE CANCEL 17');
     expect(json.indexOf('QUOTE CANCEL 17')).toBeLessThan(json.indexOf('QUOTE STATUS 17'));
+    expect(json).toMatch(/"layout":"horizontal"[^]*QUOTE CANCEL 17[^]*QUOTE STATUS 17/);
   });
 
   it('lists lines with edit and remove prefills from More', () => {

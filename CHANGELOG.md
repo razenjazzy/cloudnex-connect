@@ -1,5 +1,10 @@
 # Changelog
 
+## v12.0.1 — Odoo LINE OA v9 (2026-09-29)
+
+- Customer commerce is exclusive quote XOR shop (`CUSTOMER_COMMERCE`). Shop Flex: cart, order process, optional coupon, web Pay, payment callback, Order completed.
+- Admin Tenants/Live/Studio surfaces; demo write gates use live `resolveDemoEnabled()`.
+
 ## v11.0.5 — Odoo LINE OA v8 (2026-09-28)
 
 - Customer catalog Price uses the same teal highlight box as Order Total. Quote Received, Order History above Home, Sales More|Home, More Cancel|Back.

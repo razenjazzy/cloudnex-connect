@@ -5,7 +5,7 @@ import { t, tFill, stateLabel, invoiceStatusLabel, type Lang } from '../../servi
 import { bindPostbackData } from '../postback';
 import { overlayLabelForText } from '../command-overlay';
 import { catalogUiLabel } from '../catalog-ui';
-import { BRAND, amountHighlightBox, createDatePickerButton, createMessageActionButton, createPrefillButton, createUriActionButton, flexBubbleStyles, flexHeaderBox, formatMoney, truncate } from './shared';
+import { BRAND, amountHighlightBox, createDatePickerButton, createMessageActionButton, createPrefillButton, createUriActionButton, flexBubbleStyles, flexHeaderBox, formatMoney, mutedNoteBox, truncate } from './shared';
 import type { QuoteAskThread } from '../quote-ask';
 
 const tr = (language: Lang, th: string, en: string): string => (language === 'en' ? en : th);
@@ -33,10 +33,11 @@ const pairButtons = (left: messagingApi.FlexButton, right: messagingApi.FlexButt
  */
 export const createQuotationJourneyFlexMessage = (
   order: OdooSaleOrder,
-  options: { role: 'admin' | 'customer'; salesTier?: 'salesperson' | 'sales_manager'; canManageLines?: boolean; portalLink?: string; pdfLink?: string; delivery?: ErpDeliveryStatus },
+  options: { role: 'admin' | 'customer'; salesTier?: 'salesperson' | 'sales_manager'; canManageLines?: boolean; portalLink?: string; pdfLink?: string; delivery?: ErpDeliveryStatus; shopMode?: boolean },
   language: Lang
 ): messagingApi.FlexMessage => {
   const customerView = options.role === 'customer';
+  const shopMode = Boolean(options.shopMode && customerView);
   const audience = customerView ? 'customer' : 'staff';
   const customerName = order.partner_id?.[1] || '-';
   const isCancelled = order.state === 'cancel';
@@ -108,9 +109,13 @@ export const createQuotationJourneyFlexMessage = (
           contents: [
             {
               type: 'text',
-              text: state === 'sent' && customerView
-                ? catalogUiLabel('glossary-quotation-received', language, { en: 'Quote Received', th: 'รับใบเสนอราคาแล้ว' })
-                : stateLabel(state, language, audience),
+              text: shopMode
+                ? (state === 'sent'
+                  ? (language === 'en' ? 'Checkout' : 'รอชำระ')
+                  : stateLabel(state, language, audience))
+                : state === 'sent' && customerView
+                  ? catalogUiLabel('glossary-quotation-received', language, { en: 'Quote Received', th: 'รับใบเสนอราคาแล้ว' })
+                  : stateLabel(state, language, audience),
               size: 'xxs',
               align: 'center',
               wrap: true,
@@ -152,18 +157,21 @@ export const createQuotationJourneyFlexMessage = (
           : createMessageActionButton(t('sendInvoice', language), `QUOTE INVOICE SEND ${order.id}`, 'secondary', BRAND.tealTint));
     }
   } else if (!isCancelled && isSent) {
-    bodyActions.push(createMessageActionButton(t('confirm', language), `QUOTE APPROVE ${order.id}`, 'primary', BRAND.teal));
+    if (shopMode) {
+      if (options.portalLink) {
+        bodyActions.push(createUriActionButton(t('pay', language), options.portalLink, 'primary', BRAND.teal));
+      }
+    } else {
+      bodyActions.push(createMessageActionButton(t('confirm', language), `QUOTE APPROVE ${order.id}`, 'primary', BRAND.teal));
+    }
   } else if (!isCancelled && isDraft) {
-    bodyActions.push({
-      type: 'box',
-      layout: 'vertical',
-      backgroundColor: BRAND.paper,
-      cornerRadius: BRAND.radius,
-      paddingAll: 'sm',
-      contents: [
-        { type: 'text', text: t('quoteWaitingForSales', language), size: 'xs', color: BRAND.inkSoft, wrap: true },
-      ],
-    });
+    if (shopMode) {
+      if (options.portalLink) {
+        bodyActions.push(createUriActionButton(t('pay', language), options.portalLink, 'primary', BRAND.teal));
+      }
+    } else {
+      bodyActions.push(mutedNoteBox(t('quoteWaitingForSales', language)));
+    }
   } else if (!isCancelled && isSale && options.portalLink) {
     bodyActions.push(createUriActionButton(t('invoiceField', language), options.portalLink, 'secondary', BRAND.goldTint));
   }
@@ -242,16 +250,7 @@ export const createQuotationJourneyFlexMessage = (
               ...(extraCount > 0 ? [{ type: 'text' as const, text: `+${extraCount} ${t('moreItems', language)}`, size: 'xs' as const, color: BRAND.inkSoft }] : []),
             ],
           }] : []),
-          ...(order.note ? [{
-            type: 'box' as const,
-            layout: 'vertical' as const,
-            backgroundColor: BRAND.paper,
-            cornerRadius: BRAND.radius,
-            paddingAll: 'sm' as const,
-            contents: [
-              { type: 'text' as const, text: truncate(order.note, 200), size: 'xs' as const, color: BRAND.inkSoft, wrap: true },
-            ],
-          }] : []),
+          ...(order.note ? [mutedNoteBox(truncate(order.note, 200))] : []),
           amountHighlightBox(
             t('total', language),
             formatMoney(order.amount_total, language),

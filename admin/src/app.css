@@ -565,6 +565,20 @@ button.copy {
 .warn { color: #8a5a00; background: #fff6e5; padding: 0.75rem 1rem; border-radius: 8px; margin: 0; }
 .table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0; }
 table { width: 100%; border-collapse: collapse; font-size: 0.9rem; min-width: 28rem; }
+table.lang-grid th:nth-child(1), table.lang-grid td:nth-child(1) { width: 22%; }
+table.lang-grid th:nth-child(2), table.lang-grid td:nth-child(2) { width: 12%; }
+table.commands-grid { min-width: 64rem; table-layout: fixed; }
+table.commands-grid th:nth-child(1), table.commands-grid td:nth-child(1) { width: 2.6rem; }
+table.commands-grid th:nth-child(2), table.commands-grid td:nth-child(2) { width: 22%; }
+table.commands-grid th:nth-child(3), table.commands-grid td:nth-child(3) { width: 9%; white-space: nowrap; }
+table.commands-grid th:nth-child(4), table.commands-grid td:nth-child(4),
+table.commands-grid th:nth-child(5), table.commands-grid td:nth-child(5) { width: 16%; }
+table.commands-grid th:nth-child(6), table.commands-grid td:nth-child(6),
+table.commands-grid th:nth-child(8), table.commands-grid td:nth-child(8) { width: 9%; }
+table.commands-grid th:nth-child(7), table.commands-grid td:nth-child(7) { width: 11%; }
+#demo-modules, #demo-ops, #demo-chat, #demo-pricing, #demo-journey { scroll-margin-top: 4.75rem; }
+.demo-jump { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.demo-jump button { background: #5c6f6c; }
 th, td { text-align: left; padding: 0.55rem 0.45rem; border-bottom: 1px solid #e6eeec; word-break: break-word; vertical-align: top; }
 .row, .field-row {
   display: flex;
@@ -625,6 +639,9 @@ code { background: #eef4f2; padding: 0.1rem 0.35rem; border-radius: 4px; word-br
 .chat-log { background: #eef1f0; border-radius: 8px; padding: 0.75rem; min-height: 8rem; margin: 0; }
 .chat-log p { margin: 0 0 0.4rem; }
 .chat-user { color: #0f6e62; }
+.studio-io { display: flex; flex-direction: column; gap: 0.65rem; }
+.studio-io label { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; }
+.studio-out { min-height: 9rem; white-space: pre-wrap; word-break: break-word; margin: 0; }
 .card pre { overflow-x: auto; background: #eef1f0; padding: 0.75rem; border-radius: 8px; font-size: 0.8rem; }
 
 @media (max-width: 720px) {

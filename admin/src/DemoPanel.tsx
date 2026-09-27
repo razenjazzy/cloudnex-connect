@@ -5,10 +5,12 @@ import { CopyField, Steps } from './ui';
 type ApiFn = (path: string, init?: RequestInit) => Promise<Response>;
 
 type ModuleRow = {
+  id?: string;
   name: string;
   status: string;
   audience: string;
   store: string;
+  adminLeaf?: string;
   demoTalkTrack: string;
   commands?: string[];
 };
@@ -18,6 +20,7 @@ type PlatformPayload = {
   demoDayScript?: string[];
   modules?: ModuleRow[];
   error?: string;
+  flags?: { appEnv?: string };
 };
 
 const platformPayload = (raw: unknown): PlatformPayload | null => {
@@ -41,7 +44,7 @@ const PRICING_FIELDS = [
 
 const pretty = (value: unknown): string => JSON.stringify(value, null, 2);
 
-export const DemoPanel = ({ adminBase, api }: { adminBase: string; api: ApiFn }) => {
+export const DemoPanel = ({ adminBase, api, go }: { adminBase: string; api: ApiFn; go: (href: string) => void }) => {
   const demoApi = `${adminBase}/api/demo`;
   const [out, setOut] = useState<Record<string, string>>({});
   const [modules, setModules] = useState<ModuleRow[]>([]);
@@ -51,6 +54,7 @@ export const DemoPanel = ({ adminBase, api }: { adminBase: string; api: ApiFn })
   const [chatText, setChatText] = useState('');
   const [transcript, setTranscript] = useState<Array<{ kind: string; text: string }>>([]);
   const [pricing, setPricing] = useState<Record<string, string>>({});
+  const [writesEnabled, setWritesEnabled] = useState(false);
   const [journey, setJourney] = useState({
     userId: 'web_demo_user',
     language: 'en',
@@ -73,6 +77,12 @@ export const DemoPanel = ({ adminBase, api }: { adminBase: string; api: ApiFn })
   useEffect(() => {
     void (async () => {
       try {
+        let liveModules: ModuleRow[] = [];
+        const liveRes = await api(`${adminBase}/api/live/modules`);
+        const liveBody = await liveRes.json().catch(() => ({})) as PlatformPayload & { modules?: ModuleRow[] };
+        if (liveRes.ok && Array.isArray(liveBody.modules) && liveBody.modules.length) {
+          liveModules = liveBody.modules;
+        }
         const demoRes = await api(`${demoApi}/platform`);
         const demoBody = await demoRes.json().catch(() => ({})) as PlatformPayload;
         const fromDemo = demoRes.ok ? platformPayload(demoBody) : null;
@@ -93,12 +103,18 @@ export const DemoPanel = ({ adminBase, api }: { adminBase: string; api: ApiFn })
           }
         }
         const data = payloadHasContent(fromDemo) ? fromDemo : fromSettings;
-        if (!payloadHasContent(data)) {
+        if (!payloadHasContent(data) && !liveModules.length) {
           throw new Error([demoNote, settingsNote].filter(Boolean).join(' ') || 'No module inventory to show.');
         }
-        setStores(`Firestore: ${data.stores?.firestore || '—'} · Odoo: ${data.stores?.odoo || '—'} · Mongo: ${data.stores?.mongo || '—'}`);
-        setScript((data.demoDayScript || []).map((step, i) => `${i + 1}. ${step}`).join('\n'));
-        setModules(data.modules || []);
+        if (data) {
+          setStores(`Firestore: ${data.stores?.firestore || '—'} · Odoo: ${data.stores?.odoo || '—'} · Mongo: ${data.stores?.mongo || '—'}`);
+          setScript((data.demoDayScript || []).map((step, i) => `${i + 1}. ${step}`).join('\n'));
+        } else {
+          setStores('Live module pages loaded. Demo talk track unavailable on this host.');
+        }
+        setModules(liveModules.length ? liveModules : (data?.modules || []));
+        const appEnv = (demoBody as PlatformPayload).flags?.appEnv;
+        setWritesEnabled(appEnv === 'development' || appEnv === 'staging');
       } catch (error) {
         setStores(String(error));
       }
@@ -120,29 +136,45 @@ export const DemoPanel = ({ adminBase, api }: { adminBase: string; api: ApiFn })
     setTranscript(prev => [...prev, ...(body.transcript || [])]);
   };
 
+  const jump = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <>
       <div className="card">
         <h2>Demo</h2>
-        <p>Same <code>resolveCommandReply</code> as LINE. Off when APP_ENV=production. OPS session is enough — no separate demo token.</p>
+        <p>
+          Catalogue and talk track for Admin testing. Live LINE/Odoo data is on Work pages (Products, Catalog, CRM, Group-buy, Approvals, Reporting). Chat, journey, and pricing save stay off in production.
+        </p>
+        {!writesEnabled ? <p className="warn">This host is production: read-only inventory. Use staging Admin (<code>/admin/test</code>) or local development for web chat and journey writes.</p> : null}
         <nav className="demo-jump">
-          <a href="#demo-modules">Modules</a>
-          <a href="#demo-ops">Ops</a>
-          <a href="#demo-chat">Chat</a>
-          <a href="#demo-pricing">Pricing</a>
-          <a href="#demo-journey">Journey</a>
+          {([
+            ['demo-modules', 'Modules'],
+            ['demo-ops', 'Ops'],
+            ['demo-chat', 'Chat'],
+            ['demo-pricing', 'Pricing'],
+            ['demo-journey', 'Journey'],
+          ] as const).map(([id, label]) => (
+            <button key={id} type="button" className="secondary" onClick={() => jump(id)}>{label}</button>
+          ))}
         </nav>
       </div>
       <div className="card" id="demo-modules">
-        <h2>Service modules</h2>
+        <h2>Service modules (catalogue)</h2>
         <p>{stores}</p>
         <div className="module-grid">
           {modules.map(mod => (
-            <div className="module-card" key={mod.name}>
+            <div className="module-card" key={mod.id || mod.name}>
               <h3>{mod.name} ({mod.status})</h3>
               <p>{mod.audience} · store: {mod.store}</p>
               <p>{mod.demoTalkTrack}</p>
               <code>{(mod.commands || []).slice(0, 4).join(' · ')}</code>
+              {mod.adminLeaf ? (
+                <div className="row">
+                  <button type="button" onClick={() => go(`${adminBase}/${mod.adminLeaf}`)}>Open live page</button>
+                </div>
+              ) : null}
             </div>
           ))}
         </div>
@@ -192,7 +224,7 @@ export const DemoPanel = ({ adminBase, api }: { adminBase: string; api: ApiFn })
             <label>Message</label>
             <input value={chatText} onChange={e => setChatText(e.target.value)} placeholder="FORM QUOTE CREATE or NAV HOME" />
           </div>
-          <button type="submit">Send</button>
+          <button type="submit" disabled={!writesEnabled}>Send</button>
         </form>
       </div>
       <div className="card" id="demo-pricing">
@@ -207,13 +239,13 @@ export const DemoPanel = ({ adminBase, api }: { adminBase: string; api: ApiFn })
               note('pricing', data);
             } catch (error) { note('pricing', String(error)); }
           }}>Load model</button>
-          <button type="button" onClick={async () => {
+          <button type="button" disabled={!writesEnabled} onClick={async () => {
             const payload: Record<string, number> = {};
             for (const key of PRICING_FIELDS) payload[key] = Number(pricing[key] || 0);
             const res = await api(`${demoApi}/pricing-model`, { method: 'PUT', body: JSON.stringify(payload) });
             note('pricing', await res.json());
           }}>Save model</button>
-          <button type="button" className="secondary" onClick={async () => {
+          <button type="button" className="secondary" disabled={!writesEnabled} onClick={async () => {
             const payload: Record<string, number> = {};
             for (const key of PRICING_FIELDS) payload[key] = Number(pricing[key] || 0);
             const res = await api(`${demoApi}/pricing-simulation`, { method: 'POST', body: JSON.stringify(payload) });
@@ -241,11 +273,11 @@ export const DemoPanel = ({ adminBase, api }: { adminBase: string; api: ApiFn })
           ))}
         </div>
         <div className="row">
-          <button type="button" onClick={async () => {
+          <button type="button" disabled={!writesEnabled} onClick={async () => {
             const res = await api(`${demoApi}/journey`, { method: 'POST', body: JSON.stringify({ ...journey, qty: Number(journey.qty), seedOdoo: true }) });
             note('journey', await res.json());
           }}>Run journey</button>
-          <button type="button" className="secondary" onClick={async () => {
+          <button type="button" className="secondary" disabled={!writesEnabled} onClick={async () => {
             const res = await fetch('/webhook-test', {
               method: 'POST',
               credentials: 'include',

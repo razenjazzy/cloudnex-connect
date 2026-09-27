@@ -14,8 +14,8 @@ import {
   allowDemoHeaderTokenFallbackInProd,
   demoControlToken,
   demoSessionTtlMinutes,
-  isDemoControlEnabled,
   isProduction,
+  resolveDemoEnabled,
 } from './env';
 import { adminBase, demoBase } from './public-bases';
 import { registerDemoJsonRoutes } from './demo-api';
@@ -24,7 +24,7 @@ export const registerDemoRoutes = (app: Express): void => {
   const D = demoBase();
 
   app.post(`${D}/session/login`, jsonParser, async (req, res) => {
-    if (!isDemoControlEnabled) return res.status(404).json({ error: 'Demo control panel is disabled.' });
+    if (!resolveDemoEnabled()) return res.status(404).json({ error: 'Demo control panel is disabled.' });
     await ensureDemoSessionStateLoaded();
     const activeSecret = getActiveDemoSessionSecret();
     if (!demoControlToken || !activeSecret) {
@@ -45,7 +45,7 @@ export const registerDemoRoutes = (app: Express): void => {
   });
 
   app.get(`${D}/session/status`, (req, res) => {
-    if (!isDemoControlEnabled) return res.status(404).json({ error: 'Demo control panel is disabled.' });
+    if (!resolveDemoEnabled()) return res.status(404).json({ error: 'Demo control panel is disabled.' });
     if (!isProduction) {
       return res.json({ authenticated: true, mode: 'development', sessionOnlyProduction: !allowDemoHeaderTokenFallbackInProd });
     }
@@ -61,7 +61,7 @@ export const registerDemoRoutes = (app: Express): void => {
   });
 
   app.get(D, (_req, res) => {
-    if (!isDemoControlEnabled) return res.status(404).json({ error: 'Demo control panel is disabled.' });
+    if (!resolveDemoEnabled()) return res.status(404).json({ error: 'Demo control panel is disabled.' });
     return res.redirect(302, `${adminBase()}/testing`);
   });
 

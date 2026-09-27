@@ -22,6 +22,9 @@ describe('service modules catalog', () => {
     expect(SERVICE_MODULES.filter(mod => mod.store === 'mongo').map(mod => mod.id)).toEqual(['aiFallback']);
     expect(SERVICE_MODULES.find(mod => mod.id === 'erp')?.store).toBe('odoo');
     expect(SERVICE_MODULES.find(mod => mod.id === 'identity')?.store).toBe('firestore');
+    expect(SERVICE_MODULES.every(mod => Boolean(mod.adminLeaf))).toBe(true);
+    expect(SERVICE_MODULES.find(mod => mod.id === 'commerce')?.adminLeaf).toBe('commerce');
+    expect(SERVICE_MODULES.find(mod => mod.id === 'catalog')?.adminLeaf).toBe('catalog');
   });
 
   it('exposes a demo-day payload with talk track', () => {

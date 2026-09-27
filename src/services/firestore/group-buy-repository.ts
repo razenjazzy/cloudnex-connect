@@ -6,6 +6,7 @@ export {
   getGroupBuyById,
   joinGroupBuy,
   listGroupBuysByCreator,
+  listRecentGroupBuys,
 } from '../firestore';
 export type { GroupBuyRecord, GroupBuyStatus, GroupBuyWriteResult } from './types';
 export { getEffectiveGroupBuyStatus, parseGroupBuyRecord, withEffectiveGroupBuyStatus } from './group-buy';

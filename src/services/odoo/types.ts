@@ -9,6 +9,7 @@ export type OdooProduct = {
 };
 
 export type OdooSaleOrderLine = {
+  productId?: number;
   productName: string;
   qty: number;
   priceUnit: number;

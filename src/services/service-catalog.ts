@@ -54,6 +54,7 @@ export const SERVICE_CATALOG: ServiceDefinition[] = [
       { text: 'FORM ORDER STATUS', labelTh: 'ค้นหาออเดอร์', labelEn: 'Look up an order', audience: 'staff' },
       { text: 'QUOTE LIST', labelTh: 'ใบเสนอราคา', labelEn: 'Quotations', audience: 'staff' },
       { text: 'QUOTE LIST', labelTh: 'ประวัติคำสั่งซื้อ', labelEn: 'Order History', audience: 'customer' },
+      { text: 'CART', labelTh: 'ตะกร้า', labelEn: 'Cart', audience: 'customer' },
       { text: 'QUOTE ASK', labelTh: 'ขอใบเสนอราคา', labelEn: 'Ask for Quotations', audience: 'customer' },
       { text: 'FORM MESSAGE CUSTOMER', labelTh: 'ส่งข้อความหาลูกค้า (แอดมิน)', labelEn: 'Message a customer (admin)', requiresAdmin: true, audience: 'staff' },
     ],
@@ -136,6 +137,16 @@ const COMMAND_PREFIX_SERVICE_MAP: CommandPrefixMapping[] = [
   { prefix: 'QUOTE INVOICE', service: 'commerce', requiresOtp: true },
   { prefix: 'QUOTE LIST', service: 'commerce' },
   { prefix: 'QUOTE ASK', service: 'commerce' },
+  { prefix: 'CART CHECKOUT', service: 'commerce' },
+  { prefix: 'CART PAY', service: 'commerce' },
+  { prefix: 'CART STATUS', service: 'commerce' },
+  { prefix: 'CART COUPON', service: 'commerce', requiresOtp: true },
+  { prefix: 'FORM CART COUPON', service: 'commerce' },
+  { prefix: 'CART ADD', service: 'commerce', requiresOtp: true },
+  { prefix: 'CART REMOVE', service: 'commerce', requiresOtp: true },
+  { prefix: 'CART CLEAR', service: 'commerce', requiresOtp: true },
+  { prefix: 'CART VIEW', service: 'commerce' },
+  { prefix: 'CART', service: 'commerce' },
   { prefix: 'QUOTE MESSAGE', service: 'commerce', requiresOtp: true },
   { prefix: 'MESSAGE CUSTOMER', service: 'commerce', requiresOtp: true },
   { prefix: 'FORM MESSAGE CUSTOMER', service: 'commerce' },
@@ -217,11 +228,18 @@ export const isServiceEnabledForChannel = (service: ServiceKey, channel?: Channe
   return channelAllows && isLiveOverrideEnabled(service);
 };
 
-export const getVisibleCommands = (service: ServiceDefinition, isAdmin: boolean, isStaff = isAdmin): ServiceCommand[] => {
+export const getVisibleCommands = (
+  service: ServiceDefinition,
+  isAdmin: boolean,
+  isStaff = isAdmin,
+  options?: { shopMode?: boolean },
+): ServiceCommand[] => {
   return service.commands.filter(c => {
     if (c.requiresAdmin && !isAdmin) return false;
     if (c.audience === 'staff' && !isStaff) return false;
     if (c.audience === 'customer' && isStaff) return false;
+    if (options?.shopMode && c.text.toUpperCase() === 'QUOTE ASK') return false;
+    if (!options?.shopMode && c.text.toUpperCase() === 'CART') return false;
     return !isCommandDisabled(c.text.toUpperCase());
   });
 };

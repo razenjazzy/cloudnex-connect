@@ -1,6 +1,6 @@
 import { messagingApi } from '@line/bot-sdk';
 import { t } from '../../services/i18n';
-import { BRAND, amountHighlightBox, createMessageActionButton, createTapRow, flexBubbleStyles, flexHeaderBox, formatMoney, truncate, type ReportLanguage } from './shared';
+import { BRAND, amountHighlightBox, createMessageActionButton, createTapRow, flexBubbleStyles, flexHeaderBox, formatMoney, mutedNoteBox, truncate, type ReportLanguage } from './shared';
 import { catalogUiLabel, isCatalogUiVisible } from '../catalog-ui';
 import { CUSTOMER_CHANNEL_ID } from '../channels';
 import { catalogProductHeroUrl } from '../../erp/product-image-url';
@@ -177,7 +177,7 @@ export const createProductCardFlexMessage = (
     priceStockRow(price, stock, language, channelId),
   ];
   if (description) {
-    bodyContents.push({ type: 'text', text: truncate(description, 160), size: 'sm', color: BRAND.inkSoft, wrap: true });
+    bodyContents.push(mutedNoteBox(truncate(description, 160)));
   }
   return {
     type: 'flex',

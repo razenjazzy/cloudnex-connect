@@ -85,6 +85,7 @@ const parseOrder = (row: Record<string, unknown>): OdooSaleOrder => {
 const parseOrderLine = (row: Record<string, unknown>): OdooSaleOrderLine => {
   const product = Array.isArray(row.product_id) ? row.product_id : undefined;
   return {
+    productId: product && product.length >= 1 ? num(product[0]) : undefined,
     productName: product && product.length >= 2 ? str(product[1]) : '',
     qty: num(row.product_uom_qty),
     priceUnit: num(row.price_unit),
@@ -184,7 +185,27 @@ export const getProductById = async (productId: number): Promise<OdooProduct | n
  * need exactly one product (e.g. quote-line creation) still want that
  * single-result contract.
  */
-export const findProductsByQuery = async (query: string, limit = 5): Promise<OdooProduct[]> => {
+export type ProductCatalogFilter = {
+  websiteId?: number;
+};
+
+/**
+ * Shop catalog uses is_published plus website_id False or this website (Odoo 16/17 website_sale).
+ * If published search errors, callers get [] — do not fall back to sale_ok while shop is effective.
+ */
+const productCatalogDomain = (filter?: ProductCatalogFilter, nameIlike?: string): unknown[] => {
+  const domain: unknown[] = [['sale_ok', '=', true]];
+  if (filter?.websiteId) {
+    domain.push(['is_published', '=', true]);
+    domain.push('|');
+    domain.push(['website_id', '=', false]);
+    domain.push(['website_id', '=', filter.websiteId]);
+  }
+  if (nameIlike) domain.push(['name', 'ilike', nameIlike]);
+  return domain;
+};
+
+export const findProductsByQuery = async (query: string, limit = 5, filter?: ProductCatalogFilter): Promise<OdooProduct[]> => {
   const normalizedQuery = normalizeLookupText(query);
   if (!normalizedQuery) return [];
 
@@ -194,19 +215,27 @@ export const findProductsByQuery = async (query: string, limit = 5): Promise<Odo
   const uid = await loginRead(config);
   if (!uid) return [];
 
-  const rows = await executeKwRead<Record<string, unknown>[]>(
-    config,
-    uid,
-    'product.product',
-    'search_read',
-    [[['sale_ok', '=', true], ['name', 'ilike', normalizedQuery]]],
-    {
-      fields: PRODUCT_READ_FIELDS,
-      limit,
-    }
-  );
+  try {
+    const rows = await executeKwRead<Record<string, unknown>[]>(
+      config,
+      uid,
+      'product.product',
+      'search_read',
+      [productCatalogDomain(filter, normalizedQuery)],
+      {
+        fields: PRODUCT_READ_FIELDS,
+        limit,
+      }
+    );
 
-  return rows.map(parseProduct);
+    return rows.map(parseProduct);
+  } catch (error) {
+    if (filter?.websiteId) {
+      console.error('findProductsByQuery shop catalog failed:', error);
+      return [];
+    }
+    throw error;
+  }
 };
 
 /**
@@ -214,27 +243,35 @@ export const findProductsByQuery = async (query: string, limit = 5): Promise<Odo
  * listServiceCatalogItems's convention exactly, just without the
  * type='service' filter findProductByQuery also doesn't apply.
  */
-export const listProducts = async (limit = 10): Promise<OdooProduct[]> => {
+export const listProducts = async (limit = 10, filter?: ProductCatalogFilter): Promise<OdooProduct[]> => {
   const config = getConfig();
   if (!config) return [];
 
   const uid = await loginRead(config);
   if (!uid) return [];
 
-  const rows = await executeKwRead<Record<string, unknown>[]>(
-    config,
-    uid,
-    'product.product',
-    'search_read',
-    [[['sale_ok', '=', true]]],
-    {
-      fields: PRODUCT_READ_FIELDS,
-      limit,
-      order: 'write_date desc',
-    }
-  );
+  try {
+    const rows = await executeKwRead<Record<string, unknown>[]>(
+      config,
+      uid,
+      'product.product',
+      'search_read',
+      [productCatalogDomain(filter)],
+      {
+        fields: PRODUCT_READ_FIELDS,
+        limit,
+        order: 'write_date desc',
+      }
+    );
 
-  return rows.map(parseProduct);
+    return rows.map(parseProduct);
+  } catch (error) {
+    if (filter?.websiteId) {
+      console.error('listProducts shop catalog failed:', error);
+      return [];
+    }
+    throw error;
+  }
 };
 
 export const findOrderByReference = async (reference: string): Promise<OdooSaleOrder | null> => {
@@ -323,6 +360,98 @@ export const getSaleOrderPortalLink = async (orderId: number): Promise<string | 
   } catch (error) {
     console.error('getSaleOrderPortalLink failed:', error);
     return null;
+  }
+};
+
+const httpsOdooUrl = (path: string): string | null => {
+  const config = getConfig();
+  if (!config) return null;
+  const url = `${config.url.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
+  return /^https:\/\//i.test(url) ? url : null;
+};
+
+export const getShopWebLinks = (): { shop?: string; cart?: string } => {
+  const shop = httpsOdooUrl('/shop');
+  const cart = httpsOdooUrl('/shop/cart');
+  return {
+    ...(shop ? { shop } : {}),
+    ...(cart ? { cart } : {}),
+  };
+};
+
+export const findOpenShopCart = async (partnerId: number, websiteId: number): Promise<OdooSaleOrder | null> => {
+  if (!Number.isInteger(partnerId) || partnerId <= 0 || !Number.isInteger(websiteId) || websiteId <= 0) return null;
+  const config = getConfig();
+  if (!config) return null;
+  const uid = await loginRead(config);
+  if (!uid) return null;
+  try {
+    const rows = await executeKwRead<Record<string, unknown>[]>(
+      config,
+      uid,
+      'sale.order',
+      'search_read',
+      [[['partner_id', '=', partnerId], ['state', '=', 'draft'], ['website_id', '=', websiteId]]],
+      { fields: ['id', 'name', 'state', 'amount_total', 'partner_id', 'note'], limit: 1, order: 'write_date desc' },
+    );
+    if (!rows.length) return null;
+    return getSaleOrderById(num(rows[0].id));
+  } catch (error) {
+    console.error('findOpenShopCart failed:', error);
+    return null;
+  }
+};
+
+export const findLatestShopOrder = async (partnerId: number, websiteId: number): Promise<OdooSaleOrder | null> => {
+  if (!Number.isInteger(partnerId) || partnerId <= 0 || !Number.isInteger(websiteId) || websiteId <= 0) return null;
+  const config = getConfig();
+  if (!config) return null;
+  const uid = await loginRead(config);
+  if (!uid) return null;
+  try {
+    const rows = await executeKwRead<Record<string, unknown>[]>(
+      config,
+      uid,
+      'sale.order',
+      'search_read',
+      [[['partner_id', '=', partnerId], ['website_id', '=', websiteId], ['state', 'in', ['draft', 'sent', 'sale', 'done']]]],
+      { fields: ['id'], limit: 1, order: 'write_date desc' },
+    );
+    if (!rows.length) return null;
+    return getSaleOrderById(num(rows[0].id));
+  } catch (error) {
+    console.error('findLatestShopOrder failed:', error);
+    return null;
+  }
+};
+
+export const applyShopCoupon = async (orderId: number, code: string): Promise<{ ok: boolean }> => {
+  const coupon = code.replace(/[\u0000-\u001F\u007F]/g, ' ').trim().slice(0, 64);
+  if (!coupon || !Number.isInteger(orderId) || orderId <= 0) return { ok: false };
+  const config = getConfig();
+  if (!config) return { ok: false };
+  const uid = await login(config);
+  if (!uid) return { ok: false };
+  const ctx = { context: { active_id: orderId, active_ids: [orderId], active_model: 'sale.order' } };
+  try {
+    const wizardId = await executeKw<number>(config, uid, 'sale.coupon.apply.code', 'create', [{ coupon_code: coupon }], ctx);
+    await executeKw(config, uid, 'sale.coupon.apply.code', 'process_coupon', [[wizardId]], ctx);
+    return { ok: true };
+  } catch {
+    /* Odoo 17 loyalty */
+  }
+  try {
+    await executeKw(config, uid, 'sale.order', '_try_apply_code', [[orderId], coupon]);
+    return { ok: true };
+  } catch {
+    /* Odoo 16 sale.order.apply_coupon */
+  }
+  try {
+    await executeKw(config, uid, 'sale.order', 'apply_coupon', [[orderId], coupon]);
+    return { ok: true };
+  } catch (error) {
+    console.error('applyShopCoupon failed:', error);
+    return { ok: false };
   }
 };
 
@@ -755,7 +884,7 @@ export const createQuotationFromLine = async (
    * from the create payload entirely, so a caller that provides none of
    * these gets byte-for-byte today's behavior.
    */
-    extra?: { customerRef?: string; discountPercent?: number; validityDate?: string; note?: string; paymentTermId?: number; productId?: number; salespersonUserId?: number | false }
+    extra?: { customerRef?: string; discountPercent?: number; validityDate?: string; note?: string; paymentTermId?: number; productId?: number; salespersonUserId?: number | false; websiteId?: number }
 ): Promise<{ orderName: string; total: number; orderId: number } | null> => {
   const config = getConfig();
   if (!config) return null;
@@ -784,6 +913,7 @@ export const createQuotationFromLine = async (
     if (extra?.paymentTermId !== undefined) orderFields.payment_term_id = extra.paymentTermId;
     if (extra?.salespersonUserId === false) orderFields.user_id = false;
     else if (typeof extra?.salespersonUserId === 'number') orderFields.user_id = extra.salespersonUserId;
+    if (typeof extra?.websiteId === 'number' && extra.websiteId > 0) orderFields.website_id = extra.websiteId;
 
     // No reliable natural key to reconcile a sale order against before it
     // exists, so unlike partner/service creates this is not retried or
@@ -823,6 +953,38 @@ export const createQuotationFromLine = async (
     console.error('createQuotationFromLine failed:', error);
     return null;
   }
+};
+
+export const addToShopCart = async (input: {
+  partnerId: number;
+  customerName: string;
+  phone: string;
+  productId: number;
+  qty: number;
+  websiteId: number;
+}): Promise<OdooSaleOrder | null> => {
+  const existing = await findOpenShopCart(input.partnerId, input.websiteId);
+  if (existing) {
+    const line = await findSaleOrderLineByProduct(existing.id, input.productId);
+    if (line) {
+      const ok = await updateSaleOrderLineQty(existing.id, input.productId, line.qty + input.qty);
+      if (!ok) return null;
+    } else {
+      const ok = await addSaleOrderLine(existing.id, input.productId, input.qty);
+      if (!ok) return null;
+    }
+    return getSaleOrderById(existing.id);
+  }
+  const created = await createQuotationFromLine(
+    input.customerName,
+    input.phone,
+    '',
+    input.qty,
+    input.partnerId,
+    { productId: input.productId, salespersonUserId: false, websiteId: input.websiteId },
+  );
+  if (!created) return null;
+  return getSaleOrderById(created.orderId);
 };
 
 export const postPartnerNote = async (partnerId: number, body: string): Promise<boolean> => {

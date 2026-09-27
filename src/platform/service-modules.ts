@@ -9,6 +9,8 @@ export type ServiceModule = {
   store: ServiceModuleStore;
   status: 'live' | 'optional';
   entry: string;
+  /** Admin SPA leaf under the current admin base (live data, not Demo). */
+  adminLeaf: string;
   commands: string[];
   demoTalkTrack: string;
 };
@@ -25,6 +27,7 @@ export const SERVICE_MODULES: ServiceModule[] = [
     store: 'firestore',
     status: 'live',
     entry: 'src/line/handlers/verification.ts',
+    adminLeaf: 'identity',
     commands: ['VERIFY START', 'VERIFY OTP', 'VERIFY STATUS', 'ADMIN ENABLE', 'MY DATA', 'DELETE MY DATA'],
     demoTalkTrack: 'VERIFY STATUS is identity, not admin. ADMIN ENABLE fails closed unless LINE id is on ADMIN_USER_ID and Odoo reports admin capability.',
   },
@@ -35,6 +38,7 @@ export const SERVICE_MODULES: ServiceModule[] = [
     store: 'odoo',
     status: 'live',
     entry: 'src/line/handlers/quotation.ts',
+    adminLeaf: 'commerce',
     commands: ['FORM PRODUCT FIND', 'FORM QUOTE CREATE', 'QUOTE LIST', 'QUOTE STATUS', 'QUOTE CONFIRM', 'SYSTEM STATUS'],
     demoTalkTrack: 'Guided FORM QUOTE CREATE writes a real sale.order. Step-up OTP gates mutations for already-verified users.',
   },
@@ -45,6 +49,7 @@ export const SERVICE_MODULES: ServiceModule[] = [
     store: 'odoo',
     status: 'live',
     entry: 'src/line/handlers/user-directory.ts',
+    adminLeaf: 'users',
     commands: ['FORM USER CREATE', 'FORM USER READ', 'FORM USER UPDATE', 'FORM USER DELETE'],
     demoTalkTrack: 'Admin-only partner CRUD through getErpAdapter(), not Mongo.',
   },
@@ -55,6 +60,7 @@ export const SERVICE_MODULES: ServiceModule[] = [
     store: 'odoo',
     status: 'live',
     entry: 'src/line/handlers/service-catalog-handler.ts',
+    adminLeaf: 'catalog',
     commands: ['SERVICE LIST', 'FORM SERVICE READ', 'FORM SERVICE CREATE', 'FORM SERVICE UPDATE', 'FORM SERVICE DELETE'],
     demoTalkTrack: 'Odoo product/service records; LINE Flex lists them for tap-to-command.',
   },
@@ -65,6 +71,7 @@ export const SERVICE_MODULES: ServiceModule[] = [
     store: 'firestore',
     status: 'live',
     entry: 'src/line/handlers/group-buy.ts',
+    adminLeaf: 'group-buy',
     commands: ['START GROUPBUY', 'JOIN GROUPBUY', 'STATUS GROUPBUY', 'CONFIRM GROUPBUY', 'CANCEL GROUPBUY'],
     demoTalkTrack: 'Session state in Firestore; confirm creates an Odoo quotation. Gated by GROUPBUY_ENABLED.',
   },
@@ -75,6 +82,7 @@ export const SERVICE_MODULES: ServiceModule[] = [
     store: 'odoo',
     status: 'live',
     entry: 'src/jobs/daily-report.ts',
+    adminLeaf: 'reporting',
     commands: ['DAILY REPORT', 'SEGMENT CUSTOMERS'],
     demoTalkTrack: 'Odoo snapshot plus Gemini summary pushed to ADMIN_USER_ID. HTTP /jobs/daily-report is the ops trigger.',
   },
@@ -85,6 +93,7 @@ export const SERVICE_MODULES: ServiceModule[] = [
     store: 'mongo',
     status: 'optional',
     entry: 'src/line/handlers/chat-fallback.ts',
+    adminLeaf: 'advanced',
     commands: ['(unmatched text)', 'FEEDBACK GOOD', 'FEEDBACK BAD'],
     demoTalkTrack: 'After handlers miss: Gemini, then optional Mongo FAQ. Mongo never stores quotes or partners.',
   },
@@ -95,6 +104,7 @@ export const SERVICE_MODULES: ServiceModule[] = [
     store: 'none',
     status: 'live',
     entry: 'src/services/service-catalog.ts',
+    adminLeaf: 'language',
     commands: ['NAV HOME', 'LANG TH', 'LANG EN', 'SKILLS', 'HOURS', 'GUIDE'],
     demoTalkTrack: 'service-catalog.ts gates menus and execution. Markdown skills cannot shadow TypeScript commands.',
   },
@@ -105,6 +115,7 @@ export const SERVICE_MODULES: ServiceModule[] = [
     store: 'odoo',
     status: 'live',
     entry: 'src/erp/registry.ts',
+    adminLeaf: 'platform',
     commands: ['getErpAdapter()'],
     demoTalkTrack: 'Single adapter. ERP_PROVIDER other than odoo fails closed. No second ERP in Mongo.',
   },
@@ -115,6 +126,7 @@ export const SERVICE_MODULES: ServiceModule[] = [
     store: 'none',
     status: 'optional',
     entry: 'src/http/ops-routes.ts',
+    adminLeaf: 'ops',
     commands: ['GET /ops/kpi', 'POST /graphql', 'GET /api-docs', 'POST /jobs/daily-report'],
     demoTalkTrack: 'Same tokens as REST. GraphQL is not a LINE webhook. BullMQ stays off unless Redis + worker are running.',
   },
@@ -125,6 +137,7 @@ export const SERVICE_MODULES: ServiceModule[] = [
     store: 'firestore',
     status: 'live',
     entry: 'src/line/handlers/admin.ts',
+    adminLeaf: 'privileges',
     commands: ['ADMIN VERIFY', 'ADMIN ENABLE', 'ADMIN CONFIG', 'ADMIN CHANNEL', 'ADMIN ACCESS', 'ADMIN AUDIT ROTATE'],
     demoTalkTrack: 'Allowlist plus Odoo admin capability. ADMIN ENABLE is Sales OA only; Customer OA cannot grant admin.',
   },
@@ -135,6 +148,7 @@ export const SERVICE_MODULES: ServiceModule[] = [
     store: 'odoo',
     status: 'live',
     entry: 'src/line/handlers/sales-message.ts',
+    adminLeaf: 'campaigns',
     commands: ['MESSAGE CUSTOMER', 'QUOTE MESSAGE', 'QUOTE SEND'],
     demoTalkTrack: 'Customer-facing quote send uses verified phone + Odoo portal/PDF links, not Mongo.',
   },
@@ -145,6 +159,7 @@ export const SERVICE_MODULES: ServiceModule[] = [
     store: 'firestore',
     status: 'live',
     entry: 'src/line/handlers/action-otp.ts',
+    adminLeaf: 'approvals',
     commands: ['ACTION VERIFY', 'QUOTE APPROVE'],
     demoTalkTrack: 'Mutations require a fresh action OTP. QUOTE APPROVE uses the approval store, not a second router.',
   },

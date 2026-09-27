@@ -126,6 +126,34 @@ export const Steps = ({ items }: { items: Array<ReactNode> }) => (
   </ol>
 );
 
+/** Shared actor bind runbook — Home, Identity, Campaigns, Settings, CRM. */
+export const BindSteps = ({
+  adminBase,
+  onIdentity,
+}: {
+  adminBase: string;
+  onIdentity?: () => void;
+}) => (
+  <Steps items={[
+    <>Sign in to Admin with <code>OPS_API_TOKEN</code> (the panel password). That is not the actor cookie.</>,
+    <>On the VPS <code>.env</code>, set the same Cloudnex Sales LINE user id on <code>ADMIN_USER_ID</code> and <code>SUPER_ADMIN_USER_IDS</code> (comma-separated if several). Recreate the container so the process reloads env. Do not commit <code>.env</code>.</>,
+    <>In LINE, open Cloudnex Sales. Complete VERIFY so the profile is <code>odooVerified</code>.</>,
+    <>
+      Open{' '}
+      <a
+        href={`${adminBase}/identity`}
+        onClick={e => {
+          e.preventDefault();
+          onIdentity?.();
+        }}
+      >Identity → Bind</a>
+      . Paste that LINE id (<code>U</code> + 32 hex). Directory lookup can find it after VERIFY.
+    </>,
+    <>Send code. OTP arrives on Cloudnex Sales. Confirm. The actor cookie is now bound (header pill says bound).</>,
+    <>LINE Login is optional (Identity IdP). Campaigns, secret reveal, CRM command run, and privilege grant need the bind. Jobs Run uses OPS sign-in plus <code>ADMIN_SECRET_TOKEN</code> and does not need actor.</>,
+  ]} />
+);
+
 export type ToastItem = { id: number; kind: 'error' | 'ok'; text: string };
 
 export const ToastStack = ({

@@ -13,11 +13,11 @@ import { getRateStore } from './runtime-state';
 import { ensureDemoSessionStateLoaded } from './demo-session';
 import {
   demoControlToken,
-  isDemoControlEnabled,
   isProduction,
   isWebhookTestEnabled,
   opsApiToken,
   readyzTimeoutMs,
+  resolveDemoEnabled,
   webhookTestToken,
 } from './env';
 import { originFromPublicBaseUrl } from './public-bases';
@@ -26,16 +26,21 @@ const requestOrigin = (req: Request): string =>
   originFromPublicBaseUrl(`${req.protocol}://${req.get('host')}`) || `${req.protocol}://${req.get('host')}`;
 
 export const requireDemoPanelEnabled: RequestHandler = (_req, res, next: NextFunction) => {
-  if (!isDemoControlEnabled) {
-    return res.status(404).json({ error: 'Demo control panel is disabled.' });
+  if (!resolveDemoEnabled()) {
+    return res.status(404).json({
+      error: 'Demo writes are disabled on this host. APP_ENV=production keeps chat, journey, and model saves off. Module inventory and ops probes stay available on Admin → Testing.',
+    });
   }
   return next();
 };
 
 export const registerDemoJsonRoutes = (app: Express, prefix: string, gate: RequestHandler): void => {
   const P = prefix.replace(/\/+$/, '');
+  // Reads (inventory, probes) stay on Admin → Testing when demo writes are off.
+  // Mutating chat/journey/model routes share one live resolveDemoEnabled() stack.
+  const demoWrites: RequestHandler[] = [requireDemoPanelEnabled, gate, jsonParser];
 
-  app.get(`${P}/connections`, requireDemoPanelEnabled, gate, async (req, res) => {
+  app.get(`${P}/connections`, gate, async (req, res) => {
     try {
       const overview = await getDemoOverview(requestOrigin(req));
       res.json(overview);
@@ -44,11 +49,11 @@ export const registerDemoJsonRoutes = (app: Express, prefix: string, gate: Reque
     }
   });
 
-  app.get(`${P}/platform`, requireDemoPanelEnabled, gate, (_req, res) => {
+  app.get(`${P}/platform`, gate, (_req, res) => {
     res.json({ ...getDemoPlatformPayload(), flags: getPlatformFlags() });
   });
 
-  app.post(`${P}/journey`, requireDemoPanelEnabled, gate, jsonParser, async (req, res) => {
+  app.post(`${P}/journey`, ...demoWrites, async (req, res) => {
     try {
       const result = await runDemoJourney(req.body || {});
       res.status(result.ok ? 200 : 400).json(result);
@@ -57,7 +62,7 @@ export const registerDemoJsonRoutes = (app: Express, prefix: string, gate: Reque
     }
   });
 
-  app.post(`${P}/chat`, requireDemoPanelEnabled, gate, jsonParser, async (req, res) => {
+  app.post(`${P}/chat`, ...demoWrites, async (req, res) => {
     try {
       const rawText = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
       if (!rawText) return res.status(400).json({ error: 'Missing chat text.' });
@@ -88,13 +93,13 @@ export const registerDemoJsonRoutes = (app: Express, prefix: string, gate: Reque
     }
   });
 
-  app.get(`${P}/pricing-model`, requireDemoPanelEnabled, gate, (_req, res) => {
+  app.get(`${P}/pricing-model`, gate, (_req, res) => {
     return getPricingModel()
       .then(model => res.json({ generatedAt: new Date().toISOString(), model }))
       .catch(error => res.status(500).json({ error: String(error) }));
   });
 
-  app.put(`${P}/pricing-model`, requireDemoPanelEnabled, gate, jsonParser, async (req, res) => {
+  app.put(`${P}/pricing-model`, ...demoWrites, async (req, res) => {
     try {
       const updated = await updatePricingModel(req.body || {});
       res.json({ ok: true, generatedAt: new Date().toISOString(), model: updated });
@@ -103,7 +108,7 @@ export const registerDemoJsonRoutes = (app: Express, prefix: string, gate: Reque
     }
   });
 
-  app.post(`${P}/pricing-simulation`, requireDemoPanelEnabled, gate, jsonParser, async (req, res) => {
+  app.post(`${P}/pricing-simulation`, ...demoWrites, async (req, res) => {
     try {
       await getPricingModel();
       res.json(runPricingSimulation(req.body || {}));
@@ -112,13 +117,13 @@ export const registerDemoJsonRoutes = (app: Express, prefix: string, gate: Reque
     }
   });
 
-  app.get(`${P}/sales-feature-toggles`, requireDemoPanelEnabled, gate, (_req, res) => {
+  app.get(`${P}/sales-feature-toggles`, gate, (_req, res) => {
     return ensureFeatureTogglesLoaded()
       .then(() => res.json({ generatedAt: new Date().toISOString(), toggles: describeAllFeatureToggles() }))
       .catch(error => res.status(500).json({ error: String(error) }));
   });
 
-  app.put(`${P}/sales-feature-toggles`, requireDemoPanelEnabled, gate, jsonParser, async (req, res) => {
+  app.put(`${P}/sales-feature-toggles`, ...demoWrites, async (req, res) => {
     try {
       const updated = await replaceFeatureToggles(req.body || {});
       res.json({ ok: true, generatedAt: new Date().toISOString(), ...updated });
@@ -127,11 +132,11 @@ export const registerDemoJsonRoutes = (app: Express, prefix: string, gate: Reque
     }
   });
 
-  app.get(`${P}/workflow-audit`, requireDemoPanelEnabled, gate, async (_req, res) => {
+  app.get(`${P}/workflow-audit`, gate, async (_req, res) => {
     await ensureDemoSessionStateLoaded();
     const failures: string[] = [];
     if (!opsApiToken) failures.push('OPS_API_TOKEN is not configured');
-    if (isDemoControlEnabled && !demoControlToken) failures.push('DEMO_CONTROL_TOKEN is not configured while the demo panel is enabled');
+    if (resolveDemoEnabled() && !demoControlToken) failures.push('DEMO_CONTROL_TOKEN is not configured while the demo panel is enabled');
     if (isWebhookTestEnabled && isProduction && !webhookTestToken) {
       failures.push('WEBHOOK_TEST_TOKEN should be configured when ENABLE_WEBHOOK_TEST is enabled on a NODE_ENV=production host');
     }

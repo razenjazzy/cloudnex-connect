@@ -6,6 +6,7 @@ import { createServiceActionFlexMessage } from '../templates';
 import { isQuoteStaff } from '../quote-access';
 import { commerceFollowUpMessages, catalogFollowUpMessages } from '../commerce-followup';
 import { overlayLabelForText } from '../command-overlay';
+import { isCustomerShopEffective } from '../../platform/customer-commerce';
 
 const tr = (language: string, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -33,7 +34,8 @@ const navServiceHandler: CommandHandler = {
     const serviceDef = getServiceDefinition(key);
     const isAdmin = profile.role === 'admin';
     const isStaff = isQuoteStaff(profile);
-    const visibleCommands = serviceDef ? getVisibleCommands(serviceDef, isAdmin, isStaff) : [];
+    const shopMode = !isStaff && await isCustomerShopEffective();
+    const visibleCommands = serviceDef ? getVisibleCommands(serviceDef, isAdmin, isStaff, { shopMode }) : [];
 
     if (!serviceDef || !isServiceEnabledForChannel(serviceDef.key, channel) || !visibleCommands.length) {
       return [{ type: 'text', text: tr(userLanguage, `${agentName} ไม่พบบริการนี้`, `${agentName} service not found.`) } as messagingApi.TextMessage];

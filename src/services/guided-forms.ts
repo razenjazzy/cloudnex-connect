@@ -1,4 +1,6 @@
 import { listProducts, listServiceCatalogItems } from './odoo/catalog';
+import { isCustomerShopEffective, parseOdooWebsiteId } from '../platform/customer-commerce';
+import { getRuntime } from './runtime-settings';
 import { listPaymentTerms, getDefaultPaymentTermName } from './odoo/sales';
 import { listPartners, getPartnerByName } from './odoo/partners';
 import { loadOdooFieldSkills, type OdooFieldLoader } from './odoo-field-skills';
@@ -9,6 +11,11 @@ import { peekCachedProducts } from '../erp/odoo-adapter';
 // the same tappable chip label twice with no way to tell them apart.
 const dedupeNames = (names: string[]): string[] => Array.from(new Set(names));
 const loadProductOptions = async (): Promise<string[]> => {
+  if (await isCustomerShopEffective()) {
+    const websiteId = parseOdooWebsiteId(getRuntime('ODOO_WEBSITE_ID'));
+    if (!websiteId) return [];
+    return dedupeNames((await listProducts(12, { websiteId })).map(p => p.name));
+  }
   const cached = peekCachedProducts(12);
   if (cached?.length) return dedupeNames(cached.map(product => product.name));
   return dedupeNames((await listProducts(12)).map(p => p.name));
@@ -53,7 +60,8 @@ export type FlowKey =
   | 'MESSAGE_CUSTOMER'
   | 'MESSAGE_REQUEST'
   | 'VERIFY'
-  | 'CUSTOMER_REGISTER';
+  | 'CUSTOMER_REGISTER'
+  | 'CART_COUPON';
 
 export type FlowFieldSpec = {
   key: string;
@@ -148,6 +156,17 @@ export const FLOW_SPECS: Record<FlowKey, FlowSpec> = {
       { key: 'email', promptTh: 'อีเมล (พิมพ์ SKIP เพื่อข้าม)', promptEn: 'Email (type SKIP to skip)', optional: true, validate: isEmailLike },
     ],
     buildFinalCommand: (c) => `CUSTOMER REGISTER ${c.name},${c.phone}${c.email ? `,${c.email}` : ''}`,
+  },
+  CART_COUPON: {
+    key: 'CART_COUPON',
+    startCommand: 'FORM CART COUPON',
+    requiresAdmin: false,
+    labelTh: 'คูปอง',
+    labelEn: 'Coupon',
+    fields: [
+      { key: 'code', promptTh: 'รหัสคูปอง?', promptEn: 'Coupon code?', validate: isNonEmpty },
+    ],
+    buildFinalCommand: (c) => `CART COUPON ${c.code}`,
   },
   USER_CREATE: {
     key: 'USER_CREATE',

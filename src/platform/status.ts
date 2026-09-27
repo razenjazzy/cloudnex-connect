@@ -26,6 +26,7 @@ import { lineAccessTokenExpiryWarnings } from '../services/line-access-token-exp
 import { getEffectiveAdminUserIds, getRuntime } from '../services/runtime-settings';
 import { isErpImplemented } from '../erp/registry';
 import { isMongoUsersEnabled, mongoIdentityReady } from '../services/mongo-users';
+import { resolveCustomerCommerce } from './customer-commerce';
 
 export type PlatformCheck = ProbeResult & { required: boolean };
 
@@ -194,13 +195,26 @@ export const getPlatformStatus = async () => {
   ];
 
   const envAudit = auditEnvParams(flags.appEnv);
+  const customerCommerce = await resolveCustomerCommerce();
+  const warnings = collectWarnings(flags, checks);
+  if (customerCommerce.degraded) {
+    warnings.push(`CUSTOMER_COMMERCE=shop stayed on quote (${customerCommerce.degradeReason || 'degraded'}).`);
+  }
   return {
     ready: checks.filter(check => check.required).every(check => check.ok),
     flags,
     checks,
     env: envAudit,
     modules: getServiceModules(),
-    warnings: collectWarnings(flags, checks),
+    customerCommerce: {
+      requested: customerCommerce.requested,
+      effective: customerCommerce.effective,
+      websiteSaleInstalled: customerCommerce.websiteSaleInstalled,
+      websiteIdSet: customerCommerce.websiteIdSet,
+      degraded: customerCommerce.degraded,
+      ...(customerCommerce.degradeReason ? { degradeReason: customerCommerce.degradeReason } : {}),
+    },
+    warnings,
     identityChain: 'LINE identity -> profile SoR -> odooVerified -> ADMIN_USER_ID -> Odoo admin capability -> role',
     uptimeSeconds: Number(process.uptime().toFixed(0)),
     timestamp: new Date().toISOString(),

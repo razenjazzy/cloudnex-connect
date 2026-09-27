@@ -25,9 +25,10 @@ describe('mapPickingRow', () => {
 });
 
 describe('parseOdooHookBody', () => {
-  it('accepts picking.done and approval.stage with orderId', () => {
+  it('accepts picking.done, approval.stage, and payment.done with orderId', () => {
     expect(parseOdooHookBody({ event: 'picking.done', orderId: 17 })).toEqual({ event: 'picking.done', orderId: 17 });
     expect(parseOdooHookBody({ event: 'approval.stage', orderId: 17 })).toEqual({ event: 'approval.stage', orderId: 17 });
+    expect(parseOdooHookBody({ event: 'payment.done', orderId: 17 })).toEqual({ event: 'payment.done', orderId: 17 });
   });
 
   it('rejects unknown events and missing orderId', () => {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CopyField } from './ui';
+import { BindSteps, CopyField } from './ui';
 import { t, type UiLang } from './i18n';
 
 type FormSpec = {
@@ -16,10 +16,11 @@ type Props = {
   api: (path: string, init?: RequestInit) => Promise<Response>;
   actor: string | null;
   uiLang: UiLang;
+  onIdentity?: () => void;
   toast: (text: string, kind?: 'ok' | 'error') => void;
 };
 
-export const CommandWork = ({ adminBase, api, actor, uiLang, toast }: Props) => {
+export const CommandWork = ({ adminBase, api, actor, uiLang, onIdentity, toast }: Props) => {
   const [forms, setForms] = useState<FormSpec[]>([]);
   const [picked, setPicked] = useState('');
   const [values, setValues] = useState<Record<string, string>>({});
@@ -59,7 +60,12 @@ export const CommandWork = ({ adminBase, api, actor, uiLang, toast }: Props) => 
     <div className="card">
       <h2>{t(uiLang, 'navWork')}</h2>
       <p className="page-lead">{t(uiLang, 'commandWorkLead')}</p>
-      {!actor ? <p className="warn">{t(uiLang, 'bindFirst')}</p> : null}
+      {!actor ? (
+        <>
+          <p className="warn">{t(uiLang, 'bindFirst')}</p>
+          <BindSteps adminBase={adminBase} onIdentity={onIdentity} />
+        </>
+      ) : null}
       <div className="row">
         <select value={picked} onChange={e => {
           const next = e.target.value;

@@ -2,7 +2,7 @@ import express from 'express';
 import { getPlatformConfig, setPlatformConfig } from '../services/firestore';
 import { parseCookieValue, safeTokenMatch, verifyDemoSessionTokenWithSecrets } from '../services/demo-session';
 import { getBearerToken } from './middleware';
-import { allowDemoHeaderTokenFallbackInProd, demoControlToken, demoSessionConfigKey, demoSessionCookieName, demoSessionTtlMinutes, initialDemoSessionSecret, isDemoControlEnabled, isProduction } from './env';
+import { allowDemoHeaderTokenFallbackInProd, demoControlToken, demoSessionConfigKey, demoSessionCookieName, demoSessionTtlMinutes, initialDemoSessionSecret, isProduction, resolveDemoEnabled } from './env';
 import { auditWrite } from '../services/write-audit';
 
 // Module-scope singleton state — same shape and mutation pattern as the
@@ -145,7 +145,7 @@ export const setDemoSessionCookie = (res: express.Response, token: string): void
 };
 
 export const requireDemoControlAccess = async (req: express.Request, res: express.Response, next: express.NextFunction) => {
-    if (!isDemoControlEnabled) {
+    if (!resolveDemoEnabled()) {
         return res.status(404).json({ error: 'Demo control panel is disabled.' });
     }
 

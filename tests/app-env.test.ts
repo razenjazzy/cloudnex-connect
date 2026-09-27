@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { resolveAppEnv, resolveDemoEnabled, resolveWebhookTestEnabled } from '../src/http/env';
+import { requireDemoPanelEnabled } from '../src/http/demo-api';
+import type { Request, Response } from 'express';
 
 describe('APP_ENV lanes', () => {
   it('uses an explicit staging lane even when NODE_ENV is production', () => {
@@ -24,5 +26,30 @@ describe('APP_ENV lanes', () => {
   it('opens demo on staging only when the flag is set', () => {
     expect(resolveDemoEnabled({ NODE_ENV: 'production', APP_ENV: 'staging' })).toBe(false);
     expect(resolveDemoEnabled({ NODE_ENV: 'production', APP_ENV: 'staging', ENABLE_DEMO_CONTROL_PANEL: 'true' })).toBe(true);
+  });
+
+  it('gates demo writes with the same resolveDemoEnabled() used by GET/POST policy', () => {
+    const prevApp = process.env.APP_ENV;
+    const prevNode = process.env.NODE_ENV;
+    const prevFlag = process.env.ENABLE_DEMO_CONTROL_PANEL;
+    const json = vi.fn();
+    const status = vi.fn().mockReturnValue({ json });
+    const next = vi.fn();
+    const res = { status } as unknown as Response;
+    try {
+      process.env.APP_ENV = 'production';
+      process.env.NODE_ENV = 'production';
+      process.env.ENABLE_DEMO_CONTROL_PANEL = 'true';
+      requireDemoPanelEnabled({} as Request, res, next);
+      expect(status).toHaveBeenCalledWith(404);
+      expect(next).not.toHaveBeenCalled();
+    } finally {
+      if (prevApp === undefined) delete process.env.APP_ENV;
+      else process.env.APP_ENV = prevApp;
+      if (prevNode === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = prevNode;
+      if (prevFlag === undefined) delete process.env.ENABLE_DEMO_CONTROL_PANEL;
+      else process.env.ENABLE_DEMO_CONTROL_PANEL = prevFlag;
+    }
   });
 });

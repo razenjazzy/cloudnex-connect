@@ -1,6 +1,48 @@
 import { describe, expect, it } from 'vitest';
-import { createProductCarouselFlexMessage, stripFlexHeroImages } from '../src/line/templates';
+import { createOrderSummaryFlexMessage, createProductCardFlexMessage, createProductCarouselFlexMessage, stripFlexHeroImages } from '../src/line/templates';
+import { amountHighlightBox, BRAND, formatMoney } from '../src/line/templates/shared';
 import { checkMessageAgainstLineLimits } from '../src/line/message-limits';
+
+type FlexNode = { type?: string; layout?: string; backgroundColor?: string; cornerRadius?: string; paddingAll?: string; contents?: FlexNode[]; text?: string; size?: string; color?: string; weight?: string; wrap?: boolean };
+
+const amountHeroBox = (label: string, amount: string) => {
+  const expected = amountHighlightBox(label, amount);
+  return {
+    type: expected.type,
+    layout: expected.layout,
+    backgroundColor: expected.backgroundColor,
+    cornerRadius: expected.cornerRadius,
+    paddingAll: expected.paddingAll,
+    label: { size: 'xs', color: BRAND.inkSoft },
+    amount: { size: 'xl', color: BRAND.tealStrong, weight: 'bold', wrap: true },
+  };
+};
+
+const findAmountHeroBoxes = (node: unknown, acc: FlexNode[] = []): FlexNode[] => {
+  if (!node || typeof node !== 'object') return acc;
+  const box = node as FlexNode;
+  if (box.type === 'box' && box.layout === 'vertical' && box.backgroundColor === BRAND.tealTint && Array.isArray(box.contents) && box.contents.some(child => child.size === 'xl')) {
+    acc.push(box);
+  }
+  for (const value of Object.values(node)) {
+    if (Array.isArray(value)) value.forEach(child => findAmountHeroBoxes(child, acc));
+    else findAmountHeroBoxes(value, acc);
+  }
+  return acc;
+};
+
+const expectAmountHero = (box: FlexNode | undefined, label: string, amount: string) => {
+  const pattern = amountHeroBox(label, amount);
+  expect(box).toMatchObject({
+    type: pattern.type,
+    layout: pattern.layout,
+    backgroundColor: pattern.backgroundColor,
+    cornerRadius: pattern.cornerRadius,
+    paddingAll: pattern.paddingAll,
+  });
+  expect(box?.contents?.[0]).toMatchObject({ type: 'text', text: label, ...pattern.label });
+  expect(box?.contents?.[1]).toMatchObject({ type: 'text', text: amount, ...pattern.amount });
+};
 
 describe('product catalogue carousel', () => {
   it('uses kilo bubbles with quote-by-id and view, not a home button on every slide', () => {
@@ -27,10 +69,24 @@ describe('product catalogue carousel', () => {
     expect(json).toContain('Order Now');
     expect(json).toContain('View Details');
     expect(json).not.toContain('"text":"Stock"');
-    expect(json).toContain('"size":"xl"');
-    expect(json).toContain('Price');
-    expect(json).toContain('"backgroundColor":"#E3F0EE"');
-    expect(json).toContain('"paddingAll":"md"');
+    const priceBox = findAmountHeroBoxes(message)[0];
+    expectAmountHero(priceBox, 'Price', formatMoney(990, 'en'));
+    const totalBox = findAmountHeroBoxes(createOrderSummaryFlexMessage(990, 'en'))[0];
+    expectAmountHero(totalBox, 'Total', formatMoney(990, 'en'));
+    expect({ ...priceBox, contents: priceBox.contents?.map((row, i) => i === 0 ? { ...row, text: 'Total' } : row) }).toEqual(totalBox);
+  });
+
+  it('uses the same Total highlight box for Customer product details, not the Sales stock pair', () => {
+    const detail = createProductCardFlexMessage('App Premium', 990, 4, 'en', 11, undefined, { channelId: 'customer' });
+    const sales = createProductCardFlexMessage('App Premium', 990, 4, 'en', 11, undefined, { channelId: 'sales' });
+    const customerPrice = findAmountHeroBoxes(detail);
+    const salesHero = findAmountHeroBoxes(sales);
+    expect(customerPrice).toHaveLength(1);
+    expect(salesHero).toHaveLength(0);
+    expectAmountHero(customerPrice[0], 'Price', formatMoney(990, 'en'));
+    expect(JSON.stringify(sales)).toContain('"text":"Stock"');
+    expect(JSON.stringify(sales)).toContain('"size":"sm"');
+    expect(JSON.stringify(sales)).not.toMatch(/"backgroundColor":"#E3F0EE"[^]*"size":"xl"/);
   });
 
   it('puts https product images on the hero and can strip them for LINE retry', () => {

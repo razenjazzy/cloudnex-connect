@@ -30,6 +30,7 @@ import { guidedFormTtlMinutes } from '../idle-home';
 import { markSalesWaiting, clearSalesWaiting } from '../inbound-relay';
 import { listCrmQuotations } from '../../services/odoo';
 import { getErpAdapter } from '../../erp/registry';
+import { attachShopJourney, isCustomerShopEffective, searchAudienceProducts } from '../../platform/customer-commerce';
 import type { ErpDeliveryStatus } from '../../erp/adapter';
 import { decodeQuoteListCursor, encodeQuoteListCursor } from '../quote-list-cursor';
 import { FLOW_SPECS } from '../../services/guided-forms';
@@ -286,7 +287,7 @@ const quoteStatusHandler: CommandHandler = {
       return [botText(t('quoteNotYours', userLanguage), userLanguage)];
     }
     const extras = await safeJourneyExtras(orderId);
-    return [createQuotationJourneyFlexMessage(order, staffCardOptions(profile, extras, order, extras.delivery), userLanguage)];
+    return [createQuotationJourneyFlexMessage(order, await attachShopJourney(staffCardOptions(profile, extras, order, extras.delivery)), userLanguage)];
   },
 };
 
@@ -332,7 +333,7 @@ const quoteConfirmHandler: CommandHandler = {
       title: t('quoteConfirmedTitle', userLanguage),
       body: t('quoteConfirmedStaff', userLanguage),
       actions: [{ label: t('retryStatus', userLanguage), text: `QUOTE STATUS ${orderId}`, style: 'primary' }],
-    }), [createQuotationJourneyFlexMessage(order, staffCardOptions(profile, { portalLink, pdfLink }, order), userLanguage)]);
+    }), [createQuotationJourneyFlexMessage(order, await attachShopJourney(staffCardOptions(profile, { portalLink, pdfLink }, order)), userLanguage)]);
   },
 };
 
@@ -434,7 +435,7 @@ const quoteSendConfirmHandler: CommandHandler = {
       userLanguage,
       [{ label: t('retryStatus', userLanguage), text: `QUOTE STATUS ${orderId}`, style: 'primary' }],
       result.inviteUri ? { label: t('addFriend', userLanguage), uri: result.inviteUri } : undefined,
-    ), [createQuotationJourneyFlexMessage(sentOrder, staffCardOptions(profile, { portalLink, pdfLink }, sentOrder), userLanguage)]);
+    ), [createQuotationJourneyFlexMessage(sentOrder, await attachShopJourney(staffCardOptions(profile, { portalLink, pdfLink }, sentOrder)), userLanguage)]);
   },
 };
 
@@ -489,6 +490,14 @@ const quoteApproveHandler: CommandHandler = {
       return [botText(t('quoteNotYours', userLanguage), userLanguage)];
     }
 
+    if (await isCustomerShopEffective()) {
+      const checkout = await getErpAdapter().getCheckoutLink?.(orderId);
+      return [botText(t('shopUsePay', userLanguage), userLanguage), createQuotationJourneyFlexMessage(order, await attachShopJourney({
+        role: 'customer',
+        portalLink: checkout || undefined,
+      }), userLanguage)];
+    }
+
     const ok = await getErpAdapter().confirmOrder(orderId);
     if (!ok) {
       recordAuditEvent({ action: 'quote_approve', outcome: 'failure', actorUserId: userId, channelId: channel?.channelId, requestId: ctx.requestId, targetId: String(orderId) });
@@ -534,7 +543,7 @@ const quoteApproveHandler: CommandHandler = {
       title: t('done', userLanguage),
       body: approveBody,
           actions: [{ label: t('myOrders', userLanguage), text: 'QUOTE LIST', style: 'primary' }],
-    }), [createQuotationJourneyFlexMessage(confirmed, { role: 'customer', portalLink, pdfLink }, userLanguage)]);
+    }), [createQuotationJourneyFlexMessage(confirmed, await attachShopJourney({ role: 'customer', portalLink, pdfLink }), userLanguage)]);
   },
 };
 
@@ -562,7 +571,9 @@ const quoteAddHandler: CommandHandler = {
     const idMatch = /^id:(\d+)$/i.exec(parsed.productName.trim());
     const product = idMatch
       ? await getErpAdapter().lookupProduct(Number(idMatch[1]))
-      : (await getErpAdapter().searchProducts(parsed.productName, 1))[0];
+      : isQuoteStaff(profile)
+        ? (await getErpAdapter().searchProducts(parsed.productName, 1))[0]
+        : (await searchAudienceProducts(parsed.productName, 1))[0];
     if (!product) {
       return [botText(tr(userLanguage, `ไม่พบสินค้าที่ตรงกับ "${parsed.productName}"`, `No product matched "${parsed.productName}".`), userLanguage)];
     }
@@ -618,7 +629,7 @@ const quoteAddHandler: CommandHandler = {
         ],
     });
     return withOutcome(userLanguage, added, [
-      createQuotationJourneyFlexMessage(order, staffCardOptions(profile, extras, order, extras.delivery), userLanguage),
+      createQuotationJourneyFlexMessage(order, await attachShopJourney(staffCardOptions(profile, extras, order, extras.delivery)), userLanguage),
     ]);
   },
 };
@@ -758,7 +769,7 @@ const quoteCancelHandler: CommandHandler = {
     const { portalLink, pdfLink } = await getOrderLinks(orderId);
     return [
       botText(tr(userLanguage, 'ยกเลิกใบเสนอราคาแล้ว', 'Quotation cancelled.'), userLanguage),
-      createQuotationJourneyFlexMessage(order, staffCardOptions(profile, { portalLink, pdfLink }, order), userLanguage),
+      createQuotationJourneyFlexMessage(order, await attachShopJourney(staffCardOptions(profile, { portalLink, pdfLink }, order)), userLanguage),
     ];
   },
 };
@@ -845,7 +856,7 @@ const quoteInvoiceSendConfirmHandler: CommandHandler = {
         undefined,
         result.inviteUri ? { label: t('addFriend', userLanguage), uri: result.inviteUri } : undefined,
       ),
-      createQuotationJourneyFlexMessage(invoicedOrder, staffCardOptions(profile, { portalLink, pdfLink }, invoicedOrder), userLanguage),
+      createQuotationJourneyFlexMessage(invoicedOrder, await attachShopJourney(staffCardOptions(profile, { portalLink, pdfLink }, invoicedOrder)), userLanguage),
     ];
   },
 };
@@ -895,7 +906,7 @@ const quoteInvoiceHandler: CommandHandler = {
       title: t('quoteInvoiceCreatedTitle', userLanguage),
       body: t('quoteInvoiceCreated', userLanguage),
       actions: [{ label: t('retryStatus', userLanguage), text: `QUOTE STATUS ${orderId}`, style: 'primary' }],
-    }), [createQuotationJourneyFlexMessage(order, staffCardOptions(profile, { portalLink, pdfLink }, order), userLanguage)]);
+    }), [createQuotationJourneyFlexMessage(order, await attachShopJourney(staffCardOptions(profile, { portalLink, pdfLink }, order)), userLanguage)]);
   },
 };
 

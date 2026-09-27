@@ -84,7 +84,7 @@ flowchart TD
 | Step | Canonical | Result |
 |---|---|---|
 | Order Now | `FORM QUOTE CREATE FROM CARD {id}` then `QUOTE CREATE` | Qty chips (`CUSTOMER_QTY_CHIPS`, default 10–50, quickReply ≤13) + type; unassigned draft; waiting card |
-| View Details | `PRODUCT FIND id:{id}` | **Product Details only** — same catalog hero URL as Home. Do not append catalog Home. Order Now, Send Message, then Home, Back. **Back** = catalog Home. |
+| View Details | `PRODUCT FIND id:{id}` | **Product Details only** — same catalog hero URL as Home. Do not append catalog Home. Price = Order Total highlight box. Short description = paper `xs` note (same as “Sales will send this quote…”). Order Now, Send Message, then Home, Back. **Back** = catalog Home. |
 | Send Message | `FORM MESSAGE REQUEST` → `MESSAGE REQUEST CONFIRM` | Partner note; sales ping; `{agent}: Request accepted. We will get back to you soon.` |
 | Ask for Quotations | `QUOTE ASK` | Same accepted copy; no new SO |
 | Order History | `QUOTE LIST` | Partner orders |
@@ -97,11 +97,13 @@ flowchart TD
 
 Customer OA must not run: `ADMIN *`, `QUOTE ASSIGN`, `RELAY *`, `STAFF PICK`, `SALES FEATURES`, `MESSAGE CUSTOMER`, directory/catalog writes, `DAILY REPORT`, `SEGMENT CUSTOMERS`, `SEED SAMPLE DATA`. Staff convert is `QUOTE CONFIRM`; customer confirm is `QUOTE APPROVE`.
 
+Customer OA commerce is exclusive **quote XOR shop** (`CUSTOMER_COMMERCE`). Unset = quote. `shop` needs `website_sale` **and** `ODOO_WEBSITE_ID` or stay quote + `degraded`. Shop Home uses **Cart** (not Ask for Quotations). Flex: cart (add products) → order process → optional coupon → web Pay (`/shop/pay` → Odoo) → callback → Order completed. Optional Website cart `/shop/cart`.
+
 ---
 
 ## 4. Commands (Action → Result)
 
-OTP on reconstructed writes (`requiresOtp` in `service-catalog.ts`): `QUOTE CREATE`, `QUOTE CONFIRM`, `QUOTE SEND CONFIRM`, `QUOTE ADD/EDIT/REMOVE/CANCEL`, `QUOTE INVOICE`, `QUOTE INVOICE SEND CONFIRM`, `QUOTE MESSAGE`, `MESSAGE CUSTOMER`, directory/catalog mutates. `FORM *` only starts a flow.
+OTP on reconstructed writes (`requiresOtp` in `service-catalog.ts`): `QUOTE CREATE`, `QUOTE CONFIRM`, `QUOTE SEND CONFIRM`, `QUOTE ADD/EDIT/REMOVE/CANCEL`, `QUOTE INVOICE`, `QUOTE INVOICE SEND CONFIRM`, `QUOTE MESSAGE`, `MESSAGE CUSTOMER`, `CART ADD/COUPON/REMOVE/CLEAR`, directory/catalog mutates. `FORM *` only starts a flow.
 
 ### Navigation and identity
 
@@ -140,7 +142,14 @@ OTP on reconstructed writes (`requiresOtp` in `service-catalog.ts`): `QUOTE CREA
 |---|---|---|---|
 | `FORM PRODUCT FIND` | Find a product / ค้นหาสินค้า | Start search | Prompt → `PRODUCT FIND` |
 | `PRODUCT FIND` name or `id:N` | Find a product | Search or View Details | Id hit: **Product Details**. Id miss: name search (same query). 0: error. Many: picker. |
-| `FORM QUOTE CREATE FROM CARD {id}` | Order Now / สั่งซื้อเลย | Order Now | Qty then `QUOTE CREATE` |
+| `FORM QUOTE CREATE FROM CARD {id}` | Order Now / สั่งซื้อเลย | Order Now | Qty then `QUOTE CREATE`. Shop mode: add to draft website cart (`CART`) |
+| `CART` / `CART VIEW` | Cart / ตะกร้า | Open cart | Shop only. Flex lines, Add products, optional coupon, Checkout |
+| `CART CHECKOUT` | Checkout / ชำระเงิน | Order process Flex | Optional coupon, then Pay |
+| `CART COUPON {code}` / `FORM CART COUPON` | Coupon / คูปอง | Apply code | Optional. Odoo coupon/loyalty; fail-closed if RPC misses |
+| `CART PAY` | Pay / ชำระเงิน | Web pay | Signed `GET /shop/pay` → Odoo HTTPS portal. Callback `GET /shop/pay/return` and `POST /ops/odoo-hook` `payment.done` |
+| `CART STATUS` | Check payment / ตรวจสอบการชำระ | Poll Odoo | Paid → Order completed Flex; else Pay card |
+| `CART ADD {id} {qty}` | Add to cart | Merge line | Same draft `website_id` SO |
+| `CART REMOVE` / `CART CLEAR` | Remove / Clear | Edit cart | Line unlink or cancel draft |
 | `FORM QUOTE CREATE` | Create a quote / สร้างใบเสนอราคา (Customer title: Request for Order) | Start form | Staff extras; customer product+qty |
 | `QUOTE CREATE …` | (after form) | Submit | Draft SO. Customer: `user_id` empty. Staff: their Odoo user if mapped. OTP |
 | `FORM QUOTE ADD` / `QUOTE ADD` | Add more products / เพิ่มสินค้า | Add line | OTP |
@@ -255,11 +264,13 @@ Full key list: [`src/http/env-params.ts`](../src/http/env-params.ts). Do not inv
 | `LINE_RICH_MENU_JSON` / `LINE_CHANNEL_*_RICH_MENU_JSON` | `en.default`, `en.keyboard`, … | Pressed cells + keyboard | Unlink shows default tray |
 | `LINE_CHANNEL_CUSTOMER_KEYBOARD_RICH_MENU` | Blank menu id | Qty composer | Native 2×3 stays |
 | `CUSTOMER_QTY_CHIPS` | `10,15,…,50` | Qty chips | Default 10–50; cap ≤13 items |
+| `CUSTOMER_COMMERCE` | unset/`quote` or `shop` | Customer OA exclusive XOR | Unset = quote. Shop never auto-on from module install. Shop Pay: `/shop/pay` + Odoo + `payment.done` |
+| `ODOO_WEBSITE_ID` | Positive int | Shop website | Missing + shop requested → quote + degraded |
 | `LINE_AGENT_NAME_EN` / `_TH` | Persona | Sora / โซระ | Defaults + colon helper |
 | `LINE_IDLE_HOME_SECONDS` | Idle | Next message Home | Default 3600 |
 | `GUIDED_FORM_TTL_MINUTES` | Form TTL | `pendingFlow` | Default ≥60 |
 | `SALES_SESSION_TTL_HOURS` | Gold Verify | Session | Default 24 |
-| `PUBLIC_BASE_URL` | `https://…` | Admin + Flex images | No https heroes |
+| `PUBLIC_BASE_URL` | `https://…` | Admin, Flex images, shop Pay page origin | No https heroes / no signed `/shop/pay` |
 | `PUBLIC_ADMIN_BASE` | `/admin` | Admin UI (`/admin`, staging `/admin/test`) | SPA 404 |
 | Catalog image | `{PUBLIC_BASE_URL}/catalog/product/:id/image` (mirrors `/admin…` → `/catalog…`) | Flex hero | No https / nginx miss / 404 |
 | `ODOO_*` | ERP | Products, quotes | Empty / create fail |
@@ -298,6 +309,13 @@ Also document in `.env.example`: `LINE_WEBHOOK_ASYNC`, `DISABLED_COMMANDS`, `ENA
 | Campaigns | Multicast | Per-channel; honors `PROMO OFF` |
 | Campaigns | Super-admin types `BROADCAST` | OA-wide, one language; not promo |
 | Settings | Save runtime overlay | `getRuntime` without rebuild |
+| Tenants | Read silo snapshot | One process, one Odoo host, overlay TENANT_KEY |
+| Tenants | Save TENANT_KEY | Overlay docs only; does not switch Odoo |
+| Tenants | Lab Odoo test | Same LINE_* ; change ODOO_* ; recreate; re-VERIFY |
+| Products / Service catalog | Read Odoo via Admin `/api/live/*` | LINE Home/SERVICE LIST data; not Demo pricing |
+| CRM | Quotes assign | Same `sale.order` as LINE |
+| Group-buy / Approvals / Reporting | Read Firestore/Odoo | Live sessions, OTP records, daily snapshot |
+| Demo (`/testing`) | Catalogue, talk track, optional web chat | Not SoR; Chat/Journey/Pricing save off in production |
 
 ---
 

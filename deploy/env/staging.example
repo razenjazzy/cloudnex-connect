@@ -43,10 +43,15 @@ GOOGLE_CLOUD_LOCATION=
 GOOGLE_APPLICATION_CREDENTIALS_JSON=
 GOOGLE_AI_STUDIO_API_KEY=
 
+# One Odoo per process. Lab test with the same OA: change only these four; keep LINE_CHANNEL_*.
 ODOO_URL=
 ODOO_DB=
 ODOO_USERNAME=
 ODOO_API_KEY=
+# Customer OA exclusive mode: quote (default) or shop. Shop needs website_sale + ODOO_WEBSITE_ID.
+# Shop Pay: GET /shop/pay; Odoo POST /ops/odoo-hook event payment.done after paid.
+CUSTOMER_COMMERCE=
+ODOO_WEBSITE_ID=
 
 OPS_API_TOKEN=
 ADMIN_SECRET_TOKEN=
@@ -99,3 +104,10 @@ MONGO_USERS=false
 MONGODB_URI=
 GRAPHQL_LINE_INGEST=false
 TENANT_KEY=default
+# Admin Home studio (optional)
+OLLAMA_BASE_URL=
+OLLAMA_MODEL=llama3.2
+FLOWISE_BASE_URL=
+FLOWISE_CHATFLOW_ID=
+FLOWISE_API_KEY=
+

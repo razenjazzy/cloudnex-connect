@@ -1,9 +1,12 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import logo from './assets/cloudnex-connect.jpeg';
+import { LiveServices } from './LiveServices';
+import { TenantPanel } from './TenantPanel';
+import { StudioPanel } from './StudioPanel';
 import { DemoPanel } from './DemoPanel';
 import { HelpFaq } from './HelpFaq';
 import { CommandWork } from './CommandWork';
-import { CopyField, FaqItem, Steps, ToastStack, type ToastItem } from './ui';
+import { CopyField, FaqItem, BindSteps, Steps, ToastStack, type ToastItem } from './ui';
 import { readUiLang, t, writeUiLang, applyPortalI18nOverlay, portalStringRows, type UiKey, type UiLang } from './i18n';
 
 const TOKEN_KEY = 'cloudnex_ops_token';
@@ -71,6 +74,13 @@ const PAGE_BY_LEAF: Record<string, string> = {
   line: 'line',
   campaigns: 'campaigns',
   crm: 'crm',
+  commerce: 'commerce',
+  catalog: 'catalog',
+  'group-buy': 'group-buy',
+  groupbuy: 'group-buy',
+  approvals: 'approvals',
+  reporting: 'reporting',
+  ops: 'ops',
   commands: 'commands',
   jobs: 'jobs',
   settings: 'settings',
@@ -81,6 +91,8 @@ const PAGE_BY_LEAF: Record<string, string> = {
   audit: 'logs',
   platform: 'platform',
   erp: 'platform',
+  tenants: 'tenants',
+  tenant: 'tenants',
   advanced: 'advanced',
   testing: 'testing',
   demo: 'testing',
@@ -397,9 +409,14 @@ const navGroupsFor = (lang: UiLang): Array<{ id: string; label: string; items: N
     id: 'work',
     label: t(lang, 'navWork'),
     items: [
+      { id: 'commerce', href: `${ADMIN_BASE}/commerce`, label: t(lang, 'navProducts') },
+      { id: 'catalog', href: `${ADMIN_BASE}/catalog`, label: t(lang, 'navCatalog') },
       { id: 'crm', href: `${ADMIN_BASE}/crm`, label: t(lang, 'navCrm') },
+      { id: 'group-buy', href: `${ADMIN_BASE}/group-buy`, label: t(lang, 'navGroupBuy') },
+      { id: 'approvals', href: `${ADMIN_BASE}/approvals`, label: t(lang, 'navApprovals') },
       { id: 'commands', href: `${ADMIN_BASE}/commands`, label: t(lang, 'navCommands') },
       { id: 'jobs', href: `${ADMIN_BASE}/jobs`, label: t(lang, 'navJobs') },
+      { id: 'reporting', href: `${ADMIN_BASE}/reporting`, label: t(lang, 'navReporting') },
     ],
   },
   {
@@ -408,7 +425,9 @@ const navGroupsFor = (lang: UiLang): Array<{ id: string; label: string; items: N
     items: [
       { id: 'settings', href: `${ADMIN_BASE}/settings`, label: t(lang, 'navSettings') },
       { id: 'logs', href: `${ADMIN_BASE}/logs`, label: t(lang, 'navAudit') },
+      { id: 'tenants', href: `${ADMIN_BASE}/tenants`, label: t(lang, 'navTenants') },
       { id: 'platform', href: `${ADMIN_BASE}/platform`, label: t(lang, 'navErp') },
+      { id: 'ops', href: `${ADMIN_BASE}/ops`, label: t(lang, 'navOps') },
       { id: 'advanced', href: `${ADMIN_BASE}/advanced`, label: t(lang, 'navAdvanced') },
       { id: 'testing', href: `${ADMIN_BASE}/testing`, label: t(lang, 'navDemo') },
       { id: 'help', href: `${ADMIN_BASE}/help`, label: t(lang, 'navHelp') },
@@ -485,7 +504,7 @@ export const App = () => {
   const [auditAction, setAuditAction] = useState('');
   const [grantUser, setGrantUser] = useState('');
   const [privilegeSnap, setPrivilegeSnap] = useState('');
-  const [tenantKey, setTenantKey] = useState('default');
+  const [, setTenantKey] = useState('default');
   const [erpStatus, setErpStatus] = useState('');
   const [navOpen, setNavOpen] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
@@ -1032,7 +1051,7 @@ export const App = () => {
           <div className="overview-grid">
             <div className="card">
               <h2>Overview</h2>
-            <p className="page-lead">HMAC LINE inbound. Demo is testing only. Lock: {String(settingsLock)}</p>
+            <p className="page-lead">HMAC LINE inbound. Demo is testing only. Live modules are Work pages. Lock: {String(settingsLock)}</p>
               <div className="status-grid">
                 {statusRows.map(row => (
                   <div key={row.label} className={`status-cell ${row.on ? 'on' : 'off'}`}>
@@ -1041,6 +1060,24 @@ export const App = () => {
                     <span className="status-value">{row.detail}</span>
                   </div>
                 ))}
+              </div>
+              {!dash?.actorBound ? (
+                <>
+                  <p className="warn">Actor unbound. Bind a super-admin LINE id before Campaigns, secret reveal, or CRM command run.</p>
+                  <BindSteps adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} />
+                  <div className="row">
+                    <button type="button" onClick={() => go(`${ADMIN_BASE}/identity`)}>Open Identity → Bind</button>
+                  </div>
+                </>
+              ) : null}
+              <div className="row">
+                <button type="button" onClick={() => go(`${ADMIN_BASE}/commerce`)}>Products</button>
+                <button type="button" className="secondary" onClick={() => go(`${ADMIN_BASE}/catalog`)}>Service catalog</button>
+                <button type="button" className="secondary" onClick={() => go(`${ADMIN_BASE}/crm`)}>Quotes</button>
+                <button type="button" className="secondary" onClick={() => go(`${ADMIN_BASE}/group-buy`)}>Group-buy</button>
+                <button type="button" className="secondary" onClick={() => go(`${ADMIN_BASE}/approvals`)}>Approvals</button>
+                <button type="button" className="secondary" onClick={() => go(`${ADMIN_BASE}/ops`)}>Ops</button>
+                <button type="button" className="secondary" onClick={() => go(`${ADMIN_BASE}/tenants`)}>Tenants</button>
               </div>
               <div className="row">
                 <button type="button" onClick={async () => {
@@ -1079,21 +1116,7 @@ export const App = () => {
               />
               {platformSnap ? <CopyField label="Platform" value={JSON.stringify(platformSnap, null, 2)} /> : null}
               <hr className="section-rule" />
-              <h3>Cursor CLI</h3>
-              <p className="page-lead">Use Cursor Agent in this repo for LINE OA and Admin work. Command catalog is documents/LINE_OA_AGENT.md, not MCP.</p>
-              <Steps items={[
-                <>Open the <code>cloudnex-connect</code> repo in Cursor (IDE or CLI).</>,
-                <>Attach <code>documents/AGENTIC_PROMPT.md</code> and <code>documents/LINE_OA_AGENT.md</code> to the agent.</>,
-                <>Ops health is <code>GET /healthz</code>, <code>GET /readyz</code>, <code>GET /ops/platform</code> — not LINE prefixes.</>,
-              ]} />
-              <CopyField
-                label="Cursor CLI (from repo root)"
-                value={`# Cursor Agent CLI (when installed)
-cursor agent --help
-
-# Same constraints as the IDE agent: no new npm deps, no production deploy.
-# Staging only after tests. HMAC :8080. Admin staging /admin/test.`}
-              />
+              <StudioPanel adminBase={ADMIN_BASE} api={api} />
             </div>
             <div className="card">
               <h2>LINE traffic</h2>
@@ -1160,15 +1183,9 @@ cursor agent --help
               }}>Confirm</button>
             </div>
             {actor ? <CopyField label="Bound LINE user id" value={actor} /> : null}
-            <FaqItem title="How to bind">
-              <Steps items={[
-                <>Sign in to Admin with <code>OPS_API_TOKEN</code> (the panel password). That is not the actor.</>,
-                <>On the VPS <code>.env</code>, put the same Cloudnex Sales LINE user id on <code>ADMIN_USER_ID</code> and <code>SUPER_ADMIN_USER_IDS</code>, then recreate the container.</>,
-                <>In LINE, open Cloudnex Sales, complete VERIFY so the profile is <code>odooVerified</code>.</>,
-                <>Admin → Identity: paste that LINE id (<code>U</code> + 32 hex). Directory lookup can find it after VERIFY.</>,
-                <>Send code → OTP arrives on Cloudnex Sales → Confirm. Actor cookie is now bound.</>,
-                <>Campaigns, secret reveal, and privilege grant need that bind. Jobs Run uses the OPS sign-in and does not need actor.</>,
-              ]} />
+            {!actor ? <BindSteps adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} /> : null}
+            <FaqItem title="Browser console startTime error">
+              <p className="muted"><code>Cannot read properties of undefined (reading 'startTime')</code> is not this Admin app (usually an extension or Cursor overlay). Ignore it if Send code / Confirm return a normal toast.</p>
             </FaqItem>
           </div>
         ) : null}
@@ -1176,6 +1193,12 @@ cursor agent --help
           <div className="card">
             <h2>Settings</h2>
             <p>Public values are editable when ADMIN_CONFIG_LOCK is false (and SECRETS_ENCRYPTION_KEY is set). Secrets stay masked; use Reveal. Jobs token is uploaded on the Jobs page. Service toggles cannot enable a key omitted from env.</p>
+            {!actor ? (
+              <>
+                <p className="warn">Secret reveal needs a bound super-admin cookie.</p>
+                <BindSteps adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} />
+              </>
+            ) : null}
             <CopyField label="Webhooks" value={JSON.stringify(webhooks, null, 2)} />
             <p className="muted">Lock: {String(settingsLock)}. If lock is true, change VPS <code>ADMIN_CONFIG_LOCK=false</code> then recreate the container to Save settings here.</p>
             <button type="button" onClick={() => void loadSettings({ replaceDrafts: true })}>Refresh</button>
@@ -1306,15 +1329,15 @@ cursor agent --help
           <div className="card">
             <h2>API / LINE (`t(key)`)</h2>
             <div className="table-wrap">
-              <table>
-                <thead><tr><th>Key</th><th>EN</th><th>TH</th><th>Source</th></tr></thead>
+              <table className="lang-grid">
+                <thead><tr><th>Key</th><th>Source</th><th>EN</th><th>TH</th></tr></thead>
                 <tbody>
                   {i18nApi.map((row, i) => (
                     <tr key={row.key}>
                       <td><code>{row.key}</code></td>
+                      <td>{row.source || 'code'}</td>
                       <td><input value={row.en} onChange={e => setI18nApi(list => list.map((item, j) => j === i ? { ...item, en: e.target.value } : item))} /></td>
                       <td><input value={row.th} onChange={e => setI18nApi(list => list.map((item, j) => j === i ? { ...item, th: e.target.value } : item))} /></td>
-                      <td>{row.source || 'code'}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1424,8 +1447,8 @@ cursor agent --help
               }}>{t(uiLang, 'cmdSave')}</button>
             </div>
             <div className="table-wrap">
-              <table>
-                <thead><tr><th>On</th><th>Prefix (read-only)</th><th>EN label</th><th>TH label</th><th>Aliases</th><th>Category</th><th>Roles</th><th>Channels</th></tr></thead>
+              <table className="commands-grid">
+                <thead><tr><th>On</th><th>Prefix (read-only)</th><th>Category</th><th>EN label</th><th>TH label</th><th>Aliases</th><th>Roles</th><th>Channels</th></tr></thead>
                 <tbody>
                   {commands.map((row, i) => (
                     <tr key={String(row.id || i)}>
@@ -1436,6 +1459,7 @@ cursor agent --help
                         }} />
                       </td>
                       <td><code>{String(row.prefix || '')}</code></td>
+                      <td>{String(row.category || '')}</td>
                       <td>
                         <input value={String(row.labelEn || '')} onChange={e => {
                           const labelEn = e.target.value;
@@ -1454,7 +1478,6 @@ cursor agent --help
                           setCommands(prev => prev.map(item => item.id === row.id ? { ...item, aliases } : item));
                         }} placeholder="typed shortcuts" />
                       </td>
-                      <td>{String(row.category || '')}</td>
                       <td>
                         <input value={Array.isArray(row.roles) ? row.roles.join(',') : ''} onChange={e => {
                           const roles = e.target.value.split(',').map(part => part.trim()).filter(Boolean);
@@ -1477,9 +1500,10 @@ cursor agent --help
         ) : null}
         {page === 'crm' ? (
           <>
-          <CommandWork adminBase={ADMIN_BASE} api={api} actor={actor} uiLang={uiLang} toast={(text, kind) => toast(text, kind === 'ok' ? 'ok' : 'error')} />
+          <CommandWork adminBase={ADMIN_BASE} api={api} actor={actor} uiLang={uiLang} onIdentity={() => go(`${ADMIN_BASE}/identity`)} toast={(text, kind) => toast(text, kind === 'ok' ? 'ok' : 'error')} />
           <div className="card">
             <h2>CRM quotes</h2>
+            {!actor ? <BindSteps adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} /> : null}
             <div className="row">
               <button type="button" onClick={async () => {
                 const res = await api(`${ADMIN_BASE}/crm/quotes?unassigned=1`);
@@ -1685,29 +1709,28 @@ cursor agent --help
             </div>
           </div>
         ) : null}
-        {page === 'testing' ? <DemoPanel adminBase={ADMIN_BASE} api={api} /> : null}
+        {page === 'testing' ? <DemoPanel adminBase={ADMIN_BASE} api={api} go={go} /> : null}
+        {(page === 'commerce' || page === 'catalog' || page === 'group-buy' || page === 'approvals' || page === 'ops' || page === 'reporting') ? (
+          <LiveServices page={page} adminBase={ADMIN_BASE} api={api} go={go} />
+        ) : null}
+        {page === 'tenants' ? (
+          <TenantPanel
+            adminBase={ADMIN_BASE}
+            api={api}
+            go={go}
+            toast={(text, kind) => toast(text, kind === 'ok' ? 'ok' : 'error')}
+          />
+        ) : null}
         {page === 'platform' ? (
           <div className="card">
             <h2>ERP / platform</h2>
-            <p className="page-lead">ERP adapter status, tenant key, and e-sign/payment probes. Odoo masters stay in Odoo.</p>
+            <p className="page-lead">ERP adapter status and e-sign/payment probes. Overlay tenant key and silo rules are on Tenants. Odoo masters stay in Odoo.</p>
             <Steps items={[
               <>Refresh ERP to load adapter status.</>,
-              <>Save tenant only when ADMIN_CONFIG_LOCK is off.</>,
+              <>Open Tenants to set TENANT_KEY or point this process at a lab Odoo.</>,
             ]} />
             <div className="field-row">
-              <div className="field">
-                <label>Tenant key</label>
-                <input value={tenantKey} onChange={e => setTenantKey(e.target.value)} placeholder="default" />
-              </div>
-              <button type="button" onClick={async () => {
-                const res = await api(`${ADMIN_BASE}/api/tenant`, { method: 'PUT', body: JSON.stringify({ tenantKey }) });
-                const body = await res.json() as { tenantKey?: string; error?: string };
-                if (!res.ok) setError(body.error || 'Tenant save failed (lock?)');
-                else {
-                  setTenantKey(body.tenantKey || tenantKey);
-                  setError('');
-                }
-              }}>Save tenant</button>
+              <button type="button" className="secondary" onClick={() => go(`${ADMIN_BASE}/tenants`)}>Open Tenants</button>
               <button type="button" onClick={async () => {
                 await loadSettings();
                 const res = await api(`${ADMIN_BASE}/api/erp/test`);
@@ -1727,6 +1750,12 @@ cursor agent --help
           <div className="card">
             <h2>Jobs</h2>
             <p className="page-lead">{t(uiLang, 'jobsNeedToken')}</p>
+            <Steps items={[
+              <>Copy <code>ADMIN_SECRET_TOKEN</code> from the VPS <code>.env</code> (or Identity bind, then Settings → Reveal). Do not use the OPS login token.</>,
+              <>Paste it here (16+ characters). Save token. If it matches the VPS env, the server keeps env and this browser stores the value for Run.</>,
+              <>If env is empty and <code>ADMIN_CONFIG_LOCK</code> is false, Save uploads an overlay token. If lock is true, the VPS token must already match.</>,
+              <>Run daily-report / segmentation / seed-odoo while still signed in with OPS. curl uses the same Bearer token.</>,
+            ]} />
             <div className="field-row">
               <div className="field">
                 <label>ADMIN_SECRET_TOKEN (optional curl)</label>
@@ -1806,11 +1835,16 @@ cursor agent --help
             <h2>{t(uiLang, 'navCampaigns')}</h2>
             <p className="page-lead">{t(uiLang, 'campLead')}</p>
             <Steps items={[
-              <>Bind super-admin on Identity if the header pill says not bound.</>,
+              <>Bind super-admin with the Identity steps below if the header pill says not bound.</>,
               <>{t(uiLang, 'transactionalAudience')} / {t(uiLang, 'optedInPromo')} / {t(uiLang, 'allFollowers')}.</>,
               <>Test to yourself, then Send multicast. Do not Broadcast promo.</>,
             ]} />
-            {!actor ? <p className="warn">Bind super-admin on Identity first. Campaign send stays disabled until the actor cookie is set.</p> : null}
+            {!actor ? (
+              <>
+                <p className="warn">Bind super-admin on Identity first. Campaign send stays disabled until the actor cookie is set.</p>
+                <BindSteps adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} />
+              </>
+            ) : null}
             <div className="row">
               <select value={campChannel} onChange={e => setCampChannel(e.target.value)}>
                 <option value="customer">customer</option>

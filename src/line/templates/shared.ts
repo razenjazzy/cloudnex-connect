@@ -85,6 +85,17 @@ export const amountHighlightBox = (
   ],
 });
 
+/** Paper note — Order waiting copy, order note, Customer product short description. */
+export const mutedNoteBox = (text: string): messagingApi.FlexBox => ({
+  type: 'box',
+  layout: 'vertical',
+  backgroundColor: BRAND.paper,
+  cornerRadius: BRAND.radius,
+  paddingAll: 'sm',
+  contents: [
+    { type: 'text', text, size: 'xs', color: BRAND.inkSoft, wrap: true },
+  ],
+});
 
 export const createMessageActionButton = (
   label: string,

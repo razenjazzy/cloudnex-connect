@@ -25,6 +25,9 @@ import { findOdooUserIdByPartnerId } from '../../services/odoo/admin';
 import { sendTargetedFlexMessage } from '../messaging';
 import { beginQuoteCreate, completeQuoteCreate, failQuoteCreate, quoteCreateLockKey } from '../../services/quote-idempotency';
 import { formatQuoteAskNote } from '../quote-ask';
+import { attachShopJourney, isCustomerShopEffective, parseOdooWebsiteId, searchAudienceProducts } from '../../platform/customer-commerce';
+import { shopCartFlexForOrder } from './shop-cart';
+import { getRuntime } from '../../services/runtime-settings';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -73,7 +76,7 @@ const demoProductHandler: CommandHandler = {
     if (!query) {
       if (!isQuoteStaff(ctx.profile)) {
         try {
-          const catalog = await getErpAdapter().searchProducts('', 10);
+          const catalog = await searchAudienceProducts('', 10);
           if (catalog.length) return [createProductCarouselFlexMessage(catalog, userLanguage, undefined, ctx.channel?.channelId)];
           return [botText(tr(userLanguage, 'ยังไม่มีสินค้าให้แสดง กรุณาค้นหาด้วยชื่อสินค้า', 'No products to show yet. Search by product name.'), userLanguage, [
             { label: tr(userLanguage, 'ค้นหาสินค้า', 'Search products'), text: 'FORM PRODUCT FIND', style: 'primary' },
@@ -90,7 +93,7 @@ const demoProductHandler: CommandHandler = {
     const erp = getErpAdapter();
     const id = productFindId(query);
     const lookedUp = id ? await erp.lookupProduct(id) : null;
-    const searched = lookedUp ? [] : await erp.searchProducts(query, 10);
+    const searched = lookedUp ? [] : await (isQuoteStaff(ctx.profile) ? erp.searchProducts(query, 10) : searchAudienceProducts(query, 10));
     const products = selectProductsForFind(query, lookedUp, searched);
     if (!products.length) {
       return [botText(tr(userLanguage, `ไม่พบสินค้าที่ตรงกับ "${query}"`, `No product matched "${query}".`), userLanguage, [
@@ -149,14 +152,17 @@ const demoOrderHandler: CommandHandler = {
     if (!canViewOrderAsCustomer(profile, orderPartnerId)) {
       return [botText(t('quoteNotYours', userLanguage), userLanguage)];
     }
-    return [createQuotationJourneyFlexMessage(order, {
+    const shop = await isCustomerShopEffective();
+    return [createQuotationJourneyFlexMessage(order, await attachShopJourney({
       role,
       salesTier: profile.salesTier,
       canManageLines: canManageQuoteLines(profile),
-      portalLink: links.portal,
+      portalLink: shop && role === 'customer'
+        ? (await getErpAdapter().getCheckoutLink?.(order.id) || undefined)
+        : links.portal,
       pdfLink: links.pdf,
       ...(delivery ? { delivery } : {}),
-    }, userLanguage)];
+    }), userLanguage)];
   },
 };
 
@@ -191,7 +197,9 @@ const demoQuoteHandler: CommandHandler = {
     const erp = getErpAdapter();
     const product = parsedProductId
       ? await erp.lookupProduct(parsedProductId)
-      : (await erp.searchProducts(productName, 1))[0];
+      : isQuoteStaff(profile)
+        ? (await erp.searchProducts(productName, 1))[0]
+        : (await searchAudienceProducts(productName, 1))[0];
     if (!product) {
       return [botText(tr(userLanguage,
         `ไม่พบสินค้าที่ตรงกับ "${productName}"`,
@@ -246,6 +254,44 @@ const demoQuoteHandler: CommandHandler = {
       salespersonUserId = await findOdooUserIdByPartnerId(profile.odooPartnerId);
     }
 
+    const shop = await isCustomerShopEffective();
+    const websiteId = shop ? parseOdooWebsiteId(getRuntime('ODOO_WEBSITE_ID')) : null;
+    if (shop && websiteId && !isQuoteStaff(profile) && partnerId) {
+      const cartDraft = await getErpAdapter().addToShopCart?.({
+        partnerId,
+        customerName,
+        phone,
+        productId: product.id,
+        qty,
+        websiteId,
+      });
+      if (!cartDraft) {
+        failQuoteCreate(lockKey);
+        recordAuditEvent({ action: 'shop_cart_add', outcome: 'failure', actorUserId: userId, channelId: channel?.channelId, requestId, detail: `product=${product.id}` });
+        return [botText(tr(userLanguage,
+          'พบสินค้าแล้ว แต่ใส่ตะกร้าไม่สำเร็จ กรุณาลองใหม่',
+          'Found the product, but could not add it to the cart. Please try again.',
+        ), userLanguage)];
+      }
+      completeQuoteCreate(lockKey, cartDraft.name);
+      recordAuditEvent({ action: 'shop_cart_add', outcome: 'success', actorUserId: userId, channelId: channel?.channelId, requestId, targetId: cartDraft.name });
+      const cartOrder = await getSaleOrderById(cartDraft.id);
+      if (!cartOrder) {
+        return [botText(t('shopCartEmpty', userLanguage), userLanguage)];
+      }
+      const added = outcomeFlex({
+        language: userLanguage,
+        tone: 'success',
+        title: t('shopCartTitle', userLanguage),
+        body: tFill('shopOrderWaitingPay', userLanguage, { name: cartDraft.name }),
+        actions: [
+          { label: t('shopCheckoutCta', userLanguage), text: 'CART CHECKOUT', style: 'primary' },
+          { label: t('addMore', userLanguage), text: 'NAV HOME', style: 'secondary' },
+        ],
+      });
+      return withOutcome(userLanguage, added, [await shopCartFlexForOrder(cartOrder, userLanguage, 'cart', userId)]);
+    }
+
     const quotation = await getErpAdapter().createQuotation(customerName, phone, product.name, qty, {
       partnerId,
       ...(rfqUnassigned || !customerReference ? {} : { customerRef: customerReference }),
@@ -255,6 +301,7 @@ const demoQuoteHandler: CommandHandler = {
       paymentTermId,
       productId: product.id,
       ...(salespersonUserId !== undefined ? { salespersonUserId } : {}),
+      ...(shop ? { websiteId: parseOdooWebsiteId(getRuntime('ODOO_WEBSITE_ID')) || undefined } : {}),
     });
     if (!quotation) {
       failQuoteCreate(lockKey);
@@ -286,13 +333,14 @@ const demoQuoteHandler: CommandHandler = {
 
     const links = await getErpAdapter().getOrderLinks(quotation.id);
     const role = quoteJourneyRole(profile);
-    const card = createQuotationJourneyFlexMessage(order, {
+    const checkout = shop ? await getErpAdapter().getCheckoutLink?.(quotation.id) : undefined;
+    const card = createQuotationJourneyFlexMessage(order, await attachShopJourney({
       role,
       salesTier: profile.salesTier,
       canManageLines: canManageQuoteLines(profile),
-      portalLink: links.portal,
+      portalLink: shop && role === 'customer' ? checkout || undefined : links.portal,
       pdfLink: links.pdf,
-    }, userLanguage);
+    }), userLanguage);
 
     notifyQuoteParties({ order, channelId: channel?.channelId, actorUserId: userId, notifyCustomer: false })
       .catch(err => console.warn('quote-create: sales notify failed (non-fatal):', err));
@@ -301,8 +349,10 @@ const demoQuoteHandler: CommandHandler = {
       const received = outcomeFlex({
         language: userLanguage,
         tone: 'success',
-        title: t('quoteReceivedTitle', userLanguage),
-        body: tFill('quoteReceivedWaitingSales', userLanguage, { name: quotation.name }),
+        title: t(shop ? 'shopOrderTitle' : 'quoteReceivedTitle', userLanguage),
+        body: shop
+          ? tFill('shopOrderWaitingPay', userLanguage, { name: quotation.name })
+          : tFill('quoteReceivedWaitingSales', userLanguage, { name: quotation.name }),
         actions: [
           { label: t('addMore', userLanguage), text: `FORM QUOTE ADD ${quotation.id}`, style: 'primary' },
           { label: t('skip', userLanguage), text: 'NAV HOME', style: 'secondary' },
@@ -489,6 +539,11 @@ const quoteAskHandler: CommandHandler = {
   match: (u) => u === 'QUOTE ASK' || u.startsWith('QUOTE ASK '),
   handle: async (ctx) => {
     const { userLanguage, profile, userId, channel } = ctx;
+    if (await isCustomerShopEffective()) {
+      return [botText(t('quoteAskNotApplicable', userLanguage), userLanguage, [
+        { label: tr(userLanguage, 'หน้าแรก', 'Home'), text: 'NAV HOME', style: 'primary' },
+      ])];
+    }
     if (!profile.odooVerified || !profile.odooPartnerId) {
       return [botText(tr(userLanguage, 'ยืนยันตัวตนก่อนดูคำขอใบเสนอราคา', 'Verify your account before viewing quotation requests.'), userLanguage, [
         { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
@@ -524,7 +579,7 @@ const qtyProductUtteranceHandler: CommandHandler = {
   handle: async (ctx) => {
     const parsed = parseQtyProductUtterance(ctx.text)!;
     if (!ctx.profile.odooVerified) {
-      const found = (await getErpAdapter().searchProducts(parsed.productName, 1))[0];
+      const found = (await searchAudienceProducts(parsed.productName, 1))[0];
       if (found) {
         await setLastProductContext(ctx.userId, {
           productId: found.id,

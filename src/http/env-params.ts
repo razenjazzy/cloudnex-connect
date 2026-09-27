@@ -27,6 +27,8 @@ export const ENV_PARAMS: EnvParam[] = [
   { key: 'LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON', requiredIn: [], note: 'Customer OA tray ids from rich-menu:upload; include en.keyboard / th.keyboard for qty forms' },
   { key: 'LINE_CHANNEL_CUSTOMER_KEYBOARD_RICH_MENU', requiredIn: [], note: 'Blank/keyboard rich-menu id when JSON keyboard key is unset; without it unlink still shows the OA default tray' },
   { key: 'CUSTOMER_QTY_CHIPS', requiredIn: [], note: 'Comma qty chips for quote-create; default 10,15,20,25,30,35,40,45,50 (quickReply ≤13)' },
+  { key: 'CUSTOMER_COMMERCE', requiredIn: [], note: 'quote (default) or shop; Customer OA exclusive XOR. Shop needs website_sale + ODOO_WEBSITE_ID. Shop Pay: HTTPS PUBLIC_BASE_URL /shop/pay plus Odoo portal; payment.done on /ops/odoo-hook' },
+  { key: 'ODOO_WEBSITE_ID', requiredIn: [], note: 'Positive website id when CUSTOMER_COMMERCE=shop; otherwise Customer stays quote (degraded)' },
   { key: 'LINE_RICH_MENU_EN', requiredIn: [], note: 'Default English tray (all tiles equal)' },
   { key: 'LINE_RICH_MENU_TH', requiredIn: [], note: 'Default Thai tray (all tiles equal)' },
   { key: 'LINE_RICH_MENU_JSON', requiredIn: [], note: 'Per-cell active rich-menu ids from npm run rich-menu:upload' },
@@ -81,6 +83,11 @@ export const ENV_PARAMS: EnvParam[] = [
   { key: 'SAML_IDP_CERT', requiredIn: [], note: 'IdP X.509 cert PEM for assertion signatures' },
   { key: 'SAML_SP_ENTITY_ID', requiredIn: [], note: 'SP entity ID; defaults to metadata URL' },
   { key: 'SAML_LINE_ATTRIBUTE', requiredIn: [], note: 'SAML attribute with LINE user id; default line_user_id' },
+  { key: 'OLLAMA_BASE_URL', requiredIn: [], note: 'Optional Admin Home studio; e.g. http://127.0.0.1:11434' },
+  { key: 'OLLAMA_MODEL', requiredIn: [], note: 'Ollama model name; default llama3.2' },
+  { key: 'FLOWISE_BASE_URL', requiredIn: [], note: 'Optional Flowise origin for Admin Home studio' },
+  { key: 'FLOWISE_CHATFLOW_ID', requiredIn: [], note: 'Flowise chatflow id for /api/v1/prediction' },
+  { key: 'FLOWISE_API_KEY', requiredIn: [], note: 'Optional Bearer for Flowise' },
 ];
 
 export const auditEnvParams = (appEnv: AppEnv, env: NodeJS.ProcessEnv = process.env) => {

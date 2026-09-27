@@ -107,7 +107,7 @@ const opsPaths: Record<string, OpenApiPath> = {
   '/ops/odoo-hook': {
     post: {
       tags: ['erp'],
-      summary: 'Odoo picking.done or approval.stage notify (Sales OA; customer on shipped)',
+      summary: 'Odoo picking.done, approval.stage, or payment.done notify',
       security: bearer,
       requestBody: {
         required: true,
@@ -117,7 +117,7 @@ const opsPaths: Record<string, OpenApiPath> = {
               type: 'object',
               required: ['event', 'orderId'],
               properties: {
-                event: { type: 'string', enum: ['picking.done', 'approval.stage'] },
+                event: { type: 'string', enum: ['picking.done', 'approval.stage', 'payment.done'] },
                 orderId: { type: 'integer', minimum: 1 },
               },
             },
@@ -202,7 +202,7 @@ const opsPaths: Record<string, OpenApiPath> = {
   '/admin/api/tenant': {
     get: {
       tags: ['admin'],
-      summary: 'Active overlay tenantKey',
+      summary: 'Silo tenant snapshot: overlay key, Odoo host, LINE channels (no secrets)',
       security: bearer,
       responses: { '200': { description: 'Tenant' } },
     },
@@ -295,6 +295,47 @@ const opsPaths: Record<string, OpenApiPath> = {
       summary: 'LINE Broadcast API. Requires confirm BROADCAST. Ignores PROMO OFF.',
       security: bearer,
       responses: { '200': { description: 'Broadcast' }, '400': { description: 'Missing confirm' } },
+    },
+  },
+  '/admin/api/live/modules': {
+    get: {
+      tags: ['admin'],
+      summary: 'Live service modules with toggles and host flags (not Demo catalogue)',
+      security: bearer,
+      responses: { '200': { description: 'Modules, toggles, flags' } },
+    },
+  },
+  '/admin/api/live/products': {
+    get: {
+      tags: ['admin'],
+      summary: 'Odoo product list via getErpAdapter searchProducts',
+      security: bearer,
+      responses: { '200': { description: 'Products' }, '503': { description: 'Odoo unavailable' } },
+    },
+  },
+  '/admin/api/live/services': {
+    get: {
+      tags: ['admin'],
+      summary: 'Odoo service catalog via getErpAdapter listServices',
+      security: bearer,
+      responses: { '200': { description: 'Services' }, '503': { description: 'Odoo unavailable' } },
+    },
+  },
+  '/admin/api/studio': {
+    get: {
+      tags: ['admin'],
+      summary: 'Ollama/Flowise studio status (no secrets)',
+      security: bearer,
+      responses: { '200': { description: 'Configured flags' } },
+    },
+    post: {
+      tags: ['admin'],
+      summary: 'Proxy one prompt to env Ollama or Flowise',
+      security: bearer,
+      responses: {
+        '200': { description: 'Model text' },
+        '503': { description: 'Engine unset' },
+      },
     },
   },
   '/admin/api/dashboard': {

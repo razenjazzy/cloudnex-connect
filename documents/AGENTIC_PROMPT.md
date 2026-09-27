@@ -25,6 +25,8 @@ This is the tap-level journey the Official Accounts must perform. Every Flex but
 
 ### Customer OA (`POST /webhook/customer`)
 
+Customer commerce is exclusive quote XOR shop (`CUSTOMER_COMMERCE`; default quote). Shop is env-gated and never turns on only because `website_sale` is installed. When shop is effective, Customer OA uses Flex cart (add products) → order process → optional coupon → web Pay (`/shop/pay`) → Odoo payment → callback (`/shop/pay/return` or `/ops/odoo-hook` `payment.done`) → Order completed. The default storyboard below is quote.
+
 ```mermaid
 flowchart TD
   openC[Open Customer OA] --> homeC[Home: HTTPS carousel if image bytes plus Products and Orders menu]

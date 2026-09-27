@@ -10,7 +10,7 @@ Three lanes. Same codebase. Different `APP_ENV`. The Docker image always sets `N
 
 If `APP_ENV` is unset and `NODE_ENV=production`, the process **fails closed to production**. HMAC on `amardhaka.io` is the production VPS process (`APP_ENV=production`). Staging Admin is the sibling (`APP_ENV=staging`).
 
-Optional flags (default false): `GCS_MEDIA_BUCKET`, `LINE_MEDIA_MAX_BYTES`, `CLAMAV_URL`, `AV_SCAN_REQUIRED`, `LINE_GROUP_ROOMS`, `LINE_SECOND_WEBHOOK` (second HMAC ingress, same handler), `MONGO_USERS` (Mongo identity SoR when true; fail closed without `MONGODB_URI`; never Odoo SoR), `GRAPHQL_LINE_INGEST` (ops GraphQL ingest → same processor). `TENANT_KEY` scopes overlay docs (default `default`). `ERP_PROVIDER` other than `odoo` is an unimplemented placeholder.
+Optional flags (default false): `GCS_MEDIA_BUCKET`, `LINE_MEDIA_MAX_BYTES`, `CLAMAV_URL`, `AV_SCAN_REQUIRED`, `LINE_GROUP_ROOMS`, `LINE_SECOND_WEBHOOK` (second HMAC ingress, same handler), `MONGO_USERS` (Mongo identity SoR when true; fail closed without `MONGODB_URI`; never Odoo SoR), `GRAPHQL_LINE_INGEST` (ops GraphQL ingest → same processor). `TENANT_KEY` scopes overlay docs (default `default`). It does not select a second Odoo. Paying clients are **silo processes** (own env, own `ODOO_*`, own LINE secrets). Admin → Tenants shows the live silo. `ERP_PROVIDER` other than `odoo` is an unimplemented placeholder. Admin Home studio is optional: `OLLAMA_BASE_URL` / `FLOWISE_BASE_URL` (OPS-authed proxy only; not LINE).
 
 ## 1. Development (local + API test)
 
@@ -49,7 +49,7 @@ Do not commit tokens. Copy keys from `deploy/env/staging.example` into the host 
 ```text
 APP_ENV=production
 NODE_ENV=production
-ENABLE_DEMO_CONTROL_PANEL=   # ignored; demo stays off
+ENABLE_DEMO_CONTROL_PANEL=   # ignored; demo chat/journey/webhook-test stay off. Admin Testing still serves GET /api/demo/platform (module inventory) under OPS auth.
 ENABLE_WEBHOOK_TEST=         # ignored; stays off
 ```
 

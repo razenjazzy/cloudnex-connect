@@ -22,6 +22,18 @@ export const HelpFaq = ({
   <div className="faq-list">
     <p className="page-lead">OTP bind on Identity does not use these consoles. Register a URL only for the product you are turning on.</p>
 
+    <FaqItem title="Tenants vs one Odoo">
+      <p>Platform → Tenants is this HMAC process: one client silo. TENANT_KEY only scopes overlay documents. A second company needs its own deploy and Odoo. To test a lab Odoo on the current OA, change only ODOO_* on staging, recreate the container, then re-VERIFY so partner ids match the lab database.</p>
+    </FaqItem>
+
+    <FaqItem title="Demo vs live modules">
+      <p>Platform → Demo is a testing catalogue (talk track, web chat when enabled). Live product prices, service catalog, quotes, group-buy sessions, and approvals are Work pages: Products, Service catalog, CRM, Group-buy, Approvals, Reporting. Those read Odoo/Firestore on this HMAC process.</p>
+    </FaqItem>
+
+    <FaqItem title="Bind super-admin (actor cookie)">
+      <p>OPS login is not the actor. Put the Cloudnex Sales LINE user id on <code>ADMIN_USER_ID</code> and <code>SUPER_ADMIN_USER_IDS</code> in VPS <code>.env</code>, recreate the container, VERIFY on Sales OA, then Identity → Bind → Send code → OTP → Confirm. LINE Login is optional. Campaigns, secret reveal, and CRM command run need that cookie.</p>
+    </FaqItem>
+
     <FaqItem title="Where to get OPS token, admin secret, and other config">
       <p>Values live in env files. They are never in this UI as plaintext until a super-admin reveal. Do not commit <code>.env</code>.</p>
       <CopyField label="Key names (not the secrets)" value={'OPS_API_TOKEN — Admin login and /ops/*\nADMIN_SECRET_TOKEN — Jobs page and CLI jobs:*\nADMIN_USER_ID / SUPER_ADMIN_USER_IDS — LINE ids for bind\nLINE_LOGIN_CHANNEL_ID / LINE_LOGIN_CHANNEL_SECRET — optional Admin OAuth'} />

@@ -54,6 +54,16 @@ export const COMMAND_GRID: CommandGridEntry[] = [
   { id: 'message-request-form', prefix: 'FORM MESSAGE REQUEST', labelEn: 'Send message', labelTh: 'ส่งข้อความ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'message-request', prefix: 'MESSAGE REQUEST', labelEn: 'Send message', labelTh: 'ส่งข้อความ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'quote-ask', prefix: 'QUOTE ASK', labelEn: 'Ask for Quotations', labelTh: 'ขอใบเสนอราคา', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID] },
+  { id: 'cart', prefix: 'CART', labelEn: 'Cart', labelTh: 'ตะกร้า', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID] },
+  { id: 'cart-view', prefix: 'CART VIEW', labelEn: 'Cart', labelTh: 'ตะกร้า', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID] },
+  { id: 'cart-add', prefix: 'CART ADD', labelEn: 'Add to cart', labelTh: 'ใส่ตะกร้า', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID] },
+  { id: 'cart-checkout', prefix: 'CART CHECKOUT', labelEn: 'Checkout', labelTh: 'ชำระเงิน', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID] },
+  { id: 'cart-pay', prefix: 'CART PAY', labelEn: 'Pay', labelTh: 'ชำระเงิน', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID] },
+  { id: 'cart-status', prefix: 'CART STATUS', labelEn: 'Check payment', labelTh: 'ตรวจสอบการชำระ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID] },
+  { id: 'cart-coupon', prefix: 'CART COUPON', labelEn: 'Coupon', labelTh: 'คูปอง', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID] },
+  { id: 'form-cart-coupon', prefix: 'FORM CART COUPON', labelEn: 'Coupon', labelTh: 'คูปอง', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID] },
+  { id: 'cart-remove', prefix: 'CART REMOVE', labelEn: 'Remove', labelTh: 'ลบ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID] },
+  { id: 'cart-clear', prefix: 'CART CLEAR', labelEn: 'Clear cart', labelTh: 'ล้างตะกร้า', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID] },
   { id: 'quote-list-customer', prefix: 'QUOTE LIST', labelEn: 'Order History', labelTh: 'ประวัติคำสั่งซื้อ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID], uiOnly: true },
   { id: 'glossary-order-details', prefix: 'UI VIEW ORDER DETAILS', labelEn: 'Order Details', labelTh: 'รายละเอียดออเดอร์', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID], uiOnly: true },
   { id: 'glossary-request-for-order', prefix: 'UI REQUEST FOR ORDER', labelEn: 'Request for Order', labelTh: 'ขอสั่งซื้อ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], channels: [CUSTOMER_CHANNEL_ID], uiOnly: true },
@@ -108,7 +118,7 @@ export const matchCommandGrid = (upperText: string): CommandGridEntry | null => 
 };
 
 export const isGuestAllowedCommand = (upperText: string, pendingFlow?: { flow: string }): boolean => {
-  if (pendingFlow?.flow === 'VERIFY' || pendingFlow?.flow === 'PRODUCT_FIND' || pendingFlow?.flow === 'CUSTOMER_REGISTER' || pendingFlow?.flow === 'MESSAGE_REQUEST' || pendingFlow?.flow === 'QUOTE_ADD') return true;
+  if (pendingFlow?.flow === 'VERIFY' || pendingFlow?.flow === 'PRODUCT_FIND' || pendingFlow?.flow === 'CUSTOMER_REGISTER' || pendingFlow?.flow === 'MESSAGE_REQUEST' || pendingFlow?.flow === 'QUOTE_ADD' || pendingFlow?.flow === 'CART_COUPON') return true;
   if (parseQtyProductUtterance(upperText)) return true;
   const entry = matchCommandGrid(upperText);
   const merged = entry ? mergeCommandGridEntry(entry) : null;

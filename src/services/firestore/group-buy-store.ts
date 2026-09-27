@@ -59,6 +59,19 @@ export const createGroupBuyStore = (dependencies: Dependencies) => ({
         });
     },
 
+    listRecent: async (limit = 50): Promise<GroupBuyRecord[]> => dependencies.read('listRecentGroupBuys', [], async database => {
+        const snapshot = await database.collection(collectionName)
+            .orderBy('createdAt', 'desc')
+            .limit(Math.min(Math.max(limit, 1), 50))
+            .get();
+        return snapshot.docs.map(document => withEffectiveGroupBuyStatus(parseGroupBuyRecord(
+            document.id,
+            (document.data() || {}) as Record<string, unknown>,
+            dependencies.toOptionalString,
+            dependencies.toPositiveInt,
+        )));
+    }),
+
     listByCreator: async (creatorUserId: string, limit = 5): Promise<GroupBuyRecord[]> => dependencies.read('listGroupBuysByCreator', [], async database => {
         const snapshot = await database.collection(collectionName)
             .where('creatorUserId', '==', creatorUserId)

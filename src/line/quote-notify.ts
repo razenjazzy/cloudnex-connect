@@ -1,11 +1,12 @@
 import { createBotTextFlexMessage, createQuotationJourneyFlexMessage } from './templates';
+import { attachShopJourney, isCustomerShopEffective } from '../platform/customer-commerce';
+import { getErpAdapter } from '../erp/registry';
 import { oaChatDeepLink, oaPrefillDeepLink, customerNotifyChannelId, salesNotifyChannelId } from './channels';
 import { sendTargetedFlexMessage, sendTargetedMessage } from './messaging';
 import { getPartnerById, getSaleOrderById, getSaleOrderPdfLink, getSaleOrderPortalLink } from '../services/odoo';
 import type { OdooSaleOrder } from '../services/odoo/types';
 import { findVerifiedUserIdByPartnerId, findLineUserIdByPhone, getUserLanguage, getUserProfile, listVerifiedSalesLineUserIds, persistQuoteInvite, consumeQuoteInvites } from '../services/firestore';
 import { canViewOrderAsCustomer } from './quote-access';
-import { getErpAdapter } from '../erp/registry';
 import type { ErpDeliveryStatus } from '../erp/adapter';
 import { phoneMatchVariants } from '../services/phone-match';
 import { t } from '../services/i18n';
@@ -69,6 +70,14 @@ const getOrderLinks = async (orderId: number) => {
   return { portalLink, pdfLink };
 };
 
+const customerJourneyLinks = async (orderId: number) => {
+  const shop = await isCustomerShopEffective();
+  const links = await getOrderLinks(orderId);
+  if (!shop) return links;
+  const checkout = await getErpAdapter().getCheckoutLink?.(orderId);
+  return { portalLink: checkout || undefined, pdfLink: links.pdfLink };
+};
+
 /**
  * Push the journey Flex card to the customer (LINE, by phone or linked
  * partner — they do not need identity VERIFY to receive it) and to verified
@@ -94,13 +103,14 @@ export const notifyQuoteParties = async (input: {
   const partner = input.order.partner_id ? await getPartnerById(input.order.partner_id[0]) : null;
   const candidateCustomerId = notifyCustomer && viaLine ? await resolveCustomerLineUserId(partner) : null;
   const links = await getOrderLinks(input.order.id);
+  const customerLinks = await customerJourneyLinks(input.order.id);
 
   let customerLineId: string | null = null;
   if (candidateCustomerId && candidateCustomerId !== input.actorUserId) {
     const language = await getUserLanguage(candidateCustomerId);
     const pushed = await sendTargetedFlexMessage(
       [candidateCustomerId],
-      createQuotationJourneyFlexMessage(input.order, { role: 'customer', ...links, ...(input.delivery ? { delivery: input.delivery } : {}) }, language),
+      createQuotationJourneyFlexMessage(input.order, await attachShopJourney({ role: 'customer', ...customerLinks, ...(input.delivery ? { delivery: input.delivery } : {}) }), language),
       customerChannelId,
     );
     if (pushed) customerLineId = candidateCustomerId;
@@ -177,10 +187,10 @@ export const deliverPendingQuoteInvites = async (userId: string, channelId: stri
       await saveQuoteInvite(profile.phone, invite.orderId, invite.channelId || channelId);
       continue;
     }
-    const links = await getOrderLinks(order.id);
+    const links = await customerJourneyLinks(order.id);
     await sendTargetedFlexMessage(
       [userId],
-      createQuotationJourneyFlexMessage(order, { role: 'customer', ...links }, language),
+      createQuotationJourneyFlexMessage(order, await attachShopJourney({ role: 'customer', ...links }), language),
       invite.channelId || channelId,
     );
   }

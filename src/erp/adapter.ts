@@ -67,6 +67,7 @@ export type ErpQuotationOptions = {
   productId?: number;
   /** false = leave SO unassigned (Customer OA). number = that res.users. */
   salespersonUserId?: number | false;
+  websiteId?: number;
 };
 
 export type ErpCustomerUpdate = {
@@ -106,6 +107,7 @@ export type ErpAdapterCapabilities = {
   supportsOrderConfirmation: boolean;
   supportsInvoiceCreation: boolean;
   supportsDailyReport: boolean;
+  supportsWebsiteShop?: boolean;
 };
 
 export type ErpCrmQuote = {
@@ -151,6 +153,20 @@ export type ErpAdapter = {
   name: ErpProviderName;
   capabilities: ErpAdapterCapabilities;
   searchProducts: (query: string, limit?: number) => Promise<ErpProduct[]>;
+  listShopProducts?: (query?: string, limit?: number) => Promise<ErpProduct[]>;
+  getCheckoutLink?: (orderId: number) => Promise<string | null>;
+  getShopWebLinks?: () => Promise<{ shop?: string; cart?: string }>;
+  findOpenShopCart?: (partnerId: number, websiteId: number) => Promise<number | null>;
+  findLatestShopOrder?: (partnerId: number, websiteId: number) => Promise<number | null>;
+  addToShopCart?: (input: {
+    partnerId: number;
+    customerName: string;
+    phone: string;
+    productId: number;
+    qty: number;
+    websiteId: number;
+  }) => Promise<ErpQuoteDraft | null>;
+  applyShopCoupon?: (orderId: number, code: string) => Promise<{ ok: boolean }>;
   listServices: (limit?: number) => Promise<ErpService[]>;
   lookupService: (identifier: string) => Promise<ErpService | null>;
   createService: (name: string, sku: string, price: number) => Promise<ErpService | null>;

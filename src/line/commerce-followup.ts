@@ -8,6 +8,7 @@ import { DEFAULT_CHANNEL_ID, type ChannelContext } from './channels';
 import type { UserLanguage, UserProfile } from '../services/firestore';
 import { appLogger } from '../services/logger';
 import { overlayLabelForText } from './command-overlay';
+import { isCustomerShopEffective, searchAudienceProducts } from '../platform/customer-commerce';
 
 type CommerceFollowCtx = {
   userId?: string;
@@ -26,12 +27,12 @@ export const noteTrayGeneration = (userId: string, generation: string): void => 
 
 export const currentTrayGeneration = (userId: string): string | undefined => trayGenerationByUser.get(userId);
 
-const commerceActionMenu = (ctx: CommerceFollowCtx) => {
+const commerceActionMenu = (ctx: CommerceFollowCtx, shopMode = false) => {
   const { userLanguage, channel, profile } = ctx;
   const serviceDef = getServiceDefinition('commerce');
   const isAdmin = profile.role === 'admin';
   const isStaff = isQuoteStaff(profile);
-  const visibleCommands = serviceDef ? getVisibleCommands(serviceDef, isAdmin, isStaff) : [];
+  const visibleCommands = serviceDef ? getVisibleCommands(serviceDef, isAdmin, isStaff, { shopMode }) : [];
   if (!serviceDef || !isServiceEnabledForChannel(serviceDef.key, channel) || !visibleCommands.length) return null;
   return createServiceActionFlexMessage(
     overlayLabelForText(`NAV COMMERCE`, userLanguage, serviceMenuLabel(serviceDef, userLanguage, channel?.channelId), channel?.channelId),
@@ -60,19 +61,22 @@ export const commerceFollowUpMessages = async (
 ): Promise<messagingApi.Message[]> => {
   if (room <= 0) return [];
   const { userLanguage, profile, channel } = ctx;
-  const actionMenu = commerceActionMenu(ctx);
-  if (!actionMenu) return [];
   const isStaff = isQuoteStaff(profile);
+  const shopMode = !isStaff && await isCustomerShopEffective();
+  const actionMenu = commerceActionMenu(ctx, shopMode);
+  if (!actionMenu) return [];
   const messages: messagingApi.Message[] = [];
   if (!isStaff && room >= 2) {
-    const cached = getErpAdapter().peekCachedProducts?.(10) || [];
+    const cached = shopMode ? [] : (getErpAdapter().peekCachedProducts?.(10) || []);
     if (cached.length) {
       messages.push(createProductCarouselFlexMessage(cached, userLanguage, undefined, channel?.channelId));
     } else if (options.deferCatalogMiss) {
       ctx.pendingCatalogPush = true;
     } else {
       try {
-        const catalog = await getErpAdapter().searchProducts('', 10);
+        const catalog = shopMode
+          ? await searchAudienceProducts('', 10)
+          : await getErpAdapter().searchProducts('', 10);
         if (catalog.length) messages.push(createProductCarouselFlexMessage(catalog, userLanguage, undefined, channel?.channelId));
         else {
           messages.push(createServiceActionFlexMessage(
@@ -98,7 +102,7 @@ export const pushDeferredCommerceCatalog = async (input: {
 }): Promise<void> => {
   if (currentTrayGeneration(input.userId) !== input.generation) return;
   try {
-    const catalog = await getErpAdapter().searchProducts('', 10);
+    const catalog = await searchAudienceProducts('', 10);
     if (currentTrayGeneration(input.userId) !== input.generation) return;
     const channelId = input.channelId || DEFAULT_CHANNEL_ID;
     if (!catalog.length) {

@@ -530,6 +530,87 @@ describe('Cloudnex Connect admin API', () => {
     resetChannelTrafficForTests();
   });
 
+  it('describes this process as a silo tenant without leaking Odoo secrets', async () => {
+    const res = await fetch(`${base()}/admin/api/tenant`, { headers: ops });
+    expect(res.status).toBe(200);
+    const body = await res.json() as {
+      tenantKey?: string;
+      model?: string;
+      odoo?: { configured?: boolean; host?: string | null };
+      isolation?: { odoo?: string };
+      customerCommerce?: {
+        requested?: string;
+        effective?: string;
+        websiteSaleInstalled?: boolean;
+        websiteIdSet?: boolean;
+        degraded?: boolean;
+        degradeReason?: string;
+      };
+    };
+    expect(body.model).toBe('silo');
+    expect(typeof body.tenantKey).toBe('string');
+    expect(body.isolation?.odoo).toMatch(/getErpAdapter/);
+    expect(JSON.stringify(body)).not.toMatch(/ODOO_API_KEY/i);
+    expect(body.customerCommerce).toEqual(expect.objectContaining({
+      requested: expect.stringMatching(/^(quote|shop)$/),
+      effective: expect.stringMatching(/^(quote|shop)$/),
+      websiteSaleInstalled: expect.any(Boolean),
+      websiteIdSet: expect.any(Boolean),
+      degraded: expect.any(Boolean),
+    }));
+    expect(JSON.stringify(body.customerCommerce)).not.toMatch(/https?:\/\//i);
+    expect(JSON.stringify(body)).not.toMatch(/\/shop\/cart/i);
+  });
+
+  it('serves live module pages with adminLeaf and host flags', async () => {
+    const res = await fetch(`${base()}/admin/api/live/modules`, { headers: ops });
+    expect(res.status).toBe(200);
+    const body = await res.json() as {
+      modules?: Array<{ id: string; adminLeaf?: string }>;
+      flags?: { odooConfigured?: boolean };
+      toggles?: Array<{ key: string }>;
+    };
+    expect(body.modules?.find(mod => mod.id === 'commerce')?.adminLeaf).toBe('commerce');
+    expect(body.modules?.find(mod => mod.id === 'catalog')?.adminLeaf).toBe('catalog');
+    expect(body.toggles?.some(row => row.key === 'commerce')).toBe(true);
+    expect(typeof body.flags?.odooConfigured).toBe('boolean');
+    const products = await fetch(`${base()}/admin/api/live/products`, { headers: ops });
+    expect([200, 503]).toContain(products.status);
+  });
+
+  it('exposes studio status without requiring Ollama', async () => {
+    const res = await fetch(`${base()}/admin/api/studio`, { headers: ops });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { ollama?: { configured?: boolean }; flowise?: { configured?: boolean } };
+    expect(body.ollama?.configured).toBe(false);
+    expect(body.flowise?.configured).toBe(false);
+  });
+
+  it('serves demo platform inventory when demo writes are off', async () => {
+    const prevApp = process.env.APP_ENV;
+    const prevNode = process.env.NODE_ENV;
+    process.env.APP_ENV = 'production';
+    process.env.NODE_ENV = 'production';
+    try {
+      const res = await fetch(`${base()}/admin/api/demo/platform`, { headers: ops });
+      expect(res.status).toBe(200);
+      const body = await res.json() as { modules?: unknown[] };
+      expect(Array.isArray(body.modules)).toBe(true);
+      expect(body.modules?.length).toBeGreaterThan(0);
+      const chat = await fetch(`${base()}/admin/api/demo/chat`, {
+        method: 'POST',
+        headers: { ...ops, 'content-type': 'application/json' },
+        body: JSON.stringify({ text: 'NAV HOME' }),
+      });
+      expect(chat.status).toBe(404);
+    } finally {
+      if (prevApp === undefined) delete process.env.APP_ENV;
+      else process.env.APP_ENV = prevApp;
+      if (prevNode === undefined) delete process.env.NODE_ENV;
+      else process.env.NODE_ENV = prevNode;
+    }
+  });
+
   it('registers a custom PUBLIC_ADMIN_BASE prefix', async () => {
     process.env.PUBLIC_ADMIN_BASE = '/cloudnex-connect/admin';
     const extra = express();
@@ -564,6 +645,7 @@ describe('OpenAPI Cloudnex Connect coverage', () => {
     expect(document.paths['/admin/api/session/line/start']).toBeTruthy();
     expect(document.paths['/admin/api/session/oidc/start']).toBeTruthy();
     expect(document.paths['/admin/api/session/saml/acs']).toBeTruthy();
+    expect(document.paths['/admin/api/studio']).toBeTruthy();
     expect(document.paths['/webhook']).toBeTruthy();
     const auditParams = document.paths['/ops/audit-log'].get?.parameters?.map(param => param.name) || [];
     expect(auditParams).toEqual(expect.arrayContaining(['actorUserId', 'action', 'from', 'to']));

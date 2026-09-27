@@ -1,10 +1,9 @@
 # Pilot Onboarding Checklist
 
 Use this for every new Cloudnex Connect pilot customer (Go-to-Market Phase 1–2).
-Each pilot is a single-tenant deployment — its own Cloud Run service, its own
-GCP project, its own env vars. Do not add a pilot customer as an additional
-channel on an existing deployment; that's the multi-tenant model, which is
-explicitly out of scope until the Phase 6 decision gate (see the strategy doc).
+Each pilot is a single-tenant **silo** deployment — its own process, env vars, and Odoo.
+Do not add a second paying company’s LINE OA onto an existing HMAC. Overlay `TENANT_KEY`
+only isolates Admin command/i18n docs. Admin → Tenants documents that model.
 
 ## Before you start
 

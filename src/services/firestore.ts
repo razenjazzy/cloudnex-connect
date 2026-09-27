@@ -921,6 +921,7 @@ export const createGroupBuy = groupBuyStore.create;
 export const getGroupBuyById = groupBuyStore.getById;
 
 export const listGroupBuysByCreator = groupBuyStore.listByCreator;
+export const listRecentGroupBuys = groupBuyStore.listRecent;
 export const attachGroupBuyOdooOrder = groupBuyStore.attachOdooOrder;
 
 export const joinGroupBuy = groupBuyStore.join;

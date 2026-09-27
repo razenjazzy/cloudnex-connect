@@ -9,6 +9,7 @@ import {
   getUserLanguage,
   getUserProfile,
   listRecentApprovals,
+  listRecentGroupBuys,
   listRecentAuditEventsPage,
   listVerifiedSalesLineUserIds,
   recordAuditEvent,
@@ -76,13 +77,15 @@ import { enqueueCampaignSend, isQueueBackendReady } from '../jobs/queue';
 import { describeOptionalFlags } from './optional-flags';
 import { describeAllFeatureToggles, ensureFeatureTogglesLoaded, replaceFeatureToggles } from '../services/feature-toggles';
 import { getPricingModel, updatePricingModel } from '../services/pricing-control';
-import { getDemoPlatformPayload } from '../platform/service-modules';
+import { getDemoPlatformPayload, getServiceModules } from '../platform/service-modules';
 import { loadCommandOverlay, sanitizeCommandOverlay, saveCommandOverlay } from '../line/command-overlay';
 import { getCachedI18nOverlay, listApiI18nCatalog, loadI18nOverlay, sanitizeI18nOverlay, saveI18nOverlay } from '../services/i18n-overlay';
 import { getActiveTenantKey } from '../services/tenant';
+import { describeTenantRuntime } from '../platform/tenant-runtime';
 import { getPlatformFlags, getPlatformStatus } from '../platform/status';
 import { snapshotChannelTraffic } from '../services/channel-traffic';
 import { registerDemoJsonRoutes } from './demo-api';
+import { describeStudio, runStudioPrompt } from '../services/studio-proxy';
 import { handleOdooHook } from './odoo-hook';
 import { decodeAuditCursor, parseAuditLogFilters } from '../services/audit-query';
 import { listGuidedFormCatalog, matchFlowForPreview } from '../services/guided-forms';
@@ -394,8 +397,9 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ preview: false, text, transcript });
   });
 
-  router.get('/tenant', requireAdminPanelAccess, (_req, res) => {
-    return res.json({ tenantKey: getActiveTenantKey() });
+  router.get('/tenant', requireAdminPanelAccess, async (_req, res) => {
+    await hydrateRuntimeSettings();
+    return res.json(await describeTenantRuntime());
   });
 
   router.put('/tenant', jsonParser, requireOpsStrict, async (req, res) => {
@@ -990,6 +994,81 @@ export const registerAdminApiRoutes = (app: Express): void => {
       },
       actorBound: Boolean(parseAdminActorCookie(_req.get('cookie'))),
     });
+  });
+
+  router.get('/live/modules', requireAdminPanelAccess, async (_req, res) => {
+    await ensureFeatureTogglesLoaded();
+    const flags = getPlatformFlags();
+    const toggles = describeAllFeatureToggles();
+    const toggleByKey = Object.fromEntries(toggles.map(row => [row.key, row]));
+    return res.json({
+      modules: getServiceModules().map(mod => ({
+        ...mod,
+        gate: toggleByKey[mod.id] || null,
+      })),
+      toggles,
+      flags: {
+        appEnv: flags.appEnv,
+        odooConfigured: flags.odooConfigured,
+        firestoreProjectConfigured: flags.firestoreProjectConfigured,
+        lineConfigured: flags.lineConfigured,
+        lineCustomerConfigured: flags.lineCustomerConfigured,
+        groupBuyEnabled: flags.groupBuyEnabled,
+        graphqlEnabled: flags.graphqlEnabled,
+        apiDocsEnabled: flags.apiDocsEnabled,
+        mongoVectorEnabled: flags.mongoVectorEnabled,
+        aiOff: flags.aiOff,
+        erpImplemented: flags.erpImplemented,
+        queueReady: flags.queueReady,
+      },
+    });
+  });
+
+  router.get('/live/products', requireAdminPanelAccess, async (req, res) => {
+    if (!isOdooConfigured()) {
+      return res.status(503).json({ error: 'Odoo is unavailable.', products: [] });
+    }
+    const query = typeof req.query.q === 'string' ? req.query.q : '';
+    const limit = Number(req.query.limit) || 40;
+    const products = await getErpAdapter().searchProducts(query, Math.min(Math.max(limit, 1), 80));
+    return res.json({ products, count: products.length });
+  });
+
+  router.get('/live/services', requireAdminPanelAccess, async (req, res) => {
+    if (!isOdooConfigured()) {
+      return res.status(503).json({ error: 'Odoo is unavailable.', services: [] });
+    }
+    const limit = Number(req.query.limit) || 40;
+    const services = await getErpAdapter().listServices(Math.min(Math.max(limit, 1), 80));
+    return res.json({ services, count: services.length });
+  });
+
+  router.get('/live/group-buys', requireAdminPanelAccess, async (req, res) => {
+    const limit = Number(req.query.limit) || 40;
+    const groupBuys = await listRecentGroupBuys(Math.min(Math.max(limit, 1), 50));
+    return res.json({ groupBuys, count: groupBuys.length });
+  });
+
+  router.get('/live/report', requireAdminPanelAccess, async (_req, res) => {
+    if (!isOdooConfigured()) {
+      return res.status(503).json({ error: 'Odoo is unavailable.', rows: [] });
+    }
+    const rows = await getErpAdapter().getDailySnapshot();
+    return res.json({ rows, count: rows.length });
+  });
+
+  router.get('/studio', adminApiLimiter, requireAdminPanelAccess, async (_req, res) => {
+    await hydrateRuntimeSettings();
+    return res.json(describeStudio());
+  });
+
+  router.post('/studio', jsonParser, adminApiLimiter, requireAdminPanelAccess, async (req, res) => {
+    await hydrateRuntimeSettings();
+    const engine = req.body?.engine === 'flowise' ? 'flowise' : 'ollama';
+    const prompt = typeof req.body?.prompt === 'string' ? req.body.prompt : '';
+    const result = await runStudioPrompt(engine, prompt);
+    if (!result.ok) return res.status(result.status).json({ error: result.error });
+    return res.json({ engine: result.engine, text: result.text });
   });
 
   registerDemoJsonRoutes(app, `${adminBase()}/api/demo`, requireAdminPanelAccess);
