@@ -28,14 +28,17 @@ import {
   getRuntime,
   hydrateRuntimeSettings,
   ipAllowedForAdmin,
+  ADMIN_CONFIG_LOCK_ERROR,
   isAdminConfigLocked,
   isBootstrapComplete,
+  isPublicLineChannelOverlayKey,
   isSecretSettingKey,
   markBootstrapComplete,
   mergeRuntimeOverlay,
   getEffectiveAdminUserIds,
   getSuperAdminUserIds,
   getSecretRevealTtlSeconds,
+  PUBLIC_SETTING_KEYS,
 } from '../services/runtime-settings';
 import {
   buildAdminActorCookie,
@@ -75,6 +78,7 @@ import { describeAllFeatureToggles, ensureFeatureTogglesLoaded, replaceFeatureTo
 import { getPricingModel, updatePricingModel } from '../services/pricing-control';
 import { getDemoPlatformPayload } from '../platform/service-modules';
 import { loadCommandOverlay, sanitizeCommandOverlay, saveCommandOverlay } from '../line/command-overlay';
+import { getCachedI18nOverlay, listApiI18nCatalog, loadI18nOverlay, sanitizeI18nOverlay, saveI18nOverlay } from '../services/i18n-overlay';
 import { getActiveTenantKey } from '../services/tenant';
 import { getPlatformFlags, getPlatformStatus } from '../platform/status';
 import { snapshotChannelTraffic } from '../services/channel-traffic';
@@ -92,17 +96,20 @@ const REVEAL_ACTIONS = new Set([
   'secret_reveal_denied',
 ]);
 
+const hasOpsOrDemoPanelAccess = async (req: Request): Promise<boolean> => {
+  if (isOpsTokenConfigured() && isValidOpsToken(getOpsBearerOrHeaderToken(req))) return true;
+  if (isDemoControlEnabled && req.get('cookie')) {
+    const { sessionAuthenticated } = await verifyIncomingDemoSession(req);
+    if (sessionAuthenticated) return true;
+  }
+  return false;
+};
+
 export const requireAdminPanelAccess = async (req: Request, res: Response, next: NextFunction) => {
   if (!ipAllowedForAdmin(req.ip || req.socket.remoteAddress || '')) {
     return res.status(403).json({ error: 'Forbidden' });
   }
-  if (isOpsTokenConfigured() && isValidOpsToken(getOpsBearerOrHeaderToken(req))) {
-    return next();
-  }
-  if (isDemoControlEnabled && req.get('cookie')) {
-    const { sessionAuthenticated } = await verifyIncomingDemoSession(req);
-    if (sessionAuthenticated) return next();
-  }
+  if (await hasOpsOrDemoPanelAccess(req)) return next();
   return res.status(401).json({ error: 'Unauthorized' });
 };
 
@@ -257,6 +264,78 @@ export const registerAdminApiRoutes = (app: Express): void => {
     if (!saved.ok) return res.status(503).json({ error: saved.error || 'Could not save command overlay.' });
     await loadCommandOverlay();
     return res.json({ ok: true, commands: getCommandGridPayload(), tenantKey: getActiveTenantKey() });
+  });
+
+  router.get('/i18n', adminApiLimiter, requireAdminPanelAccess, async (_req, res) => {
+    await loadI18nOverlay();
+    const overlay = getCachedI18nOverlay();
+    return res.json({
+      api: listApiI18nCatalog(),
+      portal: overlay.portal || {},
+    });
+  });
+
+  router.put('/i18n', jsonParser, adminApiLimiter, requireAdminPanelAccess, async (req, res) => {
+    const parsed = sanitizeI18nOverlay(req.body);
+    if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+    const saved = await saveI18nOverlay(parsed.overlay);
+    if (!saved.ok) return res.status(503).json({ error: saved.error || 'Could not save translations.' });
+    await loadI18nOverlay();
+    const overlay = getCachedI18nOverlay();
+    return res.json({ ok: true, api: listApiI18nCatalog(), portal: overlay.portal || {} });
+  });
+
+  router.put('/settings', jsonParser, adminApiLimiter, requireAdminPanelAccess, async (req, res) => {
+    await hydrateRuntimeSettings();
+    const patch = req.body && typeof req.body === 'object' ? req.body as Record<string, unknown> : {};
+    const next: Record<string, string> = {};
+    const publicKeys = new Set<string>(PUBLIC_SETTING_KEYS);
+    const invalidLineChannelKeys: string[] = [];
+    for (const [key, value] of Object.entries(patch)) {
+      if (typeof value !== 'string') continue;
+      if (isSecretSettingKey(key)) continue;
+      if (key.startsWith('LINE_CHANNEL_')) {
+        if (!isPublicLineChannelOverlayKey(key)) {
+          invalidLineChannelKeys.push(key);
+          continue;
+        }
+        next[key] = value;
+        continue;
+      }
+      if (!publicKeys.has(key)) continue;
+      next[key] = value;
+    }
+    if (invalidLineChannelKeys.length) {
+      return res.status(400).json({ error: `Invalid LINE_CHANNEL_ keys: ${invalidLineChannelKeys.join(',')}` });
+    }
+    if (!Object.keys(next).length) return res.status(400).json({ error: 'No public settings to save.' });
+    if (isAdminConfigLocked()) {
+      return res.status(403).json({ error: ADMIN_CONFIG_LOCK_ERROR, lock: true });
+    }
+    const result = await mergeRuntimeOverlay(next);
+    if (!result.ok) return res.status(403).json({ error: result.error });
+    await recordAuditEvent({
+      action: 'admin_command',
+      outcome: 'success',
+      actorUserId: (req as Request & { adminActor?: string }).adminActor || 'admin',
+      detail: `settings ${Object.keys(next).join(',')}`,
+    });
+    return res.json({ ok: true, lock: isAdminConfigLocked(), settings: describeSettings(), optionalFlags: describeOptionalFlags() });
+  });
+
+  router.put('/jobs-token', jsonParser, adminApiLimiter, requireAdminPanelAccess, async (req, res) => {
+    await hydrateRuntimeSettings();
+    const token = String(req.body?.token || '').trim();
+    if (token.length < 16) return res.status(400).json({ error: 'ADMIN_SECRET_TOKEN must be at least 16 characters.' });
+    if (process.env.ADMIN_SECRET_TOKEN?.trim() && isAdminConfigLocked()) {
+      return res.status(403).json({
+        error: 'ADMIN_SECRET_TOKEN is set on the VPS. Paste that value in the Jobs field (this browser). Unlock ADMIN_CONFIG_LOCK=false to replace it from Admin.',
+        stored: 'env',
+      });
+    }
+    const result = await mergeRuntimeOverlay({ ADMIN_SECRET_TOKEN: token });
+    if (!result.ok) return res.status(403).json({ error: result.error });
+    return res.json({ ok: true, stored: 'overlay' });
   });
 
   router.get('/forms', adminApiLimiter, requireAdminPanelAccess, (_req, res) => {
@@ -832,8 +911,15 @@ export const registerAdminApiRoutes = (app: Express): void => {
   });
 
   router.post('/jobs/:name', jsonParser, adminApiLimiter, async (req, res) => {
+    await hydrateRuntimeSettings();
+    if (!ipAllowedForAdmin(req.ip || req.socket.remoteAddress || '')) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
     const token = req.get('authorization')?.startsWith('Bearer ') ? req.get('authorization')!.substring(7) : '';
-    if (!isValidAdminToken(token)) return res.status(401).json({ error: 'ADMIN_SECRET_TOKEN required.' });
+    const panelOk = await hasOpsOrDemoPanelAccess(req);
+    if (!isValidAdminToken(token) && !panelOk) {
+      return res.status(401).json({ error: 'ADMIN_SECRET_TOKEN or signed-in Admin session required.' });
+    }
     const name = pathParam(req.params.name);
     if (!['daily-report', 'segmentation', 'seed-odoo'].includes(name)) {
       return res.status(404).json({ error: 'Unknown job.' });

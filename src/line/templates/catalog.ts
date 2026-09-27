@@ -3,6 +3,7 @@ import { t } from '../../services/i18n';
 import { BRAND, createMessageActionButton, createTapRow, flexBubbleStyles, flexHeaderBox, formatMoney, truncate, type ReportLanguage } from './shared';
 import { catalogUiLabel, isCatalogUiVisible } from '../catalog-ui';
 import { CUSTOMER_CHANNEL_ID } from '../channels';
+import { catalogProductHeroUrl } from '../../erp/product-image-url';
 
 const flexHero = (imageUrl?: string): { hero: messagingApi.FlexImage } | Record<string, never> => {
   const url = imageUrl?.startsWith('https://') ? imageUrl : undefined;
@@ -92,17 +93,30 @@ export type CatalogFlexOptions = {
 };
 
 const priceStockRow = (price: number, stock: number, language: ReportLanguage, channelId?: string): messagingApi.FlexBox => {
-  if (!isCatalogUiVisible('ui-catalog-stock', channelId)) {
+  if (channelId === CUSTOMER_CHANNEL_ID || !isCatalogUiVisible('ui-catalog-stock', channelId)) {
     return {
       type: 'box',
       layout: 'horizontal',
       spacing: 'md',
+      paddingStart: 'xl',
+      paddingEnd: 'xl',
+      paddingTop: 'md',
+      paddingBottom: 'md',
       contents: [
-        { type: 'text', text: t('price', language), size: 'sm', color: BRAND.inkSoft, flex: 0, gravity: 'center' },
+        {
+          type: 'text',
+          text: t('price', language),
+          size: 'sm',
+          color: BRAND.inkSoft,
+          flex: 0,
+          gravity: 'center',
+          align: 'start',
+          margin: 'none',
+        },
         {
           type: 'text',
           text: formatMoney(price, language),
-          size: 'xl',
+          size: 'xxl',
           weight: 'bold',
           color: BRAND.tealStrong,
           align: 'end',
@@ -202,13 +216,15 @@ export const createProductCardFlexMessage = (
     contents: {
       type: 'bubble',
       styles: flexBubbleStyles,
-      ...flexHero(showImage ? imageUrl : undefined),
+      ...flexHero(showImage ? catalogProductHeroUrl(productId, imageUrl) : undefined),
       header: flexHeaderBox(t('productDetail', language), t('productNext', language)),
       body: {
         type: 'box',
         layout: 'vertical',
         spacing: 'md',
         paddingAll: 'lg',
+        paddingStart: 'xl',
+        paddingEnd: 'xl',
         contents: bodyContents,
       },
       footer: {
@@ -266,13 +282,15 @@ const createProductCatalogBubble = (
     type: 'bubble',
     size: 'kilo',
     styles: flexBubbleStyles,
-    ...flexHero(showImage ? product.imageUrl : undefined),
+    ...flexHero(showImage ? catalogProductHeroUrl(product.id, product.imageUrl) : undefined),
     header: flexHeaderBox(truncate(product.name, 40), product.sku || t('productCatalog', language)),
     body: {
       type: 'box',
       layout: 'vertical',
       spacing: 'md',
       paddingAll: 'lg',
+      paddingStart: 'xl',
+      paddingEnd: 'xl',
       contents: [priceStockRow(product.price || 0, product.quantity || 0, language, channelId)],
     },
     footer: {
@@ -296,7 +314,12 @@ export const createProductCarouselFlexMessage = (
   contents: {
     type: 'carousel',
     contents: products.slice(0, 10).map(product =>
-      createProductCatalogBubble(product, language, (viewFor || (item => `PRODUCT FIND ${item.name}`))(product), channelId),
+      createProductCatalogBubble(
+        product,
+        language,
+        (viewFor || (item => (item.id ? `PRODUCT FIND id:${item.id}` : `PRODUCT FIND ${item.name}`)))(product),
+        channelId,
+      ),
     ),
   },
 });

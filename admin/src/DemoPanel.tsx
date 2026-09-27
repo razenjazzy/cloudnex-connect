@@ -13,6 +13,24 @@ type ModuleRow = {
   commands?: string[];
 };
 
+type PlatformPayload = {
+  stores?: { firestore?: string; odoo?: string; mongo?: string };
+  demoDayScript?: string[];
+  modules?: ModuleRow[];
+  error?: string;
+};
+
+const platformPayload = (raw: unknown): PlatformPayload | null => {
+  if (!raw || typeof raw !== 'object') return null;
+  if (Array.isArray(raw)) return { modules: raw as ModuleRow[] };
+  const rec = raw as PlatformPayload;
+  if (Array.isArray(rec.modules) || rec.stores || rec.demoDayScript) return rec;
+  return null;
+};
+
+const payloadHasContent = (data: PlatformPayload | null): data is PlatformPayload =>
+  Boolean(data && (data.modules?.length || data.stores || data.demoDayScript?.length));
+
 const PRICING_FIELDS = [
   'aiInputCostPer1MUsd', 'aiOutputCostPer1MUsd', 'lineMessageCostUsd',
   'odooRpcCostUsd', 'firestoreReadCostUsd', 'firestoreWriteCostUsd',
@@ -55,11 +73,29 @@ export const DemoPanel = ({ adminBase, api }: { adminBase: string; api: ApiFn })
   useEffect(() => {
     void (async () => {
       try {
-        const data = await loadJson(`${demoApi}/platform`) as {
-          stores?: { firestore?: string; odoo?: string; mongo?: string };
-          demoDayScript?: string[];
-          modules?: ModuleRow[];
-        };
+        const demoRes = await api(`${demoApi}/platform`);
+        const demoBody = await demoRes.json().catch(() => ({})) as PlatformPayload;
+        const fromDemo = demoRes.ok ? platformPayload(demoBody) : null;
+        const demoNote = demoRes.ok
+          ? (payloadHasContent(fromDemo) ? '' : 'Demo platform returned no modules, stores, or script.')
+          : (demoBody.error || `Demo platform HTTP ${demoRes.status}.`);
+        let fromSettings: PlatformPayload | null = null;
+        let settingsNote = '';
+        if (!payloadHasContent(fromDemo)) {
+          try {
+            const settings = await loadJson(`${adminBase}/api/settings`) as { modules?: unknown; error?: string };
+            fromSettings = platformPayload(settings.modules);
+            if (!payloadHasContent(fromSettings)) {
+              settingsNote = settings.error || 'Settings modules payload was empty.';
+            }
+          } catch (error) {
+            settingsNote = error instanceof Error ? error.message : String(error);
+          }
+        }
+        const data = payloadHasContent(fromDemo) ? fromDemo : fromSettings;
+        if (!payloadHasContent(data)) {
+          throw new Error([demoNote, settingsNote].filter(Boolean).join(' ') || 'No module inventory to show.');
+        }
         setStores(`Firestore: ${data.stores?.firestore || '—'} · Odoo: ${data.stores?.odoo || '—'} · Mongo: ${data.stores?.mongo || '—'}`);
         setScript((data.demoDayScript || []).map((step, i) => `${i + 1}. ${step}`).join('\n'));
         setModules(data.modules || []);
@@ -67,7 +103,7 @@ export const DemoPanel = ({ adminBase, api }: { adminBase: string; api: ApiFn })
         setStores(String(error));
       }
     })();
-  }, [demoApi]);
+  }, [adminBase, demoApi]);
 
   const sendChat = async (event: FormEvent) => {
     event.preventDefault();

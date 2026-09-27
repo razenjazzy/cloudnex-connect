@@ -1,5 +1,11 @@
 # Changelog
 
+## v11.0.2 — Odoo LINE OA v8 (2026-09-27)
+
+- Catalog product images use the public `/catalog` path; FIND by id no longer falls through to name search; details attach heroes when Odoo has `image_128`.
+- `MONGO_USERS` follows runtime overlay like other optional flags; deferred catalog never pushes in group/room chats.
+- Locked Admin settings PUT returns 403 instead of a false success; overlay i18n applies on the portal.
+
 ## v11.0.1 — Odoo LINE OA v8 (2026-09-27)
 
 - Customer OA: HTTPS heroes only when image bytes exist; keyboard rich-menu; qty chips; glossary; `Sora:`.

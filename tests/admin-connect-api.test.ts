@@ -142,6 +142,21 @@ describe('Cloudnex Connect admin API', () => {
     expect(typeof body.queueReady).toBe('boolean');
   });
 
+  it('does not report PUT /settings success when ADMIN_CONFIG_LOCK is on', async () => {
+    mockedSetConfig.mockClear();
+    const res = await fetch(`${base()}/admin/api/settings`, {
+      method: 'PUT',
+      headers: { ...ops, 'content-type': 'application/json' },
+      body: JSON.stringify({ PUBLIC_BASE_URL: 'https://overlay.example' }),
+    });
+    expect(res.status).toBe(403);
+    const body = await res.json() as { ok?: boolean; error?: string; lock?: boolean };
+    expect(body.ok).not.toBe(true);
+    expect(body.lock).toBe(true);
+    expect(body.error).toMatch(/ADMIN_CONFIG_LOCK/);
+    expect(mockedSetConfig).not.toHaveBeenCalled();
+  });
+
   it('lists command grid for Admin Commands', async () => {
     const res = await fetch(`${base()}/admin/api/commands`, { headers: ops });
     expect(res.status).toBe(200);

@@ -34,6 +34,7 @@ export type ErpService = {
   sku?: string;
   price: number;
   quantity?: number;
+  imageUrl?: string;
 };
 
 export type ErpServiceUpdate = {

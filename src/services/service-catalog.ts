@@ -1,5 +1,6 @@
 import { ChannelContext, CUSTOMER_CHANNEL_ID } from '../line/channels';
 import { isLiveOverrideEnabled } from './feature-toggles';
+import { getRuntime } from './runtime-settings';
 
 export type ServiceKey = 'commerce' | 'directory' | 'catalog' | 'reporting' | 'groupBuy';
 
@@ -182,7 +183,7 @@ export const isOtpGatedCommand = (upperText: string): boolean =>
   Boolean(longestPrefixMatch(upperText)?.requiresOtp);
 
 export const isCommandDisabled = (upperText: string): boolean => {
-  const raw = process.env.DISABLED_COMMANDS?.trim();
+  const raw = (getRuntime('DISABLED_COMMANDS') || '').trim();
   if (!raw) return false;
   return raw.split(',')
     .map(value => value.trim().toUpperCase())

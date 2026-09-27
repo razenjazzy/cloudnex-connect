@@ -2,6 +2,7 @@ import type { CommandHandler } from './index';
 import { createBotTextFlexMessage, createProductCardFlexMessage, createProductCarouselFlexMessage } from '../templates';
 import { parseServiceCreatePayload, parseServiceUpdatePayload } from '../command-validators';
 import { getErpAdapter } from '../../erp/registry';
+import { catalogProductHeroUrl } from '../../erp/product-image-url';
 import { recordAuditEvent } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
 
@@ -54,7 +55,7 @@ const serviceReadHandler: CommandHandler = {
     if (!item) {
       return [botText(tr(userLanguage, `ไม่พบบริการ ${identifier}`, `Service ${identifier} not found.`), userLanguage)];
     }
-    return [createProductCardFlexMessage(item.name, item.price, item.quantity || 0, userLanguage, item.id, undefined, { channelId: ctx.channel?.channelId })];
+    return [createProductCardFlexMessage(item.name, item.price, item.quantity || 0, userLanguage, item.id, catalogProductHeroUrl(item.id), { channelId: ctx.channel?.channelId })];
   },
 };
 

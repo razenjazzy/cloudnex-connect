@@ -1,17 +1,27 @@
 import { describe, expect, it } from 'vitest';
 import { sniffImageContentType } from '../src/services/odoo/product-image';
-import { publicCatalogProductImageUrl } from '../src/erp/product-image-url';
+import { catalogProductHeroUrl, publicCatalogProductImageUrl } from '../src/erp/product-image-url';
 
 describe('product catalog images', () => {
-  it('builds a LINE-safe URL on the Admin public path', () => {
+  it('builds a LINE-safe URL on the public catalog path, not Admin', () => {
     const previousBase = process.env.PUBLIC_BASE_URL;
     const previousAdmin = process.env.PUBLIC_ADMIN_BASE;
     process.env.PUBLIC_BASE_URL = 'https://amardhaka.io/cloudnex-connect';
     process.env.PUBLIC_ADMIN_BASE = '/admin';
     expect(publicCatalogProductImageUrl(11)).toBe(
-      'https://amardhaka.io/cloudnex-connect/admin/catalog/product/11/image',
+      'https://amardhaka.io/cloudnex-connect/catalog/product/11/image',
+    );
+    process.env.PUBLIC_ADMIN_BASE = '/admin/test';
+    expect(publicCatalogProductImageUrl(11)).toBe(
+      'https://amardhaka.io/cloudnex-connect/catalog/test/product/11/image',
     );
     expect(publicCatalogProductImageUrl(0)).toBeUndefined();
+    expect(catalogProductHeroUrl(11)).toBe(
+      'https://amardhaka.io/cloudnex-connect/catalog/test/product/11/image',
+    );
+    expect(catalogProductHeroUrl(11, 'https://example.com/other.png')).toBe(
+      'https://amardhaka.io/cloudnex-connect/catalog/test/product/11/image',
+    );
     if (previousBase === undefined) delete process.env.PUBLIC_BASE_URL;
     else process.env.PUBLIC_BASE_URL = previousBase;
     if (previousAdmin === undefined) delete process.env.PUBLIC_ADMIN_BASE;

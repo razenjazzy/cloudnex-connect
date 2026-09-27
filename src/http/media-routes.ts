@@ -1,18 +1,27 @@
-import type { Express } from 'express';
+import type { Express, Request, Response } from 'express';
 import { decodeMediaToken, fetchGcsObject } from '../line/media';
-import { adminBase } from './public-bases';
+import { adminBase, catalogPublicPath } from './public-bases';
 import { readProductImage128, sniffImageContentType } from '../services/odoo/product-image';
 
+const sendCatalogProductImage = async (req: Request, res: Response) => {
+  const productId = Number(req.params.id);
+  if (!Number.isInteger(productId) || productId <= 0) return res.status(404).end();
+  const buffer = await readProductImage128(productId);
+  if (!buffer) return res.status(404).end();
+  res.setHeader('content-type', sniffImageContentType(buffer));
+  res.setHeader('content-length', String(buffer.length));
+  res.setHeader('cache-control', 'public, max-age=300');
+  return res.status(200).send(buffer);
+};
+
 export const registerMediaRoutes = (app: Express): void => {
-  app.get(`${adminBase()}/catalog/product/:id/image`, async (req, res) => {
-    const productId = Number(req.params.id);
-    if (!Number.isInteger(productId) || productId <= 0) return res.status(404).end();
-    const buffer = await readProductImage128(productId);
-    if (!buffer) return res.status(404).end();
-    res.setHeader('content-type', sniffImageContentType(buffer));
-    res.setHeader('cache-control', 'public, max-age=300');
-    return res.status(200).end(buffer);
-  });
+  const imagePaths = new Set([
+    `${catalogPublicPath()}/product/:id/image`,
+    `${adminBase()}/catalog/product/:id/image`,
+  ]);
+  for (const path of imagePaths) {
+    app.get(path, sendCatalogProductImage);
+  }
 
   app.get('/media/:token', async (req, res) => {
     const token = String(req.params.token || '');

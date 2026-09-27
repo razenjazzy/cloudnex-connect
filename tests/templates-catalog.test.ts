@@ -14,7 +14,7 @@ describe('product catalogue carousel', () => {
     expect(json).toContain('FORM QUOTE CREATE FROM CARD 11');
     expect(json).toContain('FORM QUOTE CREATE FROM CARD 12');
     expect(json).toContain('FORM MESSAGE REQUEST 11');
-    expect(json).toContain('PRODUCT FIND App Premium');
+    expect(json).toContain('PRODUCT FIND id:11');
     expect(json).not.toContain('"text":"NAV HOME"');
     expect(checkMessageAgainstLineLimits(message)).toEqual([]);
   });
@@ -27,13 +27,15 @@ describe('product catalogue carousel', () => {
     expect(json).toContain('Order Now');
     expect(json).toContain('View Details');
     expect(json).not.toContain('"text":"Stock"');
-    expect(json).toContain('"size":"xl"');
+    expect(json).toContain('"size":"xxl"');
     expect(json).toContain('Price');
+    expect(json).toContain('"paddingStart":"xl"');
+    expect(json).toContain('"paddingEnd":"xl"');
   });
 
   it('puts https product images on the hero and can strip them for LINE retry', () => {
     const message = createProductCarouselFlexMessage([
-      { id: 11, name: 'App Premium', price: 990, quantity: 4, imageUrl: 'https://amardhaka.io/cloudnex-connect/admin/catalog/product/11/image' },
+      { id: 11, name: 'App Premium', price: 990, quantity: 4, imageUrl: 'https://amardhaka.io/cloudnex-connect/catalog/product/11/image' },
       { id: 12, name: 'App Support', price: 490, quantity: 8, imageUrl: 'http://odoo.local/web/image/product.product/12/image_128' },
     ], 'en');
     const json = JSON.stringify(message);
@@ -42,6 +44,18 @@ describe('product catalogue carousel', () => {
     const stripped = stripFlexHeroImages([message]);
     expect(JSON.stringify(stripped)).not.toContain('"type":"image"');
     expect(JSON.stringify(stripped)).toContain('FORM QUOTE CREATE FROM CARD 11');
+  });
+
+  it('puts the same public catalog hero on Sales and Customer carousels', () => {
+    const previousBase = process.env.PUBLIC_BASE_URL;
+    process.env.PUBLIC_BASE_URL = 'https://amardhaka.io/cloudnex-connect';
+    const products = [{ id: 11, name: 'App Premium', price: 990, quantity: 4 }];
+    const sales = JSON.stringify(createProductCarouselFlexMessage(products, 'en', undefined, 'sales'));
+    const customer = JSON.stringify(createProductCarouselFlexMessage(products, 'en', undefined, 'customer'));
+    expect(sales).toContain('https://amardhaka.io/cloudnex-connect/catalog/product/11/image');
+    expect(customer).toContain('https://amardhaka.io/cloudnex-connect/catalog/product/11/image');
+    if (previousBase === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = previousBase;
   });
 
   it('can browse services with SERVICE READ as the view action', () => {

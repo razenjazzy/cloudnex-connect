@@ -43,10 +43,10 @@ const en = {
   navHelp: 'Help',
   signIn: 'Sign in',
   signOut: 'Sign out',
-  toastAdminSecret: 'ADMIN_SECRET_TOKEN required. Paste a token of at least 16 characters on Jobs, then run the job.',
+  toastAdminSecret: 'ADMIN_SECRET_TOKEN required. Paste 16+ characters, Save, then Run. The value must match the VPS token (or the overlay token if env is empty).',
   toastUnauthorized: 'Unauthorized. Bind super-admin or use the correct token.',
   toastForbidden: 'Forbidden. Super-admin bind is required for this action.',
-  jobsNeedToken: 'Jobs stay idle until ADMIN_SECRET_TOKEN is pasted. No request is sent.',
+  jobsNeedToken: 'Run jobs while signed in with OPS. ADMIN_SECRET_TOKEN is optional (curl/scripts). Save uploads it when env is empty.',
   uiLanguage: 'Admin panel language',
   lineUserLanguage: 'LINE user language',
   preview: 'Preview',
@@ -68,7 +68,7 @@ const en = {
   optedInPromo: 'Opted-in promo (multicast)',
   transactionalAudience: 'Transactional audience',
   missingEnv: 'Missing required env',
-  fulfillment: 'Fulfillment scopes live in documents/PLATFORM_FULFILLMENT.md. Flags stay off until VPS .env is set.',
+  fulfillment: 'Turn features, pages, and LINE commands on/off here when ADMIN_CONFIG_LOCK is false. Command checkboxes write the Commands overlay (live). DISABLED_COMMANDS is a comma list of prefixes. GraphQL/docs flags persist in overlay; the process may need a recreate if those routes registered at boot. MONGO_USERS overlay still fails closed without MONGODB_URI.',
 };
 
 const th: typeof en = {
@@ -95,10 +95,10 @@ const th: typeof en = {
   navHelp: 'ช่วยเหลือ',
   signIn: 'เข้าสู่ระบบ',
   signOut: 'ออก',
-  toastAdminSecret: 'ต้องมี ADMIN_SECRET_TOKEN ความยาวอย่างน้อย 16 ตัว วางในหน้าจ็อบก่อนรัน',
+  toastAdminSecret: 'ต้องมี ADMIN_SECRET_TOKEN ≥16 ตัว วางแล้วกดบันทึกก่อนรัน ค่าต้องตรงกับ VPS หรือ overlay เมื่อ env ว่าง',
   toastUnauthorized: 'ไม่มีสิทธิ์ ผูก super-admin หรือใช้โทเคนที่ถูกต้อง',
   toastForbidden: 'ห้ามเข้า ต้องผูก super-admin',
-  jobsNeedToken: 'ยังไม่เรียก API จนกว่าจะวาง ADMIN_SECRET_TOKEN',
+  jobsNeedToken: 'รันจ็อบได้เมื่อเข้าสู่ระบบด้วย OPS ADMIN_SECRET_TOKEN เป็นทางเลือกสำหรับ curl เมื่อ env ว่าง กดบันทึกเพื่ออัปโหลด',
   uiLanguage: 'ภาษาแผงแอดมิน',
   lineUserLanguage: 'ภาษาผู้ใช้ LINE',
   preview: 'ดูตัวอย่าง',
@@ -120,9 +120,46 @@ const th: typeof en = {
   optedInPromo: 'โปรโมชันที่เปิดรับ (multicast)',
   transactionalAudience: 'กลุ่มธุรกรรม',
   missingEnv: 'env ที่ยังขาด',
-  fulfillment: 'ขอบเขตครบอยู่ใน documents/PLATFORM_FULFILLMENT.md ธงยังปิดจนกว่าจะตั้ง .env บน VPS',
+  fulfillment: 'เมื่อ ADMIN_CONFIG_LOCK=false เปิด/ปิดฟีเจอร์ หน้า และคำสั่งได้ ช่องคำสั่งเขียน overlay ทันที DISABLED_COMMANDS เป็นรายการ prefix คั่นด้วยจุลภาค ธง GraphQL/docs เก็บใน overlay อาจต้อง recreate คอนเทนเนอร์ MONGO_USERS ใช้ overlay ได้ แต่ไม่มี MONGODB_URI จะปิดแบบ fail-closed',
 };
 
 export type UiKey = keyof typeof en;
 
-export const t = (lang: UiLang, key: UiKey): string => (lang === 'th' ? th : en)[key];
+let portalOverlay: Partial<Record<UiKey, { en?: string; th?: string }>> = {};
+
+const asLocalePair = (value: unknown): { en?: string; th?: string } | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const rec = value as Record<string, unknown>;
+  if (rec.en !== undefined && typeof rec.en !== 'string') return null;
+  if (rec.th !== undefined && typeof rec.th !== 'string') return null;
+  if (rec.en === undefined && rec.th === undefined) return null;
+  const pair: { en?: string; th?: string } = {};
+  if (typeof rec.en === 'string') pair.en = rec.en;
+  if (typeof rec.th === 'string') pair.th = rec.th;
+  return pair;
+};
+
+export const applyPortalI18nOverlay = (next: unknown): void => {
+  const applied: Partial<Record<UiKey, { en?: string; th?: string }>> = {};
+  if (!next || typeof next !== 'object' || Array.isArray(next)) {
+    portalOverlay = applied;
+    return;
+  }
+  for (const [key, value] of Object.entries(next as Record<string, unknown>)) {
+    if (!(key in en)) continue;
+    const pair = asLocalePair(value);
+    if (!pair) continue;
+    applied[key as UiKey] = pair;
+  }
+  portalOverlay = applied;
+};
+
+export const portalStringRows = (): Array<{ key: UiKey; en: string; th: string }> =>
+  (Object.keys(en) as UiKey[]).map(key => ({ key, en: en[key], th: th[key] }));
+
+export const t = (lang: UiLang, key: UiKey): string => {
+  const over = portalOverlay[key];
+  const fromOverlay = (lang === 'th' ? over?.th : over?.en)?.trim();
+  if (fromOverlay) return fromOverlay;
+  return (lang === 'th' ? th : en)[key];
+};

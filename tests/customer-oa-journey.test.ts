@@ -25,6 +25,28 @@ describe('customer glossary', () => {
   });
 });
 
+describe('product find selection', () => {
+  it('returns the looked-up product only, or an exact name match from search hits', async () => {
+    const { selectProductsForFind, productFindId } = await import('../src/line/handlers/commerce');
+    const looked = { id: 11, name: 'App Premium', price: 1, quantity: 1 };
+    const many = [
+      looked,
+      { id: 12, name: 'App Premium Extra', price: 1, quantity: 1 },
+    ];
+    expect(selectProductsForFind('id:11', looked, many)).toEqual([looked]);
+    expect(selectProductsForFind('App Premium', null, many)).toEqual([looked]);
+    expect(selectProductsForFind('App', null, many)).toEqual(many);
+    expect(selectProductsForFind('id:11', null, [])).toEqual([]);
+    expect(selectProductsForFind('id:999', null, many)).toEqual(many);
+    expect(productFindId('id:11')).toBe(11);
+    expect(productFindId('11')).toBe(11);
+    expect(productFindId('App Premium')).toBeNull();
+    const commerce = readFileSync('src/line/handlers/commerce.ts', 'utf8');
+    expect(commerce).toContain('lookedUp ? [] : await erp.searchProducts');
+    expect(commerce).not.toContain('lookedUp || id');
+  });
+});
+
 describe('customer keyboard tray policy', () => {
   it('does not restore the default tray while a form is pending', () => {
     expect(shouldApplyTrayAfterReply({ pendingFlow: true })).toBe(false);
@@ -32,5 +54,7 @@ describe('customer keyboard tray policy', () => {
     expect(processMessage).toContain('applyKeyboardRichMenu');
     expect(processMessage).toContain('pendingCatalogPush');
     expect(processMessage).toMatch(/pendingCatalogPush[\s\S]*applyTray/);
+    expect(processMessage).toContain('shouldPushDeferredCatalog');
+    expect(processMessage).toContain('isProductDetailFlex');
   });
 });

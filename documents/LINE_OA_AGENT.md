@@ -79,12 +79,12 @@ flowchart TD
   so --> inv[QUOTE INVOICE]
 ```
 
-**Customer Home:** carousel (HTTPS hero only if `readProductImage128` returns ≥32 bytes) + commerce actions. Price: label left, amount bold `xl` right; hide stock.
+**Customer Home:** carousel (HTTPS hero `{PUBLIC_BASE_URL}/catalog/product/{id}/image` when `readProductImage128` ≥32 bytes) + commerce actions. Price: label left, amount bold `xl` right; hide stock.
 
 | Step | Canonical | Result |
 |---|---|---|
 | Order Now | `FORM QUOTE CREATE FROM CARD {id}` then `QUOTE CREATE` | Qty chips (`CUSTOMER_QTY_CHIPS`, default 10–50, quickReply ≤13) + type; unassigned draft; waiting card |
-| View Details | `PRODUCT FIND {name}` | Details only; description if Odoo has it; Order Now, Send Message, Home, Back |
+| View Details | `PRODUCT FIND id:{id}` | **Product Details only** — same catalog hero URL as Home. Do not append catalog Home. Order Now, Send Message, then Home, Back. **Back** = catalog Home. |
 | Send Message | `FORM MESSAGE REQUEST` → `MESSAGE REQUEST CONFIRM` | Partner note; sales ping; `{agent}: Request accepted. We will get back to you soon.` |
 | Ask for Quotations | `QUOTE ASK` | Same accepted copy; no new SO |
 | Order History | `QUOTE LIST` | Partner orders |
@@ -93,7 +93,7 @@ flowchart TD
 
 **Keyboard:** `pendingFlow` or qty `quickReply` → do not `applyTrayAfterReply`; await unlink then await link `keyboard`. Ids: `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` `en.keyboard` / `th.keyboard` or `LINE_CHANNEL_CUSTOMER_KEYBOARD_RICH_MENU`. LINE Console must publish a blank/chat-bar menu; unlink alone restores the **OA default tray**. Skip `pendingCatalogPush` until the flow ends.
 
-**Sales Home:** commerce action menu **and** quote list (≤2 messages). Admin: CRM with unassigned first; Sales User: `user_id` = self. List page **5**. Unassigned → `QUOTE ASSIGN {id}` then chips `QUOTE ASSIGN {id} {odooUserId}` (LINE `role=admin`). RFQ inbound Flex **Create quote** → `FORM QUOTE CREATE FROM CARD {productId} [{qty}] [{customerLineId}]` / `QUOTE CREATE` with buyer identity; draft **unassigned**. After approve: `tFill('quoteApprovedProcessing')` with `order.user_id[1]` when present.
+**Sales Home:** commerce action menu **and** quote list (≤2 messages). Product Details / product carousel / `SERVICE READ` use the same HTTPS catalog hero as Customer OA. Admin: CRM with unassigned first; Sales User: `user_id` = self. List page **5**. Unassigned → `QUOTE ASSIGN {id}` then chips `QUOTE ASSIGN {id} {odooUserId}` (LINE `role=admin`). RFQ inbound Flex **Create quote** → `FORM QUOTE CREATE FROM CARD {productId} [{qty}] [{customerLineId}]` / `QUOTE CREATE` with buyer identity; draft **unassigned**. After approve: `tFill('quoteApprovedProcessing')` with `order.user_id[1]` when present.
 
 Customer OA must not run: `ADMIN *`, `QUOTE ASSIGN`, `RELAY *`, `STAFF PICK`, `SALES FEATURES`, `MESSAGE CUSTOMER`, directory/catalog writes, `DAILY REPORT`, `SEGMENT CUSTOMERS`, `SEED SAMPLE DATA`. Staff convert is `QUOTE CONFIRM`; customer confirm is `QUOTE APPROVE`.
 
@@ -139,7 +139,7 @@ OTP on reconstructed writes (`requiresOtp` in `service-catalog.ts`): `QUOTE CREA
 | Command | User sees | Action | Result |
 |---|---|---|---|
 | `FORM PRODUCT FIND` | Find a product / ค้นหาสินค้า | Start search | Prompt → `PRODUCT FIND` |
-| `PRODUCT FIND {name}` | Find a product | Search or View Details | 0: error. Many: picker. One: **Product Details** (not qty) |
+| `PRODUCT FIND` name or `id:N` | Find a product | Search or View Details | Id hit: **Product Details**. Id miss: name search (same query). 0: error. Many: picker. |
 | `FORM QUOTE CREATE FROM CARD {id}` | Order Now / สั่งซื้อเลย | Order Now | Qty then `QUOTE CREATE` |
 | `FORM QUOTE CREATE` | Create a quote / สร้างใบเสนอราคา (Customer title: Request for Order) | Start form | Staff extras; customer product+qty |
 | `QUOTE CREATE …` | (after form) | Submit | Draft SO. Customer: `user_id` empty. Staff: their Odoo user if mapped. OTP |
@@ -260,7 +260,8 @@ Full key list: [`src/http/env-params.ts`](../src/http/env-params.ts). Do not inv
 | `GUIDED_FORM_TTL_MINUTES` | Form TTL | `pendingFlow` | Default ≥60 |
 | `SALES_SESSION_TTL_HOURS` | Gold Verify | Session | Default 24 |
 | `PUBLIC_BASE_URL` | `https://…` | Admin + Flex images | No https heroes |
-| `PUBLIC_ADMIN_BASE` | `/admin` | `/admin/catalog/product/:id/image` | 404 / no hero |
+| `PUBLIC_ADMIN_BASE` | `/admin` | Admin UI (`/admin`, staging `/admin/test`) | SPA 404 |
+| Catalog image | `{PUBLIC_BASE_URL}/catalog/product/:id/image` (mirrors `/admin…` → `/catalog…`) | Flex hero | No https / nginx miss / 404 |
 | `ODOO_*` | ERP | Products, quotes | Empty / create fail |
 | `ERP_PROVIDER` | `odoo` | Live adapter | Placeholder fail-closed |
 | `ADMIN_USER_ID` | LINE ids | `ADMIN ENABLE` | No LINE admin |
@@ -272,7 +273,7 @@ Full key list: [`src/http/env-params.ts`](../src/http/env-params.ts). Do not inv
 | `ENABLED_SERVICES` | Global ceiling | With per-channel | Combined |
 | `DEFAULT_LANGUAGE` | `en`/`th` | New users | Profile overrides |
 | `LINE_WEBHOOK_ASYNC` + Redis + worker | Queue | Fast HMAC | Delay; catalog/qty prefer sync |
-| `MONGO_USERS` + `MONGODB_URI` | Mongo identity | Mongo SoR | Flag on URI off fail-closed. Never Odoo in Mongo |
+| `MONGO_USERS` + `MONGODB_URI` | Mongo identity | Mongo SoR | Overlay or env. Flag on URI off fail-closed. Never Odoo in Mongo |
 | `GRAPHQL_LINE_INGEST` / `LINE_SECOND_WEBHOOK` | Extra ingest | Same router | 404 if false |
 | `ENABLE_WEBHOOK_TEST` / `ENABLE_DEMO_*` | Staging | `/webhook-test`, `/demo` | Ignored in production |
 | `GCS_MEDIA_BUCKET` | Files | Flex media | Fail-closed without https |

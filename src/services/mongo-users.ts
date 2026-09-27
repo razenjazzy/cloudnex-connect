@@ -1,9 +1,10 @@
 import { MongoClient, type Collection } from 'mongodb';
+import { getRuntime } from './runtime-settings';
 import { mongoUri } from '../http/env';
 import { appLogger } from './logger';
 import type { UserProfile } from './firestore/types';
 
-export const isMongoUsersEnabled = (): boolean => /^(1|true|yes|on)$/i.test(process.env.MONGO_USERS || '');
+export const isMongoUsersEnabled = (): boolean => /^(1|true|yes|on)$/i.test(getRuntime('MONGO_USERS') || '');
 
 type IdentityDoc = UserProfile & { userId: string };
 

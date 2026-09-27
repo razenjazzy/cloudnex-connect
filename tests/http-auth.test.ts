@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { adminOnly } from '../src/services/admin-token-auth';
+import { adminOnly, isValidAdminToken } from '../src/services/admin-token-auth';
 import { requireOpsToken } from '../src/services/ops-token-auth';
+import { resetRuntimeSettingsForTests } from '../src/services/runtime-settings';
 
 type ResponseStub = {
   status: ReturnType<typeof vi.fn>;
@@ -71,5 +72,12 @@ describe('HTTP authentication middleware', () => {
     const bearerNext = vi.fn();
     requireOpsToken(requestStub({ authorization: 'Bearer ops-token-that-is-long' }), responseStub() as never, bearerNext);
     expect(bearerNext).toHaveBeenCalledOnce();
+  });
+
+  it('accepts ADMIN_SECRET_TOKEN from runtime overlay when env is empty', () => {
+    resetRuntimeSettingsForTests({ ADMIN_SECRET_TOKEN: 'overlay-token-16xx' });
+    expect(isValidAdminToken('overlay-token-16xx')).toBe(true);
+    expect(isValidAdminToken('wrong-token-16xxxx')).toBe(false);
+    resetRuntimeSettingsForTests({});
   });
 });

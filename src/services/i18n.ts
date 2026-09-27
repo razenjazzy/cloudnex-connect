@@ -238,6 +238,15 @@ export const UI_STRINGS = {
 
 export type UiStringKey = keyof typeof UI_STRINGS;
 
+type PairLookup = (key: UiStringKey) => { en: string; th: string };
+
+let pairLookup: PairLookup | null = null;
+
+/** Wired from i18n-overlay so LINE copy overlay does not create an import cycle. */
+export const registerI18nPairLookup = (lookup: PairLookup): void => {
+  pairLookup = lookup;
+};
+
 /** Non-empty when both locales are blank. Never return '' to LINE or Admin. */
 export const EMPTY_COPY = '—';
 
@@ -252,7 +261,8 @@ export const pickLocale = (language: Lang, pair: { en?: string; th?: string }): 
 };
 
 /** Same shape as the existing `tr(language, th, en)` helper repeated in every handler file, just table-driven. */
-export const t = (key: UiStringKey, language: Lang): string => pickLocale(language, UI_STRINGS[key]);
+export const t = (key: UiStringKey, language: Lang): string =>
+  pickLocale(language, pairLookup ? pairLookup(key) : UI_STRINGS[key]);
 
 export const tFill = (key: UiStringKey, language: Lang, vars: Record<string, string | number>): string =>
   Object.entries(vars).reduce((acc, [name, value]) => acc.split(`{${name}}`).join(String(value)), t(key, language));

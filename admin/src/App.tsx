@@ -1,14 +1,23 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 import logo from './assets/cloudnex-connect.jpeg';
 import { DemoPanel } from './DemoPanel';
 import { HelpFaq } from './HelpFaq';
 import { CommandWork } from './CommandWork';
 import { CopyField, FaqItem, Steps, ToastStack, type ToastItem } from './ui';
-import { readUiLang, t, writeUiLang, type UiLang } from './i18n';
+import { readUiLang, t, writeUiLang, applyPortalI18nOverlay, portalStringRows, type UiKey, type UiLang } from './i18n';
 
 const TOKEN_KEY = 'cloudnex_ops_token';
 const LEGACY_TOKEN_KEY = 'cns_ops_token';
 const JOBS_TOKEN_KEY = 'cloudnex_admin_jobs_token';
+const ADVANCED_FLAG_KEYS = [
+  'LINE_GROUP_ROOMS',
+  'LINE_SECOND_WEBHOOK',
+  'GRAPHQL_LINE_INGEST',
+  'ENABLE_GRAPHQL',
+  'ENABLE_API_DOCS',
+  'LINE_WEBHOOK_ASYNC',
+  'MONGO_USERS',
+] as const;
 
 const commandGridJson = (rows: Array<Record<string, unknown>>): string => {
   const out: Record<string, Record<string, unknown>> = {};
@@ -247,37 +256,77 @@ const ColumnChart = ({
 const HourlyChart = ({ rows }: { rows: TrafficSnap['hourly'] }) => {
   const max = Math.max(0, ...rows.map(row => row.total));
   const width = 420;
-  const height = 160;
-  const padL = 28;
+  const height = 176;
+  const padL = 36;
   const padR = 8;
-  const padT = 16;
-  const padB = 28;
+  const padT = 18;
+  const padB = 36;
   const innerW = width - padL - padR;
   const innerH = height - padT - padB;
-  const slot = innerW / rows.length;
+  const slot = rows.length ? innerW / rows.length : innerW;
   const barW = slot * 0.7;
+  const ticks = 4;
+  const scaleMax = Math.max(max, 1);
+  const totals = emptyCounts();
+  for (const row of rows) {
+    totals.sales += row.sales;
+    totals.customer += row.customer;
+    totals.other += row.other;
+    totals.total += row.total;
+  }
   if (max === 0) {
     return <div className="chart-empty"><p>No inbound LINE messages in the last 12 hours on this process. Hourly columns appear after users chat.</p></div>;
   }
   return (
-    <svg className="volume-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Inbound messages last 12 hours">
-      {rows.map((row, i) => {
-        const x = padL + slot * i + (slot - barW) / 2;
-        let y = padT + innerH;
-        return (
-          <g key={`${row.hour}-${i}`}>
-            {VOLUME_SERIES.map(series => {
-              const value = row[series.key];
-              if (!value) return null;
-              const h = (value / max) * innerH;
-              y -= h;
-              return <rect key={series.key} x={x} y={y} width={barW} height={h} fill={series.color} />;
-            })}
-            {i % 2 === 0 ? <text x={x + barW / 2} y={height - 8} textAnchor="middle" fontSize="9" fill="#3d5551">{row.hour}</text> : null}
-          </g>
-        );
-      })}
-    </svg>
+    <div>
+      <svg className="volume-chart" viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Inbound messages last 12 hours">
+        <text x={12} y={12} fontSize="10" fill="#3d5551">Messages</text>
+        {Array.from({ length: ticks + 1 }, (_, i) => {
+          const t = i / ticks;
+          const y = padT + innerH * (1 - t);
+          const val = Math.round(scaleMax * t);
+          return (
+            <g key={i}>
+              <line x1={padL} x2={width - padR} y1={y} y2={y} stroke="#e6eeec" />
+              <text x={padL - 6} y={y + 3} textAnchor="end" fontSize="9" fill="#3d5551">{val}</text>
+            </g>
+          );
+        })}
+        {rows.map((row, i) => {
+          const x = padL + slot * i + (slot - barW) / 2;
+          let y = padT + innerH;
+          return (
+            <g key={`${row.hour}-${i}`}>
+              {VOLUME_SERIES.map(series => {
+                const value = row[series.key];
+                if (!value) return null;
+                const h = (value / scaleMax) * innerH;
+                y -= h;
+                return <rect key={series.key} x={x} y={y} width={barW} height={h} fill={series.color} />;
+              })}
+              {i % 2 === 0 ? <text x={x + barW / 2} y={height - 18} textAnchor="middle" fontSize="9" fill="#3d5551">{row.hour}</text> : null}
+            </g>
+          );
+        })}
+        <text x={padL + innerW / 2} y={height - 4} textAnchor="middle" fontSize="10" fill="#3d5551">Hour (local)</text>
+      </svg>
+      <table className="chart-legend">
+        <thead><tr><th>Channel</th><th>Messages (12h)</th><th>Share</th></tr></thead>
+        <tbody>
+          {VOLUME_SERIES.map(series => {
+            const value = totals[series.key];
+            const share = totals.total ? Math.round((value / totals.total) * 100) : 0;
+            return (
+              <tr key={series.key}>
+                <td><span className="legend-swatch" style={{ background: series.color }} />{series.label}</td>
+                <td>{value}</td>
+                <td>{share}%</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 };
 
@@ -423,6 +472,14 @@ export const App = () => {
   const [toggles, setToggles] = useState<Array<{ key: string; effective: boolean; source: string }>>([]);
   const [langUser, setLangUser] = useState('');
   const [langCurrent, setLangCurrent] = useState('');
+  const [settingsDraft, setSettingsDraft] = useState<Record<string, string>>({});
+  const [i18nApi, setI18nApi] = useState<Array<{ key: string; en: string; th: string; source?: string }>>([]);
+  const [i18nPortal, setI18nPortal] = useState<Array<{ key: UiKey; en: string; th: string }>>([]);
+  const [disabledCommandsDraft, setDisabledCommandsDraft] = useState('');
+  const settingsDraftDirty = useRef(false);
+  const settingsDraftHydrated = useRef(false);
+  const settingsDraftRef = useRef(settingsDraft);
+  settingsDraftRef.current = settingsDraft;
   const [activity, setActivity] = useState<Array<Record<string, unknown>>>([]);
   const [auditUser, setAuditUser] = useState('');
   const [auditAction, setAuditAction] = useState('');
@@ -518,12 +575,34 @@ export const App = () => {
     }
     setAuthed(true);
     setError('');
-    await loadSettings();
+    await loadSettings({ replaceDrafts: true });
   };
 
-  const loadSettings = async () => {
+  const loadSettings = async (opts?: { replaceDrafts?: boolean }) => {
     const res = await api(`${ADMIN_BASE}/api/settings`);
-    if (res.ok) setSettings(await res.json());
+    if (res.ok) {
+      const body = await res.json() as Record<string, unknown>;
+      setSettings(body);
+      const list = Array.isArray(body.settings) ? body.settings as Array<{ key?: string; kind?: string; value?: string }> : [];
+      const draft: Record<string, string> = {};
+      for (const row of list) {
+        if (row?.kind === 'public' && row.key) draft[row.key] = String(row.value || '');
+      }
+      const skipDrafts = opts?.replaceDrafts !== true && settingsDraftDirty.current;
+      if (!skipDrafts) {
+        settingsDraftRef.current = draft;
+        setSettingsDraft(draft);
+        setDisabledCommandsDraft(draft.DISABLED_COMMANDS || '');
+        settingsDraftHydrated.current = true;
+        if (opts?.replaceDrafts === true) settingsDraftDirty.current = false;
+      } else {
+        const next = { ...draft, ...settingsDraftRef.current };
+        settingsDraftRef.current = next;
+        setSettingsDraft(next);
+        setDisabledCommandsDraft(next.DISABLED_COMMANDS || '');
+        settingsDraftHydrated.current = false;
+      }
+    }
     const me = await api(`${ADMIN_BASE}/api/session/me`);
     if (me.ok) {
       const body = await me.json() as {
@@ -541,6 +620,37 @@ export const App = () => {
         });
       }
     }
+  };
+
+  const loadI18nCatalog = async () => {
+    const res = await api(`${ADMIN_BASE}/api/i18n`);
+    if (!res.ok) return;
+    const body = await res.json() as {
+      api?: Array<{ key: string; en: string; th: string; source?: string }>;
+      portal?: Record<string, { en?: string; th?: string }>;
+    };
+    setI18nApi(body.api || []);
+    applyPortalI18nOverlay(body.portal || {});
+    const overlay = body.portal || {};
+    setI18nPortal(portalStringRows().map(row => ({
+      key: row.key,
+      en: (overlay[row.key]?.en || '').trim() || row.en,
+      th: (overlay[row.key]?.th || '').trim() || row.th,
+    })));
+  };
+
+  const loadCampHistory = async () => {
+    if (!actor) {
+      setCampHistory([]);
+      return;
+    }
+    const res = await api(`${ADMIN_BASE}/api/campaigns`);
+    if (!res.ok) {
+      setCampHistory([]);
+      return;
+    }
+    const body = await res.json() as { campaigns?: Array<Record<string, unknown>> };
+    setCampHistory(body.campaigns || []);
   };
 
   const prettyJson = async (res: Response): Promise<string> => {
@@ -606,7 +716,7 @@ export const App = () => {
     setChannelSecret('');
     setChannelToken('');
     setError('');
-    await loadSettings();
+    await loadSettings({ replaceDrafts: true });
   };
 
   const campaignBody = () => ({
@@ -661,17 +771,10 @@ export const App = () => {
             appEnv: body.flags?.appEnv || '—',
           });
         }
-        if (actor) {
-          const hist = await api(`${ADMIN_BASE}/api/campaigns`);
-          if (hist.ok) {
-            const body = await hist.json() as { campaigns?: Array<Record<string, unknown>> };
-            setCampHistory(body.campaigns || []);
-          }
-        }
         return;
       }
       if (page === 'settings') {
-        await loadSettings();
+        await loadSettings({ replaceDrafts: true });
         if (actor) {
           const revealsRes = await api(`${ADMIN_BASE}/api/audit-log/reveals?limit=50`);
           if (revealsRes.ok) {
@@ -689,6 +792,20 @@ export const App = () => {
         return;
       }
       if (page === 'commands') {
+        const res = await api(`${ADMIN_BASE}/api/commands`);
+        if (res.ok) {
+          const body = await res.json() as { commands?: Array<Record<string, unknown>>; tenantKey?: string };
+          setCommands(body.commands || []);
+          if (body.tenantKey) setTenantKey(body.tenantKey);
+        }
+        return;
+      }
+      if (page === 'language') {
+        await loadI18nCatalog();
+        return;
+      }
+      if (page === 'advanced') {
+        await loadSettings();
         const res = await api(`${ADMIN_BASE}/api/commands`);
         if (res.ok) {
           const body = await res.json() as { commands?: Array<Record<string, unknown>>; tenantKey?: string };
@@ -742,12 +859,7 @@ export const App = () => {
         return;
       }
       if (page === 'campaigns') {
-        const res = await api(`${ADMIN_BASE}/api/campaigns`);
-        if (res.status === 403) return;
-        if (res.ok) {
-          const body = await res.json() as { campaigns?: Array<Record<string, unknown>> };
-          setCampHistory(body.campaigns || []);
-        }
+        await loadCampHistory();
       }
     })();
   }, [authed, page, actor]);
@@ -814,8 +926,8 @@ export const App = () => {
   }
 
   const rows = (settings?.settings as Array<{ key: string; kind: string; set: boolean; value?: string }> | undefined) || [];
+  const settingsLock = settings?.lock;
   const webhooks = (settings?.webhooks as Record<string, string> | undefined) || {};
-  const flags = (settings?.optionalFlags as Record<string, boolean> | undefined) || {};
 
   const lineForm = (
     <form className="field-row" onSubmit={addLineChannel}>
@@ -917,7 +1029,7 @@ export const App = () => {
           <div className="overview-grid">
             <div className="card">
               <h2>Overview</h2>
-            <p className="page-lead">HMAC LINE inbound. Demo is testing only. Lock: {String(settings?.lock)}</p>
+            <p className="page-lead">HMAC LINE inbound. Demo is testing only. Lock: {String(settingsLock)}</p>
               <div className="status-grid">
                 {statusRows.map(row => (
                   <div key={row.label} className={`status-cell ${row.on ? 'on' : 'off'}`}>
@@ -963,6 +1075,22 @@ export const App = () => {
                 load={() => api(originPath(probeOrigin(), '/api-docs.json')).then(prettyJson)}
               />
               {platformSnap ? <CopyField label="Platform" value={JSON.stringify(platformSnap, null, 2)} /> : null}
+              <hr className="section-rule" />
+              <h3>Cursor CLI</h3>
+              <p className="page-lead">Use Cursor Agent in this repo for LINE OA and Admin work. Command catalog is documents/LINE_OA_AGENT.md, not MCP.</p>
+              <Steps items={[
+                <>Open the <code>cloudnex-connect</code> repo in Cursor (IDE or CLI).</>,
+                <>Attach <code>documents/AGENTIC_PROMPT.md</code> and <code>documents/LINE_OA_AGENT.md</code> to the agent.</>,
+                <>Ops health is <code>GET /healthz</code>, <code>GET /readyz</code>, <code>GET /ops/platform</code> — not LINE prefixes.</>,
+              ]} />
+              <CopyField
+                label="Cursor CLI (from repo root)"
+                value={`# Cursor Agent CLI (when installed)
+cursor agent --help
+
+# Same constraints as the IDE agent: no new npm deps, no production deploy.
+# Staging only after tests. HMAC :8080. Admin staging /admin/test.`}
+              />
             </div>
             <div className="card">
               <h2>LINE traffic</h2>
@@ -976,6 +1104,7 @@ export const App = () => {
               <h3>Message volume</h3>
               <ColumnChart buckets={volume} unit="Messages" empty="No inbound LINE text yet on this process. Totals count real webhook messages, not Admin audit rows." />
               <h3>Last 12 hours</h3>
+              <p className="muted">Y-axis is inbound message count. Stacked bars are Sales OA, Customer OA, and unscoped webhook. Legend totals the same 12 hours.</p>
               <HourlyChart rows={traffic?.hourly || []} />
             </div>
           </div>
@@ -1030,11 +1159,12 @@ export const App = () => {
             {actor ? <CopyField label="Bound LINE user id" value={actor} /> : null}
             <FaqItem title="How to bind">
               <Steps items={[
-                <>OPS token is not the super-admin bind.</>,
-                <>VPS <code>/opt/cloudnex-connect/.env</code>: same Sales LINE id on <code>ADMIN_USER_ID</code> and <code>SUPER_ADMIN_USER_IDS</code>, then recreate the container.</>,
-                <>In LINE, VERIFY on Cloudnex Sales so the profile is <code>odooVerified</code>.</>,
-                <>Paste that <code>U…</code>, Send code, enter the OTP from Sales.</>,
-                <>LINE Login / Okta / SAML are optional. URLs are under Help.</>,
+                <>Sign in to Admin with <code>OPS_API_TOKEN</code> (the panel password). That is not the actor.</>,
+                <>On the VPS <code>.env</code>, put the same Cloudnex Sales LINE user id on <code>ADMIN_USER_ID</code> and <code>SUPER_ADMIN_USER_IDS</code>, then recreate the container.</>,
+                <>In LINE, open Cloudnex Sales, complete VERIFY so the profile is <code>odooVerified</code>.</>,
+                <>Admin → Identity: paste that LINE id (<code>U</code> + 32 hex). Directory lookup can find it after VERIFY.</>,
+                <>Send code → OTP arrives on Cloudnex Sales → Confirm. Actor cookie is now bound.</>,
+                <>Campaigns, secret reveal, and privilege grant need that bind. Jobs Run uses the OPS sign-in and does not need actor.</>,
               ]} />
             </FaqItem>
           </div>
@@ -1042,9 +1172,21 @@ export const App = () => {
         {page === 'settings' ? (
           <div className="card">
             <h2>Settings</h2>
-            <p>Credentials stay masked except a timed reveal. ADMIN_USER_ID is fail-closed. Service toggles cannot enable a key omitted from env.</p>
+            <p>Public values are editable when ADMIN_CONFIG_LOCK is false (and SECRETS_ENCRYPTION_KEY is set). Secrets stay masked; use Reveal. Jobs token is uploaded on the Jobs page. Service toggles cannot enable a key omitted from env.</p>
             <CopyField label="Webhooks" value={JSON.stringify(webhooks, null, 2)} />
-            <button type="button" onClick={() => void loadSettings()}>Refresh</button>
+            <p className="muted">Lock: {String(settingsLock)}. If lock is true, change VPS <code>ADMIN_CONFIG_LOCK=false</code> then recreate the container to Save settings here.</p>
+            <button type="button" onClick={() => void loadSettings({ replaceDrafts: true })}>Refresh</button>
+            <button type="button" onClick={async () => {
+              const res = await api(`${ADMIN_BASE}/api/settings`, { method: 'PUT', body: JSON.stringify(settingsDraft) });
+              const body = await res.json() as { error?: string; lock?: boolean; settings?: unknown; optionalFlags?: unknown };
+              if (!res.ok) {
+                toast(body.error || 'Settings save failed');
+                return;
+              }
+              toast('Settings saved', 'ok');
+              setSettings(prev => ({ ...(prev || {}), ...body }));
+              await loadSettings({ replaceDrafts: true });
+            }}>Save settings</button>
             <div className="table-wrap">
             <table>
               <thead><tr><th>Key</th><th>Value</th><th></th></tr></thead>
@@ -1055,7 +1197,16 @@ export const App = () => {
                     <td>{row.kind === 'secret' ? (unmasked[row.key] ? (
                       <CopyField label={row.key} value={unmasked[row.key].value} />
                     ) : (row.set ? '••••' : '—')) : (
-                      row.value ? <CopyField label={row.key} value={row.value} /> : '—'
+                      <input
+                        value={settingsDraft[row.key] ?? row.value ?? ''}
+                        onChange={e => {
+                          const value = e.target.value;
+                          settingsDraftDirty.current = true;
+                          setSettingsDraft(prev => ({ ...prev, [row.key]: value }));
+                          if (row.key === 'DISABLED_COMMANDS') setDisabledCommandsDraft(value);
+                        }}
+                        placeholder={row.set ? '' : 'unset'}
+                      />
                     )}</td>
                     <td>{row.kind === 'secret' && row.set ? <button type="button" disabled={!actor} onClick={() => void reveal(row.key)}>Reveal</button> : null}</td>
                   </tr>
@@ -1129,10 +1280,59 @@ export const App = () => {
           <>
           <div className="card">
             <h2>{t(uiLang, 'uiLanguage')}</h2>
-            <p className="page-lead">EN/TH for Admin chrome (nav, toasts). LINE chat language stays on the user profile below.</p>
+            <p className="page-lead">Same keys for EN and TH. API/LINE strings are src/services/i18n.ts (`t(key)`). Portal strings are Admin chrome (`t(lang, key)`). Save writes overlay; code defaults remain until you override a cell.</p>
             <div className="field-row">
               <button type="button" className={uiLang === 'en' ? '' : 'secondary'} onClick={() => { writeUiLang('en'); setUiLang('en'); }}>English</button>
               <button type="button" className={uiLang === 'th' ? '' : 'secondary'} onClick={() => { writeUiLang('th'); setUiLang('th'); }}>ไทย</button>
+              <button type="button" onClick={() => void loadI18nCatalog()}>Reload strings</button>
+              <button type="button" onClick={async () => {
+                const apiMap: Record<string, { en: string; th: string }> = {};
+                for (const row of i18nApi) apiMap[row.key] = { en: row.en, th: row.th };
+                const portalMap: Record<string, { en: string; th: string }> = {};
+                for (const row of i18nPortal) portalMap[row.key] = { en: row.en, th: row.th };
+                const res = await api(`${ADMIN_BASE}/api/i18n`, { method: 'PUT', body: JSON.stringify({ api: apiMap, portal: portalMap }) });
+                const body = await res.json() as { error?: string };
+                if (!res.ok) toast(body.error || 'Save failed');
+                else {
+                  toast('Translations saved', 'ok');
+                  await loadI18nCatalog();
+                }
+              }}>Save translations</button>
+            </div>
+          </div>
+          <div className="card">
+            <h2>API / LINE (`t(key)`)</h2>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Key</th><th>EN</th><th>TH</th><th>Source</th></tr></thead>
+                <tbody>
+                  {i18nApi.map((row, i) => (
+                    <tr key={row.key}>
+                      <td><code>{row.key}</code></td>
+                      <td><input value={row.en} onChange={e => setI18nApi(list => list.map((item, j) => j === i ? { ...item, en: e.target.value } : item))} /></td>
+                      <td><input value={row.th} onChange={e => setI18nApi(list => list.map((item, j) => j === i ? { ...item, th: e.target.value } : item))} /></td>
+                      <td>{row.source || 'code'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="card">
+            <h2>Admin portal (`t(lang, key)`)</h2>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Key</th><th>EN</th><th>TH</th></tr></thead>
+                <tbody>
+                  {i18nPortal.map((row, i) => (
+                    <tr key={row.key}>
+                      <td><code>{row.key}</code></td>
+                      <td><input value={row.en} onChange={e => setI18nPortal(list => list.map((item, j) => j === i ? { ...item, en: e.target.value } : item))} /></td>
+                      <td><input value={row.th} onChange={e => setI18nPortal(list => list.map((item, j) => j === i ? { ...item, th: e.target.value } : item))} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
           <div className="card">
@@ -1363,6 +1563,7 @@ export const App = () => {
                     <td>{String(u.commandRole || u.role || '')}</td>
                     <td>{String(u.marketingOptIn)}</td>
                     <td>
+                      <div className="row">
                       <button type="button" onClick={async () => {
                         const id = String(u.userId || '');
                         const res = await api(`${ADMIN_BASE}/api/users/${encodeURIComponent(id)}/activity?limit=50`);
@@ -1376,6 +1577,7 @@ export const App = () => {
                         if (!res.ok) toast(body.error || t(uiLang, 'toastUnauthorized'));
                         else toast(t(uiLang, 'preview'), 'ok');
                       }}>FORM VERIFY</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -1514,7 +1716,7 @@ export const App = () => {
             </div>
             {erp ? <CopyField label="ERP probe" value={erp} /> : null}
             {erpStatus ? <CopyField label="E-sign / payment status" value={erpStatus} /> : null}
-            <CopyField label="Platform settings" value={JSON.stringify({ lock: settings?.lock, missingRequired: settings?.missingRequired, capabilities: settings?.capabilities }, null, 2)} />
+            <CopyField label="Platform settings" value={JSON.stringify({ lock: settingsLock, missingRequired: settings?.missingRequired, capabilities: settings?.capabilities }, null, 2)} />
           </div>
         ) : null}
         {page === 'jobs' ? (
@@ -1524,9 +1726,24 @@ export const App = () => {
             <p className="page-lead">{t(uiLang, 'jobsNeedToken')}</p>
             <div className="field-row">
               <div className="field">
-                <label>ADMIN_SECRET_TOKEN</label>
+                <label>ADMIN_SECRET_TOKEN (optional curl)</label>
                 <input type="password" value={jobsToken} onChange={e => { setJobsToken(e.target.value); sessionStorage.setItem(JOBS_TOKEN_KEY, e.target.value); }} placeholder="ADMIN_SECRET_TOKEN" autoComplete="off" />
               </div>
+              <button type="button" onClick={async () => {
+                const secret = jobsToken.trim();
+                if (secret.length < 16) {
+                  toast(t(uiLang, 'toastAdminSecret'));
+                  return;
+                }
+                sessionStorage.setItem(JOBS_TOKEN_KEY, secret);
+                const res = await api(`${ADMIN_BASE}/api/jobs-token`, { method: 'PUT', body: JSON.stringify({ token: secret }) });
+                const body = await res.json() as { error?: string; stored?: string };
+                if (!res.ok) {
+                  toast(body.error || t(uiLang, 'toastAdminSecret'));
+                  return;
+                }
+                toast(body.stored === 'overlay' ? 'ADMIN_SECRET_TOKEN uploaded' : 'Token kept in this browser', 'ok');
+              }}>Save token</button>
             </div>
           </div>
           <div className="card">
@@ -1538,18 +1755,15 @@ export const App = () => {
                   type="button"
                   onClick={async () => {
                     const secret = jobsToken.trim();
-                    if (secret.length < 16) {
-                      toast(t(uiLang, 'toastAdminSecret'));
-                      return;
-                    }
-                    const res = await fetch(`${ADMIN_BASE}/api/jobs/${name}`, {
+                    if (secret) sessionStorage.setItem(JOBS_TOKEN_KEY, secret);
+                    const res = await api(`${ADMIN_BASE}/api/jobs/${name}`, {
                       method: 'POST',
-                      credentials: 'include',
-                      headers: { authorization: `Bearer ${secret}` },
+                      body: '{}',
+                      ...(secret.length >= 16 ? { headers: { authorization: `Bearer ${secret}` } } : {}),
                     });
                     const body = await res.json().catch(() => ({})) as { error?: string; message?: string };
                     if (!res.ok) {
-                      toast(body.error || t(uiLang, 'toastUnauthorized'));
+                      toast(body.error || (secret && secret.length < 16 ? t(uiLang, 'toastAdminSecret') : t(uiLang, 'toastUnauthorized')));
                       setJobOut('');
                       return;
                     }
@@ -1628,15 +1842,10 @@ export const App = () => {
               <button type="button" disabled={!actor || settings?.queueReady === false} onClick={async () => {
                 const res = await api(`${ADMIN_BASE}/api/campaigns/send`, { method: 'POST', body: JSON.stringify({ ...campaignBody(), confirm: 'SEND' }) });
                 setError(res.status === 202 || res.ok ? '' : await readError(res, res.status === 503 ? 'Redis required (503)' : 'Send failed'));
+                if (res.status === 202 || res.ok) await loadCampHistory();
               }}>Send multicast</button>
               <button type="button" disabled={!actor} onClick={async () => {
-                const res = await api(`${ADMIN_BASE}/api/campaigns`);
-                if (!res.ok) {
-                  setError(await readError(res, 'History failed'));
-                  return;
-                }
-                const body = await res.json() as { campaigns?: Array<Record<string, unknown>> };
-                setCampHistory(body.campaigns || []);
+                await loadCampHistory();
               }}>History</button>
             </div>
             {campPreview ? <CopyField label="Campaign response" value={campPreview} /> : null}
@@ -1647,6 +1856,7 @@ export const App = () => {
               <button type="button" disabled={!actor || campClass === 'customers_promo'} onClick={async () => {
                 const res = await api(`${ADMIN_BASE}/api/campaigns/broadcast`, { method: 'POST', body: JSON.stringify({ channelId: campChannel, audienceType: campClass, text: campTextEn || campTextTh || campText, textEn: campTextEn, textTh: campTextTh, language: campLang || undefined, confirm: broadcastConfirm }) });
                 setError(res.ok ? '' : await readError(res, 'Broadcast denied or failed'));
+                if (res.ok) await loadCampHistory();
               }}>Broadcast</button>
             </div>
             <table>
@@ -1660,30 +1870,122 @@ export const App = () => {
           </div>
         ) : null}
         {page === 'advanced' ? (
+          <>
           <div className="card">
-            <h2>Advanced — fulfillment flags</h2>
+            <h2>Advanced — features, pages, commands</h2>
             <p>{t(uiLang, 'fulfillment')}</p>
             {Array.isArray(settings?.missingRequired) && (settings.missingRequired as string[]).length
               ? <CopyField label={t(uiLang, 'missingEnv')} value={(settings.missingRequired as string[]).join('\n')} />
               : null}
+            <p className="muted">Lock: {String(settingsLock)}</p>
+            <h3>Feature flags</h3>
             <table>
-              <thead><tr><th>Control</th><th>Flag</th><th>Live</th></tr></thead>
+              <thead><tr><th>Control</th><th>On</th><th>Live</th></tr></thead>
               <tbody>
-                {Object.entries((settings?.optionalFlags as Record<string, boolean> | undefined) || flags).map(([key, value]) => (
-                  <tr key={key}>
-                    <td>{key}</td>
-                    <td><code>{key}</code></td>
-                    <td>{String(Boolean(value))}</td>
-                  </tr>
-                ))}
+                {ADVANCED_FLAG_KEYS.map(key => {
+                  const live = Boolean((settings?.optionalFlags as Record<string, boolean> | undefined)?.[key]);
+                  const on = /^(1|true|yes|on)$/i.test(settingsDraft[key] || '') || (!settingsDraft[key] && live);
+                  return (
+                    <tr key={key}>
+                      <td><code>{key}</code></td>
+                      <td>
+                        <input type="checkbox" checked={on} onChange={e => {
+                          settingsDraftDirty.current = true;
+                          setSettingsDraft(prev => ({ ...prev, [key]: e.target.checked ? 'true' : 'false' }));
+                        }} />
+                      </td>
+                      <td>{String(live)}</td>
+                    </tr>
+                  );
+                })}
                 <tr>
                   <td>Redis / campaign queue</td>
-                  <td>REDIS_URL / queueReady</td>
+                  <td>—</td>
                   <td>{String(settings?.queueReady !== false)}</td>
                 </tr>
               </tbody>
             </table>
+            <div className="field-row">
+              <button type="button" onClick={async () => {
+                const patch: Record<string, string> = {};
+                for (const key of ADVANCED_FLAG_KEYS) patch[key] = /^(1|true|yes|on)$/i.test(settingsDraft[key] || '') ? 'true' : 'false';
+                patch.DISABLED_COMMANDS = disabledCommandsDraft;
+                const res = await api(`${ADMIN_BASE}/api/settings`, { method: 'PUT', body: JSON.stringify(patch) });
+                const body = await res.json() as { error?: string };
+                if (!res.ok) toast(body.error || 'Flag save failed');
+                else {
+                  toast('Flags saved', 'ok');
+                  await loadSettings({ replaceDrafts: true });
+                }
+              }}>Save flags</button>
+            </div>
+            <h3>Disable command prefixes</h3>
+            <p className="muted">Comma list, e.g. <code>QUOTE CANCEL,ADMIN ENABLE</code>. Live via DISABLED_COMMANDS overlay or env.</p>
+            <input value={disabledCommandsDraft} onChange={e => {
+              const value = e.target.value;
+              settingsDraftDirty.current = true;
+              setDisabledCommandsDraft(value);
+              setSettingsDraft(prev => ({ ...prev, DISABLED_COMMANDS: value }));
+            }} placeholder="PRODUCT FIND,QUOTE CANCEL" />
           </div>
+          <div className="card">
+            <h2>Command pages (overlay enabled)</h2>
+            <p className="muted">Uncheck to hide a LINE command or glossary row. Same store as Commands. Prefix stays canonical.</p>
+            <div className="field-row">
+              <button type="button" onClick={async () => {
+                const res = await api(`${ADMIN_BASE}/api/commands`);
+                const body = await res.json() as { commands?: Array<Record<string, unknown>>; error?: string };
+                setCommands(body.commands || []);
+                if (!res.ok) toast(body.error || t(uiLang, 'toastUnauthorized'));
+              }}>Reload commands</button>
+              <button type="button" onClick={async () => {
+                if (!commands.length) {
+                  toast(t(uiLang, 'cmdReload'), 'error');
+                  return;
+                }
+                const patch: Record<string, { enabled: boolean; labelEn?: string; labelTh?: string; roles?: string[]; channels?: string[]; aliases?: string[] }> = {};
+                for (const row of commands) {
+                  const id = String(row.id || '');
+                  if (!id) continue;
+                  patch[id] = {
+                    enabled: row.enabled !== false,
+                    labelEn: String(row.labelEn || ''),
+                    labelTh: String(row.labelTh || ''),
+                    roles: Array.isArray(row.roles) ? row.roles as string[] : [],
+                    channels: Array.isArray(row.channels) ? row.channels as string[] : [],
+                    aliases: Array.isArray(row.aliases) ? row.aliases as string[] : [],
+                  };
+                }
+                const res = await api(`${ADMIN_BASE}/api/commands`, { method: 'PUT', body: JSON.stringify({ commands: patch }) });
+                const body = await res.json() as { commands?: Array<Record<string, unknown>>; error?: string };
+                if (!res.ok) toast(body.error || 'Command save failed');
+                else {
+                  setCommands(body.commands || commands);
+                  toast(t(uiLang, 'cmdSaved'), 'ok');
+                }
+              }}>Save command enablement</button>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>On</th><th>Prefix / id</th><th>EN</th></tr></thead>
+                <tbody>
+                  {commands.map((row, i) => (
+                    <tr key={String(row.id || i)}>
+                      <td>
+                        <input type="checkbox" checked={row.enabled !== false} onChange={e => {
+                          const on = e.target.checked;
+                          setCommands(list => list.map((item, j) => j === i ? { ...item, enabled: on } : item));
+                        }} />
+                      </td>
+                      <td><code>{String(row.prefix || row.id || '')}</code></td>
+                      <td>{String(row.labelEn || '')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          </>
         ) : null}
       </main>
     </>

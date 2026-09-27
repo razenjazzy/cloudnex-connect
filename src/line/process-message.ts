@@ -346,6 +346,7 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
     const { applyTrayAfterReply, applyKeyboardRichMenu, unlinkUserRichMenu } = await import('./rich-menu');
     const { shouldApplyTrayAfterReply, replyExpectsKeyboard } = await import('./tray-policy');
     const { setLastTerminalAt } = await import('../services/firestore');
+    const { isProductDetailFlex, shouldPushDeferredCatalog } = await import('./journey-continue');
     const afterProfile = await getUserProfile(input.conversationId);
     const applyTray = shouldApplyTrayAfterReply({
       isGroupContext: input.isGroupContext,
@@ -369,7 +370,17 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
         void unlinkUserRichMenu(input.conversationId, input.channelConfig.channelId);
       }
     }
-    if (ctx.pendingCatalogPush && !input.isGroupContext && applyTray && !afterProfile.pendingFlow) {
+    if (messages.some(isProductDetailFlex)) {
+      noteTrayGeneration(input.conversationId, `${trayGeneration}:details`);
+    }
+    if (shouldPushDeferredCatalog({
+      pendingCatalogPush: ctx.pendingCatalogPush,
+      isGroupContext: Boolean(input.isGroupContext || ctx.isGroupContext),
+      applyTray,
+      pendingFlow: Boolean(afterProfile.pendingFlow),
+      text: ctx.text,
+      messages,
+    })) {
       void pushDeferredCommerceCatalog({
         userId: input.conversationId,
         generation: trayGeneration,

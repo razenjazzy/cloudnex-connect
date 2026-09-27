@@ -120,7 +120,7 @@ describe('Odoo ERP adapter', () => {
         price: 125,
         quantity: 8,
         currency: 'THB',
-        imageUrl: 'https://amardhaka.io/cloudnex-connect/admin/catalog/product/1/image',
+        imageUrl: 'https://amardhaka.io/cloudnex-connect/catalog/product/1/image',
       },
     ]);
     if (previousBase === undefined) delete process.env.PUBLIC_BASE_URL;
@@ -137,6 +137,7 @@ describe('Odoo ERP adapter', () => {
     await expect(odooAdapter.searchProducts('widget', 5)).resolves.toEqual([
       { id: 1, name: 'Widget Pro', sku: 'WP-1', price: 125, quantity: 8, currency: 'THB' },
     ]);
+    expect(vi.mocked(readProductImage128)).not.toHaveBeenCalled();
     if (previousBase === undefined) delete process.env.PUBLIC_BASE_URL;
     else process.env.PUBLIC_BASE_URL = previousBase;
   });

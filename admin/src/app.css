@@ -308,6 +308,7 @@ header nav > a.active {
 .status-value { color: #3d5551; }
 .chart-wrap { margin-top: 0.5rem; }
 .volume-chart { width: 100%; height: auto; display: block; }
+.section-rule { border: 0; border-top: 1px solid #d5e0dd; margin: 1.25rem 0 1rem; }
 .chart-empty {
   background: #eef1f0;
   border-radius: 8px;

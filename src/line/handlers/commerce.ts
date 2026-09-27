@@ -18,6 +18,7 @@ import { notifyQuoteParties } from '../quote-notify';
 import { commerceFollowUpMessages } from '../commerce-followup';
 import { LINE_LIMITS } from '../message-limits';
 import { getErpAdapter } from '../../erp/registry';
+import type { ErpProduct } from '../../erp/adapter';
 import { getPlatformStatus } from '../../platform/status';
 import { CUSTOMER_CHANNEL_ID, getAgentSpeakPrefix, salesNotifyChannelId } from '../channels';
 import { findOdooUserIdByPartnerId } from '../../services/odoo/admin';
@@ -29,6 +30,22 @@ const tr = (language: UserLanguage, th: string, en: string): string => (language
 
 const customerRequestAcceptedBody = (language: UserLanguage): string =>
   `${getAgentSpeakPrefix(language)}${t('customerRequestAccepted', language)}`;
+
+export const productFindId = (query: string): number | null => {
+  const captured = /^(?:id:)?(\d+)$/i.exec(query.trim());
+  const rawId = captured?.[1];
+  if (!rawId) return null;
+  const id = Number(rawId);
+  return Number.isInteger(id) && id > 0 ? id : null;
+};
+
+export const selectProductsForFind = (query: string, lookedUp: ErpProduct | null, searched: ErpProduct[]): ErpProduct[] => {
+  if (lookedUp) return [lookedUp];
+  const needle = query.trim().toLowerCase();
+  const exact = searched.filter(item => item.name.trim().toLowerCase() === needle);
+  if (exact.length) return exact;
+  return searched;
+};
 
 const inferTone = (value: string): 'info' | 'success' | 'warning' | 'error' => {
   const lower = value.toLowerCase();
@@ -70,7 +87,11 @@ const demoProductHandler: CommandHandler = {
       const { resolveCommandReply } = await import('../command-router');
       return resolveCommandReply({ ...ctx, text: 'FORM PRODUCT FIND' });
     }
-    const products = await getErpAdapter().searchProducts(query, 10);
+    const erp = getErpAdapter();
+    const id = productFindId(query);
+    const lookedUp = id ? await erp.lookupProduct(id) : null;
+    const searched = lookedUp ? [] : await erp.searchProducts(query, 10);
+    const products = selectProductsForFind(query, lookedUp, searched);
     if (!products.length) {
       return [botText(tr(userLanguage, `ไม่พบสินค้าที่ตรงกับ "${query}"`, `No product matched "${query}".`), userLanguage, [
         { label: tr(userLanguage, 'ค้นหาอีกครั้ง', 'Search again'), text: 'FORM PRODUCT FIND', style: 'primary' },

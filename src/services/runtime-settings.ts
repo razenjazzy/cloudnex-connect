@@ -49,12 +49,57 @@ export const PUBLIC_SETTING_KEYS = [
   'SAML_SP_ENTITY_ID',
   'SAML_LINE_ATTRIBUTE',
   'SAML_IDP_CERT',
+  'DISABLED_COMMANDS',
+  'LINE_GROUP_ROOMS',
+  'LINE_SECOND_WEBHOOK',
+  'GRAPHQL_LINE_INGEST',
+  'ENABLE_GRAPHQL',
+  'ENABLE_API_DOCS',
+  'LINE_WEBHOOK_ASYNC',
+  'MONGO_USERS',
 ] as const;
 
 const ALLOWED_OVERLAY_KEYS = new Set<string>([...SECRET_SETTING_KEYS, ...PUBLIC_SETTING_KEYS]);
 
+const LINE_CHANNEL_DEFAULT_KEYS = new Set([
+  'LINE_CHANNEL_ID',
+  'LINE_CHANNEL_SECRET',
+  'LINE_CHANNEL_ACCESS_TOKEN',
+  'LINE_CHANNEL_BASIC_ID',
+  'LINE_CHANNEL_DEFAULT_SERVICES',
+]);
+
+/** Longest suffix first so KEYBOARD_RICH_MENU is not parsed as RICH_MENU. */
+const LINE_CHANNEL_NAMESPACED_SUFFIXES = [
+  'KEYBOARD_RICH_MENU',
+  'RICH_MENU_JSON',
+  'ACCESS_TOKEN',
+  'BASIC_ID',
+  'SERVICES',
+  'SECRET',
+] as const;
+
+export const isAllowedLineChannelOverlayKey = (key: string): boolean => {
+  if (!key.startsWith('LINE_CHANNEL_')) return false;
+  if (LINE_CHANNEL_DEFAULT_KEYS.has(key) || ALLOWED_OVERLAY_KEYS.has(key)) return true;
+  const rest = key.slice('LINE_CHANNEL_'.length);
+  for (const suffix of LINE_CHANNEL_NAMESPACED_SUFFIXES) {
+    const token = `_${suffix}`;
+    if (!rest.endsWith(token)) continue;
+    const slug = rest.slice(0, -token.length);
+    if (/^[A-Z][A-Z0-9_]{0,31}$/.test(slug) && !slug.includes('__')) return true;
+  }
+  return false;
+};
+
+export const isPublicLineChannelOverlayKey = (key: string): boolean =>
+  isAllowedLineChannelOverlayKey(key) && !isSecretSettingKey(key);
+
 let overlay: Record<string, string> = {};
 let hydrated = false;
+
+export const ADMIN_CONFIG_LOCK_ERROR =
+  'ADMIN_CONFIG_LOCK is enabled. Set ADMIN_CONFIG_LOCK=false to edit settings, or paste the VPS ADMIN_SECRET_TOKEN on Jobs.';
 
 export const isAdminConfigLocked = (env: NodeJS.ProcessEnv = process.env): boolean => {
   const raw = env.ADMIN_CONFIG_LOCK;
@@ -71,6 +116,17 @@ export const getSecretRevealTtlSeconds = (env: NodeJS.ProcessEnv = process.env):
 export const isSecretSettingKey = (key: string): boolean =>
   SECRET_SETTING_KEYS.includes(key as (typeof SECRET_SETTING_KEYS)[number])
   || /(secret|token|password|api[-_]?key)/i.test(key);
+
+/** Locked overlay may only set ADMIN_SECRET_TOKEN when env does not already have one. Extra keys (even empty) are rejected. */
+export const isLockedAdminSecretBootstrapPatch = (
+  patch: Record<string, string>,
+  env: NodeJS.ProcessEnv = process.env,
+): boolean => {
+  if (env.ADMIN_SECRET_TOKEN?.trim()) return false;
+  const keys = Object.keys(patch);
+  if (keys.length !== 1 || keys[0] !== 'ADMIN_SECRET_TOKEN') return false;
+  return Boolean(String(patch.ADMIN_SECRET_TOKEN || '').trim());
+};
 
 const encryptionKeyBytes = (env: NodeJS.ProcessEnv = process.env): Buffer | null => {
   const material = env.SECRETS_ENCRYPTION_KEY?.trim() || env.CONNECT_BOOTSTRAP_TOKEN?.trim() || '';
@@ -117,7 +173,7 @@ export const getRuntime = (key: string, env: NodeJS.ProcessEnv = process.env): s
   const overlayVal = overlay[key]?.trim() || '';
   if (isAdminConfigLocked(env) && envVal) return envVal;
   if (!isAdminConfigLocked(env) && overlayVal) return overlayVal;
-  return envVal || overlayVal;
+  return envVal || overlayVal || '';
 };
 
 export const getEffectiveAdminUserIds = (env: NodeJS.ProcessEnv = process.env): Set<string> => {
@@ -160,11 +216,18 @@ export const mergeRuntimeOverlay = async (
   env: NodeJS.ProcessEnv = process.env,
 ): Promise<{ ok: true } | { ok: false; error: string }> => {
   if (isAdminConfigLocked(env)) {
-    return { ok: false, error: 'ADMIN_CONFIG_LOCK is enabled.' };
+    if (!isLockedAdminSecretBootstrapPatch(patch, env)) {
+      return { ok: false, error: ADMIN_CONFIG_LOCK_ERROR };
+    }
   }
   const next = { ...overlay };
+  const locked = isAdminConfigLocked(env);
+  let applied = 0;
   for (const [key, value] of Object.entries(patch)) {
-    if (!ALLOWED_OVERLAY_KEYS.has(key) && !key.startsWith('LINE_CHANNEL_')) {
+    if (locked && key !== 'ADMIN_SECRET_TOKEN') {
+      return { ok: false, error: ADMIN_CONFIG_LOCK_ERROR };
+    }
+    if (!ALLOWED_OVERLAY_KEYS.has(key) && !isAllowedLineChannelOverlayKey(key)) {
       continue;
     }
     if (env.APP_ENV === 'production' && (key === 'ENABLE_DEMO_CONTROL_PANEL' || key === 'ENABLE_WEBHOOK_TEST')) {
@@ -176,7 +239,9 @@ export const mergeRuntimeOverlay = async (
     } else {
       next[key] = trimmed;
     }
+    applied += 1;
   }
+  if (!applied) return { ok: false, error: locked ? ADMIN_CONFIG_LOCK_ERROR : 'No overlay keys applied.' };
   const blob = encryptJson(next, env);
   if (!blob) return { ok: false, error: 'SECRETS_ENCRYPTION_KEY is required to persist overlay.' };
   const result = await setPlatformConfig(RUNTIME_SECRETS_CONFIG_KEY, { blob });
@@ -193,7 +258,7 @@ export const describeSettings = (env: NodeJS.ProcessEnv = process.env): Array<{
   value?: string;
 }> => {
   const keys = [...PUBLIC_SETTING_KEYS, ...SECRET_SETTING_KEYS];
-  const extra = Object.keys(overlay).filter(key => key.startsWith('LINE_CHANNEL_') && !keys.includes(key as typeof keys[number]));
+  const extra = Object.keys(overlay).filter(key => isAllowedLineChannelOverlayKey(key) && !keys.includes(key as typeof keys[number]));
   return [...keys, ...extra].map(key => {
     const value = getRuntime(key, env);
     const kind = isSecretSettingKey(key) ? 'secret' as const : 'public' as const;

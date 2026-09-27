@@ -68,6 +68,22 @@ describe('ensureNextWindowOrHome', () => {
     expect(ensureNextWindowOrHome(ctx('PRODUCT FIND'), [carousel], homeFlex)).toHaveLength(1);
   });
 
+  it('does not append catalog Home after Product Details', () => {
+    const details: messagingApi.FlexMessage = {
+      type: 'flex',
+      altText: 'Product: App Premium',
+      contents: {
+        type: 'bubble',
+        footer: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [{ type: 'button', action: { type: 'message', text: 'NAV HOME' } }],
+        },
+      },
+    };
+    expect(ensureNextWindowOrHome(ctx('PRODUCT FIND id:11'), [details], homeFlex)).toHaveLength(1);
+  });
+
   it('does not exceed the LINE 5-message cap', () => {
     const five = Array.from({ length: LINE_LIMITS.MAX_MESSAGES_PER_REPLY }, () => doneCard());
     expect(ensureNextWindowOrHome(ctx('LANG EN'), five, homeFlex)).toHaveLength(5);
@@ -76,5 +92,82 @@ describe('ensureNextWindowOrHome', () => {
   it('does not double Home when Home Flex is already present', () => {
     const messages = ensureNextWindowOrHome(ctx('VERIFY OTP 123456'), [doneCard(), homeFlex()], homeFlex);
     expect(messages.filter(isHomeFlex)).toHaveLength(1);
+  });
+});
+
+describe('isProductDetailFlex', () => {
+  it('detects Product Details bubbles and ignores catalogue carousels', async () => {
+    const { isProductDetailFlex } = await import('../src/line/journey-continue');
+    expect(isProductDetailFlex({
+      type: 'flex',
+      altText: 'Product: App Premium',
+      contents: { type: 'bubble', body: { type: 'box', layout: 'vertical', contents: [] } },
+    })).toBe(true);
+    expect(isProductDetailFlex({
+      type: 'flex',
+      altText: '2 products',
+      contents: {
+        type: 'carousel',
+        contents: [{
+          type: 'bubble',
+          footer: { type: 'box', layout: 'vertical', contents: [{ type: 'button', action: { type: 'message', text: 'FORM QUOTE CREATE FROM CARD 11' } }] },
+        }],
+      },
+    })).toBe(false);
+    expect(isProductDetailFlex({
+      type: 'flex',
+      altText: 'Details',
+      contents: {
+        type: 'bubble',
+        footer: {
+          type: 'box',
+          layout: 'vertical',
+          contents: [
+            { type: 'button', action: { type: 'message', text: 'FORM QUOTE CREATE FROM CARD 11' } },
+            { type: 'button', action: { type: 'message', text: 'BACK' } },
+            { type: 'button', action: { type: 'message', text: 'NAV HOME' } },
+          ],
+        },
+      },
+    })).toBe(true);
+  });
+});
+
+describe('shouldPushDeferredCatalog', () => {
+  it('does not push catalog after a Product Details reply even if pendingCatalogPush is set', async () => {
+    const { shouldPushDeferredCatalog } = await import('../src/line/journey-continue');
+    const details: messagingApi.FlexMessage = {
+      type: 'flex',
+      altText: 'Product: App Premium',
+      contents: { type: 'bubble', body: { type: 'box', layout: 'vertical', contents: [] } },
+    };
+    expect(shouldPushDeferredCatalog({
+      pendingCatalogPush: true,
+      isGroupContext: false,
+      applyTray: true,
+      text: 'PRODUCT FIND id:11',
+      messages: [details],
+    })).toBe(false);
+    expect(shouldPushDeferredCatalog({
+      pendingCatalogPush: true,
+      isGroupContext: false,
+      applyTray: true,
+      text: 'NAV COMMERCE',
+      messages: [details],
+    })).toBe(false);
+    expect(shouldPushDeferredCatalog({
+      pendingCatalogPush: true,
+      isGroupContext: false,
+      applyTray: true,
+      text: 'NAV HOME',
+      messages: [{ type: 'flex', altText: 'CloudNex Connect: Sora menu', contents: { type: 'bubble', body: { type: 'box', layout: 'vertical', contents: [] } } }],
+    })).toBe(true);
+    expect(shouldPushDeferredCatalog({
+      pendingCatalogPush: true,
+      isGroupContext: true,
+      applyTray: true,
+      text: 'NAV HOME',
+      messages: [{ type: 'flex', altText: 'CloudNex Connect: Sora menu', contents: { type: 'bubble', body: { type: 'box', layout: 'vertical', contents: [] } } }],
+    })).toBe(false);
   });
 });

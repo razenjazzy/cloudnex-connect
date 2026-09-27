@@ -48,8 +48,8 @@ describe('disabled forks', () => {
     expect(spa).toContain('disabled={campClass === \'customers_promo\'}');
     expect(spa).toContain('disabled={!actor || settings?.queueReady === false}');
     expect(spa).toContain('CopyField');
-    expect(spa).toContain("href: '/admin/language'");
-    expect(spa).toContain("href: '/admin/commands'");
-    expect(spa).toContain("label: 'Settings'");
+    expect(spa).toContain("href: `${ADMIN_BASE}/language`");
+    expect(spa).toContain("href: `${ADMIN_BASE}/commands`");
+    expect(spa).toContain("id: 'settings'");
   });
 });

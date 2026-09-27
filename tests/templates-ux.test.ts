@@ -68,9 +68,20 @@ describe('product card quote CTA', () => {
   });
 
   it('shows an https product image on the detail card', () => {
-    const message = createProductCardFlexMessage('App Premium', 100, 3, 'en', 11, 'https://amardhaka.io/cloudnex-connect/admin/catalog/product/11/image');
+    const message = createProductCardFlexMessage('App Premium', 100, 3, 'en', 11, 'https://amardhaka.io/cloudnex-connect/catalog/product/11/image');
     expect(JSON.stringify(message)).toContain('"type":"image"');
     expect(JSON.stringify(message)).toContain('/catalog/product/11/image');
+  });
+
+  it('uses the same catalog hero URL on Sales and Customer Product Details', () => {
+    const previousBase = process.env.PUBLIC_BASE_URL;
+    process.env.PUBLIC_BASE_URL = 'https://amardhaka.io/cloudnex-connect';
+    const sales = JSON.stringify(createProductCardFlexMessage('App Premium', 100, 3, 'en', 11, undefined, { channelId: 'sales' }));
+    const customer = JSON.stringify(createProductCardFlexMessage('App Premium', 100, 3, 'en', 11, undefined, { channelId: 'customer' }));
+    expect(sales).toContain('https://amardhaka.io/cloudnex-connect/catalog/product/11/image');
+    expect(customer).toContain('https://amardhaka.io/cloudnex-connect/catalog/product/11/image');
+    if (previousBase === undefined) delete process.env.PUBLIC_BASE_URL;
+    else process.env.PUBLIC_BASE_URL = previousBase;
   });
 
   it('on Customer OA shows Order Now then Send Message above Home/Back', () => {
@@ -87,7 +98,10 @@ describe('product card quote CTA', () => {
     expect(json.indexOf('FORM QUOTE CREATE FROM CARD')).toBeLessThan(json.indexOf('FORM MESSAGE REQUEST'));
     expect(json.indexOf('"text":"NAV HOME"')).toBeLessThan(json.indexOf('"text":"BACK"'));
     expect(json).not.toContain('"text":"Stock"');
-    expect(json).toContain('"size":"xl"');
+    expect(json).toContain('"size":"xxl"');
+    expect(json).toContain('THB');
+    expect(json).toContain('"paddingStart":"xl"');
+    expect(json).toContain('"paddingEnd":"xl"');
   });
 
   it('still shows a short description on Customer OA when the overlay row is off', () => {

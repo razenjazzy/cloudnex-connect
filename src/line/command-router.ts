@@ -51,6 +51,7 @@ import { appLogger } from '../services/logger';
 import { applyChannelPersona, isQuoteStaff, selfQuoteIdentity, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary } from './quote-access';
 import { evaluateCommandGrid, isGuestAllowedCommand, matchCommandGrid } from './command-grid';
 import { canonicalizeInboundCommand, loadCommandOverlay, overlayLabelForText } from './command-overlay';
+import { loadI18nOverlay } from '../services/i18n-overlay';
 import { catalogUiLabel } from './catalog-ui';
 import { customerQtyChipLabels } from './customer-qty';
 import { getErpAdapter } from '../erp/registry';
@@ -861,6 +862,7 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
   ctx.profile = applyChannelPersona(ctx.profile, ctx.channel?.channelId);
   const { profile } = ctx;
   await loadCommandOverlay();
+  await loadI18nOverlay();
   const trimmed = canonicalizeInboundCommand(ctx.text.trim());
   if (trimmed !== ctx.text.trim()) ctx.text = trimmed;
   const upperText = trimmed.toUpperCase();

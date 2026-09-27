@@ -5,6 +5,10 @@ import {
   getSecretRevealTtlSeconds,
   ipAllowedForAdmin,
   isAdminConfigLocked,
+  isAllowedLineChannelOverlayKey,
+  isLockedAdminSecretBootstrapPatch,
+  isPublicLineChannelOverlayKey,
+  mergeRuntimeOverlay,
   resetRuntimeSettingsForTests,
 } from '../src/services/runtime-settings';
 
@@ -51,5 +55,45 @@ describe('runtime settings', () => {
 
   it('defaults lock to true', () => {
     expect(isAdminConfigLocked({})).toBe(true);
+  });
+
+  it('accepts known LINE_CHANNEL_ suffixes and rejects junk overlay keys', () => {
+    expect(isAllowedLineChannelOverlayKey('LINE_CHANNEL_HR_SECRET')).toBe(true);
+    expect(isAllowedLineChannelOverlayKey('LINE_CHANNEL_HR_ACCESS_TOKEN')).toBe(true);
+    expect(isAllowedLineChannelOverlayKey('LINE_CHANNEL_HR_SERVICES')).toBe(true);
+    expect(isAllowedLineChannelOverlayKey('LINE_CHANNEL_CUSTOMER_KEYBOARD_RICH_MENU')).toBe(true);
+    expect(isAllowedLineChannelOverlayKey('LINE_CHANNEL_DEFAULT_SERVICES')).toBe(true);
+    expect(isPublicLineChannelOverlayKey('LINE_CHANNEL_HR_SERVICES')).toBe(true);
+    expect(isPublicLineChannelOverlayKey('LINE_CHANNEL_HR_SECRET')).toBe(false);
+    expect(isAllowedLineChannelOverlayKey('LINE_CHANNEL_HR_PASSWORD')).toBe(false);
+    expect(isAllowedLineChannelOverlayKey('LINE_CHANNEL_FOO')).toBe(false);
+    expect(isAllowedLineChannelOverlayKey('LINE_CHANNEL__SERVICES')).toBe(false);
+    expect(isPublicLineChannelOverlayKey('LINE_CHANNEL_UNKNOWN_JUNK')).toBe(false);
+  });
+
+  it('rejects locked overlay patches that smuggle empty keys beside ADMIN_SECRET_TOKEN', () => {
+    const env = { ADMIN_CONFIG_LOCK: 'true' };
+    expect(isLockedAdminSecretBootstrapPatch({ ADMIN_SECRET_TOKEN: 'admin-token-16xx' }, env)).toBe(true);
+    expect(isLockedAdminSecretBootstrapPatch({
+      ADMIN_SECRET_TOKEN: 'admin-token-16xx',
+      DISABLED_COMMANDS: '',
+    }, env)).toBe(false);
+    expect(isLockedAdminSecretBootstrapPatch({ DISABLED_COMMANDS: '' }, env)).toBe(false);
+    expect(isLockedAdminSecretBootstrapPatch(
+      { ADMIN_SECRET_TOKEN: 'admin-token-16xx' },
+      { ADMIN_CONFIG_LOCK: 'true', ADMIN_SECRET_TOKEN: 'already-on-vps-16' },
+    )).toBe(false);
+  });
+
+  it('rejects public overlay merges when ADMIN_CONFIG_LOCK is on', async () => {
+    resetRuntimeSettingsForTests({});
+    const result = await mergeRuntimeOverlay(
+      { PUBLIC_BASE_URL: 'https://overlay.example' },
+      { ADMIN_CONFIG_LOCK: 'true' },
+    );
+    expect(result).toEqual({
+      ok: false,
+      error: 'ADMIN_CONFIG_LOCK is enabled. Set ADMIN_CONFIG_LOCK=false to edit settings, or paste the VPS ADMIN_SECRET_TOKEN on Jobs.',
+    });
   });
 });

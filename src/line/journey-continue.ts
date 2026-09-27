@@ -33,6 +33,35 @@ export const isHomeFlex = (message: messagingApi.Message): boolean => {
   return alt.includes(' menu') || alt.startsWith('เมนู ');
 };
 
+export const isProductDetailFlex = (message: messagingApi.Message): boolean => {
+  if (message.type !== 'flex') return false;
+  if (message.altText && /^(product:|สินค้า:)/i.test(message.altText.trim())) return true;
+  if (message.contents?.type !== 'bubble') return false;
+  const json = JSON.stringify(message);
+  return json.includes('FORM QUOTE CREATE FROM CARD')
+    && json.includes('"text":"BACK"')
+    && json.includes('NAV HOME');
+};
+
+const isProductFindDetailsCommand = (text: string): boolean => {
+  const upper = text.trim().toUpperCase();
+  return upper === 'PRODUCT FIND' || upper.startsWith('PRODUCT FIND ');
+};
+
+export const shouldPushDeferredCatalog = (input: {
+  pendingCatalogPush?: boolean;
+  isGroupContext: boolean;
+  applyTray: boolean;
+  pendingFlow?: boolean;
+  text: string;
+  messages: messagingApi.Message[];
+}): boolean => {
+  if (!input.pendingCatalogPush || input.isGroupContext || !input.applyTray || input.pendingFlow) return false;
+  if (input.messages.some(isProductDetailFlex)) return false;
+  if (isProductFindDetailsCommand(input.text)) return false;
+  return true;
+};
+
 const collectContinueTexts = (messages: messagingApi.Message[]): string[] => {
   const texts: string[] = [];
   for (const message of messages) {
@@ -73,6 +102,7 @@ export const ensureNextWindowOrHome = (
 ): messagingApi.Message[] => {
   if (!messages.length) return [buildHome()];
   if (messages.some(isHomeFlex)) return messages;
+  if (messages.some(isProductDetailFlex) || isProductFindDetailsCommand(ctx.text)) return messages;
   if (ctx.profile.pendingFlow) return messages;
   if (isNavIndexCommand(ctx.text)) return messages;
   if (hasNextInputWindow(messages)) return messages;

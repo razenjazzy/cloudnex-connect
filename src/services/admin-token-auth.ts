@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { safeTokenMatch } from '../services/demo-session';
+import { getRuntime } from '../services/runtime-settings';
 
 /**
  * Middleware to protect routes by requiring a valid admin token.
@@ -10,13 +11,13 @@ import { safeTokenMatch } from '../services/demo-session';
  * @param {NextFunction} next - The next middleware function.
  */
 export const isValidAdminToken = (token: string): boolean => {
-  const adminToken = process.env.ADMIN_SECRET_TOKEN?.trim() || '';
+  const adminToken = (getRuntime('ADMIN_SECRET_TOKEN') || '').trim();
   if (!adminToken || adminToken.length < 16) return false;
   return safeTokenMatch(token, adminToken);
 };
 
 export const adminOnly = (req: Request, res: Response, next: NextFunction) => {
-  const adminToken = process.env.ADMIN_SECRET_TOKEN?.trim() || '';
+  const adminToken = (getRuntime('ADMIN_SECRET_TOKEN') || '').trim();
 
   if (!adminToken || adminToken.length < 16) {
     console.error('ADMIN_SECRET_TOKEN is not set or is too short in environment variables.');

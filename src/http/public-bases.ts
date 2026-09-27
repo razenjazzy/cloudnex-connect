@@ -54,6 +54,22 @@ const joinSitePath = (leaf: string, publicBaseUrl?: string): string => {
 export const adminPublicPath = (publicBaseUrl: string | undefined = process.env.PUBLIC_BASE_URL): string =>
   joinSitePath(normalizeBase(process.env.PUBLIC_ADMIN_BASE, '/admin'), publicBaseUrl);
 
+/**
+ * LINE Flex product images — public media, not Admin SPA.
+ * Mirror the `/admin` path segment (any case) to `/catalog`, keeping extra segments.
+ */
+export const catalogPublicPath = (publicBaseUrl: string | undefined = process.env.PUBLIC_BASE_URL): string => {
+  const adminMounted = adminPublicPath(publicBaseUrl);
+  const site = pathFromPublicBaseUrl(publicBaseUrl);
+  const relative = site && (adminMounted === site || adminMounted.startsWith(`${site}/`))
+    ? (adminMounted.slice(site.length) || '/')
+    : adminMounted;
+  const catalogRelative = /\/admin(?=\/|$)/i.test(relative)
+    ? relative.replace(/\/admin(?=\/|$)/i, '/catalog')
+    : '/catalog';
+  return joinSitePath(catalogRelative, publicBaseUrl);
+};
+
 export const demoPublicPath = (publicBaseUrl: string | undefined = process.env.PUBLIC_BASE_URL): string =>
   joinSitePath(normalizeBase(process.env.PUBLIC_DEMO_BASE, '/demo'), publicBaseUrl);
 

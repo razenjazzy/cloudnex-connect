@@ -138,11 +138,29 @@ export const odooAdapter: ErpAdapter = {
   peekCachedProducts,
   async listServices(limit = 10): Promise<ErpService[]> {
     const services = await listServiceCatalogItems(limit);
-    return services.map(toErpService);
+    const mapped = await withPublicImages(services);
+    return mapped.map(item => ({
+      id: item.id,
+      name: item.name,
+      sku: item.sku,
+      price: item.price || 0,
+      quantity: item.quantity,
+      ...(item.imageUrl ? { imageUrl: item.imageUrl } : {}),
+    }));
   },
   async lookupService(identifier: string): Promise<ErpService | null> {
     const service = await getServiceByIdentifier(identifier);
-    return service ? toErpService(service) : null;
+    if (!service) return null;
+    const [mapped] = await withPublicImages([service]);
+    if (!mapped) return null;
+    return {
+      id: mapped.id,
+      name: mapped.name,
+      sku: mapped.sku,
+      price: mapped.price || 0,
+      quantity: mapped.quantity,
+      ...(mapped.imageUrl ? { imageUrl: mapped.imageUrl } : {}),
+    };
   },
   async createService(name: string, sku: string, price: number): Promise<ErpService | null> {
     const service = await createServiceCatalogItem(name, sku, price);

@@ -91,7 +91,7 @@ Repeat deploys from a machine logged into Docker Hub: `npm run deploy:vps-stagin
 
 ## 5. Nginx + TLS
 
-Merge [deploy/hostinger/nginx-amardhaka.conf.example](../deploy/hostinger/nginx-amardhaka.conf.example) into the `amardhaka.io` server. `proxy_pass http://127.0.0.1:8080` **without** a `/webhook` URI suffix so `/webhook/sales` and `/webhook/customer` are preserved. Forward `X-Line-Signature`. Put `location ^~ /cloudnex-connect/admin/test` **before** `/cloudnex-connect/` so the sibling (8081) wins. Old `/admin`, `/demo`, `/cloudnex-connect/admin`, and `/cloudnex-admin` 301 to `/cloudnex-connect/`.
+Merge [deploy/hostinger/nginx-amardhaka.conf.example](../deploy/hostinger/nginx-amardhaka.conf.example) into the `amardhaka.io` server. `proxy_pass http://127.0.0.1:8080` **without** a `/webhook` URI suffix so `/webhook/sales` and `/webhook/customer` are preserved. Forward `X-Line-Signature`. Put `location ^~ /cloudnex-connect/admin/test` and `^~ /cloudnex-connect/catalog/test` **before** `/cloudnex-connect/admin/` and `/cloudnex-connect/catalog/` so the sibling (8081) wins. LINE product images are `/cloudnex-connect/catalog/…`, not Admin. Old `/admin`, `/demo`, `/cloudnex-connect/admin`, and `/cloudnex-admin` 301 to `/cloudnex-connect/`.
 
 ```bash
 nginx -t && systemctl reload nginx

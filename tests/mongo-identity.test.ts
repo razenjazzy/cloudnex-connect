@@ -10,9 +10,11 @@ import {
 } from '../src/services/mongo-users';
 
 describe('Mongo identity SoR', () => {
-  afterEach(() => {
+  afterEach(async () => {
     delete process.env.MONGO_USERS;
     setMongoIdentityStoreForTests(null);
+    const { resetRuntimeSettingsForTests } = await import('../src/services/runtime-settings');
+    resetRuntimeSettingsForTests({});
   });
 
   it('is off by default and skips writes', async () => {
@@ -20,6 +22,16 @@ describe('Mongo identity SoR', () => {
     expect(isMongoUsersEnabled()).toBe(false);
     expect(await maybeWriteMongoUser('U1', { role: 'user' })).toEqual({ skipped: true });
     expect(await maybeWriteMongoOdooRecord({ id: 1 })).toEqual({ skipped: true });
+  });
+
+  it('honors overlay MONGO_USERS when env is unset', async () => {
+    const { resetRuntimeSettingsForTests } = await import('../src/services/runtime-settings');
+    const { describeOptionalFlags } = await import('../src/http/optional-flags');
+    delete process.env.MONGO_USERS;
+    resetRuntimeSettingsForTests({ MONGO_USERS: 'true' });
+    expect(isMongoUsersEnabled()).toBe(true);
+    expect(describeOptionalFlags().MONGO_USERS).toBe(true);
+    resetRuntimeSettingsForTests({});
   });
 
   it('fails closed when the flag is on without URI or test store', () => {
