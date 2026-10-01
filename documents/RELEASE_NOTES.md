@@ -1,3 +1,14 @@
+# Release notes — v13.0.1
+
+**Date:** 2026-10-02  
+**Package version:** `13.0.1`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`). Production HMAC `:8080` unchanged.  
+**Commit title:** `Release: v13.0.1 - Odoo Line OA v10 Staging Deploy`
+
+Sales OA quote commands unchanged. Customer OA uses website shop when `CUSTOMER_COMMERCE=shop` plus `website_sale` and `ODOO_WEBSITE_ID`; otherwise the previous Order Now / Send message journey. Cloud Run `deploy:prod` still requires signoff.
+
+---
+
 # Release notes — v12.0.6
 
 **Date:** 2026-10-01  

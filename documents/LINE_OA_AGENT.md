@@ -53,19 +53,22 @@ How to read tables below: **Command** = wire/gate. **User sees** = EN / TH. **Ac
 
 ```mermaid
 flowchart TD
-  openC[Open Customer OA] --> homeC[Home carousel plus Products and Orders]
-  homeC --> orderNow[Order Now]
-  homeC --> viewDetails[View Details]
-  homeC --> sendMsg[Send Message]
-  homeC --> history[Order History]
-  homeC --> ask[Ask for Quotations]
-  orderNow --> qty[Quantity Flex chips keyboard]
-  qty --> draft[Unassigned draft sale.order]
-  viewDetails --> details[Product Details]
-  details --> orderNow
-  details --> sendMsg
+  openC[Open Customer OA]
+  openC --> mode{shop effective?}
+  mode -->|no quote| homeQ[Carousel Order Now Send Message]
+  homeQ --> orderNow[Order Now]
+  homeQ --> sendMsg[Send Message]
+  homeQ --> ask[Ask for Quotations]
+  orderNow --> qtyQ[Qty chips]
+  qtyQ --> draft[Unassigned draft for Sales]
   sendMsg --> accepted[Sora Request accepted]
   ask --> accepted
+  mode -->|yes ecommerce| homeS[Carousel Add to Cart]
+  homeS --> addCart[Add to Cart]
+  homeS --> details[View Details Order Now]
+  addCart --> myCart[My Cart plus details Remove]
+  details --> myCart
+  myCart --> checkout[Checkout Pay]
 ```
 
 ```mermaid
@@ -79,12 +82,14 @@ flowchart TD
   so --> inv[QUOTE INVOICE]
 ```
 
-**Customer Home:** carousel (HTTPS hero `{PUBLIC_BASE_URL}/catalog/product/{id}/image` when `readProductImage128` ≥32 bytes) + commerce actions. Price uses the same teal highlight box as Order **Total** (label `xs` over amount `xl`); hide stock.
+**Customer Home:** carousel (HTTPS hero `{PUBLIC_BASE_URL}/catalog/product/{id}/image`; missing `image_128` serves the camera placeholder) + commerce actions. Header caption is the shop slug (`website_url`, Internal Reference, or name → `app-premium`), not the word Catalog. Price uses the same teal highlight box as Order **Total** (label `xs` over amount `xl`); hide stock.
 
 | Step | Canonical | Result |
 |---|---|---|
-| Order Now | `FORM QUOTE CREATE FROM CARD {id}` then `QUOTE CREATE` | Qty chips (`CUSTOMER_QTY_CHIPS`, default 10–50, quickReply ≤13) + type; unassigned draft; waiting card |
-| View Details | `PRODUCT FIND id:{id}` | **Product Details only** — same catalog hero URL as Home. Do not append catalog Home. Price = Order Total highlight box. Short description = paper `xs` note (same as “Sales will send this quote…”). Order Now, Send Message, then Home, Back. **Back** = catalog Home. |
+| Order Now | `FORM QUOTE CREATE FROM CARD {id}` then `QUOTE CREATE` | Product Details. Qty chips; quote mode: unassigned draft. Shop: add to website cart, then reply **My Cart + Product Details** with **Remove** on the added SKU. Cart CTA stays Checkout. Lines: `10 × DualForth` + price; delivery shows rate, not ×1. HTML T&C stripped. |
+| Add to Cart | `FORM CART ADD FROM CARD {id}` | Shop carousel. Same My Cart + details reply. **Remove** only on SKUs already in the cart (carousel pair Add to Cart \| Remove; details Replace Order Now). |
+| Remove (empty cart) | `CART REMOVE {id}` | Unlinks the line. If no product lines remain → Product Catalog (NAV HOME). |
+| View Details | `PRODUCT FIND id:{id}` | **Product Details only** — same catalog hero URL as Home. Do not append catalog Home. Price = Order Total highlight box. Short description = paper `xs` note (same as “Sales will send this quote…”). **Order Now**, Send Message, then Home, Back. **Back** = catalog Home. |
 | Send Message | `FORM MESSAGE REQUEST` → `MESSAGE REQUEST CONFIRM` | Partner note; sales ping; `{agent}: Request accepted. We will get back to you soon.` |
 | Ask for Quotations | `QUOTE ASK` | Same accepted copy; no new SO |
 | Order History | `QUOTE LIST` | Partner orders |
@@ -93,11 +98,11 @@ flowchart TD
 
 **Keyboard:** `pendingFlow` or qty `quickReply` → do not `applyTrayAfterReply`; await unlink then await link `keyboard`. Ids: `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` `en.keyboard` / `th.keyboard` or `LINE_CHANNEL_CUSTOMER_KEYBOARD_RICH_MENU`. LINE Console must publish a blank/chat-bar menu; unlink alone restores the **OA default tray**. Skip `pendingCatalogPush` until the flow ends.
 
-**Sales Home:** commerce action menu **and** quote list (≤2 messages). Product Details / product carousel / `SERVICE READ` use the same HTTPS catalog hero as Customer OA. Admin: CRM with unassigned first; Sales User: `user_id` = self. List page **5**. Unassigned → `QUOTE ASSIGN {id}` then chips `QUOTE ASSIGN {id} {odooUserId}` (LINE `role=admin`). RFQ inbound Flex **Create quote** → `FORM QUOTE CREATE FROM CARD {productId} [{qty}] [{customerLineId}]` / `QUOTE CREATE` with buyer identity; draft **unassigned**. After approve: `tFill('quoteApprovedProcessing')` with `order.user_id[1]` when present.
+**Sales Home:** commerce action menu immediately; quote list is a follow-up push (≤2 messages) so NAV HOME is not blocked on Odoo. Product Details / product carousel / `SERVICE READ` use the same HTTPS catalog hero as Customer OA. Admin: CRM with unassigned first; Sales User: `user_id` = self. List page **5**. Unassigned → `QUOTE ASSIGN {id}` then chips `QUOTE ASSIGN {id} {odooUserId}` (LINE `role=admin`). RFQ inbound Flex **Create quote** → `FORM QUOTE CREATE FROM CARD {productId} [{qty}] [{customerLineId}]` / `QUOTE CREATE` with buyer identity; draft **unassigned**. After approve: `tFill('quoteApprovedProcessing')` with `order.user_id[1]` when present.
 
 Customer OA must not run: `ADMIN *`, `QUOTE ASSIGN`, `RELAY *`, `STAFF PICK`, `SALES FEATURES`, `MESSAGE CUSTOMER`, directory/catalog writes, `DAILY REPORT`, `SEGMENT CUSTOMERS`, `SEED SAMPLE DATA`. Staff convert is `QUOTE CONFIRM`; customer confirm is `QUOTE APPROVE`.
 
-Customer OA commerce is exclusive **quote XOR shop** (`CUSTOMER_COMMERCE`). Unset = quote. `shop` needs `website_sale` **and** `ODOO_WEBSITE_ID` or stay quote + `degraded`. Shop Home uses **Cart** (not Ask for Quotations). Flex: cart (add products) → order process → optional coupon → web Pay (`/shop/pay` → Odoo) → callback → Order completed. Optional Website cart `/shop/cart`.
+Customer OA commerce is exclusive **quote XOR shop** (`CUSTOMER_COMMERCE`). Unset = **quote** (previous Customer setup: Order Now + Send message → Sales OA). `shop` needs `website_sale` **and** `ODOO_WEBSITE_ID` or stay quote + `degraded`. Shop Home uses **My Cart** (`CART`; `CART VIEW` is an alias, not a menu row). Flex: cart (add products) → order process → optional coupon → web Pay (`/shop/pay` → Odoo) → callback → Order completed. Optional Website cart `/shop/cart`. **Sales OA commands stay quote/CRM** (`QUOTE LIST`, `QUOTE CREATE`, `QUOTE SEND`, `QUOTE ASSIGN`) — shop prefixes are Customer-channel only.
 
 ---
 
@@ -109,10 +114,10 @@ OTP on reconstructed writes (`requiresOtp` in `service-catalog.ts`): `QUOTE CREA
 
 | Command | User sees EN / TH | Action | Result |
 |---|---|---|---|
-| `NAV HOME` | Home / หน้าแรก | Tap Home | Customer: carousel + commerce. Sales: commerce menu + quote list |
+| `NAV HOME` | Home / หน้าแรก | Tap Home | Customer: carousel + commerce. Sales: commerce menu immediately; quote list follows |
 | `NAV` | Navigate / เมนู | Type NAV | Same as Home |
 | `BACK` | Back / กลับ | Tap Back | Same as Home |
-| `NAV COMMERCE` | Products & Quotes / สินค้าและใบเสนอราคา (Customer menu: Products & Orders) | Tap Products | Customer: Find a product, then Order History / Cart / Ask for Quotations, plus catalog carousel. Payload `NAV COMMERCE` |
+| `NAV COMMERCE` | Products & Quotes / สินค้าและใบเสนอราคา (Customer menu: Products & Orders) | Tap Products | Customer: Find a product, then Order History / My Cart / Ask for Quotations, plus catalog carousel. Payload `NAV COMMERCE` |
 | `NAV CATALOG` | Catalog / บริการ | Tap Catalog | Service catalog if enabled |
 | `NAV VERIFY` | Verify / ยืนยันตัวตน | Tap Verify | `FORM VERIFY` |
 | `FORM VERIFY` | Verify form / ฟอร์มยืนยัน | Open wizard | Completes into `VERIFY START` / OTP |
@@ -142,14 +147,15 @@ OTP on reconstructed writes (`requiresOtp` in `service-catalog.ts`): `QUOTE CREA
 |---|---|---|---|
 | `FORM PRODUCT FIND` | Find a product / ค้นหาสินค้า | Start search | Customer Products & Orders: above Order History. Prompt → `PRODUCT FIND` |
 | `PRODUCT FIND` name or `id:N` | Find a product | Search or View Details | Id hit: **Product Details**. Id miss: name search. 0: error. Many: catalog carousel. One: Product Details. Journey continues (Order Now / qty). |
-| `FORM QUOTE CREATE FROM CARD {id}` | Order Now / สั่งซื้อเลย | Order Now | Qty then `QUOTE CREATE`. Shop mode: add to draft website cart (`CART`) |
-| `CART` / `CART VIEW` | Cart / ตะกร้า | Open cart | Shop only. Flex lines, Add products, optional coupon, Checkout |
+| `FORM QUOTE CREATE FROM CARD {id}` | Order Now | Product Details Order Now | Qty then `QUOTE CREATE`. Shop: My Cart + details with Remove |
+| `FORM CART ADD FROM CARD {id}` | Add to Cart | Shop carousel | Qty then `QUOTE CREATE …,cart`. Shop: My Cart + details with Remove |
+| `CART` | My Cart / ตะกร้าของฉัน | Open cart | Shop only. Flex lines with per-SKU Remove, full-width Checkout. `CART VIEW` still works as an alias. |
 | `CART CHECKOUT` | Checkout / ชำระเงิน | Order process Flex | Optional coupon, then Pay |
 | `CART COUPON {code}` / `FORM CART COUPON` | Coupon / คูปอง | Apply code | Optional. Odoo coupon/loyalty; fail-closed if RPC misses |
 | `CART PAY` | Pay / ชำระเงิน | Web pay | Signed `GET /shop/pay` → Odoo HTTPS portal. Callback `GET /shop/pay/return` and `POST /ops/odoo-hook` `payment.done` |
 | `CART STATUS` | Check payment / ตรวจสอบการชำระ | Poll Odoo | Paid → Order completed Flex; else Pay card |
 | `CART ADD {id} {qty}` | Add to cart | Merge line | Same draft `website_id` SO |
-| `CART REMOVE` / `CART CLEAR` | Remove / Clear | Edit cart | Line unlink or cancel draft |
+| `CART REMOVE` / `CART CLEAR` | Remove / Clear | Edit cart | Line unlink or cancel draft. Empty cart → catalog Home |
 | `FORM QUOTE CREATE` | Create a quote / สร้างใบเสนอราคา (Customer title: Request for Order) | Start form | Staff extras; customer product+qty |
 | `QUOTE CREATE …` | (after form) | Submit | Draft SO. Customer: `user_id` empty. Staff: their Odoo user if mapped. OTP |
 | `FORM QUOTE ADD` / `QUOTE ADD` | Add more products / เพิ่มสินค้า | Add line | OTP |
@@ -272,7 +278,7 @@ Full key list: [`src/http/env-params.ts`](../src/http/env-params.ts). Do not inv
 | `SALES_SESSION_TTL_HOURS` | Gold Verify | Session | Default 24 |
 | `PUBLIC_BASE_URL` | `https://…` | Admin, Flex images, shop Pay page origin | No https heroes / no signed `/shop/pay` |
 | `PUBLIC_ADMIN_BASE` | `/admin` | Admin UI (`/admin`, staging `/admin/test`) | SPA 404 |
-| Catalog image | `{PUBLIC_BASE_URL}/catalog/product/:id/image` (mirrors `/admin…` → `/catalog…`) | Flex hero | No https / nginx miss / 404 |
+| Catalog image | `{PUBLIC_BASE_URL}/catalog/product/:id/image` (mirrors `/admin…` → `/catalog…`; missing bytes → placeholder) | Flex hero | No https / nginx miss |
 | `ODOO_*` | ERP | Products, quotes | Empty / create fail |
 | `ERP_PROVIDER` | `odoo` | Live adapter | Placeholder fail-closed |
 | `ADMIN_USER_ID` | LINE ids | `ADMIN ENABLE` | No LINE admin |
@@ -363,7 +369,7 @@ Keep remaining `UI_STRINGS` keys in `i18n.ts` bilingual (invoice fields, reply f
 | Sales Send both | Customer Confirm; Odoo `sent` |
 | Customer Confirm | SO; invoice path |
 | Qty without keyboard menu id | Native tray stays |
-| Image 404 | Omit hero |
+| Image missing | Camera / no-photo placeholder PNG |
 | `ADMIN ENABLE` on Customer OA | Channel reject |
 
 ---

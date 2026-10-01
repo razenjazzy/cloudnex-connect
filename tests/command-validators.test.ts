@@ -92,12 +92,12 @@ describe('command validators', () => {
   });
 
   describe('parseDemoQuotePayload', () => {
-    it('parses product id tokens from seeded forms', () => {
-      expect(parseDemoQuotePayload('id:42,2,Somchai,0812345678')).toMatchObject({
-        productName: 'id:42',
-        productId: 42,
-        qty: 2,
+    it('reads shop carousel stay-on-cart from the 10th QUOTE CREATE field', () => {
+      expect(parseDemoQuotePayload('id:2,10,Somchai,0812345678,,,,,,cart')).toMatchObject({
+        productId: 2,
+        shopNext: 'cart',
       });
+      expect(parseDemoQuotePayload('id:2,10,Somchai,0812345678,,,,,')).not.toHaveProperty('shopNext');
     });
 
     it('rejects invalid quantity', () => {

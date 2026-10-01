@@ -14,10 +14,11 @@ var __exportStar = (this && this.__exportStar) || function(m, exports) {
     for (var p in m) if (p !== "default" && !Object.prototype.hasOwnProperty.call(exports, p)) __createBinding(exports, m, p);
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.seedOdooSampleSalesData = exports.getDailySalesSnapshot = exports.deleteServiceCatalogItem = exports.updateServiceCatalogItem = exports.createServiceCatalogItem = exports.getServiceByIdentifier = exports.listServiceCatalogItems = exports.deletePartnerFromLine = exports.updatePartnerFromLine = exports.createPartnerFromLine = exports.getPartnerById = exports.getPartnerByName = exports.getPartnerByPhone = exports.listPartners = exports.postPartnerNote = exports.createQuotationFromLine = exports.createInvoiceForSaleOrder = exports.removeSaleOrderLine = exports.updateSaleOrderLineQty = exports.findSaleOrderLineByProduct = exports.addSaleOrderLine = exports.cancelSaleOrder = exports.sendQuotationEmail = exports.markSaleOrderSent = exports.confirmSaleOrder = exports.listPaymentTerms = exports.getDefaultPaymentTermName = exports.pickDefaultPaymentTermName = exports.findPaymentTermByName = exports.assignSaleOrderSalesperson = exports.listCrmQuotations = exports.getSaleOrdersForSalesperson = exports.getSaleOrdersForPartner = exports.getSaleOrderPdfLink = exports.getSaleOrderPortalLink = exports.getSaleOrderById = exports.findOrderByReference = exports.listProducts = exports.findProductsByQuery = exports.getProductById = exports.findProductByQuery = exports.verifyOdooAdminAccess = exports.pingOdoo = exports.isOdooConfigured = void 0;
+exports.seedOdooSampleSalesData = exports.getDailySalesSnapshot = exports.deleteServiceCatalogItem = exports.updateServiceCatalogItem = exports.createServiceCatalogItem = exports.getServiceByIdentifier = exports.listServiceCatalogItems = exports.deletePartnerFromLine = exports.updatePartnerFromLine = exports.createPartnerFromLine = exports.getPartnerById = exports.getPartnerByName = exports.getPartnerByPhone = exports.listPartners = exports.listPartnerNotes = exports.postPartnerNote = exports.addToShopCart = exports.createQuotationFromLine = exports.createInvoiceForSaleOrder = exports.removeSaleOrderLine = exports.updateSaleOrderLineQty = exports.findSaleOrderLineByProduct = exports.addSaleOrderLine = exports.cancelSaleOrder = exports.sendQuotationEmail = exports.markSaleOrderSent = exports.confirmSaleOrder = exports.listPaymentTerms = exports.getDefaultPaymentTermName = exports.pickDefaultPaymentTermName = exports.findPaymentTermByName = exports.assignSaleOrderSalesperson = exports.listCrmQuotations = exports.getSaleOrdersForSalesperson = exports.getSaleOrdersForPartner = exports.getSaleOrderPdfLink = exports.applyShopCoupon = exports.findLatestShopOrder = exports.findOpenShopCart = exports.getShopWebLinks = exports.getSaleOrderPortalLink = exports.getSaleOrderById = exports.findOrderByReference = exports.listProducts = exports.findProductsByQuery = exports.getProductById = exports.findProductByQuery = exports.verifyOdooAdminAccess = exports.pingOdoo = exports.isOdooConfigured = void 0;
 const client_1 = require("./odoo/client");
 const admin_1 = require("./odoo/admin");
 const phone_match_1 = require("./phone-match");
+const html_1 = require("../utils/html");
 __exportStar(require("./odoo/types"), exports);
 const getConfig = client_1.getOdooConfig;
 const num = (value) => {
@@ -38,7 +39,23 @@ const parseProduct = (row) => ({
     list_price: num(row.list_price),
     qty_available: num(row.qty_available),
     default_code: str(row.default_code),
+    website_url: str(row.website_url) || undefined,
+    description: stripHtml(str(row.description_sale) || str(row.description)),
 });
+const stripHtml = (value) => {
+    const text = (0, html_1.htmlToPlainText)(value).replace(/\s+/g, ' ').trim();
+    return text ? text.slice(0, 400) : undefined;
+};
+const PRODUCT_READ_CORE = ['id', 'name', 'list_price', 'qty_available', 'default_code', 'description_sale', 'description'];
+const PRODUCT_READ_FIELDS = [...PRODUCT_READ_CORE, 'website_url'];
+const searchReadProducts = async (config, uid, domain, extra) => {
+    try {
+        return await (0, client_1.executeKwRead)(config, uid, 'product.product', 'search_read', [domain], { fields: PRODUCT_READ_FIELDS, ...extra });
+    }
+    catch {
+        return (0, client_1.executeKwRead)(config, uid, 'product.product', 'search_read', [domain], { fields: PRODUCT_READ_CORE, ...extra });
+    }
+};
 const parseMany2one = (value) => {
     if (!Array.isArray(value) || value.length < 2)
         return undefined;
@@ -59,18 +76,35 @@ const parseOrder = (row) => {
         access_token: typeof row.access_token === 'string' ? row.access_token : undefined,
         invoice_status: typeof row.invoice_status === 'string' ? row.invoice_status : undefined,
         amount_invoiced: row.amount_invoiced !== undefined ? num(row.amount_invoiced) : undefined,
-        note: typeof row.note === 'string' && row.note ? row.note : undefined,
+        note: stripHtml(str(row.note)),
         client_order_ref: str(row.client_order_ref) || undefined,
     };
 };
 const parseOrderLine = (row) => {
     const product = Array.isArray(row.product_id) ? row.product_id : undefined;
+    const productName = product && product.length >= 2 ? str(product[1]) : '';
+    const linked = row.linked_line_id;
+    const optional = Array.isArray(linked) ? linked.length > 0 : Boolean(linked);
     return {
-        productName: product && product.length >= 2 ? str(product[1]) : '',
+        productId: product && product.length >= 1 ? num(product[0]) : undefined,
+        productName,
         qty: num(row.product_uom_qty),
         priceUnit: num(row.price_unit),
         subtotal: num(row.price_subtotal),
+        isDelivery: Boolean(row.is_delivery) || /delivery[_\s-]?\d|standard delivery/i.test(productName),
+        optional,
     };
+};
+const ORDER_LINE_CORE = ['product_id', 'product_uom_qty', 'price_unit', 'price_subtotal'];
+const ORDER_LINE_FIELDS = [...ORDER_LINE_CORE, 'is_delivery', 'linked_line_id'];
+const searchReadOrderLines = async (config, uid, orderId) => {
+    const domain = [['order_id', '=', orderId], ['display_type', '=', false]];
+    try {
+        return await (0, client_1.executeKwRead)(config, uid, 'sale.order.line', 'search_read', [domain], { fields: ORDER_LINE_FIELDS });
+    }
+    catch {
+        return (0, client_1.executeKwRead)(config, uid, 'sale.order.line', 'search_read', [domain], { fields: ORDER_LINE_CORE });
+    }
 };
 const parsePartner = (row) => ({
     id: num(row.id),
@@ -118,10 +152,7 @@ const findProductByQuery = async (query) => {
     const uid = await (0, client_1.loginRead)(config);
     if (!uid)
         return null;
-    const rows = await (0, client_1.executeKwRead)(config, uid, 'product.product', 'search_read', [[['name', 'ilike', normalizedQuery]]], {
-        fields: ['id', 'name', 'list_price', 'qty_available', 'default_code'],
-        limit: 1,
-    });
+    const rows = await searchReadProducts(config, uid, [['name', 'ilike', normalizedQuery]], { limit: 1 });
     if (!rows.length)
         return null;
     return parseProduct(rows[0]);
@@ -136,22 +167,29 @@ const getProductById = async (productId) => {
     const uid = await (0, client_1.loginRead)(config);
     if (!uid)
         return null;
-    const rows = await (0, client_1.executeKwRead)(config, uid, 'product.product', 'search_read', [[['id', '=', productId]]], { fields: ['id', 'name', 'list_price', 'qty_available', 'default_code'], limit: 1 });
+    const rows = await searchReadProducts(config, uid, [['id', '=', productId]], { limit: 1 });
     if (!rows.length)
         return null;
     return parseProduct(rows[0]);
 };
 exports.getProductById = getProductById;
 /**
- * Same ilike search as findProductByQuery, but returns every match up to
- * `limit` instead of only the first row — lets a caller show a picker when
- * a search term is genuinely ambiguous ("App" matching several plans)
- * instead of silently acting on whichever row Odoo happened to return
- * first. findProductByQuery itself is left untouched since callers that
- * need exactly one product (e.g. quote-line creation) still want that
- * single-result contract.
+ * Shop catalog uses is_published plus website_id False or this website (Odoo 16/17 website_sale).
+ * If published search errors, callers get [] — do not fall back to sale_ok while shop is effective.
  */
-const findProductsByQuery = async (query, limit = 5) => {
+const productCatalogDomain = (filter, nameIlike) => {
+    const domain = [['sale_ok', '=', true]];
+    if (filter?.websiteId) {
+        domain.push(['is_published', '=', true]);
+        domain.push('|');
+        domain.push(['website_id', '=', false]);
+        domain.push(['website_id', '=', filter.websiteId]);
+    }
+    if (nameIlike)
+        domain.push(['name', 'ilike', nameIlike]);
+    return domain;
+};
+const findProductsByQuery = async (query, limit = 5, filter) => {
     const normalizedQuery = normalizeLookupText(query);
     if (!normalizedQuery)
         return [];
@@ -161,11 +199,17 @@ const findProductsByQuery = async (query, limit = 5) => {
     const uid = await (0, client_1.loginRead)(config);
     if (!uid)
         return [];
-    const rows = await (0, client_1.executeKwRead)(config, uid, 'product.product', 'search_read', [[['sale_ok', '=', true], ['name', 'ilike', normalizedQuery]]], {
-        fields: ['id', 'name', 'list_price', 'qty_available', 'default_code'],
-        limit,
-    });
-    return rows.map(parseProduct);
+    try {
+        const rows = await searchReadProducts(config, uid, productCatalogDomain(filter, normalizedQuery), { limit });
+        return rows.map(parseProduct);
+    }
+    catch (error) {
+        if (filter?.websiteId) {
+            console.error('findProductsByQuery shop catalog failed:', error);
+            return [];
+        }
+        throw error;
+    }
 };
 exports.findProductsByQuery = findProductsByQuery;
 /**
@@ -173,19 +217,24 @@ exports.findProductsByQuery = findProductsByQuery;
  * listServiceCatalogItems's convention exactly, just without the
  * type='service' filter findProductByQuery also doesn't apply.
  */
-const listProducts = async (limit = 10) => {
+const listProducts = async (limit = 10, filter) => {
     const config = getConfig();
     if (!config)
         return [];
     const uid = await (0, client_1.loginRead)(config);
     if (!uid)
         return [];
-    const rows = await (0, client_1.executeKwRead)(config, uid, 'product.product', 'search_read', [[['sale_ok', '=', true]]], {
-        fields: ['id', 'name', 'list_price', 'qty_available', 'default_code'],
-        limit,
-        order: 'write_date desc',
-    });
-    return rows.map(parseProduct);
+    try {
+        const rows = await searchReadProducts(config, uid, productCatalogDomain(filter), { limit, order: 'write_date desc' });
+        return rows.map(parseProduct);
+    }
+    catch (error) {
+        if (filter?.websiteId) {
+            console.error('listProducts shop catalog failed:', error);
+            return [];
+        }
+        throw error;
+    }
 };
 exports.listProducts = listProducts;
 const findOrderByReference = async (reference) => {
@@ -225,7 +274,7 @@ const getSaleOrderById = async (orderId) => {
     if (!rows.length)
         return null;
     const order = parseOrder(rows[0]);
-    const lineRows = await (0, client_1.executeKwRead)(config, uid, 'sale.order.line', 'search_read', [[['order_id', '=', orderId], ['display_type', '=', false]]], { fields: ['product_id', 'product_uom_qty', 'price_unit', 'price_subtotal'] });
+    const lineRows = await searchReadOrderLines(config, uid, orderId);
     order.lines = lineRows.map(parseOrderLine);
     return order;
 };
@@ -257,6 +306,100 @@ const getSaleOrderPortalLink = async (orderId) => {
     }
 };
 exports.getSaleOrderPortalLink = getSaleOrderPortalLink;
+const httpsOdooUrl = (path) => {
+    const config = getConfig();
+    if (!config)
+        return null;
+    const url = `${config.url.replace(/\/$/, '')}${path.startsWith('/') ? path : `/${path}`}`;
+    return /^https:\/\//i.test(url) ? url : null;
+};
+const getShopWebLinks = () => {
+    const shop = httpsOdooUrl('/shop');
+    const cart = httpsOdooUrl('/shop/cart');
+    return {
+        ...(shop ? { shop } : {}),
+        ...(cart ? { cart } : {}),
+    };
+};
+exports.getShopWebLinks = getShopWebLinks;
+const findOpenShopCart = async (partnerId, websiteId) => {
+    if (!Number.isInteger(partnerId) || partnerId <= 0 || !Number.isInteger(websiteId) || websiteId <= 0)
+        return null;
+    const config = getConfig();
+    if (!config)
+        return null;
+    const uid = await (0, client_1.loginRead)(config);
+    if (!uid)
+        return null;
+    try {
+        const rows = await (0, client_1.executeKwRead)(config, uid, 'sale.order', 'search_read', [[['partner_id', '=', partnerId], ['state', '=', 'draft'], ['website_id', '=', websiteId]]], { fields: ['id', 'name', 'state', 'amount_total', 'partner_id', 'note'], limit: 1, order: 'write_date desc' });
+        if (!rows.length)
+            return null;
+        return (0, exports.getSaleOrderById)(num(rows[0].id));
+    }
+    catch (error) {
+        console.error('findOpenShopCart failed:', error);
+        return null;
+    }
+};
+exports.findOpenShopCart = findOpenShopCart;
+const findLatestShopOrder = async (partnerId, websiteId) => {
+    if (!Number.isInteger(partnerId) || partnerId <= 0 || !Number.isInteger(websiteId) || websiteId <= 0)
+        return null;
+    const config = getConfig();
+    if (!config)
+        return null;
+    const uid = await (0, client_1.loginRead)(config);
+    if (!uid)
+        return null;
+    try {
+        const rows = await (0, client_1.executeKwRead)(config, uid, 'sale.order', 'search_read', [[['partner_id', '=', partnerId], ['website_id', '=', websiteId], ['state', 'in', ['draft', 'sent', 'sale', 'done']]]], { fields: ['id'], limit: 1, order: 'write_date desc' });
+        if (!rows.length)
+            return null;
+        return (0, exports.getSaleOrderById)(num(rows[0].id));
+    }
+    catch (error) {
+        console.error('findLatestShopOrder failed:', error);
+        return null;
+    }
+};
+exports.findLatestShopOrder = findLatestShopOrder;
+const applyShopCoupon = async (orderId, code) => {
+    const coupon = code.replace(/[\u0000-\u001F\u007F]/g, ' ').trim().slice(0, 64);
+    if (!coupon || !Number.isInteger(orderId) || orderId <= 0)
+        return { ok: false };
+    const config = getConfig();
+    if (!config)
+        return { ok: false };
+    const uid = await (0, client_1.login)(config);
+    if (!uid)
+        return { ok: false };
+    const ctx = { context: { active_id: orderId, active_ids: [orderId], active_model: 'sale.order' } };
+    try {
+        const wizardId = await (0, client_1.executeKw)(config, uid, 'sale.coupon.apply.code', 'create', [{ coupon_code: coupon }], ctx);
+        await (0, client_1.executeKw)(config, uid, 'sale.coupon.apply.code', 'process_coupon', [[wizardId]], ctx);
+        return { ok: true };
+    }
+    catch {
+        /* Odoo 17 loyalty */
+    }
+    try {
+        await (0, client_1.executeKw)(config, uid, 'sale.order', '_try_apply_code', [[orderId], coupon]);
+        return { ok: true };
+    }
+    catch {
+        /* Odoo 16 sale.order.apply_coupon */
+    }
+    try {
+        await (0, client_1.executeKw)(config, uid, 'sale.order', 'apply_coupon', [[orderId], coupon]);
+        return { ok: true };
+    }
+    catch (error) {
+        console.error('applyShopCoupon failed:', error);
+        return { ok: false };
+    }
+};
+exports.applyShopCoupon = applyShopCoupon;
 /**
  * LINE's Messaging API has no file-message type a bot can push (verified —
  * only text/sticker/image/video/audio/location/imagemap/template/flex), so
@@ -312,8 +455,13 @@ const listCrmQuotations = async (opts = {}) => {
         domain.push(['state', 'in', ['draft', 'sent', 'sale']]);
     if (opts.unassigned)
         domain.push(['user_id', '=', false]);
-    const limit = Math.min(Math.max(opts.limit ?? 50, 1), 100);
-    return listSaleOrders(domain, { limit });
+    return listSaleOrders(domain, {
+        limit: Math.min(Math.max(opts.limit ?? 50, 1), 100),
+        offset: opts.offset,
+        dateFrom: opts.dateFrom,
+        dateTo: opts.dateTo,
+        cursor: opts.cursor,
+    });
 };
 exports.listCrmQuotations = listCrmQuotations;
 /** Assign or unassign salesperson. Unassign writes false — never defaults to the XML-RPC admin uid. */
@@ -673,6 +821,8 @@ extra) => {
             orderFields.user_id = false;
         else if (typeof extra?.salespersonUserId === 'number')
             orderFields.user_id = extra.salespersonUserId;
+        if (typeof extra?.websiteId === 'number' && extra.websiteId > 0)
+            orderFields.website_id = extra.websiteId;
         // No reliable natural key to reconcile a sale order against before it
         // exists, so unlike partner/service creates this is not retried or
         // reconciled — a failed attempt should be safely re-runnable by the user.
@@ -700,6 +850,28 @@ extra) => {
     }
 };
 exports.createQuotationFromLine = createQuotationFromLine;
+const addToShopCart = async (input) => {
+    const existing = await (0, exports.findOpenShopCart)(input.partnerId, input.websiteId);
+    if (existing) {
+        const line = await (0, exports.findSaleOrderLineByProduct)(existing.id, input.productId);
+        if (line) {
+            const ok = await (0, exports.updateSaleOrderLineQty)(existing.id, input.productId, line.qty + input.qty);
+            if (!ok)
+                return null;
+        }
+        else {
+            const ok = await (0, exports.addSaleOrderLine)(existing.id, input.productId, input.qty);
+            if (!ok)
+                return null;
+        }
+        return (0, exports.getSaleOrderById)(existing.id);
+    }
+    const created = await (0, exports.createQuotationFromLine)(input.customerName, input.phone, '', input.qty, input.partnerId, { productId: input.productId, salespersonUserId: false, websiteId: input.websiteId });
+    if (!created)
+        return null;
+    return (0, exports.getSaleOrderById)(created.orderId);
+};
+exports.addToShopCart = addToShopCart;
 const postPartnerNote = async (partnerId, body) => {
     const config = getConfig();
     if (!config)
@@ -723,6 +895,29 @@ const postPartnerNote = async (partnerId, body) => {
     }
 };
 exports.postPartnerNote = postPartnerNote;
+const listPartnerNotes = async (partnerId, limit = 30) => {
+    if (!Number.isInteger(partnerId) || partnerId <= 0)
+        return [];
+    const config = getConfig();
+    if (!config)
+        return [];
+    const uid = await (0, client_1.loginRead)(config);
+    if (!uid)
+        return [];
+    try {
+        const rows = await (0, client_1.executeKwRead)(config, uid, 'mail.message', 'search_read', [[['model', '=', 'res.partner'], ['res_id', '=', partnerId], ['message_type', '=', 'comment']]], { fields: ['body', 'date'], limit, order: 'date desc' });
+        return (rows || []).map(row => ({
+            id: num(row.id),
+            body: str(row.body),
+            date: str(row.date),
+        }));
+    }
+    catch (error) {
+        console.error('listPartnerNotes failed:', error);
+        return [];
+    }
+};
+exports.listPartnerNotes = listPartnerNotes;
 let cachedPartnerPhoneFields = null;
 const getPartnerPhoneFields = async (config, uid) => {
     if (cachedPartnerPhoneFields)

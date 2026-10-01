@@ -117,6 +117,8 @@ export type DemoQuoteInput = {
   paymentTerm?: string;
   /** When set, skip name search in Odoo and load this product.product id. */
   productId?: number;
+  /** Shop carousel Add to Cart: stay on CART. Details Order Now proceeds to checkout. */
+  shopNext?: 'cart' | 'checkout';
 };
 
 const isIsoDateLike = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -129,7 +131,7 @@ const isIsoDateLike = (value: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(val
 // after it (parseCsv has no quoting support); accepted as a pre-existing
 // limitation of this CSV-shaped command form, not new to this change.
 export const parseDemoQuotePayload = (payload: string): DemoQuoteInput | null => {
-  const [productNameRaw, qtyRaw, customerNameRaw, phoneRaw, customerRefRaw, discountRaw, validityRaw, noteRaw, paymentTermRaw] = parseCsv(payload);
+  const [productNameRaw, qtyRaw, customerNameRaw, phoneRaw, customerRefRaw, discountRaw, validityRaw, noteRaw, paymentTermRaw, shopNextRaw] = parseCsv(payload);
   const productName = normalize(productNameRaw || '');
   const customerName = normalize(customerNameRaw || '');
   const phone = normalize(phoneRaw || '', 24);
@@ -148,6 +150,8 @@ export const parseDemoQuotePayload = (payload: string): DemoQuoteInput | null =>
   if (validityDate && !isIsoDateLike(validityDate)) return null;
   const note = normalize(noteRaw || '', 500);
   const paymentTerm = normalize(paymentTermRaw || '', 64);
+  const shopNextToken = normalize(shopNextRaw || '').toLowerCase();
+  const shopNext = shopNextToken === 'cart' ? 'cart' as const : undefined;
 
   return {
     productName,
@@ -160,6 +164,7 @@ export const parseDemoQuotePayload = (payload: string): DemoQuoteInput | null =>
     ...(validityDate ? { validityDate } : {}),
     ...(note ? { note } : {}),
     ...(paymentTerm ? { paymentTerm } : {}),
+    ...(shopNext ? { shopNext } : {}),
   };
 };
 

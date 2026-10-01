@@ -198,6 +198,28 @@ export const createDatePickerButton = (
   },
 });
 
+export const pairFlexButtons = (
+  left: messagingApi.FlexButton,
+  right: messagingApi.FlexButton,
+): messagingApi.FlexBox => ({
+  type: 'box',
+  layout: 'horizontal',
+  spacing: 'md',
+  contents: [
+    { ...left, flex: 1 },
+    { ...right, flex: 1 },
+  ],
+});
+
+export const pairFlexButtonRows = (buttons: messagingApi.FlexButton[]): messagingApi.FlexComponent[] => {
+  const rows: messagingApi.FlexComponent[] = [];
+  for (let i = 0; i < buttons.length; i += 2) {
+    const next = buttons[i + 1];
+    rows.push(next ? pairFlexButtons(buttons[i], next) : buttons[i]);
+  }
+  return rows;
+};
+
 export const truncate = (value: string, maxLength: number): string => {
   const chars = Array.from(value.trim());
   return chars.length > maxLength ? `${chars.slice(0, maxLength - 3).join('')}...` : value.trim();

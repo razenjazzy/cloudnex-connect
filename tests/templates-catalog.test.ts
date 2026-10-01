@@ -46,6 +46,21 @@ const expectAmountHero = (box: FlexNode | undefined, label: string, amount: stri
 };
 
 describe('product catalogue carousel', () => {
+  it('shows a shop slug under the name, not the Catalog label', () => {
+    const withSku = JSON.stringify(createProductCarouselFlexMessage(
+      [{ id: 11, name: 'App Premium Plan', sku: 'APP-PREMIUM', price: 990, quantity: 4 }],
+      'en',
+    ));
+    expect(withSku).toContain('app-premium');
+    expect(withSku).not.toContain('"text":"Catalog"');
+    const fromName = JSON.stringify(createProductCarouselFlexMessage(
+      [{ id: 12, name: 'App Premium Plan', price: 990, quantity: 4 }],
+      'en',
+    ));
+    expect(fromName).toContain('app-premium-plan');
+    expect(fromName).not.toContain('"text":"Catalog"');
+  });
+
   it('uses kilo bubbles with quote-by-id and view, not a home button on every slide', () => {
     const message = createProductCarouselFlexMessage([
       { id: 11, name: 'App Premium', sku: 'APP-PREMIUM', price: 990, quantity: 4 },
@@ -163,5 +178,44 @@ describe('product catalogue carousel', () => {
     const message = createProductCarouselFlexMessage(products, 'en');
     const contents = message.contents as { contents?: unknown[] };
     expect(contents.contents).toHaveLength(10);
+  });
+
+  it('shows Order Now until the SKU is in the cart; carousel Remove only for in-cart items', () => {
+    const card = JSON.stringify(createProductCardFlexMessage('DualForth', 990, 4, 'en', 2, undefined, {
+      channelId: 'customer',
+      shopMode: true,
+    }));
+    expect(card).toContain('Order Now');
+    expect(card).toContain('FORM QUOTE CREATE FROM CARD 2');
+    expect(card).not.toContain('CART REMOVE');
+    const inCart = JSON.stringify(createProductCardFlexMessage('DualForth', 990, 4, 'en', 2, undefined, {
+      channelId: 'customer',
+      shopMode: true,
+      inCart: true,
+    }));
+    expect(inCart).toContain('CART REMOVE 2');
+    expect(inCart).toContain('Remove');
+    expect(inCart).not.toContain('Order Now');
+    const carousel = JSON.stringify(createProductCarouselFlexMessage(
+      [{ id: 2, name: 'DualForth', price: 990, quantity: 4 }],
+      'en',
+      undefined,
+      'customer',
+      true,
+    ));
+    expect(carousel).toContain('Add to Cart');
+    expect(carousel).toContain('FORM CART ADD FROM CARD 2');
+    expect(carousel).toContain('View Details');
+    expect(carousel).not.toContain('CART REMOVE');
+    const withCart = JSON.stringify(createProductCarouselFlexMessage(
+      [{ id: 2, name: 'DualForth', price: 990, quantity: 4 }],
+      'en',
+      undefined,
+      'customer',
+      true,
+      new Set([2]),
+    ));
+    expect(withCart).toContain('CART REMOVE 2');
+    expect(withCart).toContain('"layout":"horizontal"');
   });
 });

@@ -19,13 +19,16 @@ describe('USER_JOURNEY C0–C5 source contract', () => {
     expect(nav).toContain('deferCatalogMiss');
     expect(followup).toContain('createProductCarouselFlexMessage');
     expect(followup).toContain('peekCachedProducts');
-    expect(commerce).toContain('createProductCarouselFlexMessage(catalog, userLanguage, undefined, ctx.channel?.channelId)');
+    expect(followup).toContain('shopMode ? []');
+    expect(commerce).toContain('createProductCarouselFlexMessage(catalog, userLanguage, undefined, ctx.channel?.channelId, shopMode, cartIds)');
   });
 
   it('C3: guests must VERIFY before quote; customers skip optional summary', () => {
     expect(router).toContain('FORM QUOTE CREATE FROM CARD');
+    expect(router).toContain('FORM CART ADD FROM CARD');
     expect(router).toContain('setLastProductContext');
-    expect(router).toContain('resumeQuoteFromLastProduct');
+    expect(commerce).toContain('inCart: true');
+    expect(commerce).toContain("shopCartFlexForOrder(cartOrder, userLanguage, 'cart'");
     expect(router).toContain('Using: ${product.productName}');
     expect(router).toContain('staleSummary');
     expect(router).toContain('nextLinearFieldIndex');

@@ -10,6 +10,7 @@ describe('isGuestAllowedCommand', () => {
     expect(isGuestAllowedCommand('SERVICE LIST')).toBe(true);
     expect(isGuestAllowedCommand('SERVICE READ SVC-PREMIUM')).toBe(true);
     expect(isGuestAllowedCommand('FORM QUOTE CREATE FROM CARD 11')).toBe(true);
+    expect(isGuestAllowedCommand('FORM CART ADD FROM CARD 2')).toBe(true);
     expect(isGuestAllowedCommand('FORM MESSAGE REQUEST 11')).toBe(true);
     expect(isGuestAllowedCommand('2 UNITS APP PREMIUM')).toBe(true);
     expect(isGuestAllowedCommand('FORM CUSTOMER REGISTER')).toBe(true);

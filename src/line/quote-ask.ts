@@ -1,3 +1,5 @@
+import { htmlToPlainText } from '../utils/html';
+
 export const QUOTE_ASK_MARK = 'QUOTE_ASK';
 export const QUOTE_REPLY_MARK = 'QUOTE_REPLY';
 
@@ -15,17 +17,7 @@ export type QuoteAskThread = {
   status: 'pending' | 'replied';
 };
 
-export const stripHtml = (value: string): string =>
-  value
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/\n{2,}/g, '\n')
-    .trim();
+export const stripHtml = (value: string): string => htmlToPlainText(value);
 
 export const formatQuoteAskNote = (body: string, productToken?: string): string => {
   const extra = productToken && /^\d+$/.test(productToken)

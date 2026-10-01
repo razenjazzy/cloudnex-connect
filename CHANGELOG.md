@@ -1,5 +1,10 @@
 # Changelog
 
+## v13.0.1 — Odoo LINE OA v10 (2026-10-02)
+
+- Sales OA keeps quote/CRM commands (`QUOTE LIST` / `QUOTE CREATE` / `QUOTE SEND`). Customer OA is quote XOR shop: ecommerce published catalog + My Cart when `CUSTOMER_COMMERCE=shop` is live; otherwise Order Now and Send message to Sales as before.
+- Shop: carousel Add to Cart, details Order Now, Remove only on in-cart SKUs, empty cart returns catalog. Staging sibling `:8081`.
+
 ## v12.0.6 — Odoo LINE OA v9 (2026-10-01)
 
 - Staging sibling keeps `/webhook-test` off. LINE Sales/Customer stay on production HMAC `/webhook`. CI skips Dependabot. Laptop `ops:staging` for health/logs.

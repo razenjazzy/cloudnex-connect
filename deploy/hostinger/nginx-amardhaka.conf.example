@@ -30,6 +30,17 @@ location /cloudnex-connect/admin/ {
     proxy_read_timeout 60s;
 }
 
+# LINE Flex heroes when PUBLIC_BASE_URL is https://host (no /cloudnex-connect path).
+location ^~ /catalog/ {
+    proxy_pass http://127.0.0.1:8081;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 60s;
+}
+
 # LINE Flex product images (not Admin SPA). Put catalog/test before catalog/.
 location ^~ /cloudnex-connect/catalog/test {
     proxy_pass http://127.0.0.1:8081;
@@ -42,7 +53,7 @@ location ^~ /cloudnex-connect/catalog/test {
 }
 
 location /cloudnex-connect/catalog/ {
-    proxy_pass http://127.0.0.1:8080;
+    proxy_pass http://127.0.0.1:8081;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -69,7 +80,7 @@ location = /cloudnex-connect/ {
 }
 
 location /webhook {
-    proxy_pass http://127.0.0.1:8080;
+    proxy_pass http://127.0.0.1:8081;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;

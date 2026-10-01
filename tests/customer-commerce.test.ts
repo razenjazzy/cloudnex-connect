@@ -83,3 +83,13 @@ describe('customer commerce XOR', () => {
     expect(snap.degraded).toBe(false);
   });
 });
+
+describe('customer catalog browse', () => {
+  it('uses website-published shop rows when shop is effective, otherwise the same product search as Sales', async () => {
+    const { readFileSync } = await import('node:fs');
+    const src = readFileSync('src/platform/customer-commerce.ts', 'utf8');
+    expect(src).toContain('erp.searchProducts(query, limit)');
+    expect(src).toContain('erp.listShopProducts?.(query, limit)');
+    expect(src).toContain('isCustomerShopEffective()');
+  });
+});

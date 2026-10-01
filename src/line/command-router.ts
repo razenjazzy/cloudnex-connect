@@ -48,7 +48,7 @@ import { ensureNextWindowOrHome } from './journey-continue';
 import { bindPostbackData } from './postback';
 import { withSpan } from '../observability/tracing';
 import { appLogger } from '../services/logger';
-import { applyChannelPersona, isQuoteStaff, selfQuoteIdentity, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary } from './quote-access';
+import { applyChannelPersona, isQuoteStaff, selfQuoteIdentity, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary, syncStaffProfile } from './quote-access';
 import { evaluateCommandGrid, isGuestAllowedCommand, matchCommandGrid } from './command-grid';
 import { canonicalizeInboundCommand, loadCommandOverlay, overlayLabelForText } from './command-overlay';
 import { loadI18nOverlay } from '../services/i18n-overlay';
@@ -56,6 +56,7 @@ import { catalogUiLabel } from './catalog-ui';
 import { customerQtyChipLabels } from './customer-qty';
 import { getErpAdapter } from '../erp/registry';
 import { guidedFormTtlMinutes, shouldIdleHome } from './idle-home';
+import { isCustomerShopEffective } from '../platform/customer-commerce';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -79,8 +80,9 @@ export type CommandReplyContext = {
   trayHighlight?: import('./rich-menu').RichMenuVariant;
   /** Push Odoo product carousel after reply when the catalog cache was cold. */
   pendingCatalogPush?: boolean;
+  /** Push Sales QUOTE LIST after Home so HMAC is not blocked on Odoo. */
+  pendingQuoteListPush?: boolean;
   trayGeneration?: string;
-  /** Internal: staff Home re-enters QUOTE LIST without looping on idle-home. */
   /** LINE quotedMessage text when the user swipe-replied. */
   quotedText?: string;
   quotedMessageId?: string;
@@ -157,6 +159,9 @@ export const homeMenuFromContext = (ctx: Pick<CommandReplyContext, 'userLanguage
 };
 
 export const homeReplyFromContext = async (ctx: CommandReplyContext): Promise<messagingApi.Message[]> => {
+  if (ctx.channel?.channelId !== CUSTOMER_CHANNEL_ID && ctx.userId) {
+    ctx.profile = await syncStaffProfile(ctx.userId, ctx.profile, ctx.channel?.channelId);
+  }
   if (ctx.channel?.channelId === CUSTOMER_CHANNEL_ID) {
     const { commerceFollowUpMessages } = await import('./commerce-followup');
     const follow = await commerceFollowUpMessages(ctx, 2, { deferCatalogMiss: true });
@@ -173,8 +178,8 @@ export const homeReplyFromContext = async (ctx: CommandReplyContext): Promise<me
   if (isQuoteStaff(persona)) {
     const { commerceFollowUpMessages } = await import('./commerce-followup');
     const menu = await commerceFollowUpMessages({ ...ctx, profile: persona }, 1);
-    const list = await resolveCommandReply({ ...ctx, profile: persona, text: 'QUOTE LIST', skipIdleHome: true });
-    return [...menu.slice(0, 1), ...list.slice(0, 1)].slice(0, 2);
+    ctx.pendingQuoteListPush = true;
+    return menu.slice(0, 1);
   }
   return [homeMenuFromContext(ctx)];
 };
@@ -661,11 +666,14 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
     return [await buildFormPromptMessage(userLanguage, agentName, flowSpec, 0, userId, undefined, undefined, formCollected, profile)];
   }
 
+  const fromCartAdd = /^FORM CART ADD FROM CARD(?:\s+(\d+))?(?:\s+(\d+))?$/i.exec(ctx.text.trim());
   const fromCard = /^FORM QUOTE CREATE FROM CARD(?:\s+(\d+))?(?:\s+(\d+))?(?:\s+(U[A-Za-z0-9]+))?$/i.exec(ctx.text.trim());
-  if (fromCard) {
-    const cardProductId = fromCard[1] ? Number(fromCard[1]) : undefined;
-    const cardQty = fromCard[2] ? Number(fromCard[2]) : undefined;
-    const rfqCustomerId = fromCard[3];
+  if (fromCartAdd || fromCard) {
+    const cardMatch = fromCartAdd ?? fromCard;
+    if (!cardMatch) return null;
+    const cardProductId = cardMatch[1] ? Number(cardMatch[1]) : undefined;
+    const cardQty = cardMatch[2] ? Number(cardMatch[2]) : undefined;
+    const rfqCustomerId = fromCard?.[3];
     let product = profile.lastProductContext;
     if (rfqCustomerId && isQuoteStaff(profile)) {
       const buyer = await getUserProfile(rfqCustomerId);
@@ -729,6 +737,7 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
     if (identity && 'phone' in identity && identity.phone) seeded.phone = identity.phone;
     if (identity && 'rfqUnassigned' in identity && identity.rfqUnassigned) seeded.rfqUnassigned = identity.rfqUnassigned;
     if (qtySeed) seeded.qty = qtySeed;
+    if (fromCartAdd && !isQuoteStaff(profile) && await isCustomerShopEffective()) seeded.shopStay = '1';
     if (seeded.rfqUnassigned === '1' && seeded.qty && seeded.customerName && seeded.phone) {
       const productToken = `id:${product.productId}`;
       return resolveCommandReply({

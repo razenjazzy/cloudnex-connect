@@ -27,16 +27,24 @@ npm run ops:staging -- logs
 
 GitHub Actions is **CI only** (`lint` / `build` / `test` / `npm audit --omit=dev --audit-level=high` on `main` and PRs). Staging deploy is not an Actions workflow.
 
-## SSH and logs
+## On the laptop (repo root)
 
 ```bash
-ssh amardhaka
-cd /opt/cns-line-oa
+npm run ops:staging
+npm run ops:staging -- logs
+npm run deploy:vps-staging
+```
+
+## Already SSH’d (`root@mail:/opt/cns-line-oa`)
+
+Do not run `npm` or `ssh amardhaka` here. Host Node is unused; the app is Docker.
+
+```bash
 docker ps --filter name=cns-line-oa-staging
 docker logs --tail 120 cns-line-oa-staging
 docker logs --since 2h cns-line-oa-staging 2>&1 | grep -Ei 'error|fatal|unhandled' | tail
 curl -sS http://127.0.0.1:8081/healthz
-set -a; . ./.env; set +a
+set -a; . /opt/cns-line-oa/.env; set +a
 curl -sS -H "Authorization: Bearer $OPS_API_TOKEN" http://127.0.0.1:8081/ops/platform \
   | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('flags',{}).get('appEnv'), d.get('ready'), d.get('customerCommerce'))"
 ```

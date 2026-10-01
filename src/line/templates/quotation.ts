@@ -6,6 +6,7 @@ import { bindPostbackData } from '../postback';
 import { overlayLabelForText } from '../command-overlay';
 import { catalogUiLabel } from '../catalog-ui';
 import { BRAND, amountHighlightBox, createDatePickerButton, createMessageActionButton, createPrefillButton, createUriActionButton, flexBubbleStyles, flexHeaderBox, formatMoney, mutedNoteBox, truncate } from './shared';
+import { htmlToPlainText } from '../../utils/html';
 import type { QuoteAskThread } from '../quote-ask';
 
 const tr = (language: Lang, th: string, en: string): string => (language === 'en' ? en : th);
@@ -250,7 +251,7 @@ export const createQuotationJourneyFlexMessage = (
               ...(extraCount > 0 ? [{ type: 'text' as const, text: `+${extraCount} ${t('moreItems', language)}`, size: 'xs' as const, color: BRAND.inkSoft }] : []),
             ],
           }] : []),
-          ...(order.note ? [mutedNoteBox(truncate(order.note, 200))] : []),
+          ...(order.note ? [mutedNoteBox(truncate(htmlToPlainText(order.note).replace(/\s+/g, ' '), 200))] : []),
           amountHighlightBox(
             t('total', language),
             formatMoney(order.amount_total, language),

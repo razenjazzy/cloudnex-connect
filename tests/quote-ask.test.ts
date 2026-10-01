@@ -21,6 +21,7 @@ describe('quote ask threads', () => {
 
   it('strips Odoo html from partner notes', () => {
     expect(stripHtml('<p>QUOTE_ASK</p><p>hello &amp; hi</p>')).toContain('hello & hi');
+    expect(stripHtml('<p>See <a href="https://x.test/t">terms</a> &amp; fees</p>')).toBe('See terms & fees');
   });
 
   it('renders status and reply on the customer list card', () => {

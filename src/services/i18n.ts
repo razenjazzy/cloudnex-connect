@@ -190,7 +190,7 @@ export const UI_STRINGS = {
     th: 'กดชำระเงินบนการ์ดคำสั่งซื้อ โหมดร้านค้าไม่ใช้ปุ่มยืนยันใบเสนอราคา',
   },
   pay: { en: 'Pay', th: 'ชำระเงิน' },
-  shopCartTitle: { en: 'Your cart', th: 'ตะกร้าของคุณ' },
+  shopCartTitle: { en: 'My Cart', th: 'ตะกร้าของฉัน' },
   shopCheckoutTitle: { en: 'Order process', th: 'ดำเนินการสั่งซื้อ' },
   shopPayTitle: { en: 'Pay', th: 'ชำระเงิน' },
   shopCompletedTitle: { en: 'Order completed', th: 'สั่งซื้อสำเร็จ' },
@@ -227,7 +227,7 @@ export const UI_STRINGS = {
   shopWebsiteCart: { en: 'Website cart', th: 'ตะกร้าวิดไซต์' },
   shopStorefront: { en: 'Shop', th: 'ร้านค้า' },
   shopCheckoutCta: { en: 'Checkout', th: 'ชำระเงิน' },
-  shopBackToCart: { en: 'Back to cart', th: 'กลับตะกร้า' },
+  shopBackToCart: { en: 'My Cart', th: 'ตะกร้าของฉัน' },
   shopRemove: { en: 'Remove', th: 'ลบ' },
   quoteCreatedStaffTitle: { en: 'Quotation created', th: 'สร้างใบเสนอราคาแล้ว' },
   quoteCreatedStaffUnassigned: {

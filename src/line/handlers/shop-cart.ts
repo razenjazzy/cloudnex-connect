@@ -1,6 +1,6 @@
 import type { CommandHandler } from './index';
 import type { CommandReplyContext } from '../command-router';
-import { createBotTextFlexMessage, createShopCartFlexMessage } from '../templates';
+import { createBotTextFlexMessage, createShopCartFlexMessage, shopCartHasItems } from '../templates';
 import { getSaleOrderById } from '../../services/odoo/sales';
 import { recordAuditEvent } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
@@ -16,7 +16,7 @@ import type { ShopCartStage } from '../templates/shop-cart';
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
 const botText = (value: string, language: UserLanguage, actions?: Array<{ label: string; text: string; style?: 'primary' | 'secondary' }>) =>
-  createBotTextFlexMessage({ title: language === 'en' ? 'Cart' : 'ตะกร้า', body: value, language, actions });
+    createBotTextFlexMessage({ title: language === 'en' ? 'My Cart' : 'ตะกร้าของฉัน', body: value, language, actions });
 
 export const parseCartAdd = (text: string): { productId: number; qty: number } | null => {
   const raw = text.trim().replace(/^CART ADD\s*/i, '').trim();
@@ -70,12 +70,22 @@ export const shopCartFlexForOrder = async (
 
 const websiteIdOrNull = () => parseOdooWebsiteId(getRuntime('ODOO_WEBSITE_ID'));
 
-const loadPartnerCart = async (partnerId: number): Promise<OdooSaleOrder | null> => {
+export const loadPartnerCart = async (partnerId: number): Promise<OdooSaleOrder | null> => {
   const websiteId = websiteIdOrNull();
   if (!websiteId) return null;
   const cartId = await getErpAdapter().findOpenShopCart?.(partnerId, websiteId);
   if (!cartId) return null;
   return getSaleOrderById(cartId);
+};
+
+export const cartProductIdsForPartner = async (partnerId?: number): Promise<Set<number>> => {
+  if (!partnerId) return new Set();
+  const order = await loadPartnerCart(partnerId);
+  return new Set(
+    (order?.lines || [])
+      .filter(line => !line.optional && !line.isDelivery && line.qty > 0 && line.productId)
+      .map(line => line.productId as number),
+  );
 };
 
 const loadPartnerShopOrder = async (partnerId: number): Promise<OdooSaleOrder | null> => {
@@ -265,6 +275,10 @@ const cartRemoveHandler: CommandHandler = {
     if (!ok) {
       return [botText(tr(ctx.userLanguage, 'ลบรายการไม่สำเร็จ', 'Could not remove that line.'), ctx.userLanguage), await shopCartFlexForOrder(refreshed, ctx.userLanguage, 'cart', ctx.userId)];
     }
+    if (!shopCartHasItems(refreshed)) {
+      const { resolveCommandReply } = await import('../command-router');
+      return resolveCommandReply({ ...ctx, text: 'NAV HOME' });
+    }
     return [await shopCartFlexForOrder(refreshed, ctx.userLanguage, 'cart', ctx.userId)];
   },
 };
@@ -281,9 +295,8 @@ const cartClearHandler: CommandHandler = {
     if (!ok) {
       return [botText(tr(ctx.userLanguage, 'ล้างตะกร้าไม่สำเร็จ', 'Could not clear the cart.'), ctx.userLanguage)];
     }
-    return [botText(t('shopCartEmpty', ctx.userLanguage), ctx.userLanguage, [
-      { label: tr(ctx.userLanguage, 'หน้าแรก', 'Home'), text: 'NAV HOME', style: 'primary' },
-    ])];
+    const { resolveCommandReply } = await import('../command-router');
+    return resolveCommandReply({ ...ctx, text: 'NAV HOME' });
   },
 };
 

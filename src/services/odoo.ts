@@ -18,6 +18,7 @@ import {
 } from './odoo/client';
 import { pickLinkedOdooUserPartnerId, preferOdooLoginPartner } from './odoo/admin';
 import { phoneMatchVariants } from './phone-match';
+import { htmlToPlainText } from '../utils/html';
 export * from './odoo/types';
 
 const getConfig = getOdooConfig;
@@ -39,24 +40,44 @@ const parseProduct = (row: Record<string, unknown>): OdooProduct => ({
   list_price: num(row.list_price),
   qty_available: num(row.qty_available),
   default_code: str(row.default_code),
+  website_url: str(row.website_url) || undefined,
   description: stripHtml(str(row.description_sale) || str(row.description)),
 });
 
 const stripHtml = (value: string): string | undefined => {
-  const text = value
-    .replace(/<br\s*\/?>/gi, ' ')
-    .replace(/<\/p>/gi, ' ')
-    .replace(/<[^>]+>/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const text = htmlToPlainText(value).replace(/\s+/g, ' ').trim();
   return text ? text.slice(0, 400) : undefined;
 };
 
-const PRODUCT_READ_FIELDS = ['id', 'name', 'list_price', 'qty_available', 'default_code', 'description_sale', 'description'];
+const PRODUCT_READ_CORE = ['id', 'name', 'list_price', 'qty_available', 'default_code', 'description_sale', 'description'];
+const PRODUCT_READ_FIELDS = [...PRODUCT_READ_CORE, 'website_url'];
+
+const searchReadProducts = async (
+  config: OdooConfig,
+  uid: number,
+  domain: unknown[],
+  extra: { limit: number; order?: string },
+): Promise<Record<string, unknown>[]> => {
+  try {
+    return await executeKwRead<Record<string, unknown>[]>(
+      config,
+      uid,
+      'product.product',
+      'search_read',
+      [domain],
+      { fields: PRODUCT_READ_FIELDS, ...extra },
+    );
+  } catch {
+    return executeKwRead<Record<string, unknown>[]>(
+      config,
+      uid,
+      'product.product',
+      'search_read',
+      [domain],
+      { fields: PRODUCT_READ_CORE, ...extra },
+    );
+  }
+};
 
 const parseMany2one = (value: unknown): [number, string] | undefined => {
   if (!Array.isArray(value) || value.length < 2) return undefined;
@@ -77,20 +98,43 @@ const parseOrder = (row: Record<string, unknown>): OdooSaleOrder => {
     access_token: typeof row.access_token === 'string' ? row.access_token : undefined,
     invoice_status: typeof row.invoice_status === 'string' ? row.invoice_status : undefined,
     amount_invoiced: row.amount_invoiced !== undefined ? num(row.amount_invoiced) : undefined,
-    note: typeof row.note === 'string' && row.note ? row.note : undefined,
+    note: stripHtml(str(row.note)),
     client_order_ref: str(row.client_order_ref) || undefined,
   };
 };
 
 const parseOrderLine = (row: Record<string, unknown>): OdooSaleOrderLine => {
   const product = Array.isArray(row.product_id) ? row.product_id : undefined;
+  const productName = product && product.length >= 2 ? str(product[1]) : '';
+  const linked = row.linked_line_id;
+  const optional = Array.isArray(linked) ? linked.length > 0 : Boolean(linked);
   return {
     productId: product && product.length >= 1 ? num(product[0]) : undefined,
-    productName: product && product.length >= 2 ? str(product[1]) : '',
+    productName,
     qty: num(row.product_uom_qty),
     priceUnit: num(row.price_unit),
     subtotal: num(row.price_subtotal),
+    isDelivery: Boolean(row.is_delivery) || /delivery[_\s-]?\d|standard delivery/i.test(productName),
+    optional,
   };
+};
+
+const ORDER_LINE_CORE = ['product_id', 'product_uom_qty', 'price_unit', 'price_subtotal'];
+const ORDER_LINE_FIELDS = [...ORDER_LINE_CORE, 'is_delivery', 'linked_line_id'];
+
+const searchReadOrderLines = async (config: OdooConfig, uid: number, orderId: number): Promise<Record<string, unknown>[]> => {
+  const domain: unknown[] = [['order_id', '=', orderId], ['display_type', '=', false]];
+  try {
+    return await executeKwRead<Record<string, unknown>[]>(
+      config, uid, 'sale.order.line', 'search_read', [domain],
+      { fields: ORDER_LINE_FIELDS },
+    );
+  } catch {
+    return executeKwRead<Record<string, unknown>[]>(
+      config, uid, 'sale.order.line', 'search_read', [domain],
+      { fields: ORDER_LINE_CORE },
+    );
+  }
 };
 
 const parsePartner = (row: Record<string, unknown>): OdooPartner => ({
@@ -142,17 +186,7 @@ export const findProductByQuery = async (query: string): Promise<OdooProduct | n
   const uid = await loginRead(config);
   if (!uid) return null;
 
-  const rows = await executeKwRead<Record<string, unknown>[]>(
-    config,
-    uid,
-    'product.product',
-    'search_read',
-    [[['name', 'ilike', normalizedQuery]]],
-    {
-      fields: PRODUCT_READ_FIELDS,
-      limit: 1,
-    }
-  );
+  const rows = await searchReadProducts(config, uid, [['name', 'ilike', normalizedQuery]], { limit: 1 });
 
   if (!rows.length) return null;
   return parseProduct(rows[0]);
@@ -164,14 +198,7 @@ export const getProductById = async (productId: number): Promise<OdooProduct | n
   if (!config) return null;
   const uid = await loginRead(config);
   if (!uid) return null;
-  const rows = await executeKwRead<Record<string, unknown>[]>(
-    config,
-    uid,
-    'product.product',
-    'search_read',
-    [[['id', '=', productId]]],
-    { fields: PRODUCT_READ_FIELDS, limit: 1 },
-  );
+  const rows = await searchReadProducts(config, uid, [['id', '=', productId]], { limit: 1 });
   if (!rows.length) return null;
   return parseProduct(rows[0]);
 };
@@ -216,17 +243,7 @@ export const findProductsByQuery = async (query: string, limit = 5, filter?: Pro
   if (!uid) return [];
 
   try {
-    const rows = await executeKwRead<Record<string, unknown>[]>(
-      config,
-      uid,
-      'product.product',
-      'search_read',
-      [productCatalogDomain(filter, normalizedQuery)],
-      {
-        fields: PRODUCT_READ_FIELDS,
-        limit,
-      }
-    );
+    const rows = await searchReadProducts(config, uid, productCatalogDomain(filter, normalizedQuery), { limit });
 
     return rows.map(parseProduct);
   } catch (error) {
@@ -251,18 +268,7 @@ export const listProducts = async (limit = 10, filter?: ProductCatalogFilter): P
   if (!uid) return [];
 
   try {
-    const rows = await executeKwRead<Record<string, unknown>[]>(
-      config,
-      uid,
-      'product.product',
-      'search_read',
-      [productCatalogDomain(filter)],
-      {
-        fields: PRODUCT_READ_FIELDS,
-        limit,
-        order: 'write_date desc',
-      }
-    );
+    const rows = await searchReadProducts(config, uid, productCatalogDomain(filter), { limit, order: 'write_date desc' });
 
     return rows.map(parseProduct);
   } catch (error) {
@@ -325,14 +331,7 @@ export const getSaleOrderById = async (orderId: number): Promise<OdooSaleOrder |
   if (!rows.length) return null;
   const order = parseOrder(rows[0]);
 
-  const lineRows = await executeKwRead<Record<string, unknown>[]>(
-    config,
-    uid,
-    'sale.order.line',
-    'search_read',
-    [[['order_id', '=', orderId], ['display_type', '=', false]]],
-    { fields: ['product_id', 'product_uom_qty', 'price_unit', 'price_subtotal'] }
-  );
+  const lineRows = await searchReadOrderLines(config, uid, orderId);
   order.lines = lineRows.map(parseOrderLine);
 
   return order;

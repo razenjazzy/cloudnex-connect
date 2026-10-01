@@ -11,6 +11,8 @@ describe('native tray reply path', () => {
     expect(processMessage).toContain('unlinkUserRichMenu');
     expect(processMessage).toContain('pendingCatalogPush');
     expect(processMessage).toContain('pushDeferredCommerceCatalog');
+    expect(processMessage).toContain('pendingQuoteListPush');
+    expect(processMessage).toContain('pushDeferredSalesQuoteList');
     const deliverIdx = processMessage.indexOf('delivered = await deliverMessages');
     const linkIdx = processMessage.indexOf('applyTrayAfterReply');
     expect(deliverIdx).toBeGreaterThan(-1);

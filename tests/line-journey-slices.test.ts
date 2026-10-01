@@ -105,7 +105,12 @@ describe('skip, home cache, no Gemini on quote-create', () => {
   it('uses peekCachedProducts on customer home and skips Gemini in quote-create', () => {
     const router = readFileSync('src/line/command-router.ts', 'utf8');
     const commerce = readFileSync('src/line/handlers/commerce.ts', 'utf8');
+    const shopCart = readFileSync('src/line/handlers/shop-cart.ts', 'utf8');
     expect(router).toContain('peekCachedProducts');
+    expect(router).toContain('pendingQuoteListPush');
+    expect(shopCart).toContain('shopCartHasItems');
+    expect(shopCart).toContain("text: 'NAV HOME'");
+    expect(router).not.toContain('Promise.race');
     expect(commerce).not.toContain('classifyIntent');
     const createStart = commerce.indexOf("name: 'commerce-quote-create'");
     const createEnd = commerce.indexOf("name: 'commerce-system-status'");

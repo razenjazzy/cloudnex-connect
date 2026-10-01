@@ -26,7 +26,7 @@ import { sendTargetedFlexMessage } from '../messaging';
 import { beginQuoteCreate, completeQuoteCreate, failQuoteCreate, quoteCreateLockKey } from '../../services/quote-idempotency';
 import { formatQuoteAskNote } from '../quote-ask';
 import { attachShopJourney, isCustomerShopEffective, parseOdooWebsiteId, searchAudienceProducts } from '../../platform/customer-commerce';
-import { shopCartFlexForOrder } from './shop-cart';
+import { shopCartFlexForOrder, cartProductIdsForPartner } from './shop-cart';
 import { getRuntime } from '../../services/runtime-settings';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
@@ -73,11 +73,13 @@ const demoProductHandler: CommandHandler = {
   handle: async (ctx) => {
     const { userLanguage, text, userId } = ctx;
     const query = text.trim().replace(/^PRODUCT FIND\s*/i, '').trim();
+    const shopMode = !isQuoteStaff(ctx.profile) && await isCustomerShopEffective();
+    const cartIds = shopMode ? await cartProductIdsForPartner(ctx.profile.odooPartnerId) : undefined;
     if (!query) {
       if (!isQuoteStaff(ctx.profile)) {
         try {
           const catalog = await searchAudienceProducts('', 10);
-          if (catalog.length) return [createProductCarouselFlexMessage(catalog, userLanguage, undefined, ctx.channel?.channelId)];
+          if (catalog.length) return [createProductCarouselFlexMessage(catalog, userLanguage, undefined, ctx.channel?.channelId, shopMode, cartIds)];
           return [botText(tr(userLanguage, 'ยังไม่มีสินค้าให้แสดง กรุณาค้นหาด้วยชื่อสินค้า', 'No products to show yet. Search by product name.'), userLanguage, [
             { label: tr(userLanguage, 'ค้นหาสินค้า', 'Search products'), text: 'FORM PRODUCT FIND', style: 'primary' },
           ])];
@@ -101,7 +103,7 @@ const demoProductHandler: CommandHandler = {
       ])];
     }
     if (products.length > 1) {
-      return [createProductCarouselFlexMessage(products, userLanguage, undefined, ctx.channel?.channelId)];
+      return [createProductCarouselFlexMessage(products, userLanguage, undefined, ctx.channel?.channelId, shopMode, cartIds)];
     }
     const product = products[0];
     void setLastProductContext(userId, {
@@ -112,6 +114,8 @@ const demoProductHandler: CommandHandler = {
     return [createProductCardFlexMessage(product.name, product.price || 0, product.quantity || 0, userLanguage, product.id, product.imageUrl, {
       channelId: ctx.channel?.channelId,
       description: product.description,
+      shopMode,
+      inCart: Boolean(cartIds?.has(product.id)),
     })];
   },
 };
@@ -279,17 +283,15 @@ const demoQuoteHandler: CommandHandler = {
       if (!cartOrder) {
         return [botText(t('shopCartEmpty', userLanguage), userLanguage)];
       }
-      const added = outcomeFlex({
-        language: userLanguage,
-        tone: 'success',
-        title: t('shopCartTitle', userLanguage),
-        body: tFill('shopOrderWaitingPay', userLanguage, { name: cartDraft.name }),
-        actions: [
-          { label: t('shopCheckoutCta', userLanguage), text: 'CART CHECKOUT', style: 'primary' },
-          { label: t('addMore', userLanguage), text: 'NAV HOME', style: 'secondary' },
-        ],
-      });
-      return withOutcome(userLanguage, added, [await shopCartFlexForOrder(cartOrder, userLanguage, 'cart', userId)]);
+      return [
+        await shopCartFlexForOrder(cartOrder, userLanguage, 'cart', userId),
+        createProductCardFlexMessage(product.name, product.price || 0, product.quantity || 0, userLanguage, product.id, product.imageUrl, {
+          channelId: channel?.channelId,
+          description: product.description,
+          shopMode: true,
+          inCart: true,
+        }),
+      ];
     }
 
     const quotation = await getErpAdapter().createQuotation(customerName, phone, product.name, qty, {

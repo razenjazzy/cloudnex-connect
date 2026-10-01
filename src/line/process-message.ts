@@ -316,7 +316,7 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
     };
     const trayGeneration = `${input.receivedAt}:${input.requestId || ''}`;
     ctx.trayGeneration = trayGeneration;
-    const { noteTrayGeneration, pushDeferredCommerceCatalog } = await import('./commerce-followup');
+    const { noteTrayGeneration, pushDeferredCommerceCatalog, pushDeferredSalesQuoteList } = await import('./commerce-followup');
     noteTrayGeneration(input.conversationId, trayGeneration);
     const messages = await resolveCommandReply(ctx);
     let delivered: unknown;
@@ -386,6 +386,19 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
         generation: trayGeneration,
         userLanguage: ctx.userLanguage,
         channelId: input.channelConfig.channelId,
+        partnerId: ctx.profile.odooPartnerId,
+      });
+    }
+    if (ctx.pendingQuoteListPush && !input.isGroupContext) {
+      void pushDeferredSalesQuoteList({
+        userId: input.conversationId,
+        generation: trayGeneration,
+        userLanguage: ctx.userLanguage,
+        profile: ctx.profile,
+        channel: ctx.channel,
+        requestId: input.requestId,
+        agentName: ctx.agentName,
+        baseUrl: ctx.baseUrl,
       });
     }
     return delivered;

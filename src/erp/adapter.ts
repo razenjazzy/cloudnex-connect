@@ -21,6 +21,7 @@ export type ErpProduct = {
   id: number;
   name: string;
   sku?: string;
+  websiteUrl?: string;
   price?: number;
   quantity?: number;
   currency?: string;

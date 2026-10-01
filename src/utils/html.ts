@@ -20,6 +20,22 @@ export const escapeHtml = (raw: string): string =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#x27;');
 
+/** Odoo HTML notes / Terms and Conditions → LINE-safe plain text. */
+export const htmlToPlainText = (value: string): string =>
+  value
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<a\s[^>]*>([\s\S]*?)<\/a>/gi, '$1')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/\n{2,}/g, '\n')
+    .trim();
+
 /**
  * Returns a strict CSP header value suitable for simple server-rendered
  * pages that use only inline styles (no scripts, no external resources).

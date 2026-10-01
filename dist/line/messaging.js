@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendBroadcastMessage = exports.sendTargetedFlexMessage = exports.sendTargetedMessage = void 0;
+exports.sendBroadcastMessage = exports.sendTargetedPushMessages = exports.sendTargetedFlexMessage = exports.sendTargetedMessage = void 0;
 const bot_sdk_1 = require("@line/bot-sdk");
 const channels_1 = require("./channels");
 const logger_1 = require("../services/logger");
@@ -50,6 +50,12 @@ const sendTargetedFlexMessage = async (userIds, message, channelId = channels_1.
     return sendTargetedMessages(userIds, [message], channelId);
 };
 exports.sendTargetedFlexMessage = sendTargetedFlexMessage;
+const sendTargetedPushMessages = async (userIds, messages, channelId = channels_1.DEFAULT_CHANNEL_ID) => {
+    if (!messages.length)
+        return false;
+    return sendTargetedMessages(userIds, messages.slice(0, 5), channelId);
+};
+exports.sendTargetedPushMessages = sendTargetedPushMessages;
 /** LINE Broadcast API — does not honor marketingOptIn. Confirm BROADCAST in Admin only. */
 const sendBroadcastMessage = async (text, channelId = channels_1.DEFAULT_CHANNEL_ID) => {
     const client = getClient(channelId);

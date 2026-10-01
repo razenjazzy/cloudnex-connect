@@ -80,8 +80,10 @@ export const attachShopJourney = async <T extends { role?: string }>(opts: T): P
 };
 
 export const searchAudienceProducts = async (query: string, limit = 10): Promise<ErpProduct[]> => {
-  const shop = await isCustomerShopEffective();
   const erp = getErpAdapter();
-  if (shop) return erp.listShopProducts?.(query, limit) ?? [];
+  if (await isCustomerShopEffective()) {
+    const published = await erp.listShopProducts?.(query, limit) || [];
+    if (published.length) return published;
+  }
   return erp.searchProducts(query, limit);
 };

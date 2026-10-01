@@ -49,6 +49,15 @@ export const sendTargetedFlexMessage = async (userIds: string[], message: messag
   return sendTargetedMessages(userIds, [message], channelId);
 };
 
+export const sendTargetedPushMessages = async (
+  userIds: string[],
+  messages: messagingApi.Message[],
+  channelId: string = DEFAULT_CHANNEL_ID,
+) => {
+  if (!messages.length) return false;
+  return sendTargetedMessages(userIds, messages.slice(0, 5), channelId);
+};
+
 /** LINE Broadcast API — does not honor marketingOptIn. Confirm BROADCAST in Admin only. */
 export const sendBroadcastMessage = async (text: string, channelId: string = DEFAULT_CHANNEL_ID): Promise<boolean> => {
   const client = getClient(channelId);

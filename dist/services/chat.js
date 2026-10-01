@@ -62,6 +62,7 @@ exports.processChatMessage = void 0;
 const genai_1 = require("@google/genai");
 const firestore_1 = require("./firestore");
 const templates_1 = require("../line/templates");
+const product_image_url_1 = require("../erp/product-image-url");
 const sales_1 = require("./odoo/sales");
 const catalog_1 = require("./odoo/catalog");
 const ai_circuit_breaker_1 = require("./ai-circuit-breaker");
@@ -231,7 +232,7 @@ const heuristicFallback = async (userText, isThai, agentName) => {
             handled: true,
             messages: [
                 { type: 'text', text: isThai ? `${agentName} พบสินค้าจาก Odoo แล้วค่ะ` : `${agentName} found this product in Odoo.` },
-                (0, templates_1.createProductCardFlexMessage)(product.name, product.list_price, product.qty_available, isThai ? 'th' : 'en'),
+                (0, templates_1.createProductCardFlexMessage)(product.name, product.list_price, product.qty_available, isThai ? 'th' : 'en', product.id, (0, product_image_url_1.catalogProductHeroUrl)(product.id), { description: product.description }),
             ],
         };
     }
@@ -262,7 +263,7 @@ const processGeminiResponse = async (response, userId, isThai, agentName, channe
                 const odooProduct = await (0, catalog_1.findProductByQuery)(query);
                 if (odooProduct) {
                     aiTextResponse += `[Product card: ${odooProduct.name}]`;
-                    messages.push((0, templates_1.createProductCardFlexMessage)(odooProduct.name, odooProduct.list_price, odooProduct.qty_available, isThai ? 'th' : 'en'));
+                    messages.push((0, templates_1.createProductCardFlexMessage)(odooProduct.name, odooProduct.list_price, odooProduct.qty_available, isThai ? 'th' : 'en', odooProduct.id, (0, product_image_url_1.catalogProductHeroUrl)(odooProduct.id), { description: odooProduct.description }));
                 }
                 else {
                     const msg = isThai

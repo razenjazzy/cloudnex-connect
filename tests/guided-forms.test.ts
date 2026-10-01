@@ -167,6 +167,13 @@ describe('QUOTE_CREATE flow', () => {
     expect(cmd).toBe('QUOTE CREATE id:99,1,Somchai,0812345678,,,,,');
   });
 
+  it('appends cart when the shop carousel seeded stay', () => {
+    const cmd = spec.buildFinalCommand({
+      productName: 'DualForth', productId: '2', qty: '10', customerName: 'Somchai', phone: '0812345678', shopStay: '1',
+    });
+    expect(cmd).toBe('QUOTE CREATE id:2,10,Somchai,0812345678,,,,,,cart');
+  });
+
   it('builds the final command with skipped optional fields left blank', () => {
     const cmd = spec.buildFinalCommand({ productName: 'App Premium Plan', qty: '1', customerName: 'Somchai', phone: '0812345678' });
     expect(cmd).toBe('QUOTE CREATE App Premium Plan,1,Somchai,0812345678,,,,,');

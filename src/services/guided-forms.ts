@@ -313,7 +313,8 @@ export const FLOW_SPECS: Record<FlowKey, FlowSpec> = {
     buildFinalCommand: (c) => {
       const productToken = c.productId && /^\d+$/.test(c.productId) ? `id:${c.productId}` : c.productName;
       const customerRef = c.rfqUnassigned === '1' ? 'RFQ' : (c.customerReference || '');
-      return `QUOTE CREATE ${productToken},${c.qty},${c.customerName},${c.phone},${customerRef},${c.discountPercent || ''},${c.validityDate || ''},${c.note || ''},${c.paymentTerm || ''}`;
+      const stay = c.shopStay === '1' ? ',cart' : '';
+      return `QUOTE CREATE ${productToken},${c.qty},${c.customerName},${c.phone},${customerRef},${c.discountPercent || ''},${c.validityDate || ''},${c.note || ''},${c.paymentTerm || ''}${stay}`;
     },
   },
   QUOTE_ADD: {

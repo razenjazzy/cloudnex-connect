@@ -22,17 +22,41 @@ describe('shop cart Flex', () => {
     id: 9,
     name: 'S0009',
     state: 'draft',
-    amount_total: 990,
+    amount_total: 1090,
     partner_id: [1, 'Somchai'] as [number, string],
-    lines: [{ productId: 4, productName: 'App', qty: 2, priceUnit: 495, subtotal: 990 }],
+    note: '<p>Terms &amp; Conditions</p><p>See <a href="https://example.com/terms">the policy</a>.</p>',
+    lines: [
+      { productId: 2, productName: 'DualForth', qty: 10, priceUnit: 99, subtotal: 990 },
+      { productId: 80, productName: 'Delivery_007 Standard Delivery', qty: 1, priceUnit: 100, subtotal: 100, isDelivery: true },
+      { productId: 91, productName: 'Optional wrap', qty: 1, priceUnit: 0, subtotal: 0, optional: true },
+    ],
   };
 
-  it('shows checkout, coupon, pay, and website cart on the full flow', () => {
+  it('shows qty × product with price, delivery as a rate, and strip T&C html', () => {
+    const cart = JSON.stringify(createShopCartFlexMessage(order, { stage: 'cart' }, 'en'));
+    expect(cart).toContain('10 × DualForth');
+    expect(cart).not.toContain('× 10');
+    expect(cart).toContain('Standard Delivery');
+    expect(cart).not.toContain('× 1');
+    expect(cart).not.toContain('Delivery_007');
+    expect(cart).not.toContain('Optional wrap');
+    expect(cart).not.toContain('<p>');
+    expect(cart).not.toContain('&amp;');
+    expect(cart).not.toContain('href=');
+    expect(cart).toContain('Terms & Conditions');
+    expect(cart).toContain('the policy');
+    expect(cart).toContain('CART REMOVE 2');
+    expect(cart).not.toContain('CART REMOVE 80');
+    expect(cart).toContain('My Cart');
+  });
+
+  it('pairs cart actions two-up like other Flex pages', () => {
     const cart = JSON.stringify(createShopCartFlexMessage(order, {
       stage: 'cart',
       cartPageUrl: 'https://shop.example/shop/cart',
       shopUrl: 'https://shop.example/shop',
     }, 'en'));
+    expect(cart).toContain('"layout":"horizontal"');
     expect(cart).toContain('CART CHECKOUT');
     expect(cart).toContain('CART COUPON');
     expect(cart).toContain('https://shop.example/shop/cart');
@@ -70,6 +94,8 @@ describe('shop menu XOR', () => {
     const commerce = SERVICE_CATALOG.find(s => s.key === 'commerce')!;
     expect(getVisibleCommands(commerce, false, false).map(c => c.text)).toContain('QUOTE ASK');
     expect(getVisibleCommands(commerce, false, false, { shopMode: true }).map(c => c.text)).toContain('CART');
+    expect(getVisibleCommands(commerce, false, false, { shopMode: true }).find(c => c.text === 'CART')?.labelEn).toBe('My Cart');
+    expect(getVisibleCommands(commerce, false, false, { shopMode: true }).map(c => c.text)).not.toContain('CART VIEW');
     expect(getVisibleCommands(commerce, false, false, { shopMode: true }).map(c => c.text)).not.toContain('QUOTE ASK');
   });
 });

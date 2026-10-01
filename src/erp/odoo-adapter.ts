@@ -16,6 +16,7 @@ const toErpProduct = (product: OdooProduct, imageUrl?: string): ErpProduct => ({
   id: product.id,
   name: product.name,
   sku: product.default_code,
+  ...(product.website_url ? { websiteUrl: product.website_url } : {}),
   price: product.list_price,
   quantity: product.qty_available,
   currency: 'THB',

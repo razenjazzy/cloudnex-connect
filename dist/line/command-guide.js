@@ -15,6 +15,8 @@ const COMMAND_SPECS = [
     { key: 'QUOTE CREATE', examples: ['QUOTE CREATE App Premium Plan,1,Somchai,0812345678'], category: 'commerce' },
     { key: 'QUOTE STATUS', examples: ['QUOTE STATUS 5'], category: 'commerce' },
     { key: 'QUOTE LIST', examples: ['QUOTE LIST'], category: 'commerce' },
+    { key: 'QUOTE ASK', examples: ['QUOTE ASK'], category: 'commerce' },
+    { key: 'CART', examples: ['CART', 'CART CHECKOUT', 'CART COUPON SAVE10', 'CART PAY', 'CART STATUS'], category: 'commerce' },
     { key: 'ORDER STATUS', examples: ['ORDER STATUS SO0001'], category: 'commerce' },
     { key: 'MESSAGE CUSTOMER', examples: ['MESSAGE CUSTOMER 0812345678 Hi! We have a new offer for you.'], category: 'commerce' },
     { key: 'USER CREATE', examples: ['USER CREATE Somchai,0812345678,somchai@example.com'], category: 'directory' },
