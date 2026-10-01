@@ -25,7 +25,7 @@ npm run ops:staging
 npm run ops:staging -- logs
 ```
 
-GitHub Actions does not run lint/test on push. Verify with `npm test` on the laptop. Staging deploy is `npm run deploy:vps-staging`. Cloud Run `release.yml` stays manual.
+GitHub Actions is **disabled** on the repo (Settings → Actions). No `ci.yml` / `release.yml`. Verify with laptop `npm test`. Staging is `npm run deploy:vps-staging`.
 
 ## On the laptop (repo root)
 
