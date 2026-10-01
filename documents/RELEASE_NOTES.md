@@ -1,3 +1,14 @@
+# Release notes — v13.0.8
+
+**Date:** 2026-10-02  
+**Package version:** `13.0.8`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`). Production HMAC `:8080` unchanged.  
+**Commit title:** `Release: v13.0.8 - Odoo Line OA v10 Bug Fix`
+
+Git commit titles are sequential from `v13.0.3` through `v13.0.8`. GitHub CI is on. Camera placeholder for missing catalog images; Sales known commands still run after idle.
+
+---
+
 # Release notes — v13.0.3
 
 **Date:** 2026-10-02  

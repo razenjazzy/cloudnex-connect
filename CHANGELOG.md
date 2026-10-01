@@ -1,9 +1,13 @@
 # Changelog
 
+## v13.0.8 — Odoo LINE OA v10 (2026-10-02)
+
+- Git titles are sequential `v13.0.3` … `v13.0.8`. GitHub `ci.yml` and manual `release.yml` stay so Actions can pass.
+
 ## v13.0.3 — Odoo LINE OA v10 (2026-10-02)
 
 - Missing product images use the camera placeholder PNG; image fetch times out to the same PNG.
-- Sales known commands still run after idle. Removed GitHub `ci.yml` (failed on v13.0.2); verify with laptop `npm test`.
+- Sales known commands still run after idle. Overlay load does not block HMAC.
 
 ## v13.0.2 — Odoo LINE OA v10 (2026-10-02)
 
