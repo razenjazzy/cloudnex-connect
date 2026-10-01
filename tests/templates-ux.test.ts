@@ -78,8 +78,8 @@ describe('product card quote CTA', () => {
     process.env.PUBLIC_BASE_URL = 'https://amardhaka.io/cloudnex-connect';
     const sales = JSON.stringify(createProductCardFlexMessage('App Premium', 100, 3, 'en', 11, undefined, { channelId: 'sales' }));
     const customer = JSON.stringify(createProductCardFlexMessage('App Premium', 100, 3, 'en', 11, undefined, { channelId: 'customer' }));
-    expect(sales).toContain('https://amardhaka.io/cloudnex-connect/catalog/product/11/image');
-    expect(customer).toContain('https://amardhaka.io/cloudnex-connect/catalog/product/11/image');
+    expect(sales).toContain('https://amardhaka.io/cloudnex-connect/catalog/product/placeholder/image');
+    expect(customer).toContain('https://amardhaka.io/cloudnex-connect/catalog/product/placeholder/image');
     if (previousBase === undefined) delete process.env.PUBLIC_BASE_URL;
     else process.env.PUBLIC_BASE_URL = previousBase;
   });

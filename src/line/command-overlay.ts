@@ -24,11 +24,25 @@ const OVERLAY_TTL_MS = 60_000;
 
 const overlayKey = (): string => tenantScopedKey('command-overlay');
 
+let overlayRefresh: Promise<void> | null = null;
+
+const refreshCommandOverlay = (): void => {
+  if (overlayRefresh) return;
+  overlayRefresh = (async () => {
+    try {
+      const stored = await getPlatformConfig<{ commands?: CommandOverlayMap }>(overlayKey());
+      overlayCache = stored?.commands && typeof stored.commands === 'object' ? stored.commands : {};
+      overlayLoadedAt = Date.now();
+    } catch {
+      overlayLoadedAt = overlayLoadedAt || Date.now();
+    } finally {
+      overlayRefresh = null;
+    }
+  })();
+};
+
 export const loadCommandOverlay = async (): Promise<CommandOverlayMap> => {
-  if (overlayLoadedAt && Date.now() - overlayLoadedAt < OVERLAY_TTL_MS) return overlayCache;
-  const stored = await getPlatformConfig<{ commands?: CommandOverlayMap }>(overlayKey());
-  overlayCache = stored?.commands && typeof stored.commands === 'object' ? stored.commands : {};
-  overlayLoadedAt = Date.now();
+  if (!overlayLoadedAt || Date.now() - overlayLoadedAt >= OVERLAY_TTL_MS) refreshCommandOverlay();
   return overlayCache;
 };
 

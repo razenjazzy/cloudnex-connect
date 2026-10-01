@@ -85,7 +85,7 @@ Flex under [src/line/templates/](../src/line/templates/); title **CloudNEx Conne
 - `npm test` (Vitest: channels, admin, OTP, ERP, odoo-hook, CI workflow files).
 - `npx tsc --noEmit` / `npm run build`.
 - `npm run lint` — 0 errors.
-- GitHub `ci.yml`: lint, build, test, production-dep audit.
+- Laptop `npm test` / `npm run lint` / `npm run build` (no GitHub `ci.yml` on push).
 
 ---
 

@@ -74,7 +74,6 @@ export const commerceFollowUpMessages = async (
       messages.push(createProductCarouselFlexMessage(cached, userLanguage, undefined, channel?.channelId, shopMode));
     } else if (options.deferCatalogMiss) {
       ctx.pendingCatalogPush = true;
-      void searchAudienceProducts('', 10).catch(() => undefined);
     } else {
       try {
         const catalog = await searchAudienceProducts('', 10);

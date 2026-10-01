@@ -156,8 +156,8 @@ describe('product catalogue carousel', () => {
     const products = [{ id: 11, name: 'App Premium', price: 990, quantity: 4 }];
     const sales = JSON.stringify(createProductCarouselFlexMessage(products, 'en', undefined, 'sales'));
     const customer = JSON.stringify(createProductCarouselFlexMessage(products, 'en', undefined, 'customer'));
-    expect(sales).toContain('https://amardhaka.io/cloudnex-connect/catalog/product/11/image');
-    expect(customer).toContain('https://amardhaka.io/cloudnex-connect/catalog/product/11/image');
+    expect(sales).toContain('https://amardhaka.io/cloudnex-connect/catalog/product/placeholder/image');
+    expect(customer).toContain('https://amardhaka.io/cloudnex-connect/catalog/product/placeholder/image');
     if (previousBase === undefined) delete process.env.PUBLIC_BASE_URL;
     else process.env.PUBLIC_BASE_URL = previousBase;
   });

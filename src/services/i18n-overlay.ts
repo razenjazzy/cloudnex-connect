@@ -23,11 +23,25 @@ const overlayHasEntries = (next: I18nOverlayMap | undefined): boolean => {
 const isPair = (value: unknown): value is LocalePair =>
   Boolean(value && typeof value === 'object' && !Array.isArray(value));
 
+let overlayRefresh: Promise<void> | null = null;
+
+const refreshI18nOverlay = (): void => {
+  if (overlayRefresh) return;
+  overlayRefresh = (async () => {
+    try {
+      const stored = await getPlatformConfig<I18nOverlayMap>(configKey());
+      overlayCache = stored && typeof stored === 'object' ? stored : {};
+      overlayLoadedAt = Date.now();
+    } catch {
+      overlayLoadedAt = overlayLoadedAt || Date.now();
+    } finally {
+      overlayRefresh = null;
+    }
+  })();
+};
+
 export const loadI18nOverlay = async (): Promise<I18nOverlayMap> => {
-  if (overlayLoadedAt && Date.now() - overlayLoadedAt < OVERLAY_TTL_MS) return overlayCache;
-  const stored = await getPlatformConfig<I18nOverlayMap>(configKey());
-  overlayCache = stored && typeof stored === 'object' ? stored : {};
-  overlayLoadedAt = Date.now();
+  if (!overlayLoadedAt || Date.now() - overlayLoadedAt >= OVERLAY_TTL_MS) refreshI18nOverlay();
   return overlayCache;
 };
 

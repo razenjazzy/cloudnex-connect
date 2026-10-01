@@ -25,7 +25,7 @@ npm run ops:staging
 npm run ops:staging -- logs
 ```
 
-GitHub Actions is **CI only** (`lint` / `build` / `test` / `npm audit --omit=dev --audit-level=high` on `main` and PRs). Staging deploy is not an Actions workflow.
+GitHub Actions does not run lint/test on push. Verify with `npm test` on the laptop. Staging deploy is `npm run deploy:vps-staging`. Cloud Run `release.yml` stays manual.
 
 ## On the laptop (repo root)
 

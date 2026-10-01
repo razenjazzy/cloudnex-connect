@@ -82,7 +82,7 @@ flowchart TD
   so --> inv[QUOTE INVOICE]
 ```
 
-**Customer Home:** carousel (HTTPS hero `{PUBLIC_BASE_URL}/catalog/product/{id}/image`; missing `image_128` serves the camera placeholder) + commerce actions. Header caption is the shop slug (`website_url`, Internal Reference, or name → `app-premium`), not the word Catalog. Price uses the same teal highlight box as Order **Total** (label `xs` over amount `xl`); hide stock.
+**Customer Home:** carousel (HTTPS hero: product image when `image_128` exists, else `{PUBLIC_BASE_URL}/catalog/product/placeholder/image` camera PNG) + commerce actions. Header caption is the shop slug (`website_url`, Internal Reference, or name → `app-premium`), not the word Catalog. Price uses the same teal highlight box as Order **Total** (label `xs` over amount `xl`); hide stock.
 
 | Step | Canonical | Result |
 |---|---|---|

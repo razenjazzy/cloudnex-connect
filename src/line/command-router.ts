@@ -890,7 +890,13 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
     }
   }
 
-  if (!ctx.skipIdleHome && !ctx.isGroupContext && shouldIdleHome(profile) && upperText !== 'NAV HOME' && upperText !== 'NAV' && upperText !== 'BACK') {
+  if (!ctx.skipIdleHome && !ctx.isGroupContext && shouldIdleHome(profile)
+    && upperText !== 'NAV HOME' && upperText !== 'NAV' && upperText !== 'BACK'
+    && !matchCommandGrid(upperText)
+    && !upperText.startsWith('FORM ')
+    && !upperText.startsWith('QUOTE ')
+    && !upperText.startsWith('CART ')
+    && !upperText.startsWith('PRODUCT ')) {
     return homeReplyFromContext(ctx);
   }
 

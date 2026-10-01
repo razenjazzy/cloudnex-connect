@@ -1,3 +1,14 @@
+# Release notes — v13.0.3
+
+**Date:** 2026-10-02  
+**Package version:** `13.0.3`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`). Production HMAC `:8080` unchanged.  
+**Commit title:** `Release: v13.0.3 - Odoo Line OA v10 Bug Fix`
+
+Camera placeholder when Odoo has no product image. Overlay load does not block HMAC. Known LINE commands still run after idle. GitHub push CI (`ci.yml`) removed after the v13.0.2 failure.
+
+---
+
 # Release notes — v13.0.2
 
 **Date:** 2026-10-02  

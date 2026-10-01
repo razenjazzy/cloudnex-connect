@@ -3,16 +3,9 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 describe('github workflows', () => {
-  it('does not ship staging-vps (laptop npm run deploy:vps-staging owns :8081)', () => {
+  it('does not ship staging-vps or push CI (laptop npm test / deploy:vps-staging)', () => {
     expect(existsSync(join(__dirname, '../.github/workflows/staging-vps.yml'))).toBe(false);
-  });
-
-  it('runs CI only on main pushes and pull requests', () => {
-    const yaml = readFileSync(join(__dirname, '../.github/workflows/ci.yml'), 'utf8');
-    expect(yaml).toContain('npm audit --omit=dev --audit-level=high');
-    expect(yaml).toContain('branches: [main]');
-    expect(yaml).toMatch(/push:\n    branches: \[main\]/);
-    expect(yaml).toContain("github.actor != 'dependabot[bot]'");
+    expect(existsSync(join(__dirname, '../.github/workflows/ci.yml'))).toBe(false);
   });
 });
 

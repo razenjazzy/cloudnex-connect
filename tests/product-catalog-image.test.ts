@@ -17,10 +17,10 @@ describe('product catalog images', () => {
     );
     expect(publicCatalogProductImageUrl(0)).toBeUndefined();
     expect(catalogProductHeroUrl(11)).toBe(
-      'https://amardhaka.io/cloudnex-connect/catalog/test/product/11/image',
+      'https://amardhaka.io/cloudnex-connect/catalog/test/product/placeholder/image',
     );
     expect(catalogProductHeroUrl(11, 'https://example.com/other.png')).toBe(
-      'https://amardhaka.io/cloudnex-connect/catalog/test/product/11/image',
+      'https://example.com/other.png',
     );
     expect(publicCatalogPlaceholderImageUrl()).toBe(
       'https://amardhaka.io/cloudnex-connect/catalog/test/product/placeholder/image',

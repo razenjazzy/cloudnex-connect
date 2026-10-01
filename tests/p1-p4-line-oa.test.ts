@@ -27,6 +27,7 @@ describe('P1 sales home and list page', () => {
     const router = readFileSync('src/line/command-router.ts', 'utf8');
     expect(router).toContain('pendingQuoteListPush');
     expect(router).not.toContain('await syncStaffProfile');
+    expect(router).toContain('matchCommandGrid(upperText)');
     expect(readFileSync('src/line/commerce-followup.ts', 'utf8')).toContain('syncStaffProfile');
     expect(router).toContain('commerceFollowUpMessages');
     expect(readFileSync('src/line/process-message.ts', 'utf8')).toContain('pushDeferredSalesQuoteList');

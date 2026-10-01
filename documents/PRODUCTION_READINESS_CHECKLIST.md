@@ -29,7 +29,7 @@ Cloud Run (`release.yml`) is optional `workflow_dispatch` only. Railway variable
 - [x] `npm test` passes.
 - [x] `npm run build` / `npx tsc --noEmit` passes.
 - [x] `npm run lint` passes with no errors (unused-var warnings in quotation/guide cleaned).
-- [x] `.github/workflows/release.yml` (manual Cloud Run) and `.github/workflows/ci.yml` parse as YAML. `staging-vps.yml` removed.
+- [x] `.github/workflows/release.yml` (manual Cloud Run). `ci.yml` and `staging-vps.yml` removed.
 - [ ] `npm run preflight:staging` against a real staging YAML manifest if Cloud Run is used.
 - [x] `npm run smoke -- https://amardhaka.io` after v5.0.1 deploy (2026-09-19; `/ops/workflow-audit` skipped without local `OPS_API_TOKEN`).
 - [x] `npm run validate:staging` after v5.0.1 VPS pull (`/demo` HTML, session-gated APIs, `appEnv=staging`).

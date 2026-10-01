@@ -13,9 +13,13 @@ const sendCatalogPlaceholderImage = (_req: Request, res: Response) => {
 
 const sendCatalogProductImage = async (req: Request, res: Response) => {
   const productId = Number(req.params.id);
-  if (!Number.isInteger(productId) || productId <= 0) return res.status(404).end();
-  const buffer = await readProductImage128(productId);
-  if (!buffer) return sendCatalogPlaceholderImage(req, res);
+  if (!Number.isInteger(productId) || productId <= 0) return sendCatalogPlaceholderImage(req, res);
+  const IMAGE_FETCH_MS = 1500;
+  const buffer = await Promise.race([
+    readProductImage128(productId),
+    new Promise<null>(resolve => setTimeout(() => resolve(null), IMAGE_FETCH_MS)),
+  ]);
+  if (!buffer || buffer.length < 32) return sendCatalogPlaceholderImage(req, res);
   res.setHeader('content-type', sniffImageContentType(buffer));
   res.setHeader('content-length', String(buffer.length));
   res.setHeader('cache-control', 'public, max-age=300');

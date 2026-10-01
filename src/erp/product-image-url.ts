@@ -23,13 +23,13 @@ export const publicCatalogPlaceholderImageUrl = (): string | undefined => {
   return `${host.origin}${host.path}/product/placeholder/image`;
 };
 
-/** Product image URL when an id is known; otherwise the public camera placeholder. */
+/** Proven HTTPS image when Odoo has bytes; otherwise the camera placeholder (do not hit Odoo on the Flex hero). */
 export const catalogProductHeroUrl = (productId?: number, imageUrl?: string): string | undefined => {
-  const canonical = productId && Number.isInteger(productId) && productId > 0
+  const proven = imageUrl?.trim();
+  if (proven?.startsWith('https://')) return proven;
+  const placeholder = publicCatalogPlaceholderImageUrl();
+  if (placeholder) return placeholder;
+  return productId && Number.isInteger(productId) && productId > 0
     ? publicCatalogProductImageUrl(productId)
     : undefined;
-  if (canonical) return canonical;
-  const fallback = imageUrl?.trim();
-  if (fallback?.startsWith('https://')) return fallback;
-  return publicCatalogPlaceholderImageUrl();
 };

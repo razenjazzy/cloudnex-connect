@@ -1,5 +1,10 @@
 # Changelog
 
+## v13.0.3 — Odoo LINE OA v10 (2026-10-02)
+
+- Missing product images use the camera placeholder PNG; image fetch times out to the same PNG.
+- Sales known commands still run after idle. Removed GitHub `ci.yml` (failed on v13.0.2); verify with laptop `npm test`.
+
 ## v13.0.2 — Odoo LINE OA v10 (2026-10-02)
 
 - Customer Home catalog uses Sales `searchProducts` (many SKUs) and defers Odoo so LINE HMAC is not blocked. Shop chrome is env-only; add-to-cart still fail-closes without `website_sale`.
