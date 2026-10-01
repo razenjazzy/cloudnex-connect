@@ -1,5 +1,9 @@
 # Changelog
 
+## v12.0.4 — Odoo LINE OA v9 (2026-10-01)
+
+- Customer Products & Orders: Find a product above Order History. Catalog short description uses the quote-waiting paper note.
+
 ## v12.0.3 — Odoo LINE OA v9 (2026-09-29)
 
 - CI: PRODUCT FIND no longer asserts a staff-only `searchProducts` source string.

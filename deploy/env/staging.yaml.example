@@ -1,6 +1,8 @@
-# Optional Cloud Run-style yaml. Live VPS staging uses /opt/cloudnex-connect/.env
-# (see deploy/env/staging.example). Do not enable Redis/group-buy unless those exist.
+# Optional Cloud Run-style yaml. Copy to repo-root deploy.env.staging.yaml (gitignored).
+# Canonical template: deploy.env.staging.yaml.example
+# Live VPS staging dotenv: deploy/env/staging.example → /opt/cns-line-oa/.env
 NODE_ENV: "production"
+APP_ENV: "staging"
 ENABLE_WEBHOOK_TEST: "true"
 ENABLE_DEMO_CONTROL_PANEL: "true"
 ALLOW_DEMO_HEADER_TOKEN_FALLBACK: "false"
@@ -9,4 +11,11 @@ READYZ_TIMEOUT_MS: "2500"
 RATE_LIMIT_STORE: "memory"
 GROUPBUY_ENABLED: "false"
 GROUPBUY_ROLLOUT_PERCENT: "0"
-PUBLIC_BASE_URL: "https://amardhaka.io"
+PUBLIC_BASE_URL: "https://amardhaka.io/cloudnex-connect"
+ERP_PROVIDER: "odoo"
+ODOO_URL: "https://YOUR-INSTANCE.dev.odoo.com"
+ODOO_DB: ""
+ODOO_USERNAME: ""
+ODOO_API_KEY: ""
+CUSTOMER_COMMERCE: "shop"
+ODOO_WEBSITE_ID: "1"

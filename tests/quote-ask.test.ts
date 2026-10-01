@@ -35,9 +35,10 @@ describe('quote ask threads', () => {
 });
 
 describe('customer commerce menu copy', () => {
-  it('shows Order History then Ask for Quotations for shoppers', () => {
+  it('shows Find a product above Order History and Ask for Quotations for shoppers', () => {
     const commerce = SERVICE_CATALOG.find(s => s.key === 'commerce')!;
     expect(getVisibleCommands(commerce, false, false).map(c => ({ text: c.text, labelEn: c.labelEn }))).toEqual([
+      { text: 'FORM PRODUCT FIND', labelEn: 'Find a product' },
       { text: 'QUOTE LIST', labelEn: 'Order History' },
       { text: 'QUOTE ASK', labelEn: 'Ask for Quotations' },
     ]);

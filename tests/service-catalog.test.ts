@@ -108,8 +108,8 @@ describe('getVisibleCommands', () => {
 
   it('keeps customers on shop commands only', () => {
     const commerce = SERVICE_CATALOG.find(s => s.key === 'commerce')!;
-    expect(getVisibleCommands(commerce, false, false).map(c => c.text)).toEqual(['QUOTE LIST', 'QUOTE ASK']);
-    expect(getVisibleCommands(commerce, false, false, { shopMode: true }).map(c => c.text)).toEqual(['QUOTE LIST', 'CART']);
+    expect(getVisibleCommands(commerce, false, false).map(c => c.text)).toEqual(['FORM PRODUCT FIND', 'QUOTE LIST', 'QUOTE ASK']);
+    expect(getVisibleCommands(commerce, false, false, { shopMode: true }).map(c => c.text)).toEqual(['FORM PRODUCT FIND', 'QUOTE LIST', 'CART']);
     expect(getVisibleCommands(commerce, true, true).map(c => c.text)).toEqual([
       'FORM PRODUCT FIND',
       'FORM QUOTE CREATE',

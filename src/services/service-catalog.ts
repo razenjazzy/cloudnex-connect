@@ -53,6 +53,7 @@ export const SERVICE_CATALOG: ServiceDefinition[] = [
       { text: 'FORM QUOTE CREATE', labelTh: 'สร้างใบเสนอราคา', labelEn: 'Create a quote', audience: 'staff' },
       { text: 'FORM ORDER STATUS', labelTh: 'ค้นหาออเดอร์', labelEn: 'Look up an order', audience: 'staff' },
       { text: 'QUOTE LIST', labelTh: 'ใบเสนอราคา', labelEn: 'Quotations', audience: 'staff' },
+      { text: 'FORM PRODUCT FIND', labelTh: 'ค้นหาสินค้า', labelEn: 'Find a product', audience: 'customer' },
       { text: 'QUOTE LIST', labelTh: 'ประวัติคำสั่งซื้อ', labelEn: 'Order History', audience: 'customer' },
       { text: 'CART', labelTh: 'ตะกร้า', labelEn: 'Cart', audience: 'customer' },
       { text: 'QUOTE ASK', labelTh: 'ขอใบเสนอราคา', labelEn: 'Ask for Quotations', audience: 'customer' },

@@ -1,3 +1,14 @@
+# Release notes — v12.0.4
+
+**Date:** 2026-10-01  
+**Package version:** `12.0.4`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`) + production HMAC `:8080`.  
+**Commit title:** `Release: v12.0.4 - Odoo Line OA v9 Bug Fix`
+
+Customer Products & Orders lists Find a product above Order History / Cart / Ask for Quotations. Search still completes as `PRODUCT FIND` (carousel or Product Details). Cloud Run `deploy:prod` still requires signoff.
+
+---
+
 # Release notes — v12.0.3
 
 **Date:** 2026-09-29  

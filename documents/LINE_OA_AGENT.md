@@ -112,7 +112,7 @@ OTP on reconstructed writes (`requiresOtp` in `service-catalog.ts`): `QUOTE CREA
 | `NAV HOME` | Home / หน้าแรก | Tap Home | Customer: carousel + commerce. Sales: commerce menu + quote list |
 | `NAV` | Navigate / เมนู | Type NAV | Same as Home |
 | `BACK` | Back / กลับ | Tap Back | Same as Home |
-| `NAV COMMERCE` | Products & Quotes / สินค้าและใบเสนอราคา (Customer menu: Products & Orders) | Tap Products | Commerce menu; Customer Home also carousel. Payload stays `NAV COMMERCE` |
+| `NAV COMMERCE` | Products & Quotes / สินค้าและใบเสนอราคา (Customer menu: Products & Orders) | Tap Products | Customer: Find a product, then Order History / Cart / Ask for Quotations, plus catalog carousel. Payload `NAV COMMERCE` |
 | `NAV CATALOG` | Catalog / บริการ | Tap Catalog | Service catalog if enabled |
 | `NAV VERIFY` | Verify / ยืนยันตัวตน | Tap Verify | `FORM VERIFY` |
 | `FORM VERIFY` | Verify form / ฟอร์มยืนยัน | Open wizard | Completes into `VERIFY START` / OTP |
@@ -140,8 +140,8 @@ OTP on reconstructed writes (`requiresOtp` in `service-catalog.ts`): `QUOTE CREA
 
 | Command | User sees | Action | Result |
 |---|---|---|---|
-| `FORM PRODUCT FIND` | Find a product / ค้นหาสินค้า | Start search | Prompt → `PRODUCT FIND` |
-| `PRODUCT FIND` name or `id:N` | Find a product | Search or View Details | Id hit: **Product Details**. Id miss: name search (same query). 0: error. Many: picker. |
+| `FORM PRODUCT FIND` | Find a product / ค้นหาสินค้า | Start search | Customer Products & Orders: above Order History. Prompt → `PRODUCT FIND` |
+| `PRODUCT FIND` name or `id:N` | Find a product | Search or View Details | Id hit: **Product Details**. Id miss: name search. 0: error. Many: catalog carousel. One: Product Details. Journey continues (Order Now / qty). |
 | `FORM QUOTE CREATE FROM CARD {id}` | Order Now / สั่งซื้อเลย | Order Now | Qty then `QUOTE CREATE`. Shop mode: add to draft website cart (`CART`) |
 | `CART` / `CART VIEW` | Cart / ตะกร้า | Open cart | Shop only. Flex lines, Add products, optional coupon, Checkout |
 | `CART CHECKOUT` | Checkout / ชำระเงิน | Order process Flex | Optional coupon, then Pay |

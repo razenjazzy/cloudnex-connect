@@ -173,6 +173,7 @@ npx tsc --noEmit   # type-check
 ```bash
 cp deploy.env.staging.yaml.example deploy.env.staging.yaml
 cp deploy/env/production.yaml.example deploy.env.production.yaml
+# VPS staging secrets: copy deploy/env/staging.example to /opt/cns-line-oa/.env (never commit)
 
 npm run preflight:staging && npm run deploy:staging
 PRODUCTION_APPROVED=true npm run preflight:prod && npm run deploy:prod

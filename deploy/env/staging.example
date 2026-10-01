@@ -1,4 +1,5 @@
-# Staging env for amardhaka.io. Lives on the server at /opt/cloudnex-connect/.env
+# Staging env for amardhaka.io. Lives on the server at /opt/cns-line-oa/.env
+# (HMAC production lane is /opt/cloudnex-connect/.env). Cloud Run yaml: deploy.env.staging.yaml.example.
 # Do not commit real values.
 # Runtime image: DOCKER_IMAGE=razenjazzy/cloudnex-connect:staging (VPS pulls; secrets stay here)
 

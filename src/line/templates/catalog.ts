@@ -260,7 +260,12 @@ const createProductCatalogBubble = (
       paddingAll: 'lg',
       paddingStart: 'xl',
       paddingEnd: 'xl',
-      contents: [priceStockRow(product.price || 0, product.quantity || 0, language, channelId)],
+      contents: [
+        priceStockRow(product.price || 0, product.quantity || 0, language, channelId),
+        ...(channelId === CUSTOMER_CHANNEL_ID && product.description?.trim()
+          ? [mutedNoteBox(truncate(product.description.trim(), 160))]
+          : []),
+      ],
     },
     footer: {
       type: 'box',

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { createOrderSummaryFlexMessage, createProductCardFlexMessage, createProductCarouselFlexMessage, stripFlexHeroImages } from '../src/line/templates';
-import { amountHighlightBox, BRAND, formatMoney } from '../src/line/templates/shared';
+import { amountHighlightBox, BRAND, formatMoney, mutedNoteBox } from '../src/line/templates/shared';
+import { t } from '../src/services/i18n';
 import { checkMessageAgainstLineLimits } from '../src/line/message-limits';
 
 type FlexNode = { type?: string; layout?: string; backgroundColor?: string; cornerRadius?: string; paddingAll?: string; contents?: FlexNode[]; text?: string; size?: string; color?: string; weight?: string; wrap?: boolean };
@@ -87,6 +88,38 @@ describe('product catalogue carousel', () => {
     expect(JSON.stringify(sales)).toContain('"text":"Stock"');
     expect(JSON.stringify(sales)).toContain('"size":"sm"');
     expect(JSON.stringify(sales)).not.toMatch(/"backgroundColor":"#E3F0EE"[^]*"size":"xl"/);
+  });
+
+  it('uses the quote-waiting paper note for Customer product short description', () => {
+    const description = 'Short catalog copy for the shopper.';
+    const waiting = mutedNoteBox(t('quoteWaitingForSales', 'en'));
+    const detail = createProductCardFlexMessage('App Premium', 990, 4, 'en', 11, undefined, {
+      channelId: 'customer',
+      description,
+    });
+    const carousel = createProductCarouselFlexMessage(
+      [{ id: 11, name: 'App Premium', sku: 'APP-PREMIUM', price: 990, quantity: 4, description }],
+      'en',
+      undefined,
+      'customer',
+    );
+    const note = mutedNoteBox(description);
+    expect(waiting).toMatchObject({
+      type: 'box',
+      layout: 'vertical',
+      backgroundColor: BRAND.paper,
+      cornerRadius: BRAND.radius,
+      paddingAll: 'sm',
+    });
+    expect(waiting.contents[0]).toMatchObject({ type: 'text', size: 'xs', color: BRAND.inkSoft, wrap: true });
+    expect(JSON.stringify(detail)).toContain(JSON.stringify(note));
+    expect(JSON.stringify(carousel)).toContain(JSON.stringify(note));
+    expect(JSON.stringify(createProductCarouselFlexMessage(
+      [{ id: 11, name: 'App Premium', sku: 'APP-PREMIUM', price: 990, quantity: 4, description }],
+      'en',
+      undefined,
+      'sales',
+    ))).not.toContain(JSON.stringify(note));
   });
 
   it('puts https product images on the hero and can strip them for LINE retry', () => {
