@@ -4,12 +4,12 @@ Cloudnex Connect is the Cloudnex LINE Official Account platform: HMAC webhooks (
 
 TypeScript Express backend that connects LINE Official Accounts to Odoo ERP. Users work in LINE Flex cards (Thai/English). Identity is Firestore unless `MONGO_USERS` is on. Sales, partners, and products live in Odoo.
 
-**Release:** v12.0.4 — Odoo LINE OA v9 Customer Find a product on Products & Orders. Cloud Run `deploy:prod` stays gated.  
+**Release:** v12.0.5 — Odoo LINE OA v9 CI audit pin + laptop staging DevOps. Cloud Run `deploy:prod` stays gated.  
 **Runtime:** Node 22+. **Persona:** Sora / โซระ. **Package:** `cloudnex-connect`.
 
 The git root on disk is `.../Code/cloudnex-connect`. `cns-line-oa` is only a symlink. In Cursor: **File → Open Folder** and choose `cloudnex-connect` (not the symlink) so the sidebar name matches. GCP project id `cns-line-oa` is unrelated.
 
-This README is the map. Implementation details stay in `documents/` and `CLAUDE.md`. LINE **commands vs readable labels**, Customer/Sales storyboard, and Action→Result tables: [documents/LINE_OA_AGENT.md](documents/LINE_OA_AGENT.md) (agent prompt: [documents/AGENTIC_PROMPT.md](documents/AGENTIC_PROMPT.md)). Buttons post canonical prefixes (`NAV COMMERCE`, `QUOTE LIST`); Admin Commands edits EN/TH (and optional typed aliases). Catalog heroes attach HTTPS `imageUrl` only when Odoo image bytes exist. Customer qty uses a Console **keyboard** rich-menu id (`LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` `en.keyboard` / `th.keyboard` or `LINE_CHANNEL_CUSTOMER_KEYBOARD_RICH_MENU`). If a document disagrees with running code, the code wins.
+This README is the map. Implementation details stay in `documents/` and `CLAUDE.md`. Local vs staging ops: [documents/DEVOPS.md](documents/DEVOPS.md). LINE **commands vs readable labels**, Customer/Sales storyboard, and Action→Result tables: [documents/LINE_OA_AGENT.md](documents/LINE_OA_AGENT.md) (agent prompt: [documents/AGENTIC_PROMPT.md](documents/AGENTIC_PROMPT.md)). Buttons post canonical prefixes (`NAV COMMERCE`, `QUOTE LIST`); Admin Commands edits EN/TH (and optional typed aliases). Catalog heroes attach HTTPS `imageUrl` only when Odoo image bytes exist. Customer qty uses a Console **keyboard** rich-menu id (`LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` `en.keyboard` / `th.keyboard` or `LINE_CHANNEL_CUSTOMER_KEYBOARD_RICH_MENU`). If a document disagrees with running code, the code wins.
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "name": "cloudnex-connect",
-  "version": "12.0.4",
+  "version": "12.0.5",
   "description": "LINE Official Account + Odoo for Cloudnex: Sales and Customer OAs, identity SoR, Flex quotes, enterprise Admin (campaigns, audit, IdP), dual LINE ingress, and consented messaging.",
   "main": "dist/index.js",
   "bin": {
@@ -33,6 +33,8 @@
     "check:line-channels": "bash ./scripts/check-line-channels.sh",
     "deploy:staging-vm": "bash ./scripts/deploy-cloudnex-connect-staging.sh",
     "deploy:vps-staging": "bash ./scripts/deploy-cloudnex-connect-staging.sh",
+    "ops:local": "bash ./scripts/ops-lane.sh local",
+    "ops:staging": "bash ./scripts/ops-lane.sh staging",
     "deploy:vps-prod": "bash ./scripts/deploy-cloudnex-connect-production.sh",
     "deploy:prod": "bash ./scripts/require-production-signoff.sh && bash ./scripts/deploy-cloudrun.sh production",
     "validate:staging": "bash ./scripts/validate-staging.sh",
@@ -99,5 +101,9 @@
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.67.0",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "@grpc/grpc-js": ">=1.14.5",
+    "brace-expansion": ">=2.1.7"
   }
 }

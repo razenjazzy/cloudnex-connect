@@ -1,24 +1,17 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-describe('staging-vps workflow', () => {
-  const yaml = readFileSync(join(__dirname, '../.github/workflows/staging-vps.yml'), 'utf8');
-
-  it('does not use secrets in job if (GitHub treats that as an invalid workflow)', () => {
-    expect(yaml).not.toMatch(/if:\s*\$\{\{\s*secrets\./);
+describe('github workflows', () => {
+  it('does not ship staging-vps (laptop npm run deploy:vps-staging owns :8081)', () => {
+    expect(existsSync(join(__dirname, '../.github/workflows/staging-vps.yml'))).toBe(false);
   });
 
-  it('opts in via repository variable ENABLE_STAGING_VPS_DEPLOY without skipping the job', () => {
-    expect(yaml).toContain('ENABLE_STAGING_VPS_DEPLOY');
-    expect(yaml).toContain('echo "run=false"');
-    expect(yaml).not.toMatch(/^\s{4}if:\s*\$\{\{\s*vars\.ENABLE_STAGING_VPS_DEPLOY/m);
-  });
-
-  it('deploys the sibling staging lane, not host-root validate-staging', () => {
-    expect(yaml).toContain('deploy-vps-lane.sh staging');
-    expect(yaml).toContain('VPS_REMOTE_DIR: /opt/cns-line-oa');
-    expect(yaml).not.toContain('validate-staging.sh');
+  it('runs CI only on main pushes and pull requests', () => {
+    const yaml = readFileSync(join(__dirname, '../.github/workflows/ci.yml'), 'utf8');
+    expect(yaml).toContain('npm audit --omit=dev --audit-level=high');
+    expect(yaml).toContain('branches: [main]');
+    expect(yaml).toMatch(/push:\n    branches: \[main\]/);
   });
 });
 

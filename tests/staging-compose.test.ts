@@ -40,6 +40,7 @@ describe('production compose', () => {
     expect(yaml).toContain('PUBLIC_ADMIN_BASE: /admin');
     expect(yaml).toContain('127.0.0.1:8080:8080');
     expect(yaml).toContain('ENABLE_DEMO_CONTROL_PANEL: "false"');
+    expect(yaml).toContain('ENABLE_WEBHOOK_TEST: "false"');
   });
 });
 
@@ -51,5 +52,6 @@ describe('sibling compose', () => {
     expect(yaml).toContain('APP_ENV: staging');
     expect(yaml).toContain('PUBLIC_ADMIN_BASE: /admin/test');
     expect(yaml).toContain('127.0.0.1:8081:8080');
+    expect(yaml).toContain('ENABLE_WEBHOOK_TEST: "true"');
   });
 });

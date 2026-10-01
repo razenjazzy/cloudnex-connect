@@ -68,7 +68,7 @@ Two HMAC ingresses plus optional GraphQL ingest; one `resolveCommandReply`. Mong
 | Secrets off git | Complete | rsync excludes `.env` |
 | Log redaction | Complete | structured logger |
 | Staging-only demo/webhook-test | Complete | `deliveryProduction: false` |
-| Actions `if` (no secrets in job if) | Complete | [tests/staging-vps-workflow.test.ts](../tests/staging-vps-workflow.test.ts) |
+| CI workflows | Complete | [tests/staging-vps-workflow.test.ts](../tests/staging-vps-workflow.test.ts) |
 
 Chain: LINE identity → Firestore profile → `odooVerified` → `ADMIN_USER_ID` → Odoo admin → `role=admin`. Not weakened.
 
@@ -82,7 +82,7 @@ Flex under [src/line/templates/](../src/line/templates/); title **CloudNEx Conne
 
 ## 5. Quality — 10/10 — complete
 
-- `npm test` (Vitest: channels, admin, OTP, ERP, odoo-hook, staging-vps workflow).
+- `npm test` (Vitest: channels, admin, OTP, ERP, odoo-hook, CI workflow files).
 - `npx tsc --noEmit` / `npm run build`.
 - `npm run lint` — 0 errors.
 - GitHub `ci.yml`: lint, build, test, production-dep audit.
@@ -101,7 +101,7 @@ Flex under [src/line/templates/](../src/line/templates/); title **CloudNEx Conne
 | Customer webhook | `https://amardhaka.io/webhook/customer` active, test OK |
 | Git | [razenjazzy/cloudnex-connect](https://github.com/razenjazzy/cloudnex-connect) |
 | Image | `razenjazzy/cloudnex-connect:staging` |
-| Deploy | `npm run deploy:staging-vm` (Hub or SSH load); Actions opt-in via `ENABLE_STAGING_VPS_DEPLOY` (job always green) |
+| Deploy | `npm run deploy:vps-staging` (Hub or SSH load); CI does not mutate VPS |
 
 ---
 
@@ -110,7 +110,7 @@ Flex under [src/line/templates/](../src/line/templates/); title **CloudNEx Conne
 These are normal operations after a 100/100 product, not open gaps on the scorecard:
 
 - Walk USER_JOURNEY on the two OAs when capturing screenshots.
-- Set GitHub `ENABLE_STAGING_VPS_DEPLOY` only if Actions should deploy.
+- Staging: `npm run ops:staging` / `npm run ops:staging -- logs`.
 - Create Firestore `(phone, odooVerified)` if the console asks on first QUOTE SEND.
 - Rotate LINE tokens if a chat thread is not private.
 - Production cutover: `APP_ENV=production`, demo/webhook-test off.

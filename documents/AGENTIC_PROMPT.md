@@ -126,7 +126,7 @@ Full inventory (every command Action→Result, env, i18n keys): [`LINE_OA_AGENT.
 1. **P0 shipped** — images-if-bytes, keyboard unlink+link, qty chips, details CTAs, glossary, `Sora:`.
 2. **P1 shipped** — Sales dual Home, RFQ Create quote, list page 5, salesperson name after approve. One router.
 3. **P2 shipped** — Admin Commands = human language; prefix read-only; aliases column (P4).
-4. **P3** — CI is `lint` / `build` / `npm test` / `npm audit --omit=dev --audit-level=high`. `staging-vps` always runs; VPS mutate only if `ENABLE_STAGING_VPS_DEPLOY` is exactly `true`. Do not delete failed GitHub runs as the fix. Health: `https://amardhaka.io/healthz`, Admin `/cloudnex-connect/admin/test`.
+4. **P3** — CI is `lint` / `build` / `npm test` / `npm audit --omit=dev --audit-level=high` on `main` and PRs. Staging deploy is laptop `npm run deploy:vps-staging`. Sibling `:8081` / `npm run ops:staging`. Public `/healthz` is production. Admin `/cloudnex-connect/admin/test`.
 5. **P4 shipped** — Overlay aliases; canonicalize inbound; reject collisions; emit canonical.
 
 Latency: no extra Odoo on the HMAC reply path beyond existing list/home; catalog cache; notify sales async.

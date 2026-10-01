@@ -134,18 +134,16 @@ curl -sS http://127.0.0.1:8081/healthz
 
 Keep HMAC webhooks on **production 8080** unless the sibling has **distinct** LINE credentials. Do not dual-bind the same OA to both ports.
 
-## 8. Repeat deploy from laptop / GitHub
+## 8. Repeat deploy from laptop
 
-Laptop (SSH key that can `ssh root@187.127.179.49`):
+SSH key that can `ssh amardhaka` (or `root@187.127.179.49`):
 
 ```bash
 npm run deploy:vps-staging
-SKIP_BUILD=1 npm run deploy:vps-prod
+npm run ops:staging
 ```
 
-That rsync uses `deploy/staging-rsync.allowlist` only (compose + channel check + lockfile). It never uses `--delete` and never copies `.env`.
-
-GitHub → repository variable `ENABLE_STAGING_VPS_DEPLOY=true`, Environments → **staging**: `VPS_SSH_KEY` (SSH private key only), `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`, optional `VPS_HOST`. Then push `main` runs `.github/workflows/staging-vps.yml` and mutates `/opt/cns-line-oa`. When the variable is not `true`, the job still **succeeds** (no Skipped). It **never** writes `.env`. Hub push failure falls back to `docker save` over SSH.
+That rsync uses `deploy/staging-rsync.allowlist` only. It never uses `--delete` and never copies `.env`. GitHub does not deploy staging. Production later: `SKIP_BUILD=1 npm run deploy:vps-prod`. Operator loop: [DEVOPS.md](DEVOPS.md).
 
 ## 9. Rollback
 

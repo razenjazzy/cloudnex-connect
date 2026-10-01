@@ -1,3 +1,14 @@
+# Release notes — v12.0.5
+
+**Date:** 2026-10-01  
+**Package version:** `12.0.5`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`). Production HMAC `:8080` unchanged.  
+**Commit title:** `Release: v12.0.5 - Odoo Line OA v9 Bug Fix`
+
+GitHub Actions is CI only. Staging deploy and logs: [documents/DEVOPS.md](documents/DEVOPS.md).
+
+---
+
 # Release notes — v12.0.4
 
 **Date:** 2026-10-01  

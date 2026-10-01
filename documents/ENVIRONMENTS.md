@@ -5,7 +5,7 @@ Three lanes. Same codebase. Different `APP_ENV`. The Docker image always sets `N
 | Lane | `APP_ENV` | Host | `/demo` | `/webhook-test` | GraphiQL | GraphQL / `/api-docs` |
 |---|---|---|---|---|---|---|
 | Dev | `development` | laptop (`npm run dev`) | on | on | on | on |
-| Staging | `staging` | Hostinger sibling `/opt/cns-line-oa` `:8081` | sibling compose off | sibling compose off | if GraphQL enabled | if `ENABLE_*` |
+| Staging | `staging` | Hostinger sibling `/opt/cns-line-oa` `:8081` | sibling compose off | on (`ENABLE_WEBHOOK_TEST`) | if GraphQL enabled | if `ENABLE_*` |
 | Production | `production` | final delivery | **off** | **off** | **off** | only if `ENABLE_GRAPHQL` / `ENABLE_API_DOCS` + ops token |
 
 If `APP_ENV` is unset and `NODE_ENV=production`, the process **fails closed to production**. HMAC on `amardhaka.io` is the production VPS process (`APP_ENV=production`). Staging Admin is the sibling (`APP_ENV=staging`).
@@ -33,7 +33,7 @@ ENABLE_GRAPHQL=true          # optional
 ENABLE_API_DOCS=true         # optional
 ```
 
-Plus LINE **Cloudnex Sales** and **Cloudnex Customer** credentials, Firestore JSON credentials, sandbox Odoo, `ADMIN_USER_ID` (Sales OA LINE user ids), `OPS_API_TOKEN`, `PUBLIC_BASE_URL=https://amardhaka.io/cloudnex-connect`. Staging Admin env is `PUBLIC_ADMIN_BASE=/admin/test` (HTTP `/cloudnex-connect/admin/test` on `:8081`). Production Admin is `PUBLIC_ADMIN_BASE=/admin` (HTTP `/cloudnex-connect/admin/` on `:8080`). Local defaults remain `/admin` and `/demo` (demo GET redirects to Admin `/testing`). See `documents/VPS_STAGING.md`.
+Plus LINE **Cloudnex Sales** and **Cloudnex Customer** credentials, Firestore JSON credentials, sandbox Odoo, `ADMIN_USER_ID` (Sales OA LINE user ids), `OPS_API_TOKEN`, `PUBLIC_BASE_URL=https://amardhaka.io/cloudnex-connect`. Staging Admin env is `PUBLIC_ADMIN_BASE=/admin/test` (HTTP `/cloudnex-connect/admin/test` on `:8081`). Production Admin is `PUBLIC_ADMIN_BASE=/admin` (HTTP `/cloudnex-connect/admin/` on `:8080`). Local defaults remain `/admin` and `/demo` (demo GET redirects to Admin `/testing`). See `documents/VPS_STAGING.md`. Laptop vs staging probes: `documents/DEVOPS.md` (`npm run ops:local` / `ops:staging`).
 
 Two Official Accounts (staging and production):
 

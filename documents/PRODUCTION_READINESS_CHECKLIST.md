@@ -22,27 +22,21 @@ Cloud Run (`release.yml`) is optional `workflow_dispatch` only. Railway variable
 - [x] LINE webhooks: `POST https://amardhaka.io/webhook/sales` (Cloudnex Sales `@938qytwi`) and `POST https://amardhaka.io/webhook/customer` (Cloudnex Customer `@724tneri`). `POST /webhook` uses default Sales credentials.
 - [x] Compact rich menus published on both OAs (ids in VPS `LINE_RICH_MENU_*` and `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON`).
 - [x] USER_JOURNEY stills in `documents/journey/` (tray = published rich-menu PNGs; remaining Flex = studio from `scripts/export-journey-stills.ts` plus ten older on-device shots).
-- [ ] GitHub Actions auto-deploy: repository variable `ENABLE_STAGING_VPS_DEPLOY=true` and environment `staging` secrets (`VPS_SSH_KEY`, `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`, optional `VPS_HOST`). Until then, deploy with `npm run deploy:staging-vm`.
+- [x] Staging deploy is laptop `npm run deploy:vps-staging` (see [DEVOPS.md](DEVOPS.md)). GitHub Actions does not mutate the VPS.
 
 ## Automated local evidence
 
 - [x] `npm test` passes.
 - [x] `npm run build` / `npx tsc --noEmit` passes.
 - [x] `npm run lint` passes with no errors (unused-var warnings in quotation/guide cleaned).
-- [x] `.github/workflows/release.yml` and `staging-vps.yml` parse as YAML.
-- [x] `staging-vps.yml` does **not** use `secrets.*` in `job.if` (invalid workflow). Opt-in is a step gate so the job stays green when `ENABLE_STAGING_VPS_DEPLOY` is not `true`.
+- [x] `.github/workflows/release.yml` (manual Cloud Run) and `.github/workflows/ci.yml` parse as YAML. `staging-vps.yml` removed.
 - [ ] `npm run preflight:staging` against a real staging YAML manifest if Cloud Run is used.
 - [x] `npm run smoke -- https://amardhaka.io` after v5.0.1 deploy (2026-09-19; `/ops/workflow-audit` skipped without local `OPS_API_TOKEN`).
 - [x] `npm run validate:staging` after v5.0.1 VPS pull (`/demo` HTML, session-gated APIs, `appEnv=staging`).
 
-## GitHub (VPS Actions, optional)
+## GitHub (CI)
 
-Configure as GitHub **environment `staging`** secrets / repository variables, not committed files:
-
-- [ ] Repository variable `ENABLE_STAGING_VPS_DEPLOY` = `true` to run deploy on `main` push.
-- [ ] `VPS_SSH_KEY` (SSH private key only; never the VPS `.env`).
-- [ ] `DOCKERHUB_USERNAME` / `DOCKERHUB_TOKEN`.
-- [ ] Optional `VPS_HOST` (default `root@187.127.179.49` in the deploy script).
+CI on `main` and pull requests: lint, build, test, `npm audit --omit=dev --audit-level=high`. Staging is not deployed from Actions.
 
 ## GitHub (Cloud Run, optional)
 
@@ -75,7 +69,7 @@ Required Cloud Run secret mappings are validated by `scripts/validate-cutover.sh
 
 1. Commit the reviewed snapshot (never `.env`).
 2. `npm test` && `npm run lint` && `npx tsc --noEmit`.
-3. `npm run deploy:staging-vm` **or** enable `ENABLE_STAGING_VPS_DEPLOY` and push `main`.
-4. Confirm `https://amardhaka.io/healthz` and `/readyz`, then `npm run validate:staging`.
+3. `npm run deploy:vps-staging` then `npm run ops:staging`.
+4. Confirm sibling `:8081` `/healthz` and `/ops/platform` (`npm run ops:staging`). Public `https://amardhaka.io/healthz` is production.
 5. Obtain USER_JOURNEY signoff.
 6. Production only after demo/webhook-test off and credential rotation.
