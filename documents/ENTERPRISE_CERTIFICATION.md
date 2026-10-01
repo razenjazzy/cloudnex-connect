@@ -68,7 +68,7 @@ Two HMAC ingresses plus optional GraphQL ingest; one `resolveCommandReply`. Mong
 | Secrets off git | Complete | rsync excludes `.env` |
 | Log redaction | Complete | structured logger |
 | Staging-only demo/webhook-test | Complete | `deliveryProduction: false` |
-| CI workflows | Complete | [tests/staging-vps-workflow.test.ts](../tests/staging-vps-workflow.test.ts) (rsync allowlist; no push CI) |
+| CI workflows | Complete | [tests/staging-vps-workflow.test.ts](../tests/staging-vps-workflow.test.ts) |
 
 Chain: LINE identity → Firestore profile → `odooVerified` → `ADMIN_USER_ID` → Odoo admin → `role=admin`. Not weakened.
 
@@ -85,7 +85,7 @@ Flex under [src/line/templates/](../src/line/templates/); title **CloudNEx Conne
 - `npm test` (Vitest: channels, admin, OTP, ERP, odoo-hook, CI workflow files).
 - `npx tsc --noEmit` / `npm run build`.
 - `npm run lint` — 0 errors.
-- Laptop `npm test` / `npm run lint` / `npm run build` (no GitHub `ci.yml` on push).
+- GitHub `ci.yml`: lint, build, test, production-dep audit.
 
 ---
 

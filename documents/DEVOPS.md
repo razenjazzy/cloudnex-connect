@@ -25,7 +25,7 @@ npm run ops:staging
 npm run ops:staging -- logs
 ```
 
-GitHub Actions is **disabled** on the repo (Settings → Actions). No `ci.yml` / `release.yml`. Verify with laptop `npm test`. Staging is `npm run deploy:vps-staging`.
+GitHub Actions is **CI only** (`lint` / `build` / `test` / `npm audit --omit=dev --audit-level=high` on `main` and PRs). Staging deploy is not an Actions workflow. Cloud Run `release.yml` is `workflow_dispatch` only.
 
 ## On the laptop (repo root)
 
