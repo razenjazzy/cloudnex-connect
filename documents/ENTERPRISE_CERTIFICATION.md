@@ -68,7 +68,7 @@ Two HMAC ingresses plus optional GraphQL ingest; one `resolveCommandReply`. Mong
 | Secrets off git | Complete | rsync excludes `.env` |
 | Log redaction | Complete | structured logger |
 | Staging-only demo/webhook-test | Complete | `deliveryProduction: false` |
-| CI workflows | Complete | [tests/staging-vps-workflow.test.ts](../tests/staging-vps-workflow.test.ts) |
+| CI workflows | Complete | [tests/staging-vps-workflow.test.ts](../tests/staging-vps-workflow.test.ts) (rsync allowlist; no push CI) |
 
 Chain: LINE identity → Firestore profile → `odooVerified` → `ADMIN_USER_ID` → Odoo admin → `role=admin`. Not weakened.
 
