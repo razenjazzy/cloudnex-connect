@@ -48,7 +48,7 @@ import { ensureNextWindowOrHome } from './journey-continue';
 import { bindPostbackData } from './postback';
 import { withSpan } from '../observability/tracing';
 import { appLogger } from '../services/logger';
-import { applyChannelPersona, isQuoteStaff, selfQuoteIdentity, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary, syncStaffProfile } from './quote-access';
+import { applyChannelPersona, isQuoteStaff, selfQuoteIdentity, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary } from './quote-access';
 import { evaluateCommandGrid, isGuestAllowedCommand, matchCommandGrid } from './command-grid';
 import { canonicalizeInboundCommand, loadCommandOverlay, overlayLabelForText } from './command-overlay';
 import { loadI18nOverlay } from '../services/i18n-overlay';
@@ -159,9 +159,6 @@ export const homeMenuFromContext = (ctx: Pick<CommandReplyContext, 'userLanguage
 };
 
 export const homeReplyFromContext = async (ctx: CommandReplyContext): Promise<messagingApi.Message[]> => {
-  if (ctx.channel?.channelId !== CUSTOMER_CHANNEL_ID && ctx.userId) {
-    ctx.profile = await syncStaffProfile(ctx.userId, ctx.profile, ctx.channel?.channelId);
-  }
   if (ctx.channel?.channelId === CUSTOMER_CHANNEL_ID) {
     const { commerceFollowUpMessages } = await import('./commerce-followup');
     const follow = await commerceFollowUpMessages(ctx, 2, { deferCatalogMiss: true });
@@ -179,7 +176,8 @@ export const homeReplyFromContext = async (ctx: CommandReplyContext): Promise<me
     const { commerceFollowUpMessages } = await import('./commerce-followup');
     const menu = await commerceFollowUpMessages({ ...ctx, profile: persona }, 1);
     ctx.pendingQuoteListPush = true;
-    return menu.slice(0, 1);
+    if (menu.length) return menu.slice(0, 1);
+    return [homeMenuFromContext({ ...ctx, profile: persona })];
   }
   return [homeMenuFromContext(ctx)];
 };

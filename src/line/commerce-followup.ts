@@ -8,7 +8,7 @@ import { DEFAULT_CHANNEL_ID, type ChannelContext } from './channels';
 import type { UserLanguage, UserProfile } from '../services/firestore';
 import { appLogger } from '../services/logger';
 import { overlayLabelForText } from './command-overlay';
-import { isCustomerShopEffective, searchAudienceProducts } from '../platform/customer-commerce';
+import { customerShopUiEnabled, searchAudienceProducts } from '../platform/customer-commerce';
 import { cartProductIdsForPartner } from './handlers/shop-cart';
 
 type CommerceFollowCtx = {
@@ -64,21 +64,21 @@ export const commerceFollowUpMessages = async (
   if (room <= 0) return [];
   const { userLanguage, profile, channel } = ctx;
   const isStaff = isQuoteStaff(profile);
-  const shopMode = !isStaff && await isCustomerShopEffective();
-  const cartIds = shopMode ? await cartProductIdsForPartner(profile.odooPartnerId) : undefined;
+  const shopMode = !isStaff && customerShopUiEnabled();
   const actionMenu = commerceActionMenu(ctx, shopMode);
   if (!actionMenu) return [];
   const messages: messagingApi.Message[] = [];
   if (!isStaff && room >= 2) {
-    const cached = shopMode ? [] : (getErpAdapter().peekCachedProducts?.(10) || []);
+    const cached = getErpAdapter().peekCachedProducts?.(10) || [];
     if (cached.length) {
-      messages.push(createProductCarouselFlexMessage(cached, userLanguage, undefined, channel?.channelId, shopMode, cartIds));
-    } else if (!shopMode && options.deferCatalogMiss) {
+      messages.push(createProductCarouselFlexMessage(cached, userLanguage, undefined, channel?.channelId, shopMode));
+    } else if (options.deferCatalogMiss) {
       ctx.pendingCatalogPush = true;
+      void searchAudienceProducts('', 10).catch(() => undefined);
     } else {
       try {
         const catalog = await searchAudienceProducts('', 10);
-        if (catalog.length) messages.push(createProductCarouselFlexMessage(catalog, userLanguage, undefined, channel?.channelId, shopMode, cartIds));
+        if (catalog.length) messages.push(createProductCarouselFlexMessage(catalog, userLanguage, undefined, channel?.channelId, shopMode));
         else {
           messages.push(createServiceActionFlexMessage(
             userLanguage === 'en' ? 'Catalog' : 'สินค้า',
@@ -120,7 +120,7 @@ export const pushDeferredCommerceCatalog = async (input: {
       await sendTargetedFlexMessage([input.userId], empty, channelId);
       return;
     }
-    const shopMode = await isCustomerShopEffective();
+    const shopMode = customerShopUiEnabled();
     const cartIds = shopMode ? await cartProductIdsForPartner(input.partnerId) : undefined;
     const carousel = createProductCarouselFlexMessage(catalog, input.userLanguage, undefined, input.channelId, shopMode, cartIds);
     await sendTargetedFlexMessage([input.userId], carousel, channelId);
@@ -147,12 +147,14 @@ export const pushDeferredSalesQuoteList = async (input: {
 }): Promise<void> => {
   if (currentTrayGeneration(input.userId) !== input.generation) return;
   try {
+    const { syncStaffProfile } = await import('./quote-access');
+    const profile = await syncStaffProfile(input.userId, input.profile, input.channel?.channelId);
     const { resolveCommandReply } = await import('./command-router');
     const list = await resolveCommandReply({
       text: 'QUOTE LIST',
       userId: input.userId,
       userLanguage: input.userLanguage,
-      profile: input.profile,
+      profile,
       agentName: input.agentName || 'Cloudnex',
       baseUrl: input.baseUrl || '',
       requestId: input.requestId,

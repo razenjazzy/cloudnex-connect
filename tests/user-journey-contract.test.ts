@@ -19,7 +19,8 @@ describe('USER_JOURNEY C0–C5 source contract', () => {
     expect(nav).toContain('deferCatalogMiss');
     expect(followup).toContain('createProductCarouselFlexMessage');
     expect(followup).toContain('peekCachedProducts');
-    expect(followup).toContain('shopMode ? []');
+    expect(followup).toContain('deferCatalogMiss');
+    expect(followup).not.toContain('shopMode ? []');
     expect(commerce).toContain('createProductCarouselFlexMessage(catalog, userLanguage, undefined, ctx.channel?.channelId, shopMode, cartIds)');
   });
 

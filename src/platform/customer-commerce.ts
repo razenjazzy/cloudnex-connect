@@ -74,16 +74,18 @@ export const resolveCustomerCommerce = async (): Promise<CustomerCommerceSnapsho
 export const isCustomerShopEffective = async (): Promise<boolean> =>
   (await resolveCustomerCommerce()).effective === 'shop';
 
+/** HMAC-safe shop chrome: env only, no Odoo module probe. */
+export const customerShopUiEnabled = (): boolean =>
+  parseRequestedCustomerCommerce(getRuntime('CUSTOMER_COMMERCE')) === 'shop'
+  && parseOdooWebsiteId(getRuntime('ODOO_WEBSITE_ID')) != null;
+
 export const attachShopJourney = async <T extends { role?: string }>(opts: T): Promise<T & { shopMode?: boolean }> => {
   if (opts.role !== 'customer') return opts;
   return { ...opts, shopMode: await isCustomerShopEffective() };
 };
 
+/** Browse catalog: same product search as Sales so Home can show many SKUs. Shop publish filter stays on add-to-cart. */
 export const searchAudienceProducts = async (query: string, limit = 10): Promise<ErpProduct[]> => {
   const erp = getErpAdapter();
-  if (await isCustomerShopEffective()) {
-    const published = await erp.listShopProducts?.(query, limit) || [];
-    if (published.length) return published;
-  }
   return erp.searchProducts(query, limit);
 };

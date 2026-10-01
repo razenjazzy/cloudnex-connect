@@ -25,7 +25,7 @@ import { findOdooUserIdByPartnerId } from '../../services/odoo/admin';
 import { sendTargetedFlexMessage } from '../messaging';
 import { beginQuoteCreate, completeQuoteCreate, failQuoteCreate, quoteCreateLockKey } from '../../services/quote-idempotency';
 import { formatQuoteAskNote } from '../quote-ask';
-import { attachShopJourney, isCustomerShopEffective, parseOdooWebsiteId, searchAudienceProducts } from '../../platform/customer-commerce';
+import { attachShopJourney, customerShopUiEnabled, isCustomerShopEffective, parseOdooWebsiteId, searchAudienceProducts } from '../../platform/customer-commerce';
 import { shopCartFlexForOrder, cartProductIdsForPartner } from './shop-cart';
 import { getRuntime } from '../../services/runtime-settings';
 
@@ -73,7 +73,7 @@ const demoProductHandler: CommandHandler = {
   handle: async (ctx) => {
     const { userLanguage, text, userId } = ctx;
     const query = text.trim().replace(/^PRODUCT FIND\s*/i, '').trim();
-    const shopMode = !isQuoteStaff(ctx.profile) && await isCustomerShopEffective();
+    const shopMode = !isQuoteStaff(ctx.profile) && customerShopUiEnabled();
     const cartIds = shopMode ? await cartProductIdsForPartner(ctx.profile.odooPartnerId) : undefined;
     if (!query) {
       if (!isQuoteStaff(ctx.profile)) {

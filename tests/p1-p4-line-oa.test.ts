@@ -26,7 +26,8 @@ describe('P1 sales home and list page', () => {
   it('staff Home is commerce menu plus QUOTE LIST', () => {
     const router = readFileSync('src/line/command-router.ts', 'utf8');
     expect(router).toContain('pendingQuoteListPush');
-    expect(router).toContain('syncStaffProfile(ctx.userId, ctx.profile, ctx.channel?.channelId)');
+    expect(router).not.toContain('await syncStaffProfile');
+    expect(readFileSync('src/line/commerce-followup.ts', 'utf8')).toContain('syncStaffProfile');
     expect(router).toContain('commerceFollowUpMessages');
     expect(readFileSync('src/line/process-message.ts', 'utf8')).toContain('pushDeferredSalesQuoteList');
     expect(readFileSync('src/line/commerce-followup.ts', 'utf8')).toContain("text: 'QUOTE LIST'");

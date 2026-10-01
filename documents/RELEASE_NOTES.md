@@ -1,3 +1,14 @@
+# Release notes — v13.0.2
+
+**Date:** 2026-10-02  
+**Package version:** `13.0.2`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`). Production HMAC `:8080` unchanged.  
+**Commit title:** `Release: v13.0.2 - Odoo Line OA v10 Bug Fix`
+
+Customer Home shows the full product search carousel (cached or deferred). Sales NAV HOME and idle commands reply with the commerce menu immediately; `syncStaffProfile` + `QUOTE LIST` are pushed after HMAC.
+
+---
+
 # Release notes — v13.0.1
 
 **Date:** 2026-10-02  

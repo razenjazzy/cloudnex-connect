@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  customerShopUiEnabled,
   parseOdooWebsiteId,
   parseRequestedCustomerCommerce,
   resolveCustomerCommerceFrom,
@@ -85,11 +86,14 @@ describe('customer commerce XOR', () => {
 });
 
 describe('customer catalog browse', () => {
-  it('uses website-published shop rows when shop is effective, otherwise the same product search as Sales', async () => {
+  it('loads the same Odoo product search as Sales so Home can list many SKUs', async () => {
     const { readFileSync } = await import('node:fs');
     const src = readFileSync('src/platform/customer-commerce.ts', 'utf8');
     expect(src).toContain('erp.searchProducts(query, limit)');
-    expect(src).toContain('erp.listShopProducts?.(query, limit)');
-    expect(src).toContain('isCustomerShopEffective()');
+    expect(src).not.toMatch(/listShopProducts\?\.?\(query/);
+  });
+
+  it('enables shop button chrome from env without probing Odoo', () => {
+    expect(customerShopUiEnabled()).toBe(false);
   });
 });

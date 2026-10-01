@@ -11,7 +11,11 @@ describe('native tray reply path', () => {
     expect(processMessage).toContain('unlinkUserRichMenu');
     expect(processMessage).toContain('pendingCatalogPush');
     expect(processMessage).toContain('pushDeferredCommerceCatalog');
-    expect(processMessage).toContain('pendingQuoteListPush');
+    const homeStart = router.indexOf('export const homeReplyFromContext');
+    const homeEnd = router.indexOf('const buildFlowExpiry');
+    const home = router.slice(homeStart, homeEnd);
+    expect(home).not.toContain('syncStaffProfile');
+    expect(home).not.toContain('isCustomerShopEffective');
     expect(processMessage).toContain('pushDeferredSalesQuoteList');
     const deliverIdx = processMessage.indexOf('delivered = await deliverMessages');
     const linkIdx = processMessage.indexOf('applyTrayAfterReply');

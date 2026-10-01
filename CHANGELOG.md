@@ -1,5 +1,10 @@
 # Changelog
 
+## v13.0.2 — Odoo LINE OA v10 (2026-10-02)
+
+- Customer Home catalog uses Sales `searchProducts` (many SKUs) and defers Odoo so LINE HMAC is not blocked. Shop chrome is env-only; add-to-cart still fail-closes without `website_sale`.
+- Sales Home no longer awaits `syncStaffProfile`; staff sync + `QUOTE LIST` stay a follow-up push.
+
 ## v13.0.1 — Odoo LINE OA v10 (2026-10-02)
 
 - Sales OA keeps quote/CRM commands (`QUOTE LIST` / `QUOTE CREATE` / `QUOTE SEND`). Customer OA is quote XOR shop: ecommerce published catalog + My Cart when `CUSTOMER_COMMERCE=shop` is live; otherwise Order Now and Send message to Sales as before.
