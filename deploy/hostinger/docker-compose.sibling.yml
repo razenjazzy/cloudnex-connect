@@ -38,7 +38,7 @@ services:
       PUBLIC_BASE_URL: https://amardhaka.io/cloudnex-connect
       PUBLIC_ADMIN_BASE: /admin/test
       ENABLE_DEMO_CONTROL_PANEL: "false"
-      ENABLE_WEBHOOK_TEST: "true"
+      ENABLE_WEBHOOK_TEST: "false"
       ENABLE_GRAPHQL: "true"
       ENABLE_API_DOCS: "true"
       CLAWFRAMEWORK_ENABLED: "false"

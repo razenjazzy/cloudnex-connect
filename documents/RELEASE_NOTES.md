@@ -1,3 +1,14 @@
+# Release notes — v12.0.6
+
+**Date:** 2026-10-01  
+**Package version:** `12.0.6`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`). Production HMAC `:8080` unchanged.  
+**Commit title:** `Release: v12.0.6 - Odoo Line OA v9 Bug Fix`
+
+LINE OA uses `/webhook/sales` and `/webhook/customer`. Staging does not enable `/webhook-test`. CI on `main` stays green (audit pins, no `staging-vps` workflow, Dependabot jobs skipped).
+
+---
+
 # Release notes — v12.0.5
 
 **Date:** 2026-10-01  

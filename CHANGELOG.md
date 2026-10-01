@@ -1,5 +1,9 @@
 # Changelog
 
+## v12.0.6 — Odoo LINE OA v9 (2026-10-01)
+
+- Staging sibling keeps `/webhook-test` off. LINE Sales/Customer stay on production HMAC `/webhook`. CI skips Dependabot. Laptop `ops:staging` for health/logs.
+
 ## v12.0.5 — Odoo LINE OA v9 (2026-10-01)
 
 - CI: pin transitive `@grpc/grpc-js` / `brace-expansion`. Removed GitHub `staging-vps` workflow. Staging is laptop `npm run deploy:vps-staging` plus `ops:local` / `ops:staging`. Sibling compose enables `/webhook-test`.

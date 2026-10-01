@@ -10,7 +10,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LANE="${1:-}"
 ACTION="${2:-status}"
-CHAT_TEXT="${3:-NAV COMMERCE}"
+if [ "$ACTION" = "chat" ] && [ "$#" -ge 3 ]; then
+  CHAT_TEXT="${*:3}"
+else
+  CHAT_TEXT="${3:-NAV COMMERCE}"
+fi
 HOST="${VPS_HOST:-amardhaka}"
 REMOTE_ENV="/opt/cns-line-oa/.env"
 
@@ -30,7 +34,7 @@ for raw in Path(path).read_text(errors="replace").splitlines():
         continue
     k, v = line.split("=", 1)
     if k == key:
-        print(v.strip().strip("'\""))
+        print(v.strip().strip(chr(34) + chr(39)))
         break
 ' "$1" "$2"
 }
@@ -105,11 +109,12 @@ if [ "$ACTION" = "logs" ]; then
   exit 0
 fi
 
-ssh -o BatchMode=yes "$HOST" bash -s -- "$ACTION" "$CHAT_TEXT" "$REMOTE_ENV" <<'REMOTE'
+CHAT_B64="$(printf '%s' "$CHAT_TEXT" | base64 | tr -d '\n')"
+ssh -o BatchMode=yes "$HOST" bash -s -- "$ACTION" "$CHAT_B64" <<'REMOTE'
 set -euo pipefail
 ACTION="$1"
-CHAT_TEXT="$2"
-ENV_FILE="$3"
+CHAT_TEXT="$(printf '%s' "$2" | base64 -d 2>/dev/null || true)"
+ENV_FILE="/opt/cns-line-oa/.env"
 python_env_get() {
   python3 -c '
 from pathlib import Path
@@ -121,7 +126,7 @@ for raw in Path(path).read_text(errors="replace").splitlines():
         continue
     k, v = line.split("=", 1)
     if k == key:
-        print(v.strip().strip("'\""))
+        print(v.strip().strip(chr(34) + chr(39)))
         break
 ' "$1" "$2"
 }
@@ -140,35 +145,6 @@ print("odoo", odoo)
 print("warnings", (d.get("warnings") or [])[:6])
 '
 if [ "$ACTION" = "chat" ]; then
-  WT="$(python_env_get "$ENV_FILE" WEBHOOK_TEST_TOKEN || true)"
-  echo "[ops] webhook-test channel=customer text=${CHAT_TEXT}"
-  python3 - "$CHAT_TEXT" "$WT" <<'PY'
-import json,sys,urllib.request
-text, wt = sys.argv[1], sys.argv[2]
-body=json.dumps({"text":text,"channelId":"customer","userId":"ops_staging_customer"}).encode()
-req=urllib.request.Request("http://127.0.0.1:8081/webhook-test", data=body, method="POST")
-req.add_header("Content-Type","application/json")
-if wt:
-    req.add_header("x-webhook-test-token", wt)
-try:
-    with urllib.request.urlopen(req, timeout=60) as r:
-        msgs=json.load(r)
-except Exception as e:
-    print("webhook-test", type(e).__name__, getattr(e,"code",""), getattr(e,"reason",e))
-    if hasattr(e,"read"):
-        print(e.read()[:300])
-    sys.exit(0)
-labels=[]
-def walk(n):
-    if isinstance(n, dict):
-        if isinstance(n.get("label"), str): labels.append(n["label"])
-        if isinstance(n.get("altText"), str): labels.append("[alt] "+n["altText"][:90])
-        for v in n.values(): walk(v)
-    elif isinstance(n, list):
-        for v in n: walk(v)
-walk(msgs)
-print("types", [m.get("type") for m in msgs] if isinstance(msgs, list) else type(msgs).__name__)
-print("labels", labels[:24])
-PY
+  echo "[ops] LINE OA uses HMAC POST /webhook/sales and /webhook/customer on production :8080. Staging :8081 does not serve OA webhooks."
 fi
 REMOTE

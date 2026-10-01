@@ -16,14 +16,12 @@ One Odoo per process (`ODOO_URL` in that lane’s `.env`). Staging and productio
 # local
 npm run dev                 # or npm run dev:fg
 npm run ops:local
-npm run ops:local -- chat "NAV COMMERCE"
 npm run ops:local -- logs
 
 # ship to staging (laptop SSH + Docker Hub)
 npm test && npm run lint
 npm run deploy:vps-staging
 npm run ops:staging
-npm run ops:staging -- chat "NAV COMMERCE"
 npm run ops:staging -- logs
 ```
 
@@ -47,6 +45,6 @@ curl -sS -H "Authorization: Bearer $OPS_API_TOKEN" http://127.0.0.1:8081/ops/pla
 
 ## Staging vs LINE
 
-Customer/Sales OA still hit production `:8080`. Staging proves Flex + Odoo via Admin test and `webhook-test` (`ENABLE_WEBHOOK_TEST=true` on sibling compose). After staging is stable, update production `.env` Odoo if needed, then `SKIP_BUILD=1 npm run deploy:vps-prod`.
+Customer/Sales OA use production HMAC `POST /webhook/sales` and `POST /webhook/customer` on `:8080`. Staging `:8081` does not bind those OAs (`ENABLE_WEBHOOK_TEST` off). After staging is stable, update production `.env` Odoo if needed, then `SKIP_BUILD=1 npm run deploy:vps-prod`.
 
 Never commit `.env`. Compose rsync never uses `--delete`.

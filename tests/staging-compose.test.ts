@@ -52,6 +52,6 @@ describe('sibling compose', () => {
     expect(yaml).toContain('APP_ENV: staging');
     expect(yaml).toContain('PUBLIC_ADMIN_BASE: /admin/test');
     expect(yaml).toContain('127.0.0.1:8081:8080');
-    expect(yaml).toContain('ENABLE_WEBHOOK_TEST: "true"');
+    expect(yaml).toContain('ENABLE_WEBHOOK_TEST: "false"');
   });
 });

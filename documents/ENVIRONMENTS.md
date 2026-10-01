@@ -5,7 +5,7 @@ Three lanes. Same codebase. Different `APP_ENV`. The Docker image always sets `N
 | Lane | `APP_ENV` | Host | `/demo` | `/webhook-test` | GraphiQL | GraphQL / `/api-docs` |
 |---|---|---|---|---|---|---|
 | Dev | `development` | laptop (`npm run dev`) | on | on | on | on |
-| Staging | `staging` | Hostinger sibling `/opt/cns-line-oa` `:8081` | sibling compose off | on (`ENABLE_WEBHOOK_TEST`) | if GraphQL enabled | if `ENABLE_*` |
+| Staging | `staging` | Hostinger sibling `/opt/cns-line-oa` `:8081` | sibling compose off | off (LINE HMAC is production `/webhook`) | if GraphQL enabled | if `ENABLE_*` |
 | Production | `production` | final delivery | **off** | **off** | **off** | only if `ENABLE_GRAPHQL` / `ENABLE_API_DOCS` + ops token |
 
 If `APP_ENV` is unset and `NODE_ENV=production`, the process **fails closed to production**. HMAC on `amardhaka.io` is the production VPS process (`APP_ENV=production`). Staging Admin is the sibling (`APP_ENV=staging`).

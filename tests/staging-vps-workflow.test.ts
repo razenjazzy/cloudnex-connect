@@ -12,6 +12,7 @@ describe('github workflows', () => {
     expect(yaml).toContain('npm audit --omit=dev --audit-level=high');
     expect(yaml).toContain('branches: [main]');
     expect(yaml).toMatch(/push:\n    branches: \[main\]/);
+    expect(yaml).toContain("github.actor != 'dependabot[bot]'");
   });
 });
 
