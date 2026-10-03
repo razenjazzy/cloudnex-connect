@@ -18,7 +18,7 @@ const quoteAssignHandler: CommandHandler = {
     const { userLanguage, userId, text, profile } = ctx;
     const auth = isAuthorizedForAdminRole(userId, profile);
     if (!auth.ok || profile.role !== 'admin') {
-      return [bot(t('quoteNotLinked', userLanguage), userLanguage, 'error')];
+      return [bot(t('adminOnlyCommand', userLanguage), userLanguage, 'error')];
     }
     const parts = text.trim().split(/\s+/);
     const orderId = Number(parts[2]);
@@ -44,11 +44,11 @@ const quoteAssignHandler: CommandHandler = {
         title: t('assignSalesperson', userLanguage),
         body: String(orderId),
         language: userLanguage,
-        actions: actions.slice(0, 4),
+        actions: actions.slice(0, 8),
       })];
     }
     const assign = getErpAdapter().assignQuotationSalesperson;
-    if (!assign) return [bot('Assign is not supported.', userLanguage, 'error')];
+    if (!assign) return [bot(t('assignUnsupported', userLanguage), userLanguage, 'error')];
     const ok = await assign(orderId, salespersonUserId);
     recordAuditEvent({
       action: 'crm_quote_assign',
@@ -56,7 +56,7 @@ const quoteAssignHandler: CommandHandler = {
       actorUserId: userId,
       detail: String(orderId),
     });
-    return [bot(ok ? t('inboundAssigned', userLanguage) : 'Assign failed', userLanguage, ok ? 'success' : 'error')];
+    return [bot(ok ? t('inboundAssigned', userLanguage) : t('assignFailed', userLanguage), userLanguage, ok ? 'success' : 'error')];
   },
 };
 
@@ -67,7 +67,7 @@ const relayAssignHandler: CommandHandler = {
     const { userLanguage, userId, text, profile } = ctx;
     const auth = isAuthorizedForAdminRole(userId, profile);
     if (!auth.ok || profile.role !== 'admin') {
-      return [bot(t('quoteNotLinked', userLanguage), userLanguage, 'error')];
+      return [bot(t('adminOnlyCommand', userLanguage), userLanguage, 'error')];
     }
     const parts = text.trim().split(/\s+/);
     const customerUserId = parts[2] || '';
@@ -76,7 +76,7 @@ const relayAssignHandler: CommandHandler = {
       return [bot('RELAY ASSIGN <lineUserId> <odooUserId>', userLanguage, 'error')];
     }
     const salesLineId = await completeRelayAssign(ctx, customerUserId, odooUserId);
-    if (!salesLineId) return [bot('Assign failed', userLanguage, 'error')];
+    if (!salesLineId) return [bot(t('assignFailed', userLanguage), userLanguage, 'error')];
     return [bot(t('inboundAssigned', userLanguage), userLanguage, 'success')];
   },
 };
@@ -105,7 +105,7 @@ const staffPickHandler: CommandHandler = {
     const { userLanguage, userId, text, profile } = ctx;
     const auth = isAuthorizedForAdminRole(userId, profile);
     if (!auth.ok || profile.role !== 'admin') {
-      return [bot(t('quoteNotLinked', userLanguage), userLanguage, 'error')];
+      return [bot(t('adminOnlyCommand', userLanguage), userLanguage, 'error')];
     }
     const customerUserId = text.trim().split(/\s+/)[2] || '';
     const salesIds = await listVerifiedSalesLineUserIds();
@@ -125,7 +125,7 @@ const staffPickHandler: CommandHandler = {
       title: t('assignSalesperson', userLanguage),
       body: customerUserId || '—',
       language: userLanguage,
-      actions: actions.slice(0, 4),
+      actions: actions.slice(0, 8),
     })];
   },
 };

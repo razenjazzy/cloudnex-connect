@@ -152,3 +152,26 @@ deferred or not-yet-verified pieces.
   introduced deliberately if this code needs to be safely refactored later —
   not added speculatively here since it's a genuinely new pattern for this
   codebase, not a reuse of an existing one.
+
+## Deferred from the Customer/Sales/Admin gap pass (2026-10)
+
+Fixed in that pass: product-photo detection (template `image_128`), central
+LINE limit enforcement (`enforceLineLimits`), Sales quote failure replies,
+admin audit rows, server-side 20-char label validation, photo coverage in
+`/live/products`, new `/readyz` checks (`product-photos`, `public-base-url`,
+`rich-menu`, `webhook-channels`). Still open:
+
+- Sales Home quote list is a deferred push that can be dropped
+  (`commerce-followup.ts`, `command-router.ts`).
+- Unassigned-first sort only reorders within one 5-row page
+  (`quotation.ts`); use `listCrmQuotations({unassigned})`.
+- Sales user with no resolved Odoo user id silently falls back to partner orders.
+- `QUOTE ASSIGN` is not step-up OTP gated.
+- Customer-channel hard guards on relay handlers (`isCustomerChannel()`).
+- `SALES FEATURES` and `ADMIN *` missing from `COMMAND_PREFIX_SERVICE_MAP`.
+- Hero image fetched at 128px (blurry); measure 256/512 vs LINE 1 MB cap.
+- `PUT /toggles` not scoped per channel; `/secrets` actor hardcoded to `ops`.
+- PUT `/commands`, `/i18n`, `/settings` use the weaker `requireAdminPanelAccess`.
+- Campaign broadcast: recipient count, test-send, idempotency key.
+- Admin: shared loading/empty/denied `<PanelState>`; "preview as LINE button".
+- Remaining silent `.catch(() => undefined)` in `feedback.ts`, `quotation.ts`.

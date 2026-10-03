@@ -116,3 +116,24 @@ describe('templates.ts builders stay within LINE limits', () => {
     expect(checkMessageAgainstLineLimits(createAdminConfigFlexMessage('default', services, 'th'))).toEqual([]);
   });
 });
+
+describe('enforceLineLimits', () => {
+  const chip = (label: string) => ({ type: 'action' as const, action: { type: 'message' as const, label, text: 'X' } });
+
+  it('clamps over-long quick-reply labels, extra items, and a sixth message', async () => {
+    const { enforceLineLimits, checkMessagesAgainstLineLimits } = await import('../src/line/message-limits');
+    const flex = (n: number) => ({
+      type: 'flex' as const, altText: 'a', contents: { type: 'bubble' as const },
+      quickReply: { items: Array.from({ length: n }, () => chip('someone.very.long.address@example.com')) },
+    });
+    const out = enforceLineLimits([flex(15), flex(1), flex(1), flex(1), flex(1), flex(1)] as never);
+    expect(out).toHaveLength(5);
+    expect(checkMessagesAgainstLineLimits(out)).toEqual([]);
+  });
+
+  it('flags a label over 20 chars', async () => {
+    const { checkMessageAgainstLineLimits } = await import('../src/line/message-limits');
+    const msg = { type: 'text', text: 'hi', quickReply: { items: [chip('x'.repeat(21))] } };
+    expect(checkMessageAgainstLineLimits(msg as never).map(v => v.field)).toContain('quickReply.label');
+  });
+});

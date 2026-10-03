@@ -11,6 +11,7 @@ type ProductRow = {
   price?: number;
   quantity?: number;
   description?: string;
+  hasPhoto?: boolean;
 };
 
 type ServiceRow = {
@@ -158,7 +159,7 @@ export const LiveServices = ({
           </form>
           <div className="table-wrap">
             <table>
-              <thead><tr><th>Id</th><th>Name</th><th>SKU</th><th>Price</th><th>Qty</th></tr></thead>
+              <thead><tr><th>Id</th><th>Name</th><th>SKU</th><th>Price</th><th>Qty</th><th>LINE photo</th></tr></thead>
               <tbody>
                 {products.map(row => (
                   <tr key={row.id}>
@@ -167,6 +168,7 @@ export const LiveServices = ({
                     <td>{row.sku || '—'}</td>
                     <td>{row.price ?? '—'}</td>
                     <td>{row.quantity ?? '—'}</td>
+                    <td>{row.hasPhoto ? 'Photo' : 'Camera placeholder'}</td>
                   </tr>
                 ))}
               </tbody>

@@ -255,6 +255,22 @@ export const registerAdminApiRoutes = (app: Express): void => {
     });
   });
 
+  /** One audit row per admin mutation: actor, request id, optional channel, short change summary. */
+  const auditAdminMutation = async (req: Request, res: Response, what: string, detail = '', channelId?: string): Promise<void> => {
+    try {
+      await recordAuditEvent({
+        action: 'admin_command',
+        outcome: 'success',
+        actorUserId: (req as Request & { adminActor?: string }).adminActor || 'admin',
+        requestId: String(res.getHeader('x-request-id') || '') || undefined,
+        ...(channelId ? { channelId } : {}),
+        detail: `${what}${detail ? ` ${detail}` : ''}`.slice(0, 200),
+      });
+    } catch (error) {
+      console.warn('admin audit write failed; the change itself was applied:', error);
+    }
+  };
+
   router.get('/commands', adminApiLimiter, requireAdminPanelAccess, async (_req, res) => {
     await loadCommandOverlay();
     return res.json({ commands: getCommandGridPayload(), tenantKey: getActiveTenantKey() });
@@ -266,6 +282,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     const saved = await saveCommandOverlay(parsed.commands);
     if (!saved.ok) return res.status(503).json({ error: saved.error || 'Could not save command overlay.' });
     await loadCommandOverlay();
+    await auditAdminMutation(req, res, 'commands', Object.keys(parsed.commands).join(','));
     return res.json({ ok: true, commands: getCommandGridPayload(), tenantKey: getActiveTenantKey() });
   });
 
@@ -284,6 +301,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     const saved = await saveI18nOverlay(parsed.overlay);
     if (!saved.ok) return res.status(503).json({ error: saved.error || 'Could not save translations.' });
     await loadI18nOverlay();
+    await auditAdminMutation(req, res, 'i18n');
     const overlay = getCachedI18nOverlay();
     return res.json({ ok: true, api: listApiI18nCatalog(), portal: overlay.portal || {} });
   });
@@ -407,6 +425,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     if (!tenantKey) return res.status(400).json({ error: 'tenantKey is required.' });
     const result = await mergeRuntimeOverlay({ TENANT_KEY: tenantKey });
     if (!result.ok) return res.status(403).json({ error: result.error });
+    await auditAdminMutation(req, res, 'tenant', tenantKey);
     return res.json({ ok: true, tenantKey: getActiveTenantKey() });
   });
 
@@ -823,6 +842,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     const services = Array.isArray(req.body?.services) ? req.body.services.map(String) : null;
     const result = await setChannelServiceOverride(pathParam(req.params.id), services);
     if (!result.ok) return res.status(503).json({ error: result.error });
+    await auditAdminMutation(req, res, 'channel_services', (services || ['default']).join(','), pathParam(req.params.id));
     return res.json({ ok: true });
   });
 
@@ -875,6 +895,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     if (req.body?.clearPendingFlow === true) {
       await setUserPendingFlow(userId, null);
     }
+    await auditAdminMutation(req, res, 'user_patch', `${userId} ${Object.keys(req.body || {}).join(',')}`);
     return res.json({ ok: true, user: await toAdminUserView(userId) });
   });
 
@@ -932,6 +953,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     if (!['daily-report', 'segmentation', 'seed-odoo'].includes(name)) {
       return res.status(404).json({ error: 'Unknown job.' });
     }
+    await auditAdminMutation(req, res, 'job-requested', name);
     try {
       if (name === 'daily-report') {
         await runDailyReport();
@@ -1030,8 +1052,12 @@ export const registerAdminApiRoutes = (app: Express): void => {
     }
     const query = typeof req.query.q === 'string' ? req.query.q : '';
     const limit = Number(req.query.limit) || 40;
-    const products = await getErpAdapter().searchProducts(query, Math.min(Math.max(limit, 1), 80));
-    return res.json({ products, count: products.length });
+    const found = await getErpAdapter().searchProducts(query, Math.min(Math.max(limit, 1), 80));
+    // imageUrl is only set when Odoo has a photo AND PUBLIC_BASE_URL is https, so it
+    // is exactly "will this product show a photo on a LINE card" (false = camera).
+    const products = found.map(product => ({ ...product, hasPhoto: Boolean(product.imageUrl) }));
+    const withoutPhoto = products.filter(product => !product.hasPhoto).length;
+    return res.json({ products, count: products.length, photoSummary: { withPhoto: products.length - withoutPhoto, withoutPhoto } });
   });
 
   router.get('/live/services', requireAdminPanelAccess, async (req, res) => {

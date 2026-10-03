@@ -1,4 +1,5 @@
 import type { CommandHandler } from './index';
+import { appLogger } from '../../services/logger';
 import { isAuthorizedForAdminRole } from '../../services/admin-authorization';
 import { findOdooSalesTierByPartnerId, verifyOdooAdminAccess } from '../../services/odoo/admin';
 import { recordAuditEvent, setUserRole, setUserSalesTier } from '../../services/firestore';
@@ -37,7 +38,8 @@ const adminVerifyHandler: CommandHandler = {
     try {
       const result = await verifyOdooAdminAccess();
       return [botText(tr(userLanguage, `ผลตรวจสิทธิ์แอดมิน: ${result.message}`, `Admin verification: ${result.message}`), userLanguage)];
-    } catch {
+    } catch (error) {
+      appLogger.warn('admin_verify_failed', { error: String(error), userId: ctx.userId });
       return [botText(tr(userLanguage, 'ตรวจสิทธิ์แอดมินล้มเหลว', 'Admin verification failed.'), userLanguage)];
     }
   },

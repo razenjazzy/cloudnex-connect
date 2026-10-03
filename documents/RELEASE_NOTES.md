@@ -1,3 +1,14 @@
+# Release notes — v13.0.11
+
+**Date:** 2026-10-03  
+**Package version:** `13.0.11`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`). Production unchanged.  
+**Commit title:** `Release: v13.0.11 - Odoo Line OA v10 Bug Fix`
+
+Customer/Sales product cards show real photos (detection via template `image_128`); no-photo SKUs keep the camera. Admin: audit rows, label validation, photo coverage. Open items: `documents/BACKLOG.md`.
+
+---
+
 # Release notes — v13.0.10
 
 **Date:** 2026-10-03  

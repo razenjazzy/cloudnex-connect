@@ -9,6 +9,7 @@ import type { ChannelContext } from './channels';
 import { appLogger } from '../services/logger';
 import { withSpan } from '../observability/tracing';
 import { createBotTextFlexMessage } from './templates';
+import { enforceLineLimits } from './message-limits';
 import { isLineGroupRoomsEnabled } from '../http/optional-flags';
 import { maybeWriteMongoUser } from '../services/mongo-users';
 import { recordChannelInbound } from '../services/channel-traffic';
@@ -149,8 +150,9 @@ export const extractLineMessageJobs = (events: webhook.Event[]): ExtractedLineMe
 const deliverMessages = async (
   client: messagingApi.MessagingApiClient,
   input: LineMessageJobInput,
-  messages: messagingApi.Message[],
+  rawMessages: messagingApi.Message[],
 ): Promise<unknown> => {
+  const messages = enforceLineLimits(rawMessages);
   const tokenAge = Date.now() - input.receivedAt;
   if (tokenAge < REPLY_TOKEN_TTL_MS) {
     return client.replyMessage({ replyToken: input.replyToken, messages });

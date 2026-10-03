@@ -1,4 +1,5 @@
 import type { CommandHandler } from './index';
+import { appLogger } from '../../services/logger';
 import {
   createProductCardFlexMessage,
   createProductCarouselFlexMessage,
@@ -83,7 +84,8 @@ const demoProductHandler: CommandHandler = {
           return [botText(tr(userLanguage, 'ยังไม่มีสินค้าให้แสดง กรุณาค้นหาด้วยชื่อสินค้า', 'No products to show yet. Search by product name.'), userLanguage, [
             { label: tr(userLanguage, 'ค้นหาสินค้า', 'Search products'), text: 'FORM PRODUCT FIND', style: 'primary' },
           ])];
-        } catch {
+        } catch (error) {
+          appLogger.warn('home_catalog_load_failed', { error: String(error), userId: ctx.userId });
           return [botText(tr(userLanguage, 'โหลดสินค้าจาก Odoo ไม่สำเร็จ กรุณาลองใหม่', 'Could not load products from Odoo. Please try again.'), userLanguage, [
             { label: tr(userLanguage, 'ลองอีกครั้ง', 'Try again'), text: 'PRODUCT FIND', style: 'primary' },
           ])];
@@ -147,8 +149,8 @@ const demoOrderHandler: CommandHandler = {
       return [botText(tr(userLanguage, `ไม่พบออเดอร์เลขที่ ${orderRef} กรุณาตรวจสอบเลขที่อ้างอิงอีกครั้งค่ะ`, `We couldn't find an order with reference ${orderRef}. Please double-check the reference number.`), userLanguage)];
     }
     const [links, delivery] = await Promise.all([
-      getErpAdapter().getOrderLinks(order.id).catch(() => ({ portal: undefined, pdf: undefined })),
-      getErpAdapter().getDeliveryStatus(found.id).catch(() => null),
+      getErpAdapter().getOrderLinks(order.id).catch(error => { appLogger.warn('order_links_failed', { error: String(error), orderId: order.id }); return { portal: undefined, pdf: undefined }; }),
+      getErpAdapter().getDeliveryStatus(found.id).catch(error => { appLogger.warn('delivery_status_failed', { error: String(error), orderId: found.id }); return null; }),
     ]);
     const profile = await syncStaffProfile(ctx.userId, ctx.profile, ctx.channel?.channelId);
     const role = quoteJourneyRole(profile);
@@ -526,7 +528,7 @@ const messageRequestConfirmHandler: CommandHandler = {
         `ข้อความจากลูกค้า ${profile.displayName || userId}: ${body}`,
         `Customer message from ${profile.displayName || userId}: ${body}`,
       ), userLanguage);
-      sendTargetedFlexMessage(salesIds, ping, salesNotifyChannelId()).catch(() => undefined);
+      sendTargetedFlexMessage(salesIds, ping, salesNotifyChannelId()).catch(error => appLogger.warn('sales_ping_failed', { error: String(error), userId }));
     }
     recordAuditEvent({ action: 'quote_message', outcome: 'success', actorUserId: userId, channelId: channel?.channelId, detail: String(profile.odooPartnerId) });
     return [botText(customerRequestAcceptedBody(userLanguage), userLanguage, [
@@ -566,7 +568,7 @@ const quoteAskHandler: CommandHandler = {
         `ลูกค้าขอใบเสนอราคา: ${profile.displayName || userId}`,
         `Customer asked for quotations: ${profile.displayName || userId}`,
       ), userLanguage);
-      sendTargetedFlexMessage(salesIds, ping, salesNotifyChannelId()).catch(() => undefined);
+      sendTargetedFlexMessage(salesIds, ping, salesNotifyChannelId()).catch(error => appLogger.warn('sales_ping_failed', { error: String(error), userId }));
     }
     recordAuditEvent({ action: 'quote_message', outcome: 'success', actorUserId: userId, channelId: channel?.channelId, detail: String(profile.odooPartnerId) });
     return [botText(customerRequestAcceptedBody(userLanguage), userLanguage, [

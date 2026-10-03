@@ -132,6 +132,7 @@ export const createOptionalSummaryFlexMessage = (params: {
             {
               type: 'text' as const,
               text: f.value ? '✅' : ' ',
+              color: BRAND.tealStrong,
               size: 'sm' as const,
               flex: 0,
               gravity: 'center' as const,

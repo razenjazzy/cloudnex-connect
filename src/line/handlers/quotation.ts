@@ -388,11 +388,18 @@ const quoteSendConfirmHandler: CommandHandler = {
 
     const partner = await getPartnerById(order.partner_id[0]);
     const sendEmailAddr = parsed.email || partner?.email;
-    if (parsed.email && partner && parsed.email !== partner.email) {
-      await getErpAdapter().updateCustomer(partner.id, { email: parsed.email });
+    try {
+      if (parsed.email && partner && parsed.email !== partner.email) {
+        await getErpAdapter().updateCustomer(partner.id, { email: parsed.email });
+      }
+      await markSaleOrderSent(orderId);
+    } catch (error) {
+      appLogger.warn('quote_send_prepare_failed', { error: String(error), orderId, userId, requestId });
+      return [botText(t('quoteSendFailed', userLanguage), userLanguage, [
+        { label: t('tryAgain', userLanguage), text: `QUOTE SEND ${orderId}`, style: 'primary' },
+        { label: t('home', userLanguage), text: 'NAV HOME', style: 'secondary' },
+      ])];
     }
-
-    await markSaleOrderSent(orderId);
     const sentOrder = (await getSaleOrderById(orderId)) || order;
     const viaLine = sendChannel !== 'email';
     const viaEmail = sendChannel !== 'line';
@@ -997,7 +1004,8 @@ const quoteListHandler: CommandHandler = {
       }
     } catch (error) {
       console.warn('quote-list failed:', error);
-      return [botText(t('noQuotations', userLanguage), userLanguage, [
+      return [botText(t('quoteListFailed', userLanguage), userLanguage, [
+        { label: t('tryAgain', userLanguage), text: 'QUOTE LIST', style: 'primary' },
         { label: t('home', userLanguage), text: 'NAV HOME', style: 'secondary' },
       ])];
     }

@@ -69,4 +69,11 @@ describe('command overlay', () => {
     expect(mergeCommandGridEntry(stock).enabled).toBe(true);
     expect(mergeCommandGridEntry(stock).channels).toEqual(['customer']);
   });
+
+  it('rejects EN/TH labels over the 20-character LINE button limit instead of truncating', () => {
+    const tooLong = sanitizeCommandOverlay({ 'product-find': { labelEn: 'x'.repeat(21) } });
+    expect(tooLong.ok).toBe(false);
+    const ok = sanitizeCommandOverlay({ 'product-find': { labelEn: 'x'.repeat(20) } });
+    expect(ok.ok).toBe(true);
+  });
 });

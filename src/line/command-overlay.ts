@@ -147,8 +147,16 @@ export const sanitizeCommandOverlay = (input: unknown): { ok: true; commands: Co
     if (Array.isArray(patch.channels)) {
       next.channels = patch.channels.filter((channel): channel is CommandChannel => VALID_CHANNELS.has(channel));
     }
-    if (typeof patch.labelEn === 'string') next.labelEn = patch.labelEn.trim().slice(0, 80);
-    if (typeof patch.labelTh === 'string') next.labelTh = patch.labelTh.trim().slice(0, 80);
+    for (const field of ['labelEn', 'labelTh'] as const) {
+      const raw = patch[field];
+      if (typeof raw !== 'string') continue;
+      const label = raw.trim();
+      // LINE rejects a whole reply when any button label exceeds 20 characters.
+      if (Array.from(label).length > 20) {
+        return { ok: false, error: `${field} for ${id} is ${Array.from(label).length} characters; LINE buttons allow at most 20.` };
+      }
+      next[field] = label;
+    }
     if (Array.isArray(patch.aliases)) {
       const aliases: string[] = [];
       for (const rawAlias of patch.aliases.slice(0, 8)) {

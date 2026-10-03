@@ -90,34 +90,41 @@ export const readProductImage128 = async (productId: number): Promise<Buffer | n
   }
 };
 
-/** Ids that have image_128 on the variant or template — no binary download. */
+/**
+ * Ids whose variant or template carries a photo — no binary download.
+ *
+ * Odoo cannot search the computed `image_128/256/512/1920` fields on
+ * `product.product` (the RPC raises a Server Error), and a silent catch
+ * here used to turn that into "no product has a photo", so every card
+ * showed the camera placeholder. Variants are checked through the stored
+ * `image_variant_1920`; templates accept `image_128` searches.
+ */
 export const productIdsWithImage128 = async (productIds: number[]): Promise<Set<number>> => {
   const ids = [...new Set(productIds.filter(id => Number.isInteger(id) && id > 0))];
   if (!ids.length) return new Set();
   const config = getOdooConfig();
   if (!config) return new Set();
-  const uid = await loginRead(config);
-  if (!uid) return new Set();
   try {
-    const variantHits = await executeKwRead<{ id: number }[]>(
-      config,
-      uid,
-      'product.product',
-      'search_read',
-      [[['id', 'in', ids], '|', '|', '|', ['image_128', '!=', false], ['image_256', '!=', false], ['image_512', '!=', false], ['image_1920', '!=', false]]],
-      { fields: ['id'], limit: ids.length },
-    );
-    const found = new Set((variantHits || []).map(row => Number(row.id)).filter(id => id > 0));
-    const missing = ids.filter(id => !found.has(id));
-    if (!missing.length) return found;
+    const uid = await loginRead(config);
+    if (!uid) return new Set();
     const variants = await executeKwRead<{ id: number; product_tmpl_id?: unknown }[]>(
       config,
       uid,
       'product.product',
       'search_read',
-      [[['id', 'in', missing]]],
-      { fields: ['id', 'product_tmpl_id'], limit: missing.length },
+      [[['id', 'in', ids]]],
+      { fields: ['id', 'product_tmpl_id'], limit: ids.length },
     );
+    const withVariantPhoto = await executeKwRead<{ id: number }[]>(
+      config,
+      uid,
+      'product.product',
+      'search_read',
+      [[['id', 'in', ids], ['image_variant_1920', '!=', false]]],
+      { fields: ['id'], limit: ids.length },
+    );
+    const found = new Set((withVariantPhoto || []).map(row => Number(row.id)).filter(id => id > 0));
+
     const tmplByProduct = new Map<number, number>();
     for (const row of variants || []) {
       const tmpl = row.product_tmpl_id;
@@ -131,7 +138,7 @@ export const productIdsWithImage128 = async (productIds: number[]): Promise<Set<
       uid,
       'product.template',
       'search_read',
-      [[['id', 'in', tmplIds], '|', '|', '|', ['image_128', '!=', false], ['image_256', '!=', false], ['image_512', '!=', false], ['image_1920', '!=', false]]],
+      [[['id', 'in', tmplIds], ['image_128', '!=', false]]],
       { fields: ['id'], limit: tmplIds.length },
     );
     const tmplWithImage = new Set((tmplHits || []).map(row => Number(row.id)));
@@ -139,7 +146,8 @@ export const productIdsWithImage128 = async (productIds: number[]): Promise<Set<
       if (tmplWithImage.has(tmplId)) found.add(productId);
     }
     return found;
-  } catch {
+  } catch (error) {
+    console.warn('productIdsWithImage128 failed; cards fall back to the placeholder image:', error);
     return new Set();
   }
 };

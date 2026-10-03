@@ -16,7 +16,10 @@ import {
   demoControlToken,
   readyzTimeoutMs,
 } from '../http/env';
+import { spawnSync } from 'node:child_process';
 import { getRateStore } from '../http/runtime-state';
+import { DEFAULT_CHANNEL_ID, SALES_CHANNEL_ID, CUSTOMER_CHANNEL_ID, resolveChannelConfig } from '../line/channels';
+import { originFromPublicBaseUrl } from '../http/public-bases';
 import { isQueueBackendReady } from '../jobs/queue';
 import { runRuntimeProbes, type ProbeResult } from '../services/runtime-probes';
 import { loadSkills } from '../services/skill-loader';
@@ -162,6 +165,42 @@ const collectWarnings = (flags: PlatformFlags, checks: PlatformCheck[]): string[
   return warnings;
 };
 
+/** Odoo stores product photos as WebP; LINE heroes need PNG/JPEG, converted by the `dwebp` binary. */
+let dwebpProbe: { at: number; ok: boolean } | undefined;
+const dwebpCheck = (): { ok: boolean; message: string } => {
+  // spawnSync blocks the event loop; probe at most once per 10 minutes.
+  if (!dwebpProbe || Date.now() - dwebpProbe.at > 600_000) {
+    dwebpProbe = { at: Date.now(), ok: spawnSync('dwebp', ['-version'], { timeout: 2000 }).status === 0 };
+  }
+  return dwebpProbe.ok
+    ? { ok: true, message: 'dwebp available: product photos convert for LINE' }
+    : { ok: false, message: 'dwebp missing: product cards fall back to the camera placeholder (install libwebp-tools)' };
+};
+
+const publicBaseUrlCheck = (): { ok: boolean; message: string } => {
+  const base = getRuntime('PUBLIC_BASE_URL') || process.env.PUBLIC_BASE_URL;
+  const https = originFromPublicBaseUrl(base).startsWith('https://');
+  return https
+    ? { ok: true, message: 'PUBLIC_BASE_URL is https: LINE can fetch product images' }
+    : { ok: false, message: 'PUBLIC_BASE_URL is not https: product images are omitted from cards' };
+};
+
+const richMenuCheck = (): { ok: boolean; message: string } => {
+  const en = Boolean(getRuntime('LINE_RICH_MENU_EN') || process.env.LINE_RICH_MENU_EN);
+  const th = Boolean(getRuntime('LINE_RICH_MENU_TH') || process.env.LINE_RICH_MENU_TH);
+  return en && th
+    ? { ok: true, message: 'Rich menu ids set for EN and TH' }
+    : { ok: false, message: `Rich menu id missing (${[!en && 'EN', !th && 'TH'].filter(Boolean).join(', ')})` };
+};
+
+const webhookChannelsCheck = (): { ok: boolean; message: string } => {
+  const configured = [DEFAULT_CHANNEL_ID, SALES_CHANNEL_ID, CUSTOMER_CHANNEL_ID].filter(id => resolveChannelConfig(id));
+  const missing = [SALES_CHANNEL_ID, CUSTOMER_CHANNEL_ID].filter(id => !configured.includes(id) && !(id === SALES_CHANNEL_ID && configured.includes(DEFAULT_CHANNEL_ID)));
+  return missing.length
+    ? { ok: false, message: `Webhook not configured for: ${missing.join(', ')}` }
+    : { ok: true, message: `Webhook channels configured: ${configured.join(', ')}` };
+};
+
 export const getPlatformStatus = async () => {
   const flags = getPlatformFlags();
   const probes = await runRuntimeProbes(getRateStore(), readyzTimeoutMs);
@@ -183,6 +222,26 @@ export const getPlatformStatus = async () => {
       required: isMongoUsersEnabled(),
       ok: mongoIdentityReady().ok,
       message: mongoIdentityReady().message,
+    },
+    {
+      name: 'product-photos',
+      required: false,
+      ...dwebpCheck(),
+    },
+    {
+      name: 'public-base-url',
+      required: false,
+      ...publicBaseUrlCheck(),
+    },
+    {
+      name: 'rich-menu',
+      required: false,
+      ...richMenuCheck(),
+    },
+    {
+      name: 'webhook-channels',
+      required: false,
+      ...webhookChannelsCheck(),
     },
     {
       name: 'queues',

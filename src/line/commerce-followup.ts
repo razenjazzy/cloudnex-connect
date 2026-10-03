@@ -85,7 +85,8 @@ export const commerceFollowUpMessages = async (
             userLanguage,
           ));
         }
-      } catch {
+      } catch (error) {
+        appLogger.warn('home_catalog_unavailable', { error: String(error) });
         messages.push(catalogUnavailableMessage(userLanguage));
       }
     }

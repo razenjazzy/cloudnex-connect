@@ -13,6 +13,7 @@ export const LINE_LIMITS = {
   QUICK_REPLY_MAX_ITEMS: 13,
   TEXT_MESSAGE_MAX_CHARS: 5000,
   MAX_MESSAGES_PER_REPLY: 5,
+  ACTION_LABEL_MAX_CHARS: 20,
 } as const;
 
 export type LineLimitViolation = {
@@ -45,6 +46,14 @@ export const checkMessageAgainstLineLimits = (message: messagingApi.Message): Li
     violations.push({ field: 'quickReply.items', limit: LINE_LIMITS.QUICK_REPLY_MAX_ITEMS, actual: quickReplyItems });
   }
 
+  const items = (message as { quickReply?: { items?: Array<{ action?: { label?: string } }> } }).quickReply?.items || [];
+  for (const item of items) {
+    const labelLen = charLen(item.action?.label);
+    if (labelLen > LINE_LIMITS.ACTION_LABEL_MAX_CHARS) {
+      violations.push({ field: 'quickReply.label', limit: LINE_LIMITS.ACTION_LABEL_MAX_CHARS, actual: labelLen });
+    }
+  }
+
   return violations;
 };
 
@@ -62,3 +71,28 @@ export const checkMessagesAgainstLineLimits = (messages: messagingApi.Message[])
 /** Keep index 0. Drop follow-up from the end. */
 export const trimReplyToLimit = (messages: messagingApi.Message[]): messagingApi.Message[] =>
   messages.slice(0, LINE_LIMITS.MAX_MESSAGES_PER_REPLY);
+
+const clampLabel = (label: string): string => {
+  const chars = Array.from(label);
+  return chars.length > LINE_LIMITS.ACTION_LABEL_MAX_CHARS
+    ? `${chars.slice(0, LINE_LIMITS.ACTION_LABEL_MAX_CHARS - 3).join('')}...`
+    : label;
+};
+
+/**
+ * Last line of defence before LINE: a single over-limit label, quick-reply
+ * item or sixth message makes LINE reject the whole reply. Clamp instead of
+ * letting the customer get nothing. Returns the same array when nothing
+ * needed changing.
+ */
+export const enforceLineLimits = (messages: messagingApi.Message[]): messagingApi.Message[] =>
+  trimReplyToLimit(messages).map(message => {
+    const quickReply = (message as { quickReply?: { items?: Array<{ type: string; action?: { label?: string } }> } }).quickReply;
+    if (!quickReply?.items?.length) return message;
+    const items = quickReply.items.slice(0, LINE_LIMITS.QUICK_REPLY_MAX_ITEMS).map(item => (
+      item.action?.label
+        ? { ...item, action: { ...item.action, label: clampLabel(item.action.label) } }
+        : item
+    ));
+    return { ...message, quickReply: { ...quickReply, items } } as messagingApi.Message;
+  });

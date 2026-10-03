@@ -1,5 +1,9 @@
 # Changelog
 
+## v13.0.11 — Odoo LINE OA v10 (2026-10-03)
+
+- Product photos detected via template `image_128` (fixes camera placeholder on every card). LINE reply limits enforced centrally. Sales quote failure replies, admin audit rows, server-side 20-char label validation, photo coverage in Admin Products, new `/readyz` checks.
+
 ## v13.0.10 — Odoo LINE OA v10 (2026-10-03)
 
 - Catalog Flex uses LINE-safe PNG (Odoo WebP converted). Missing photos use the camera placeholder. Sales OA Home replies without waiting for `salesTier`.
