@@ -140,6 +140,7 @@ export type AuditAction =
     | 'service_update'
     | 'service_delete'
     | 'channel_config_update'
+    | 'channel_config_verify'
     | 'audit_rotate'
     | 'quote_create'
     | 'shop_cart_add'

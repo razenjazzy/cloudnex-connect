@@ -84,6 +84,7 @@ const LINE_CHANNEL_NAMESPACED_SUFFIXES = [
   'BASIC_ID',
   'SERVICES',
   'SECRET',
+  'ID',
 ] as const;
 
 export const isAllowedLineChannelOverlayKey = (key: string): boolean => {
@@ -175,9 +176,24 @@ export const resetRuntimeSettingsForTests = (next: Record<string, string> = {}):
   hydrated = true;
 };
 
+/** LINE channel credentials are managed from Admin: a saved Admin value overrides the VPS .env even when ADMIN_CONFIG_LOCK is on. */
+export const isLineChannelKey = (key: string): boolean => key.startsWith('LINE_CHANNEL_') && isAllowedLineChannelOverlayKey(key);
+
+export const runtimeValueSource = (key: string, env: NodeJS.ProcessEnv = process.env): 'admin' | 'env' | 'unset' => {
+  if (isLineChannelKey(key) && overlay[key]?.trim()) return 'admin';
+  const envVal = env[key]?.trim() || '';
+  const overlayVal = overlay[key]?.trim() || '';
+  if (isAdminConfigLocked(env) && envVal) return 'env';
+  if (!isAdminConfigLocked(env) && overlayVal) return 'admin';
+  return envVal ? 'env' : overlayVal ? 'admin' : 'unset';
+};
+
+export const overlayKeys = (): string[] => Object.keys(overlay);
+
 export const getRuntime = (key: string, env: NodeJS.ProcessEnv = process.env): string => {
   const envVal = env[key]?.trim() || '';
   const overlayVal = overlay[key]?.trim() || '';
+  if (overlayVal && isLineChannelKey(key)) return overlayVal;
   if (isAdminConfigLocked(env) && envVal) return envVal;
   if (!isAdminConfigLocked(env) && overlayVal) return overlayVal;
   return envVal || overlayVal || '';
@@ -221,8 +237,10 @@ export const hydrateRuntimeSettings = async (): Promise<void> => {
 export const mergeRuntimeOverlay = async (
   patch: Record<string, string>,
   env: NodeJS.ProcessEnv = process.env,
+  opts: { lineChannelBypass?: boolean } = {},
 ): Promise<{ ok: true } | { ok: false; error: string }> => {
-  if (isAdminConfigLocked(env)) {
+  const bypass = Boolean(opts.lineChannelBypass) && Object.keys(patch).length > 0 && Object.keys(patch).every(isLineChannelKey);
+  if (isAdminConfigLocked(env) && !bypass) {
     if (!isLockedAdminSecretBootstrapPatch(patch, env)) {
       return { ok: false, error: ADMIN_CONFIG_LOCK_ERROR };
     }
@@ -231,7 +249,7 @@ export const mergeRuntimeOverlay = async (
   const locked = isAdminConfigLocked(env);
   let applied = 0;
   for (const [key, value] of Object.entries(patch)) {
-    if (locked && key !== 'ADMIN_SECRET_TOKEN') {
+    if (locked && !bypass && key !== 'ADMIN_SECRET_TOKEN') {
       return { ok: false, error: ADMIN_CONFIG_LOCK_ERROR };
     }
     if (!ALLOWED_OVERLAY_KEYS.has(key) && !isAllowedLineChannelOverlayKey(key)) {

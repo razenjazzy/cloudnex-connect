@@ -7,6 +7,7 @@ import { findOdooUserIdByPartnerId } from '../../services/odoo/admin';
 import { t } from '../../services/i18n';
 import { completeRelayAssign, markSalesWaiting } from '../inbound-relay';
 import { isQuoteStaff } from '../quote-access';
+import { isCustomerChannel } from '../channels';
 
 const bot = (body: string, language: 'th' | 'en', tone: 'info' | 'success' | 'warning' | 'error' = 'info') =>
   createBotTextFlexMessage({ title: t('assignSalesperson', language), body, language, tone });
@@ -15,6 +16,7 @@ const quoteAssignHandler: CommandHandler = {
   name: 'quote-assign',
   match: (u) => u.startsWith('QUOTE ASSIGN'),
   handle: async (ctx) => {
+    if (isCustomerChannel(ctx.channel)) return [bot(t('adminOnlyCommand', ctx.userLanguage), ctx.userLanguage, 'error')];
     const { userLanguage, userId, text, profile } = ctx;
     const auth = isAuthorizedForAdminRole(userId, profile);
     if (!auth.ok || profile.role !== 'admin') {
@@ -64,6 +66,7 @@ const relayAssignHandler: CommandHandler = {
   name: 'relay-assign',
   match: (u) => u.startsWith('RELAY ASSIGN'),
   handle: async (ctx) => {
+    if (isCustomerChannel(ctx.channel)) return [bot(t('adminOnlyCommand', ctx.userLanguage), ctx.userLanguage, 'error')];
     const { userLanguage, userId, text, profile } = ctx;
     const auth = isAuthorizedForAdminRole(userId, profile);
     if (!auth.ok || profile.role !== 'admin') {
@@ -85,6 +88,7 @@ const relayToHandler: CommandHandler = {
   name: 'relay-to',
   match: (u) => u.startsWith('RELAY TO'),
   handle: async (ctx) => {
+    if (isCustomerChannel(ctx.channel)) return [bot(t('adminOnlyCommand', ctx.userLanguage), ctx.userLanguage, 'error')];
     const { userLanguage, userId, text, profile } = ctx;
     if (!isQuoteStaff(profile) && profile.role !== 'admin') {
       return [bot(t('quoteNotLinked', userLanguage), userLanguage, 'error')];
@@ -102,6 +106,7 @@ const staffPickHandler: CommandHandler = {
   name: 'staff-pick',
   match: (u) => u.startsWith('STAFF PICK'),
   handle: async (ctx) => {
+    if (isCustomerChannel(ctx.channel)) return [bot(t('adminOnlyCommand', ctx.userLanguage), ctx.userLanguage, 'error')];
     const { userLanguage, userId, text, profile } = ctx;
     const auth = isAuthorizedForAdminRole(userId, profile);
     if (!auth.ok || profile.role !== 'admin') {

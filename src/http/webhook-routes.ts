@@ -8,26 +8,46 @@ import { safeTokenMatch } from '../services/demo-session';
 import { jsonParser, webhookLimiter, webhookTestLimiter, isReadOnlyWebhookTestCommand, toSafeLogText } from './middleware';
 import { isProduction, isWebhookTestEnabled, webhookTestToken } from './env';
 import { isLineSecondWebhookEnabled } from './optional-flags';
+import { pathFromPublicBaseUrl } from './public-bases';
+
+/**
+ * Webhook paths. The host-root paths (`/webhook*`) stay for existing LINE console settings; the same routes are
+ * also served under the site path from PUBLIC_BASE_URL (e.g. `/cloudnex-connect/webhook/sales`).
+ */
+export const webhookPathPrefixes = (publicBaseUrl: string | undefined = process.env.PUBLIC_BASE_URL): string[] => {
+    const site = pathFromPublicBaseUrl(publicBaseUrl);
+    return site ? ['', site] : [''];
+};
 
 export const registerWebhookRoutes = (app: Express): void => {
+    for (const prefix of webhookPathPrefixes()) registerWebhookRoutesAt(app, prefix);
+};
+
+const registerWebhookRoutesAt = (app: Express, prefix: string): void => {
     // LINE Webhook endpoint (default channel, backward compatible)
-    app.post('/webhook', webhookLimiter, handleWebhook);
-    app.post('/webhook/:channelId', webhookLimiter, handleWebhook);
-    app.post('/webhook-alt', webhookLimiter, (req, res, next) => {
+    app.post(`${prefix}/webhook`, webhookLimiter, handleWebhook);
+    app.post(`${prefix}/webhook/:channelId`, webhookLimiter, handleWebhook);
+    app.post(`${prefix}/webhook-alt`, webhookLimiter, (req, res, next) => {
         if (!isLineSecondWebhookEnabled()) {
             return res.status(404).json({ error: 'LINE_SECOND_WEBHOOK is not enabled.' });
         }
         return next();
     }, ...handleWebhook);
-    app.post('/webhook-legacy', (_req, res) => res.status(410).json({ error: 'Use POST /webhook or POST /webhook-alt (same HMAC handler).' }));
+    app.post(`${prefix}/webhook-legacy`, (_req, res) => res.status(410).json({ error: 'Use POST /webhook or POST /webhook-alt (same HMAC handler).' }));
 
     // Local test endpoint — bypasses LINE signature validation
     // Remove this before deploying to production
-    app.post('/webhook-test', jsonParser, webhookTestLimiter, async (req, res) => {
+    app.post(`${prefix}/webhook-test`, jsonParser, webhookTestLimiter, async (req, res) => {
         try {
             if (!isWebhookTestEnabled) {
                 return res.status(404).json({
                     error: 'webhook-test is disabled in production. Set ENABLE_WEBHOOK_TEST=true to enable it.',
+                });
+            }
+
+            if (isProduction && !webhookTestToken) {
+                return res.status(404).json({
+                    error: 'webhook-test needs WEBHOOK_TEST_TOKEN on a production image.',
                 });
             }
 

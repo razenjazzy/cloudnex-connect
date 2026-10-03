@@ -1,5 +1,5 @@
 import { getPlatformConfig, setPlatformConfig } from '../services/firestore';
-import { getRuntime } from '../services/runtime-settings';
+import { getRuntime, overlayKeys } from '../services/runtime-settings';
 import { tenantScopedKey } from '../services/tenant';
 
 export type ChannelContext = {
@@ -17,6 +17,9 @@ export const DEFAULT_CHANNEL_ID = 'default';
 export const SALES_CHANNEL_ID = 'sales';
 /** Cloudnex Customer (`POST /webhook/customer`). */
 export const CUSTOMER_CHANNEL_ID = 'customer';
+
+/** True when the message arrived on the Customer OA. Staff-only commands must never run there. */
+export const isCustomerChannel = (channel?: { channelId: string } | null): boolean => channel?.channelId === CUSTOMER_CHANNEL_ID;
 /** Flex / product name. LINE OA Manager names are Cloudnex Sales and Cloudnex Customer. */
 export const APP_NAME = 'CloudNex Connect';
 
@@ -188,4 +191,31 @@ export const resolveEffectiveChannelContext = async (config: ChannelConfig): Pro
     channelId: config.channelId,
     enabledServices: override !== undefined ? override : config.enabledServices,
   };
+};
+
+/** Runtime keys that hold one LINE channel's credentials (default uses the flat LINE_CHANNEL_* names). */
+export const lineChannelKeys = (channelId: string): { id: string; secret: string; token: string; basicId: string; services: string } => {
+  const id = channelId.trim().toLowerCase();
+  if (id === DEFAULT_CHANNEL_ID) {
+    return { id: 'LINE_CHANNEL_ID', secret: 'LINE_CHANNEL_SECRET', token: 'LINE_CHANNEL_ACCESS_TOKEN', basicId: 'LINE_CHANNEL_BASIC_ID', services: 'LINE_CHANNEL_DEFAULT_SERVICES' };
+  }
+  const envKey = toEnvKey(id);
+  return {
+    id: `LINE_CHANNEL_${envKey}_ID`,
+    secret: `LINE_CHANNEL_${envKey}_SECRET`,
+    token: `LINE_CHANNEL_${envKey}_ACCESS_TOKEN`,
+    basicId: `LINE_CHANNEL_${envKey}_BASIC_ID`,
+    services: `LINE_CHANNEL_${envKey}_SERVICES`,
+  };
+};
+
+/** default, sales, customer plus any extra channel that has credentials in .env or the Admin overlay. */
+export const listLineChannelIds = (): string[] => {
+  const ids = new Set<string>([DEFAULT_CHANNEL_ID, SALES_CHANNEL_ID, 'customer']);
+  const re = /^LINE_CHANNEL_([A-Z][A-Z0-9_]*)_(?:SECRET|ACCESS_TOKEN)$/;
+  for (const key of [...Object.keys(process.env), ...overlayKeys()]) {
+    const hit = re.exec(key);
+    if (hit) ids.add(hit[1].toLowerCase());
+  }
+  return [...ids];
 };

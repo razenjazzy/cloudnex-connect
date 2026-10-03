@@ -2,7 +2,7 @@
 
 Secrets stay on the VM — never commit `.env`. Laptop **builds and pushes** `razenjazzy/cloudnex-connect:staging`. The VPS **docker pull**s that image (no `npm install` / `npm ci` on the host).
 
-LINE HMAC → Firestore profile → one `resolveCommandReply` → Flex. Webhooks stay on **production** `:8080`.
+LINE HMAC → Firestore profile → one `resolveCommandReply` → Flex. Webhooks (`/webhook*` and `/cloudnex-connect/webhook*`) are proxied to **staging** `:8081` by nginx, so the staging `.env` must hold the Sales and Customer OA credentials. `webhook-test` stays off on staging.
 
 | Lane | Directory | Port | Admin | Compose | `APP_ENV` |
 |---|---|---|---|---|---|
@@ -14,8 +14,8 @@ LINE HMAC → Firestore profile → one `resolveCommandReply` → Flex. Webhooks
 | Domain | `https://amardhaka.io` |
 | Host | `root@187.127.179.49` |
 | Image | `razenjazzy/cloudnex-connect:staging` |
-| Sales webhook | `POST https://amardhaka.io/webhook/sales` (8080) |
-| Customer webhook | `POST https://amardhaka.io/webhook/customer` (8080) |
+| Sales webhook | `POST https://amardhaka.io/cloudnex-connect/webhook/sales` (8081; `/webhook/sales` also works) |
+| Customer webhook | `POST https://amardhaka.io/cloudnex-connect/webhook/customer` (8081; `/webhook/customer` also works) |
 
 Each lane has its own `/opt/.../.env`. Staging deploy seeds `/opt/cns-line-oa/.env` from production only if the sibling file is missing.
 

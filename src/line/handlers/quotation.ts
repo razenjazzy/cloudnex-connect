@@ -981,6 +981,7 @@ const quoteListHandler: CommandHandler = {
       dateTo,
     };
     let fetched: OdooSaleOrder[] = [];
+    let unlinkedSalesperson = false;
     try {
       if (listMode !== 'lookup' && profile.role === 'admin' && !phoneArg) {
         fetched = await listCrmQuotations({
@@ -997,6 +998,10 @@ const quoteListHandler: CommandHandler = {
           ? await getSaleOrdersForSalesperson(odooUserId, listOpts)
           : await getSaleOrdersForPartner(partnerId, listOpts);
         listMode = odooUserId ? 'salesperson' : 'partner';
+        if (!odooUserId) {
+          unlinkedSalesperson = true;
+          appLogger.warn('quote_list_salesperson_unlinked', { userId, partnerId });
+        }
       } else if (partnerId) {
         fetched = await getSaleOrdersForPartner(partnerId, listOpts);
       } else {
@@ -1024,10 +1029,13 @@ const quoteListHandler: CommandHandler = {
       customers: page.map(order => order.partner_id?.[1] || null),
     });
     const nextCursor = hasMore && page.length ? encodeQuoteListCursor(page[page.length - 1]) : undefined;
-    return [createQuotationListFlexMessage(page, hasMore, userLanguage, nextCursor, dateFrom, dateTo, userId, {
+    const listMessage = createQuotationListFlexMessage(page, hasMore, userLanguage, nextCursor, dateFrom, dateTo, userId, {
       staff: isQuoteStaff(profile),
       admin: profile.role === 'admin',
-    })];
+    });
+    return unlinkedSalesperson
+      ? [botText(t('quoteSalespersonUnlinked', userLanguage), userLanguage), listMessage]
+      : [listMessage];
   },
 };
 

@@ -126,6 +126,7 @@ export const UI_STRINGS = {
   noOrders: { en: 'No orders found.', th: 'ไม่พบคำสั่งซื้อ' },
   noOrdersYet: { en: 'No orders yet', th: 'ยังไม่มีคำสั่งซื้อ' },
   noQuotations: { en: "No quotations found.", th: 'ไม่พบใบเสนอราคา' },
+  quoteSalespersonUnlinked: { en: 'Your LINE account is not linked to an Odoo salesperson, so this list shows quotes for your own contact instead. Ask an admin to link you.', th: 'บัญชี LINE ของคุณยังไม่ได้ผูกกับพนักงานขายใน Odoo รายการนี้จึงแสดงใบเสนอราคาของผู้ติดต่อของคุณแทน กรุณาติดต่อผู้ดูแลเพื่อผูกบัญชี' },
   quoteListFailed: { en: 'Could not load quotations right now. Please try again.', th: 'โหลดใบเสนอราคาไม่สำเร็จ กรุณาลองอีกครั้ง' },
   quoteSendFailed: { en: 'Could not send this quotation. Nothing was sent. Please try again.', th: 'ส่งใบเสนอราคาไม่สำเร็จ ยังไม่มีการส่งออก กรุณาลองอีกครั้ง' },
   tryAgain: { en: 'Try again', th: 'ลองอีกครั้ง' },

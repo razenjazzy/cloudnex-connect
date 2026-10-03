@@ -20,7 +20,8 @@ export const publicCatalogProductImageUrl = (productId: number): string | undefi
 export const publicCatalogPlaceholderImageUrl = (): string | undefined => {
   const host = httpsCatalogOrigin();
   if (!host) return undefined;
-  return `${host.origin}${host.path}/product/placeholder/image`;
+  // ?v= busts LINE's image cache after the placeholder asset was repaired (bump on change).
+  return `${host.origin}${host.path}/product/placeholder/image?v=2`;
 };
 
 /** Proven HTTPS photo, else the public /product/{id}/image URL, else the camera / no-photo PNG. */

@@ -1,4 +1,4 @@
-import { middleware } from '@line/bot-sdk';
+import { middleware, SignatureValidationFailed } from '@line/bot-sdk';
 import express from 'express';
 import { ChannelConfig, DEFAULT_CHANNEL_ID, resolveChannelConfig, resolveEffectiveChannelContext } from './channels';
 import { extractLineLifecycleEvents, extractLineMessageJobs, processLineLifecycleEvent, processLineMessageJob } from './process-message';
@@ -26,7 +26,14 @@ export const handleWebhook = [
   },
   (req: express.Request, res: express.Response, next: express.NextFunction) => {
       const channelConfig = res.locals.channelConfig as ChannelConfig;
-      middleware({ channelSecret: channelConfig.channelSecret })(req, res, next);
+      middleware({ channelSecret: channelConfig.channelSecret })(req, res, (err?: unknown) => {
+        if (err instanceof SignatureValidationFailed) {
+          // Wrong channel secret for this OA looks exactly like this: surface it instead of a bare 500.
+          appLogger.warn('webhook_signature_invalid', { channelId: channelConfig.channelId });
+          return res.status(401).json({ error: 'Invalid LINE signature for this channel.' });
+        }
+        return next(err);
+      });
   },
   async (req: express.Request, res: express.Response) => {
     const channelConfig = res.locals.channelConfig as ChannelConfig;

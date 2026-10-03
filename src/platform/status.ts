@@ -1,3 +1,4 @@
+import { CATALOG_PLACEHOLDER_PNG, isValidPng } from '../http/catalog-placeholder';
 import {
   appEnv,
   isApiDocsEnabled,
@@ -166,11 +167,16 @@ const collectWarnings = (flags: PlatformFlags, checks: PlatformCheck[]): string[
 };
 
 /** Odoo stores product photos as WebP; LINE heroes need PNG/JPEG, converted by the `dwebp` binary. */
+const placeholderPngValid = (): boolean => isValidPng(CATALOG_PLACEHOLDER_PNG, 400, 260);
+
 let dwebpProbe: { at: number; ok: boolean } | undefined;
 const dwebpCheck = (): { ok: boolean; message: string } => {
   // spawnSync blocks the event loop; probe at most once per 10 minutes.
   if (!dwebpProbe || Date.now() - dwebpProbe.at > 600_000) {
     dwebpProbe = { at: Date.now(), ok: spawnSync('dwebp', ['-version'], { timeout: 2000 }).status === 0 };
+  }
+  if (!placeholderPngValid()) {
+    return { ok: false, message: 'catalog placeholder PNG is corrupt: no-photo cards render blank' };
   }
   return dwebpProbe.ok
     ? { ok: true, message: 'dwebp available: product photos convert for LINE' }

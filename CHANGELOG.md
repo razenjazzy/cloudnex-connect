@@ -1,5 +1,9 @@
 # Changelog
 
+## v13.0.12 — Odoo LINE OA v10 (2026-10-04)
+
+- Camera placeholder PNG repaired (was corrupt, rendered blank). Admin Channels page: per-channel LINE credentials, verify against LINE, Admin value overrides `.env` for LINE keys. Webhooks also served under `/cloudnex-connect/webhook*`; bad signatures return 401 and log. Staff relay commands refused on the Customer OA. Env files regrouped (`documents/ENV_GUIDE.md`).
+
 ## v13.0.11 — Odoo LINE OA v10 (2026-10-03)
 
 - Product photos detected via template `image_128` (fixes camera placeholder on every card). LINE reply limits enforced centrally. Sales quote failure replies, admin audit rows, server-side 20-char label validation, photo coverage in Admin Products, new `/readyz` checks.

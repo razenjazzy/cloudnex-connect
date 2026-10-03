@@ -10,13 +10,47 @@ import {
   isPublicLineChannelOverlayKey,
   mergeRuntimeOverlay,
   resetRuntimeSettingsForTests,
+  runtimeValueSource,
 } from '../src/services/runtime-settings';
 
 describe('runtime settings', () => {
-  it('lets env win when ADMIN_CONFIG_LOCK is on', () => {
-    resetRuntimeSettingsForTests({ LINE_CHANNEL_SECRET: 'overlay-secret' });
-    const env = { ADMIN_CONFIG_LOCK: 'true', LINE_CHANNEL_SECRET: 'env-secret' };
-    expect(getRuntime('LINE_CHANNEL_SECRET', env)).toBe('env-secret');
+  it('lets env win when ADMIN_CONFIG_LOCK is on (non-LINE keys)', () => {
+    resetRuntimeSettingsForTests({ PUBLIC_BASE_URL: 'https://overlay.example' });
+    const env = { ADMIN_CONFIG_LOCK: 'true', PUBLIC_BASE_URL: 'https://env.example' };
+    expect(getRuntime('PUBLIC_BASE_URL', env)).toBe('https://env.example');
+  });
+
+  it('lets an Admin-saved LINE channel credential override env even when locked', () => {
+    resetRuntimeSettingsForTests({ LINE_CHANNEL_SALES_ACCESS_TOKEN: 'admin-token', LINE_CHANNEL_SECRET: 'overlay-secret' });
+    const env = { ADMIN_CONFIG_LOCK: 'true', LINE_CHANNEL_SALES_ACCESS_TOKEN: 'env-token', LINE_CHANNEL_SECRET: 'env-secret' };
+    expect(getRuntime('LINE_CHANNEL_SALES_ACCESS_TOKEN', env)).toBe('admin-token');
+    expect(getRuntime('LINE_CHANNEL_SECRET', env)).toBe('overlay-secret');
+    expect(runtimeValueSource('LINE_CHANNEL_SALES_ACCESS_TOKEN', env)).toBe('admin');
+  });
+
+  it('falls back to env for a LINE key with no Admin value, and reports the source', () => {
+    resetRuntimeSettingsForTests({});
+    const env = { ADMIN_CONFIG_LOCK: 'true', LINE_CHANNEL_ACCESS_TOKEN: 'env-token' };
+    expect(getRuntime('LINE_CHANNEL_ACCESS_TOKEN', env)).toBe('env-token');
+    expect(runtimeValueSource('LINE_CHANNEL_ACCESS_TOKEN', env)).toBe('env');
+    expect(runtimeValueSource('LINE_CHANNEL_CUSTOMER_SECRET', env)).toBe('unset');
+  });
+
+  it('keeps the lock for non-LINE keys even when the LINE bypass is requested', async () => {
+    resetRuntimeSettingsForTests({});
+    const result = await mergeRuntimeOverlay({ PUBLIC_BASE_URL: 'https://x.example' }, { ADMIN_CONFIG_LOCK: 'true' }, { lineChannelBypass: true });
+    expect(result.ok).toBe(false);
+    const mixed = await mergeRuntimeOverlay({ LINE_CHANNEL_SALES_SECRET: 's', PUBLIC_BASE_URL: 'https://x.example' }, { ADMIN_CONFIG_LOCK: 'true' }, { lineChannelBypass: true });
+    expect(mixed.ok).toBe(false);
+  });
+
+  it('lets LINE channel keys through the lock only with the bypass flag', async () => {
+    resetRuntimeSettingsForTests({});
+    const denied = await mergeRuntimeOverlay({ LINE_CHANNEL_SALES_SECRET: 's' }, { ADMIN_CONFIG_LOCK: 'true' });
+    expect(denied.ok).toBe(false);
+    const allowed = await mergeRuntimeOverlay({ LINE_CHANNEL_SALES_SECRET: 's' }, { ADMIN_CONFIG_LOCK: 'true', SECRETS_ENCRYPTION_KEY: 'k'.repeat(32) }, { lineChannelBypass: true });
+    // Reaches persistence (Firestore is unconfigured in tests) rather than the lock error.
+    expect(allowed.ok === false ? allowed.error : '').not.toContain('ADMIN_CONFIG_LOCK');
   });
 
   it('lets overlay win when unlocked', () => {
@@ -95,5 +129,12 @@ describe('runtime settings', () => {
       ok: false,
       error: 'ADMIN_CONFIG_LOCK is enabled. Set ADMIN_CONFIG_LOCK=false to edit settings, or paste the VPS ADMIN_SECRET_TOKEN on Jobs.',
     });
+  });
+
+  it('allows per-channel numeric LINE channel ids in the Admin overlay', () => {
+    expect(isAllowedLineChannelOverlayKey('LINE_CHANNEL_SALES_ID')).toBe(true);
+    expect(isAllowedLineChannelOverlayKey('LINE_CHANNEL_CUSTOMER_ID')).toBe(true);
+    expect(isAllowedLineChannelOverlayKey('LINE_CHANNEL_ID')).toBe(true);
+    expect(isAllowedLineChannelOverlayKey('LINE_CHANNEL_')).toBe(false);
   });
 });

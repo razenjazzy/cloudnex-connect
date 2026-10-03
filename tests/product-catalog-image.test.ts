@@ -23,10 +23,10 @@ describe('product catalog images', () => {
       'https://example.com/other.png',
     );
     expect(catalogProductHeroUrl()).toBe(
-      'https://amardhaka.io/cloudnex-connect/catalog/test/product/placeholder/image',
+      'https://amardhaka.io/cloudnex-connect/catalog/test/product/placeholder/image?v=2',
     );
     expect(publicCatalogPlaceholderImageUrl()).toBe(
-      'https://amardhaka.io/cloudnex-connect/catalog/test/product/placeholder/image',
+      'https://amardhaka.io/cloudnex-connect/catalog/test/product/placeholder/image?v=2',
     );
     if (previousBase === undefined) delete process.env.PUBLIC_BASE_URL;
     else process.env.PUBLIC_BASE_URL = previousBase;

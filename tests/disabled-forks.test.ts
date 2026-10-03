@@ -9,7 +9,7 @@ describe('disabled forks', () => {
     const src = readFileSync('src/http/webhook-routes.ts', 'utf8');
     expect(src).toContain('isLineSecondWebhookEnabled');
     expect(src).toContain('...handleWebhook');
-    expect(src).toContain("app.post('/webhook-legacy'");
+    expect(src).toContain('app.post(`${prefix}/webhook-legacy`');
   });
 
   it('GraphQL ingest runs processLineMessageJob when the flag is on', () => {

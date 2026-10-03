@@ -466,8 +466,14 @@ export const App = () => {
   const [channelToken, setChannelToken] = useState('');
   const [channelServices, setChannelServices] = useState('');
   const [channelBasicId, setChannelBasicId] = useState('');
+  const [channelNumericId, setChannelNumericId] = useState('');
   const [channelRichMenu, setChannelRichMenu] = useState('');
   const [channelWebhook, setChannelWebhook] = useState('');
+  type LineChannelRow = { channelId: string; channelNumericId?: string; configured: boolean; usesDefaultCredentials: boolean; secretSource: string; tokenSource: string; basicId?: string; services?: string; webhookUrl: string };
+  type LineVerify = { ok: boolean; problems: string[]; line: { displayName?: string; basicId?: string; webhookEndpoint?: string; webhookActive?: boolean } };
+  const [lineChannels, setLineChannels] = useState<LineChannelRow[]>([]);
+  const [lineVerify, setLineVerify] = useState<Record<string, LineVerify | 'checking'>>({});
+  const [channelNote, setChannelNote] = useState('');
   const [health, setHealth] = useState('');
   const [ready, setReady] = useState('');
   const [erp, setErp] = useState('');
@@ -716,6 +722,37 @@ export const App = () => {
     setError('');
   };
 
+  const loadLineChannels = async () => {
+    const res = await api(`${ADMIN_BASE}/api/line-channels`);
+    if (!res.ok) {
+      setError('Could not load LINE channels');
+      return;
+    }
+    const body = await res.json() as { channels?: LineChannelRow[] };
+    setLineChannels(body.channels || []);
+  };
+
+  const verifyLineChannel = async (id: string) => {
+    setLineVerify(prev => ({ ...prev, [id]: 'checking' }));
+    const res = await api(`${ADMIN_BASE}/api/line-channels/${encodeURIComponent(id)}/verify`, { method: 'POST' });
+    const body = await res.json() as Partial<LineVerify> & { error?: string };
+    if (!res.ok) {
+      setLineVerify(prev => ({ ...prev, [id]: { ok: false, problems: [body.error || 'Verify failed'], line: {} } }));
+      return;
+    }
+    setLineVerify(prev => ({ ...prev, [id]: { ok: Boolean(body.ok), problems: body.problems || [], line: body.line || {} } }));
+  };
+
+  const editLineChannel = (row: LineChannelRow) => {
+    setChannelSlug(row.channelId);
+    setChannelBasicId(row.basicId || '');
+    setChannelNumericId(row.channelNumericId || '');
+    setChannelServices(row.services || '');
+    setChannelSecret('');
+    setChannelToken('');
+    setChannelNote(`Editing ${row.channelId}. Leave secret or token empty to keep the stored value.`);
+  };
+
   const addLineChannel = async (event: FormEvent) => {
     event.preventDefault();
     const res = await api(`${ADMIN_BASE}/api/line-channels`, {
@@ -726,6 +763,7 @@ export const App = () => {
         accessToken: channelToken,
         services: channelServices,
         basicId: channelBasicId,
+        channelNumericId,
         richMenuJson: channelRichMenu,
       }),
     });
@@ -737,8 +775,11 @@ export const App = () => {
     setChannelWebhook(body.webhookUrl || '');
     setChannelSecret('');
     setChannelToken('');
+    setChannelNote('Saved. LINE accepted the token.');
     setError('');
     await loadSettings({ replaceDrafts: true });
+    await loadLineChannels();
+    await verifyLineChannel(channelSlug.trim().toLowerCase());
   };
 
   const campaignBody = () => ({
@@ -866,6 +907,11 @@ export const App = () => {
         }
         return;
       }
+      if (page === 'line') {
+        await loadSettings();
+        await loadLineChannels();
+        return;
+      }
       if (page === 'logs') {
         const res = await api(`${ADMIN_BASE}/api/audit-log?limit=50`);
         if (res.ok) {
@@ -953,10 +999,11 @@ export const App = () => {
 
   const lineForm = (
     <form className="field-row" onSubmit={addLineChannel}>
-      <div className="field"><label>Channel id</label><input value={channelSlug} onChange={e => setChannelSlug(e.target.value)} placeholder="hr" /></div>
-      <div className="field"><label>Channel secret</label><input type="password" value={channelSecret} onChange={e => setChannelSecret(e.target.value)} placeholder="channel secret" autoComplete="off" /></div>
-      <div className="field"><label>Access token</label><input type="password" value={channelToken} onChange={e => setChannelToken(e.target.value)} placeholder="access token" autoComplete="off" /></div>
+      <div className="field"><label>Channel id</label><input value={channelSlug} onChange={e => setChannelSlug(e.target.value)} placeholder="sales, customer, default or a new slug" list="line-channel-ids" /></div>
+      <div className="field"><label>Channel secret</label><input type="password" value={channelSecret} onChange={e => setChannelSecret(e.target.value)} placeholder="write-only, empty keeps stored" autoComplete="off" /></div>
+      <div className="field"><label>Access token</label><input type="password" value={channelToken} onChange={e => setChannelToken(e.target.value)} placeholder="write-only, empty keeps stored" autoComplete="off" /></div>
       <div className="field"><label>Services CSV</label><input value={channelServices} onChange={e => setChannelServices(e.target.value)} placeholder="commerce,catalog" /></div>
+      <div className="field"><label>Channel ID (numeric)</label><input value={channelNumericId} onChange={e => setChannelNumericId(e.target.value)} placeholder="2011573907" /></div>
       <div className="field"><label>Basic ID</label><input value={channelBasicId} onChange={e => setChannelBasicId(e.target.value)} placeholder="@basic-id" /></div>
       <div className="field"><label>Rich menu JSON</label><input value={channelRichMenu} onChange={e => setChannelRichMenu(e.target.value)} placeholder="rich-menu JSON" /></div>
       <button type="submit">Save channel</button>
@@ -1199,6 +1246,669 @@ export const App = () => {
                 <BindSteps adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} />
               </>
             ) : null}
+            <CopyField label="Webhooks" value={JSON.stringify(webhooks, null, 2)} />
+            <p className="muted">Lock: {String(settingsLock)}. If lock is true, change VPS <code>ADMIN_CONFIG_LOCK=false</code> then recreate the container to Save settings here.</p>
+            <button type="button" onClick={() => void loadSettings({ replaceDrafts: true })}>Refresh</button>
+            <button type="button" onClick={async () => {
+              const res = await api(`${ADMIN_BASE}/api/settings`, { method: 'PUT', body: JSON.stringify(settingsDraft) });
+              const body = await res.json() as { error?: string; lock?: boolean; settings?: unknown; optionalFlags?: unknown };
+              if (!res.ok) {
+                toast(body.error || 'Settings save failed');
+                return;
+              }
+              toast('Settings saved', 'ok');
+              setSettings(prev => ({ ...(prev || {}), ...body }));
+              await loadSettings({ replaceDrafts: true });
+            }}>Save settings</button>
+            <div className="table-wrap">
+            <table>
+              <thead><tr><th>Key</th><th>Value</th><th></th></tr></thead>
+              <tbody>
+                {rows.map(row => (
+                  <tr key={row.key}>
+                    <td>{row.key}</td>
+                    <td>{row.kind === 'secret' ? (unmasked[row.key] ? (
+                      <CopyField label={row.key} value={unmasked[row.key].value} />
+                    ) : (row.set ? '••••' : '—')) : (
+                      <input
+                        value={settingsDraft[row.key] ?? row.value ?? ''}
+                        onChange={e => {
+                          const value = e.target.value;
+                          settingsDraftDirty.current = true;
+                          setSettingsDraft(prev => ({ ...prev, [row.key]: value }));
+                          if (row.key === 'DISABLED_COMMANDS') setDisabledCommandsDraft(value);
+                        }}
+                        placeholder={row.set ? '' : 'unset'}
+                      />
+                    )}</td>
+                    <td>{row.kind === 'secret' && row.set ? <button type="button" disabled={!actor} onClick={() => void reveal(row.key)}>Reveal</button> : null}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
+            <h3>Unmask log</h3>
+            {!actor ? <p className="muted">Super-admin bind required. Secret reveal audit stays closed until Identity → Bind.</p> : null}
+            <button type="button" disabled={!actor} onClick={async () => {
+              const res = await api(`${ADMIN_BASE}/api/audit-log/reveals?limit=50`);
+              const body = await res.json() as { events?: Array<Record<string, unknown>>; error?: string };
+              if (!res.ok) {
+                toast(body.error || t(uiLang, 'toastForbidden'));
+                return;
+              }
+              setReveals(body.events || []);
+            }}>Load reveals</button>
+            <table>
+              <thead><tr><th>Time</th><th>Action</th><th>Actor</th></tr></thead>
+              <tbody>
+                {reveals.map((row, i) => (
+                  <tr key={String(row.id || i)}><td>{String(row.createdAt || '')}</td><td>{String(row.action || '')}</td><td>{String(row.actorUserId || '')}</td></tr>
+                ))}
+              </tbody>
+            </table>
+            <h3>Service toggles</h3>
+            <p>Live overrides for commerce, directory, catalog, reporting, groupBuy. Env-forced keys cannot be turned on here.</p>
+            <div className="field-row">
+              <button type="button" onClick={async () => {
+                const res = await api(`${ADMIN_BASE}/api/toggles`);
+                const body = await res.json() as { toggles?: Array<{ key: string; effective: boolean; source: string }> };
+                setToggles(body.toggles || []);
+                setError(res.ok ? '' : 'Could not load toggles');
+              }}>Load toggles</button>
+              <button type="button" onClick={async () => {
+                const patch: Record<string, boolean> = {};
+                for (const row of toggles) patch[row.key] = row.effective;
+                const res = await api(`${ADMIN_BASE}/api/toggles`, { method: 'PUT', body: JSON.stringify(patch) });
+                const body = await res.json() as { toggles?: Array<{ key: string; effective: boolean; source: string }>; error?: string };
+                if (!res.ok) setError(body.error || 'Toggle save failed');
+                else {
+                  setToggles(body.toggles || toggles);
+                  setError('');
+                }
+              }}>Save toggles</button>
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Service</th><th>On</th><th>Source</th></tr></thead>
+                <tbody>
+                  {toggles.map(row => (
+                    <tr key={row.key}>
+                      <td>{row.key}</td>
+                      <td>
+                        <input type="checkbox" checked={row.effective} onChange={e => {
+                          const on = e.target.checked;
+                          setToggles(prev => prev.map(item => item.key === row.key ? { ...item, effective: on } : item));
+                        }} />
+                      </td>
+                      <td>{row.source}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {toggles.length ? <CopyField label="Toggles JSON" value={JSON.stringify(toggles, null, 2)} /> : null}
+          </div>
+        ) : null}
+        {page === 'language' ? (
+          <>
+          <div className="card">
+            <h2>{t(uiLang, 'uiLanguage')}</h2>
+            <p className="page-lead">Same keys for EN and TH. API/LINE strings are src/services/i18n.ts (`t(key)`). Portal strings are Admin chrome (`t(lang, key)`). Save writes overlay; code defaults remain until you override a cell.</p>
+            <div className="field-row">
+              <button type="button" className={uiLang === 'en' ? '' : 'secondary'} onClick={() => { writeUiLang('en'); setUiLang('en'); }}>English</button>
+              <button type="button" className={uiLang === 'th' ? '' : 'secondary'} onClick={() => { writeUiLang('th'); setUiLang('th'); }}>ไทย</button>
+              <button type="button" onClick={() => void loadI18nCatalog()}>Reload strings</button>
+              <button type="button" onClick={async () => {
+                const apiMap: Record<string, { en: string; th: string }> = {};
+                for (const row of i18nApi) apiMap[row.key] = { en: row.en, th: row.th };
+                const portalMap: Record<string, { en: string; th: string }> = {};
+                for (const row of i18nPortal) portalMap[row.key] = { en: row.en, th: row.th };
+                const res = await api(`${ADMIN_BASE}/api/i18n`, { method: 'PUT', body: JSON.stringify({ api: apiMap, portal: portalMap }) });
+                const body = await res.json() as { error?: string };
+                if (!res.ok) toast(body.error || 'Save failed');
+                else {
+                  toast('Translations saved', 'ok');
+                  await loadI18nCatalog();
+                }
+              }}>Save translations</button>
+            </div>
+          </div>
+          <div className="card">
+            <h2>API / LINE (`t(key)`)</h2>
+            <div className="table-wrap">
+              <table className="lang-grid">
+                <thead><tr><th>Key</th><th>Source</th><th>EN</th><th>TH</th></tr></thead>
+                <tbody>
+                  {i18nApi.map((row, i) => (
+                    <tr key={row.key}>
+                      <td><code>{row.key}</code></td>
+                      <td>{row.source || 'code'}</td>
+                      <td><input value={row.en} onChange={e => setI18nApi(list => list.map((item, j) => j === i ? { ...item, en: e.target.value } : item))} /></td>
+                      <td><input value={row.th} onChange={e => setI18nApi(list => list.map((item, j) => j === i ? { ...item, th: e.target.value } : item))} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="card">
+            <h2>Admin portal (`t(lang, key)`)</h2>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>Key</th><th>EN</th><th>TH</th></tr></thead>
+                <tbody>
+                  {i18nPortal.map((row, i) => (
+                    <tr key={row.key}>
+                      <td><code>{row.key}</code></td>
+                      <td><input value={row.en} onChange={e => setI18nPortal(list => list.map((item, j) => j === i ? { ...item, en: e.target.value } : item))} /></td>
+                      <td><input value={row.th} onChange={e => setI18nPortal(list => list.map((item, j) => j === i ? { ...item, th: e.target.value } : item))} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="card">
+            <h2>{t(uiLang, 'lineUserLanguage')}</h2>
+            <p>LINE replies follow the Firestore profile language (EN/TH). Tray Language toggles it in chat.</p>
+            <div className="field-row">
+              <div className="field">
+                <label>LINE user id</label>
+                <input value={langUser} onChange={e => setLangUser(e.target.value)} placeholder="U..." />
+              </div>
+              <button type="button" onClick={async () => {
+                if (!langUser.trim()) return;
+                const res = await api(`${ADMIN_BASE}/api/users?userId=${encodeURIComponent(langUser.trim())}`);
+                const body = await res.json() as { users?: Array<{ userId?: string; language?: string }>; error?: string };
+                if (!res.ok) {
+                  toast(body.error || t(uiLang, 'toastUnauthorized'));
+                  return;
+                }
+                const user = body.users?.[0];
+                setLangCurrent(String(user?.language || ''));
+              }}>Lookup</button>
+              <button type="button" onClick={async () => {
+                const res = await api(`${ADMIN_BASE}/api/users/${encodeURIComponent(langUser)}`, { method: 'PATCH', body: JSON.stringify({ language: 'en' }) });
+                if (!res.ok) toast(await readError(res, 'Set English failed'));
+                else setLangCurrent('en');
+              }}>Set English</button>
+              <button type="button" onClick={async () => {
+                const res = await api(`${ADMIN_BASE}/api/users/${encodeURIComponent(langUser)}`, { method: 'PATCH', body: JSON.stringify({ language: 'th' }) });
+                if (!res.ok) toast(await readError(res, 'Set Thai failed'));
+                else setLangCurrent('th');
+              }}>Set Thai</button>
+            </div>
+            {langCurrent ? <CopyField label="Current language" value={langCurrent} /> : null}
+          </div>
+          </>
+        ) : null}
+        {page === 'commands' ? (
+          <div className="card">
+            <h2>Command labels</h2>
+            <p>{t(uiLang, 'cmdLead')}</p>
+            <div className="field-row">
+              <button type="button" onClick={async () => {
+                const res = await api(`${ADMIN_BASE}/api/commands`);
+                const body = await res.json() as { commands?: Array<Record<string, unknown>>; tenantKey?: string; error?: string };
+                setCommands(body.commands || []);
+                if (body.tenantKey) setTenantKey(body.tenantKey);
+                if (!res.ok) {
+                  const msg = body.error || t(uiLang, 'toastUnauthorized');
+                  setError(msg);
+                  toast(msg, 'error');
+                } else setError('');
+              }}>{t(uiLang, 'cmdReload')}</button>
+              <button type="button" onClick={async () => {
+                if (!commands.length) {
+                  toast(t(uiLang, 'cmdReload'), 'error');
+                  return;
+                }
+                const patch: Record<string, { enabled: boolean; labelEn?: string; labelTh?: string; roles?: string[]; channels?: string[]; aliases?: string[] }> = {};
+                for (const row of commands) {
+                  if (typeof row.id === 'string') {
+                    patch[row.id] = {
+                      enabled: row.enabled !== false,
+                      labelEn: String(row.labelEn || ''),
+                      labelTh: String(row.labelTh || ''),
+                      ...(Array.isArray(row.roles) && row.roles.length ? { roles: row.roles.map(String) } : {}),
+                      ...(Array.isArray(row.channels) && row.channels.filter(ch => ch !== 'any').length
+                        ? { channels: row.channels.map(String).filter(ch => ch !== 'any') }
+                        : {}),
+                      ...(Array.isArray(row.aliases) && row.aliases.length
+                        ? { aliases: row.aliases.map(String).map(part => part.trim()).filter(Boolean) }
+                        : {}),
+                    };
+                  }
+                }
+                const res = await api(`${ADMIN_BASE}/api/commands`, { method: 'PUT', body: JSON.stringify({ commands: patch }) });
+                const body = await res.json() as { commands?: Array<Record<string, unknown>>; error?: string };
+                if (!res.ok) {
+                  const msg = body.error || t(uiLang, 'toastUnauthorized');
+                  setError(msg);
+                  toast(msg, 'error');
+                } else {
+                  setCommands(body.commands || commands);
+                  setError('');
+                  toast(t(uiLang, 'cmdSaved'), 'ok');
+                }
+              }}>{t(uiLang, 'cmdSave')}</button>
+            </div>
+            <div className="table-wrap">
+              <table className="commands-grid">
+                <thead><tr><th>On</th><th>Prefix (read-only)</th><th>Category</th><th>EN label</th><th>TH label</th><th>Aliases</th><th>Roles</th><th>Channels</th></tr></thead>
+                <tbody>
+                  {commands.map((row, i) => (
+                    <tr key={String(row.id || i)}>
+                      <td>
+                        <input type="checkbox" checked={row.enabled !== false} onChange={e => {
+                          const on = e.target.checked;
+                          setCommands(prev => prev.map(item => item.id === row.id ? { ...item, enabled: on } : item));
+                        }} />
+                      </td>
+                      <td><code>{String(row.prefix || '')}</code></td>
+                      <td>{String(row.category || '')}</td>
+                      <td>
+                        <input value={String(row.labelEn || '')} onChange={e => {
+                          const labelEn = e.target.value;
+                          setCommands(prev => prev.map(item => item.id === row.id ? { ...item, labelEn } : item));
+                        }} />
+                      </td>
+                      <td>
+                        <input value={String(row.labelTh || '')} onChange={e => {
+                          const labelTh = e.target.value;
+                          setCommands(prev => prev.map(item => item.id === row.id ? { ...item, labelTh } : item));
+                        }} />
+                      </td>
+                      <td>
+                        <input value={Array.isArray(row.aliases) ? row.aliases.join(',') : ''} onChange={e => {
+                          const aliases = e.target.value.split(',').map(part => part.trim()).filter(Boolean);
+                          setCommands(prev => prev.map(item => item.id === row.id ? { ...item, aliases } : item));
+                        }} placeholder="typed shortcuts" />
+                      </td>
+                      <td>
+                        <input value={Array.isArray(row.roles) ? row.roles.join(',') : ''} onChange={e => {
+                          const roles = e.target.value.split(',').map(part => part.trim()).filter(Boolean);
+                          setCommands(prev => prev.map(item => item.id === row.id ? { ...item, roles } : item));
+                        }} />
+                      </td>
+                      <td>
+                        <input value={Array.isArray(row.channels) ? row.channels.filter(ch => ch !== 'any').join(',') : ''} onChange={e => {
+                          const channels = e.target.value.split(',').map(part => part.trim()).filter(Boolean);
+                          setCommands(prev => prev.map(item => item.id === row.id ? { ...item, channels } : item));
+                        }} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {commands.length ? <CopyField label="Command grid JSON" value={commandGridJson(commands)} defaultOpen /> : null}
+          </div>
+        ) : null}
+        {page === 'crm' ? (
+          <>
+          <CommandWork adminBase={ADMIN_BASE} api={api} actor={actor} uiLang={uiLang} onIdentity={() => go(`${ADMIN_BASE}/identity`)} toast={(text, kind) => toast(text, kind === 'ok' ? 'ok' : 'error')} />
+          <div className="card">
+            <h2>CRM quotes</h2>
+            {!actor ? <BindSteps adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} /> : null}
+            <div className="row">
+              <button type="button" onClick={async () => {
+                const res = await api(`${ADMIN_BASE}/crm/quotes?unassigned=1`);
+                const body = await res.json() as { quotes?: Quote[] };
+                setQuotes(body.quotes || []);
+              }}>Unassigned</button>
+              <button type="button" onClick={async () => {
+                const res = await api(`${ADMIN_BASE}/crm/quotes`);
+                const body = await res.json() as { quotes?: Quote[] };
+                setQuotes(body.quotes || []);
+              }}>All</button>
+            </div>
+            <table>
+              <thead><tr><th>Order</th><th>State</th><th>Partner</th><th>Salesperson</th></tr></thead>
+              <tbody>
+                {quotes.map(q => (
+                  <tr key={q.id}><td>{q.name}</td><td>{q.state}</td><td>{q.partnerName || '—'}</td><td>{q.salespersonName || 'unassigned'}</td></tr>
+                ))}
+              </tbody>
+            </table>
+            <div className="field-row">
+              <div className="field">
+                <label>Quote id</label>
+                <input value={assignId} onChange={e => setAssignId(e.target.value)} placeholder="quote id" />
+              </div>
+              <div className="field">
+                <label>Odoo user id</label>
+                <input value={assignSales} onChange={e => setAssignSales(e.target.value)} placeholder="Odoo user id" />
+              </div>
+              <button type="button" onClick={async () => {
+                const res = await api(`${ADMIN_BASE}/crm/quotes/${assignId}`, { method: 'PUT', body: JSON.stringify({ salespersonUserId: Number(assignSales) }) });
+                setError(res.ok ? '' : 'Assign failed');
+                if (res.ok) {
+                  const list = await api(`${ADMIN_BASE}/crm/quotes`);
+                  const body = await list.json() as { quotes?: Quote[] };
+                  setQuotes(body.quotes || []);
+                }
+              }}>Assign</button>
+            </div>
+          </div>
+          </>
+        ) : null}
+        {page === 'users' ? (
+          <div className="card">
+            <h2>Directory</h2>
+            <p className="page-lead">Paste a LINE user id (<code>U</code> + 32 hex), a phone, or an Odoo partner id. Empty lookup lists verified sales.</p>
+            <Steps items={[
+              <>Lookup with a LINE id, phone, or partner id, or leave empty for verified sales.</>,
+              <>Open Activity for audit rows on that user.</>,
+            ]} />
+            <div className="field-row">
+              <div className="field">
+                <label>LINE user id, phone, or partner id</label>
+                <input value={lookup} onChange={e => setLookup(e.target.value)} placeholder="U05594… or phone" />
+              </div>
+              <button type="button" onClick={async () => {
+                const raw = lookup.trim();
+                const q = !raw ? 'sales=1'
+                  : raw.startsWith('U') ? `userId=${encodeURIComponent(raw)}`
+                  : /^\d+$/.test(raw) ? `partnerId=${encodeURIComponent(raw)}`
+                  : `phone=${encodeURIComponent(raw)}`;
+                const res = await api(`${ADMIN_BASE}/api/users?${q}`);
+                const body = await res.json() as { users?: Array<Record<string, unknown>>; error?: string };
+                setUsers(body.users || []);
+                setError(res.ok ? '' : (body.error || 'Lookup failed'));
+              }}>Lookup</button>
+              <button type="button" onClick={async () => {
+                const res = await api(`${ADMIN_BASE}/api/users?sales=1`);
+                const body = await res.json() as { users?: Array<Record<string, unknown>> };
+                setUsers(body.users || []);
+              }}>Verified sales</button>
+            </div>
+            <div className="table-wrap">
+            <table>
+              <thead><tr><th>LINE</th><th>OA</th><th>Lang</th><th>Verified</th><th>Odoo partner</th><th>Role</th><th>Promo</th><th></th></tr></thead>
+              <tbody>
+                {users.map((u, i) => (
+                  <tr key={String(u.userId || i)}>
+                    <td>{String(u.userId || '')}</td>
+                    <td>{String(u.lastChannelId || '—')}</td>
+                    <td>{String(u.language || '')}</td>
+                    <td>{String(u.odooVerified)}</td>
+                    <td>{String(u.odooPartnerId || '—')}</td>
+                    <td>{String(u.commandRole || u.role || '')}</td>
+                    <td>{String(u.marketingOptIn)}</td>
+                    <td>
+                      <div className="row">
+                      <button type="button" onClick={async () => {
+                        const id = String(u.userId || '');
+                        const res = await api(`${ADMIN_BASE}/api/users/${encodeURIComponent(id)}/activity?limit=50`);
+                        const body = await res.json() as { events?: Array<Record<string, unknown>> };
+                        setActivity(body.events || []);
+                        setAuditUser(id);
+                      }}>Activity</button>
+                      <button type="button" disabled={!actor} onClick={async () => {
+                        const res = await api(`${ADMIN_BASE}/api/command`, { method: 'POST', body: JSON.stringify({ text: 'FORM VERIFY', preview: true }) });
+                        const body = await res.json() as { error?: string };
+                        if (!res.ok) toast(body.error || t(uiLang, 'toastUnauthorized'));
+                        else toast(t(uiLang, 'preview'), 'ok');
+                      }}>FORM VERIFY</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
+            {users[0] ? <CopyField label="User dossier" value={JSON.stringify(users[0], null, 2)} /> : null}
+            {activity.length ? (
+              <>
+                <h3>Activity (actor or target)</h3>
+                <table>
+                  <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Target</th></tr></thead>
+                  <tbody>
+                    {activity.map((row, i) => (
+                      <tr key={String(row.id || i)}>
+                        <td>{String(row.createdAt || '')}</td>
+                        <td>{String(row.action || '')}</td>
+                        <td>{String(row.actorUserId || '')}</td>
+                        <td>{String(row.targetId || '')}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </>
+            ) : null}
+          </div>
+        ) : null}
+        {page === 'privileges' ? (
+          <>
+          <div className="card">
+            <h2>Privileges</h2>
+            <p className="page-lead">Roles from Directory. Admin grant still uses the fail-closed chain.</p>
+            <div className="table-wrap">
+              <table>
+                <thead><tr><th>LINE user</th><th>Role</th><th>Verified</th></tr></thead>
+                <tbody>
+                  {users.map((u, i) => (
+                    <tr key={String(u.userId || i)}>
+                      <td>{String(u.userId || '')}</td>
+                      <td>{String(u.commandRole || u.role || '')}</td>
+                      <td>{String(u.odooVerified)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="card">
+            <h2>Allowlist</h2>
+            {privilegeSnap ? <CopyField label="LINE admin allowlist + chain" value={privilegeSnap} /> : <p className="muted">Loading…</p>}
+            <div className="field-row">
+              <div className="field">
+                <label>Grant LINE admin (verified + allowlisted)</label>
+                <input value={grantUser} onChange={e => setGrantUser(e.target.value)} placeholder="U05594…" />
+              </div>
+              <button type="button" disabled={!actor} onClick={async () => {
+                const res = await api(`${ADMIN_BASE}/api/privileges/enable`, { method: 'POST', body: JSON.stringify({ userId: grantUser.trim() }) });
+                if (!res.ok) toast(await readError(res, t(uiLang, 'toastForbidden')));
+                else toast('Granted', 'ok');
+              }}>Grant role=admin</button>
+            </div>
+          </div>
+          </>
+        ) : null}
+        {page === 'logs' ? (
+          <div className="card">
+            <h2>Ops audit</h2>
+            <p>Firestore audit for all users. Filter by LINE id as actor or target. Secret reveals stay on Settings.</p>
+            <div className="field-row">
+              <div className="field">
+                <label>LINE user id</label>
+                <input value={auditUser} onChange={e => setAuditUser(e.target.value)} placeholder="U05594… (actor or target)" />
+              </div>
+              <div className="field">
+                <label>Action</label>
+                <input value={auditAction} onChange={e => setAuditAction(e.target.value)} placeholder="role_grant" />
+              </div>
+              <button type="button" onClick={async () => {
+                const q = new URLSearchParams({ limit: '50' });
+                if (auditUser.trim()) q.set('userId', auditUser.trim());
+                if (auditAction.trim()) q.set('action', auditAction.trim());
+                const res = await api(`${ADMIN_BASE}/api/audit-log?${q.toString()}`);
+                const body = await res.json() as { events?: Array<Record<string, unknown>> };
+                setLogs(body.events || []);
+              }}>Load</button>
+            </div>
+            <div className="table-wrap">
+            <table>
+              <thead><tr><th>Time</th><th>Action</th><th>Actor</th><th>Target</th><th>Outcome</th></tr></thead>
+              <tbody>
+                {logs.map((row, i) => (
+                  <tr key={String(row.id || i)}>
+                    <td>{String(row.createdAt || '')}</td>
+                    <td>{String(row.action || '')}</td>
+                    <td>{String(row.actorUserId || '')}</td>
+                    <td>{String(row.targetId || '')}</td>
+                    <td>{String(row.outcome || '')}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            </div>
+          </div>
+        ) : null}
+        {page === 'testing' ? <DemoPanel adminBase={ADMIN_BASE} api={api} go={go} /> : null}
+        {(page === 'commerce' || page === 'catalog' || page === 'group-buy' || page === 'approvals' || page === 'ops' || page === 'reporting') ? (
+          <LiveServices page={page} adminBase={ADMIN_BASE} api={api} go={go} />
+        ) : null}
+        {page === 'tenants' ? (
+          <TenantPanel
+            adminBase={ADMIN_BASE}
+            api={api}
+            go={go}
+            toast={(text, kind) => toast(text, kind === 'ok' ? 'ok' : 'error')}
+          />
+        ) : null}
+        {page === 'platform' ? (
+          <div className="card">
+            <h2>ERP / platform</h2>
+            <p className="page-lead">ERP adapter status and e-sign/payment probes. Overlay tenant key and silo rules are on Tenants. Odoo masters stay in Odoo.</p>
+            <Steps items={[
+              <>Refresh ERP to load adapter status.</>,
+              <>Open Tenants to set TENANT_KEY or point this process at a lab Odoo.</>,
+            ]} />
+            <div className="field-row">
+              <button type="button" className="secondary" onClick={() => go(`${ADMIN_BASE}/tenants`)}>Open Tenants</button>
+              <button type="button" onClick={async () => {
+                await loadSettings();
+                const res = await api(`${ADMIN_BASE}/api/erp/test`);
+                const body = await res.json() as { erpImplemented?: boolean; erpProvider?: string };
+                setErp(res.ok ? JSON.stringify(body) : 'fail');
+                const st = await api(`${ADMIN_BASE}/api/erp/status`);
+                setErpStatus(JSON.stringify(await st.json(), null, 2));
+              }}>Refresh ERP</button>
+            </div>
+            {erp ? <CopyField label="ERP probe" value={erp} /> : null}
+            {erpStatus ? <CopyField label="E-sign / payment status" value={erpStatus} /> : null}
+            <CopyField label="Platform settings" value={JSON.stringify({ lock: settingsLock, missingRequired: settings?.missingRequired, capabilities: settings?.capabilities }, null, 2)} />
+          </div>
+        ) : null}
+        {page === 'jobs' ? (
+          <>
+          <div className="card">
+            <h2>Jobs</h2>
+            <p className="page-lead">{t(uiLang, 'jobsNeedToken')}</p>
+            <Steps items={[
+              <>Copy <code>ADMIN_SECRET_TOKEN</code> from the VPS <code>.env</code> (or Identity bind, then Settings → Reveal). Do not use the OPS login token.</>,
+              <>Paste it here (16+ characters). Save token. If it matches the VPS env, the server keeps env and this browser stores the value for Run.</>,
+              <>If env is empty and <code>ADMIN_CONFIG_LOCK</code> is false, Save uploads an overlay token. If lock is true, the VPS token must already match.</>,
+              <>Run daily-report / segmentation / seed-odoo while still signed in with OPS. curl uses the same Bearer token.</>,
+            ]} />
+            <div className="field-row">
+              <div className="field">
+                <label>ADMIN_SECRET_TOKEN (optional curl)</label>
+                <input type="password" value={jobsToken} onChange={e => { setJobsToken(e.target.value); sessionStorage.setItem(JOBS_TOKEN_KEY, e.target.value); }} placeholder="ADMIN_SECRET_TOKEN" autoComplete="off" />
+              </div>
+              <button type="button" onClick={async () => {
+                const secret = jobsToken.trim();
+                if (secret.length < 16) {
+                  toast(t(uiLang, 'toastAdminSecret'));
+                  return;
+                }
+                sessionStorage.setItem(JOBS_TOKEN_KEY, secret);
+                const res = await api(`${ADMIN_BASE}/api/jobs-token`, { method: 'PUT', body: JSON.stringify({ token: secret }) });
+                const body = await res.json() as { error?: string; stored?: string };
+                if (!res.ok) {
+                  toast(body.error || t(uiLang, 'toastAdminSecret'));
+                  return;
+                }
+                toast(body.stored === 'overlay' ? 'ADMIN_SECRET_TOKEN uploaded' : 'Token kept in this browser', 'ok');
+              }}>Save token</button>
+            </div>
+          </div>
+          <div className="card">
+            <h2>Run</h2>
+            <div className="field-row">
+              {(['daily-report', 'segmentation', 'seed-odoo'] as const).map(name => (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={async () => {
+                    const secret = jobsToken.trim();
+                    if (secret) sessionStorage.setItem(JOBS_TOKEN_KEY, secret);
+                    const res = await api(`${ADMIN_BASE}/api/jobs/${name}`, {
+                      method: 'POST',
+                      body: '{}',
+                      ...(secret.length >= 16 ? { headers: { authorization: `Bearer ${secret}` } } : {}),
+                    });
+                    const body = await res.json().catch(() => ({})) as { error?: string; message?: string };
+                    if (!res.ok) {
+                      toast(body.error || (secret && secret.length < 16 ? t(uiLang, 'toastAdminSecret') : t(uiLang, 'toastUnauthorized')));
+                      setJobOut('');
+                      return;
+                    }
+                    setJobOut(body.message || `${name} ok`);
+                    toast(body.message || `${name} ok`, 'ok');
+                  }}
+                >{name}</button>
+              ))}
+            </div>
+            {jobOut ? <CopyField label="Last job result" value={jobOut} /> : null}
+          </div>
+          <div className="card">
+            <h2>curl</h2>
+            <CopyField
+              label="curl (staging)"
+              value={`curl -X POST '${hostOrigin}${ADMIN_BASE}/api/jobs/daily-report' -H "Authorization: Bearer $ADMIN_SECRET_TOKEN"`}
+            />
+          </div>
+          </>
+        ) : null}
+        {page === 'line' ? (
+          <div className="card">
+            <h2>LINE channels</h2>
+            <p className="page-lead">One place for each OA's secret and access token. A value saved here overrides the VPS <code>.env</code> for LINE keys. Tokens are checked against LINE before saving and are never shown again.</p>
+            <table>
+              <thead><tr><th>Channel</th><th>Status</th><th>Source</th><th>LINE ID / Basic ID</th><th>LINE check</th><th /></tr></thead>
+              <tbody>
+                {lineChannels.map(row => {
+                  const v = lineVerify[row.channelId];
+                  return (
+                    <tr key={row.channelId}>
+                      <td><strong>{row.channelId}</strong><br /><code>{row.webhookUrl}</code></td>
+                      <td>
+                        <span className="pill">{row.configured ? 'configured' : 'not set'}</span>
+                        {row.usesDefaultCredentials ? <span className="pill" title="No Sales-only credentials: Sales borrows the default OA's token">uses default OA</span> : null}
+                      </td>
+                      <td>secret: {row.secretSource}<br />token: {row.tokenSource}</td>
+                      <td>{row.channelNumericId || '-'}<br />{row.basicId || '-'}</td>
+                      <td>
+                        {v === 'checking' ? 'Checking...' : v ? (
+                          <>
+                            <span className="pill">{v.ok ? 'OK' : 'Problem'}</span>{' '}
+                            {v.line.displayName ? <span>{v.line.displayName} {v.line.basicId}</span> : null}
+                            {v.problems.map(problem => <div key={problem} className="muted">{problem}</div>)}
+                          </>
+                        ) : '-'}
+                      </td>
+                      <td>
+                        <button type="button" onClick={() => verifyLineChannel(row.channelId)} disabled={!row.configured}>Verify</button>{' '}
+                        <button type="button" onClick={() => editLineChannel(row)}>Edit</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            <datalist id="line-channel-ids">{lineChannels.map(row => <option key={row.channelId} value={row.channelId} />)}</datalist>
+            <h3>Add or change a channel</h3>
+            <Steps items={[
+              <>Pick a channel (or type a new id), paste its Channel secret and long-lived access token from LINE Developers, then Save.</>,
+              <>Set the channel's webhook URL (shown above) in LINE Developers and turn Use webhook on.</>,
+              <>Press Verify: it shows the OA name, Basic ID and webhook LINE has on file.</>,
+            ]} />
+            {channelNote ? <p className="page-lead">{channelNote}</p> : null}
+            {lineForm}
+            {channelWebhook ? <CopyField label="Channel webhook" value={channelWebhook} /> : null}
             <CopyField label="Webhooks" value={JSON.stringify(webhooks, null, 2)} />
             <p className="muted">Lock: {String(settingsLock)}. If lock is true, change VPS <code>ADMIN_CONFIG_LOCK=false</code> then recreate the container to Save settings here.</p>
             <button type="button" onClick={() => void loadSettings({ replaceDrafts: true })}>Refresh</button>

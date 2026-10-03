@@ -1,6 +1,6 @@
 import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import { getErpAdapter, isErpImplemented } from '../erp/registry';
-import { adminBase, originFromPublicBaseUrl } from './public-bases';
+import { adminBase, originFromPublicBaseUrl, publicSiteUrl } from './public-bases';
 import { isOdooConfigured } from '../services/odoo';
 import { getOdooConfig } from '../services/odoo/client';
 import {
@@ -39,6 +39,7 @@ import {
   getEffectiveAdminUserIds,
   getSuperAdminUserIds,
   getSecretRevealTtlSeconds,
+  runtimeValueSource,
   PUBLIC_SETTING_KEYS,
 } from '../services/runtime-settings';
 import {
@@ -70,7 +71,8 @@ import { isAuthorizedForAdminRole } from '../services/admin-authorization';
 import { commandActor, getCommandGridPayload } from '../line/command-grid';
 import { verifyOdooAdminAccess } from '../services/odoo/admin';
 import { sendTargetedMessage, sendBroadcastMessage } from '../line/messaging';
-import { getAgentName, SALES_CHANNEL_ID, getChannelServiceOverride, setChannelServiceOverride, resolveChannelConfig } from '../line/channels';
+import { getAgentName, SALES_CHANNEL_ID, getChannelServiceOverride, setChannelServiceOverride, resolveChannelConfig, lineChannelKeys, listLineChannelIds } from '../line/channels';
+import { verifyLineChannelToken, normalizeBasicId } from '../line/channel-verify';
 import { parseCampaignAudienceRequest, parseCampaignBroadcastRequest, parseCampaignSendRequest, parseCampaignTestText, resolveCampaignAudience } from '../line/campaigns';
 import { createQueuedCampaign, findCampaignByIdempotencyKey, listCampaigns } from '../jobs/campaign-store';
 import { enqueueCampaignSend, isQueueBackendReady } from '../jobs/queue';
@@ -187,10 +189,12 @@ const pathParam = (value: string | string[] | undefined): string =>
 
 const webhookTable = (base: string) => {
   const origin = originFromPublicBaseUrl(base) || base.replace(/\/$/, '') || 'https://example.invalid';
+  const hook = publicSiteUrl(base) || origin;
   return {
-    sales: `${origin}/webhook/sales`,
-    customer: `${origin}/webhook/customer`,
-    default: `${origin}/webhook`,
+    sales: `${hook}/webhook/sales`,
+    customer: `${hook}/webhook/customer`,
+    default: `${hook}/webhook`,
+    test: `${hook}/webhook-test`,
     verifyOdoo: `${origin}/verify/odoo`,
     verifyAction: `${origin}/verify/action`,
   };
@@ -446,44 +450,119 @@ export const registerAdminApiRoutes = (app: Express): void => {
     return res.json({ ok: true, keys: Object.keys(next) });
   });
 
+  const lineWebhookUrl = (channelId: string): string => {
+    const base = getRuntime('PUBLIC_BASE_URL') || '';
+    const site = publicSiteUrl(base) || 'https://example.invalid';
+    return channelId === 'default' ? `${site}/webhook` : `${site}/webhook/${channelId}`;
+  };
+  /** The host-root path (/webhook/...) is served too, so a LINE console still set to it is not an error. */
+  const lineWebhookRootUrl = (channelId: string): string => {
+    const origin = originFromPublicBaseUrl(getRuntime('PUBLIC_BASE_URL') || '') || 'https://example.invalid';
+    return channelId === 'default' ? `${origin}/webhook` : `${origin}/webhook/${channelId}`;
+  };
+
+  /** Per-channel status for the Admin Channels page. Never returns secret values. */
+  router.get('/line-channels', adminApiLimiter, requireAdminPanelAccess, async (_req, res) => {
+    await hydrateRuntimeSettings();
+    const channels = listLineChannelIds().map(id => {
+      const keys = lineChannelKeys(id);
+      const config = resolveChannelConfig(id);
+      const own = Boolean(getRuntime(keys.secret) && getRuntime(keys.token));
+      return {
+        channelId: id,
+        configured: Boolean(config),
+        usesDefaultCredentials: id === SALES_CHANNEL_ID && Boolean(config) && !own,
+        secretSource: runtimeValueSource(keys.secret),
+        tokenSource: runtimeValueSource(keys.token),
+        channelNumericId: getRuntime(keys.id) || undefined,
+        basicId: getRuntime(keys.basicId) || undefined,
+        services: getRuntime(keys.services) || undefined,
+        webhookUrl: lineWebhookUrl(id),
+      };
+    });
+    return res.json({ channels });
+  });
+
+  /** Ask LINE who owns the stored token (name, Basic ID, webhook). Token stays server-side. */
+  router.post('/line-channels/:id/verify', adminApiLimiter, requireSuperAdmin, async (req, res) => {
+    const id = pathParam(req.params.id).toLowerCase();
+    const config = resolveChannelConfig(id);
+    if (!config) return res.status(404).json({ error: 'Channel has no stored credentials.' });
+    const check = await verifyLineChannelToken(config.channelAccessToken);
+    const keys = lineChannelKeys(id);
+    const storedBasic = getRuntime(keys.basicId) || getRuntime('LINE_CHANNEL_BASIC_ID');
+    const expectedWebhook = lineWebhookUrl(id);
+    const problems: string[] = [];
+    if (!check.ok) problems.push(check.status === 0 ? check.error || 'LINE unreachable' : `LINE rejected the access token (${check.status}). Reissue it in LINE Developers.`);
+    if (check.ok && storedBasic && normalizeBasicId(storedBasic) !== normalizeBasicId(check.basicId)) {
+      problems.push(`Stored Basic ID ${storedBasic} does not match the OA that owns this token (${check.basicId}).`);
+    }
+    if (check.ok && check.webhookEndpoint !== expectedWebhook && check.webhookEndpoint !== lineWebhookRootUrl(id)) problems.push(`LINE webhook is ${check.webhookEndpoint || 'not set'}; expected ${expectedWebhook}.`);
+    if (check.ok && check.webhookActive === false) problems.push('"Use webhook" is off in LINE Developers.');
+    await recordAuditEvent({
+      action: 'channel_config_verify',
+      outcome: problems.length ? 'failure' : 'success',
+      actorUserId: (req as Request & { adminActor?: string }).adminActor || 'unknown',
+      channelId: id,
+      detail: problems.length ? problems.join(' ').slice(0, 200) : 'ok',
+    });
+    return res.json({ channelId: id, ok: problems.length === 0, problems, line: { displayName: check.displayName, basicId: check.basicId, webhookEndpoint: check.webhookEndpoint, webhookActive: check.webhookActive }, expectedWebhook });
+  });
+
+  /** Add or change a channel. The token is checked against LINE before it is saved; secrets are write-only. */
   router.post('/line-channels', jsonParser, adminApiLimiter, requireSuperAdmin, async (req, res) => {
+    await hydrateRuntimeSettings();
     const channelId = String(req.body?.channelId || '').trim().toLowerCase();
     if (!/^[a-z][a-z0-9_-]{0,31}$/.test(channelId)) {
-      return res.status(400).json({ error: 'channelId must be a lowercase slug (e.g. hr).' });
+      return res.status(400).json({ error: 'channelId must be a lowercase slug (e.g. sales, customer, hr).' });
     }
-    const envKey = channelId.toUpperCase().replace(/[^A-Z0-9]/g, '_');
+    const keys = lineChannelKeys(channelId);
     const secret = String(req.body?.secret || '').trim();
     const accessToken = String(req.body?.accessToken || '').trim();
-    if (!secret || !accessToken) {
-      return res.status(400).json({ error: 'secret and accessToken are required.' });
+    const existing = Boolean(getRuntime(keys.secret) && getRuntime(keys.token));
+    if (!existing && (!secret || !accessToken)) {
+      return res.status(400).json({ error: 'secret and accessToken are required for a new channel.' });
     }
-    const patch: Record<string, string> = {
-      [`LINE_CHANNEL_${envKey}_SECRET`]: secret,
-      [`LINE_CHANNEL_${envKey}_ACCESS_TOKEN`]: accessToken,
-    };
-    if (typeof req.body?.services === 'string' && req.body.services.trim()) {
-      patch[`LINE_CHANNEL_${envKey}_SERVICES`] = req.body.services.trim();
+    const tokenToCheck = accessToken || getRuntime(keys.token);
+    const check = tokenToCheck ? await verifyLineChannelToken(tokenToCheck) : undefined;
+    if (check && !check.ok && check.status !== 0) {
+      return res.status(400).json({ error: `LINE rejected this access token (${check.status}): ${check.error || 'invalid'}. Nothing was saved.` });
     }
-    if (typeof req.body?.basicId === 'string' && req.body.basicId.trim()) {
-      patch[`LINE_CHANNEL_${envKey}_BASIC_ID`] = req.body.basicId.trim();
+    const basicIdInput = typeof req.body?.basicId === 'string' ? req.body.basicId.trim() : '';
+    if (check?.ok && basicIdInput && normalizeBasicId(basicIdInput) !== normalizeBasicId(check.basicId)) {
+      return res.status(400).json({ error: `Basic ID ${basicIdInput} does not belong to this token (LINE says ${check.basicId}). Nothing was saved.` });
     }
+    const patch: Record<string, string> = {};
+    if (secret) patch[keys.secret] = secret;
+    if (accessToken) patch[keys.token] = accessToken;
+    const numericId = typeof req.body?.channelNumericId === 'string' ? req.body.channelNumericId.trim() : '';
+    if (numericId && !/^\d{6,12}$/.test(numericId)) {
+      return res.status(400).json({ error: 'LINE channel ID is the numeric id (e.g. 2011573907) from LINE Developers.' });
+    }
+    if (numericId) patch[keys.id] = numericId;
+    const basicId = basicIdInput || (check?.ok ? check.basicId || '' : '');
+    if (basicId) patch[keys.basicId] = basicId;
+    if (typeof req.body?.services === 'string' && req.body.services.trim()) patch[keys.services] = req.body.services.trim();
     if (typeof req.body?.richMenuJson === 'string' && req.body.richMenuJson.trim()) {
-      patch[`LINE_CHANNEL_${envKey}_RICH_MENU_JSON`] = req.body.richMenuJson.trim();
+      patch[`LINE_CHANNEL_${channelId.toUpperCase().replace(/[^A-Z0-9]/g, '_')}_RICH_MENU_JSON`] = req.body.richMenuJson.trim();
     }
-    const result = await mergeRuntimeOverlay(patch);
+    if (!Object.keys(patch).length) return res.status(400).json({ error: 'Nothing to change.' });
+    const result = await mergeRuntimeOverlay(patch, process.env, { lineChannelBypass: true });
     const actor = (req as Request & { adminActor?: string }).adminActor || 'unknown';
     await recordAuditEvent({
       action: 'channel_config_update',
       outcome: result.ok ? 'success' : 'failure',
       actorUserId: actor,
-      detail: channelId,
+      channelId,
+      detail: `${channelId}: ${Object.keys(patch).map(k => k.replace(/^LINE_CHANNEL_(?:[A-Z0-9_]+?_)?/, '')).join(',')}`.slice(0, 200),
     });
     if (!result.ok) return res.status(403).json({ error: result.error });
-    const origin = (getRuntime('PUBLIC_BASE_URL') || '').replace(/\/$/, '') || 'https://example.invalid';
     return res.json({
       ok: true,
       channelId,
-      webhookUrl: `${origin}/webhook/${channelId}`,
+      webhookUrl: lineWebhookUrl(channelId),
+      line: check?.ok ? { displayName: check.displayName, basicId: check.basicId, webhookEndpoint: check.webhookEndpoint, webhookActive: check.webhookActive } : undefined,
+      verified: Boolean(check?.ok),
     });
   });
 

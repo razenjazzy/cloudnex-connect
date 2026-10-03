@@ -1,3 +1,14 @@
+# Release notes — v13.0.12
+
+**Date:** 2026-10-04  
+**Package version:** `13.0.12`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`). Production unchanged.  
+**Commit title:** `Release: v13.0.12 - Odoo Line OA v10 Bug Fix`
+
+No-photo cards show the camera again (placeholder PNG was corrupt). Admin Channels: save/verify per-channel LINE credentials. Webhooks at `/webhook*` and `/cloudnex-connect/webhook*`. Env files grouped; see `documents/ENV_GUIDE.md`. Open items: `documents/BACKLOG.md`.
+
+---
+
 # Release notes — v13.0.11
 
 **Date:** 2026-10-03  
