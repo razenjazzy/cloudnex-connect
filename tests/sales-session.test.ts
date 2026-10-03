@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { hasActiveSalesSession, salesSessionExpired, salesSessionExpiresAtFromNow, salesSessionTtlHours } from '../src/services/sales-session';
+import { hasActiveSalesSession, salesIdleExpired, salesIdleSignoutSeconds, salesSessionExpired, salesSessionExpiresAtFromNow, salesSessionTtlHours, shouldTouchSalesActivity } from '../src/services/sales-session';
+import { isSalesPreVerifyCommand } from '../src/line/command-grid';
 
 describe('sales session', () => {
   it('defaults TTL to 24 hours and honors SALES_SESSION_TTL_HOURS', () => {
@@ -25,5 +26,37 @@ describe('sales session', () => {
     const profile = { odooVerified: true, salesTier: 'salesperson' as const, salesSessionExpiresAt: past };
     expect(hasActiveSalesSession(profile)).toBe(false);
     expect(salesSessionExpired(profile)).toBe(true);
+  });
+
+  it('signs a verified staff session out after 1 hour of silence (SALES_IDLE_SIGNOUT_SECONDS, 0 = off)', () => {
+    expect(salesIdleSignoutSeconds({})).toBe(3600);
+    expect(salesIdleSignoutSeconds({ SALES_IDLE_SIGNOUT_SECONDS: '600' })).toBe(600);
+    expect(salesIdleSignoutSeconds({ SALES_IDLE_SIGNOUT_SECONDS: 'nope' })).toBe(3600);
+    const now = Date.now();
+    const staff = { odooVerified: true, salesTier: 'salesperson' as const };
+    expect(salesIdleExpired({ ...staff, salesLastActiveAt: new Date(now - 61 * 60_000).toISOString() }, now, {})).toBe(true);
+    expect(salesIdleExpired({ ...staff, salesLastActiveAt: new Date(now - 59 * 60_000).toISOString() }, now, {})).toBe(false);
+    expect(salesIdleExpired({ ...staff, salesLastActiveAt: new Date(now - 7200_000).toISOString() }, now, { SALES_IDLE_SIGNOUT_SECONDS: '0' })).toBe(false);
+    expect(salesIdleExpired({ odooVerified: true, salesTier: undefined, salesLastActiveAt: new Date(0).toISOString() }, now, {})).toBe(false);
+    expect(salesIdleExpired({ ...staff }, now, {})).toBe(false);
+  });
+
+  it('touches the activity clock at most once a minute for verified staff only', () => {
+    const now = Date.now();
+    const staff = { odooVerified: true, salesTier: 'salesperson' as const };
+    expect(shouldTouchSalesActivity(staff, now)).toBe(true);
+    expect(shouldTouchSalesActivity({ ...staff, salesLastActiveAt: new Date(now - 10_000).toISOString() }, now)).toBe(false);
+    expect(shouldTouchSalesActivity({ ...staff, salesLastActiveAt: new Date(now - 61_000).toISOString() }, now)).toBe(true);
+    expect(shouldTouchSalesActivity({ odooVerified: false, salesTier: 'salesperson' }, now)).toBe(false);
+  });
+
+  it('before verification the Sales OA only allows identity, help, privacy and language', () => {
+    for (const ok of ['NAV VERIFY', 'FORM VERIFY', 'VERIFY START 0123', 'VERIFY OTP 123456', 'HELP', 'MY DATA', 'LANG EN', 'LANG']) {
+      expect(isSalesPreVerifyCommand(ok)).toBe(true);
+    }
+    for (const blocked of ['NAV HOME', 'NAV', 'BACK', 'NAV COMMERCE', 'QUOTE LIST', 'PRODUCT FIND shoes', 'FORM QUOTE CREATE FROM CARD 3']) {
+      expect(isSalesPreVerifyCommand(blocked)).toBe(false);
+    }
+    expect(isSalesPreVerifyCommand('FORM FIELD 1', { flow: 'VERIFY' })).toBe(true);
   });
 });

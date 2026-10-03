@@ -137,6 +137,7 @@ const COMMAND_PREFIX_SERVICE_MAP: CommandPrefixMapping[] = [
   { prefix: 'QUOTE INVOICE SEND', service: 'commerce' },
   { prefix: 'QUOTE INVOICE', service: 'commerce', requiresOtp: true },
   { prefix: 'QUOTE LIST', service: 'commerce' },
+  { prefix: 'QUOTE AGAIN', service: 'commerce' },
   { prefix: 'QUOTE ASK', service: 'commerce' },
   { prefix: 'CART CHECKOUT', service: 'commerce' },
   { prefix: 'CART PAY', service: 'commerce' },

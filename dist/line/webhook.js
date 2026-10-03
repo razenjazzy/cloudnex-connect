@@ -25,7 +25,14 @@ exports.handleWebhook = [
     },
     (req, res, next) => {
         const channelConfig = res.locals.channelConfig;
-        (0, bot_sdk_1.middleware)({ channelSecret: channelConfig.channelSecret })(req, res, next);
+        (0, bot_sdk_1.middleware)({ channelSecret: channelConfig.channelSecret })(req, res, (err) => {
+            if (err instanceof bot_sdk_1.SignatureValidationFailed) {
+                // Wrong channel secret for this OA looks exactly like this: surface it instead of a bare 500.
+                logger_1.appLogger.warn('webhook_signature_invalid', { channelId: channelConfig.channelId });
+                return res.status(401).json({ error: 'Invalid LINE signature for this channel.' });
+            }
+            return next(err);
+        });
     },
     async (req, res) => {
         const channelConfig = res.locals.channelConfig;

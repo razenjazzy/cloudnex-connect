@@ -1,5 +1,15 @@
 # Changelog
 
+## v14.0.1 — Odoo LINE OA v11 (2026-10-04)
+
+- Sales OA: Verify is the front door (identity/help/privacy/language only until verified), 24 h session, new 1 h idle sign-out (`SALES_IDLE_SIGNOUT_SECONDS`). Customer OA unchanged (verify at order time).
+- Order Again (customer) / Quote Again (sales) on past order cards via `QUOTE AGAIN`, reusing the one `QUOTE CREATE` path.
+- Public `/verify/*`, `/shop/pay*` and `/webhook*` also served under the site path (`/cloudnex-connect`); links built from `PUBLIC_BASE_URL`. Action-verify link fixed (was 404 under the site path). Bad webhook signatures return 401 and log.
+- Admin: Channels page (per-channel LINE credentials, verify against LINE, Admin value overrides `.env` for LINE keys), Application logs (consolidated archive: app, redis, nginx per lane), audit/journey log lines (`line_journey`, `admin_login`, `admin_action`).
+- Consolidated hourly log archive on the VPS (30-day retention) and `npm run logs:pull`; `npm run check:line-tokens`, `npm run test:webhook`.
+- Product photos: 256 px hero with 128 px fallback; camera placeholder PNG repaired.
+- Env files regrouped and synced (`documents/ENV_GUIDE.md`); staff relay commands refused on the Customer OA.
+
 ## v13.0.12 — Odoo LINE OA v10 (2026-10-04)
 
 - Camera placeholder PNG repaired (was corrupt, rendered blank). Admin Channels page: per-channel LINE credentials, verify against LINE, Admin value overrides `.env` for LINE keys. Webhooks also served under `/cloudnex-connect/webhook*`; bad signatures return 401 and log. Staff relay commands refused on the Customer OA. Env files regrouped (`documents/ENV_GUIDE.md`).

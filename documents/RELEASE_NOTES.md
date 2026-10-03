@@ -1,3 +1,14 @@
+# Release notes — v14.0.1
+
+**Date:** 2026-10-04  
+**Package version:** `14.0.1`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`). Production lane unchanged (old image).  
+**Commit title:** `Release: v14.0.1 - Odoo Line OA v11 Staging Deploy`
+
+Sales OA verification is mandatory (24 h, 1 h idle sign-out). Order Again / Quote Again. Webhook, verify and shop-pay URLs under `/cloudnex-connect`. Admin Channels (per-channel LINE credentials) and Application logs (consolidated archive). Open items: `documents/BACKLOG.md`. Env guide: `documents/ENV_GUIDE.md`.
+
+---
+
 # Release notes — v13.0.12
 
 **Date:** 2026-10-04  

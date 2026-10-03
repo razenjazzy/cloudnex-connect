@@ -36,3 +36,25 @@ describe('productIdsWithImage128', () => {
     warn.mockRestore();
   });
 });
+
+import { pickHeroImage } from '../src/services/odoo/product-image';
+
+describe('hero image choice', () => {
+  const big = Buffer.alloc(1_200_000, 1);
+  const small = Buffer.alloc(100_000, 2);
+  const convert = (buffer: Buffer) => buffer;
+
+  it('prefers the sharper 256 px image', () => {
+    expect(pickHeroImage([small, Buffer.alloc(50_000, 3)], convert)).toBe(small);
+  });
+
+  it('falls back to 128 px when the 256 px PNG is over the hero size cap', () => {
+    const fallback = Buffer.alloc(60_000, 4);
+    expect(pickHeroImage([big, fallback], convert)).toBe(fallback);
+  });
+
+  it('returns null when nothing converts', () => {
+    expect(pickHeroImage([small], () => null)).toBeNull();
+    expect(pickHeroImage([], convert)).toBeNull();
+  });
+});

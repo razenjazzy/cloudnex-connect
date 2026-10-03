@@ -10,6 +10,7 @@ import {
 } from '../services/shop-pay';
 import { oaChatDeepLink, CUSTOMER_CHANNEL_ID } from '../line/channels';
 import { escapeHtml } from '../utils/html';
+import { sitePathPrefixes } from './public-bases';
 import { verifyLinkLimiter } from './middleware';
 import { appEnv } from './env';
 
@@ -45,7 +46,8 @@ const payPage = (opts: {
 };
 
 export const registerShopPayRoutes = (app: Express): void => {
-  app.get('/shop/pay', verifyLinkLimiter, async (req, res) => {
+  for (const prefix of sitePathPrefixes()) {
+  app.get(`${prefix}/shop/pay`, verifyLinkLimiter, async (req, res) => {
     const token = parseShopPayQuery(req.query);
     if (!token) {
       return res.status(400).type('html').send(payPage({ ok: false, title: 'Pay link invalid', message: 'This pay link is invalid or expired. Open Pay from LINE again.' }));
@@ -74,7 +76,7 @@ export const registerShopPayRoutes = (app: Express): void => {
     }));
   });
 
-  app.get('/shop/pay/return', verifyLinkLimiter, async (req, res) => {
+  app.get(`${prefix}/shop/pay/return`, verifyLinkLimiter, async (req, res) => {
     const token = parseShopPayQuery(req.query);
     if (!token) {
       return res.status(400).type('html').send(payPage({ ok: false, title: 'Pay link invalid', message: 'This return link is invalid or expired.' }));
@@ -102,4 +104,5 @@ export const registerShopPayRoutes = (app: Express): void => {
       message: `${order.name} is paid. LINE has Order completed.`,
     }));
   });
+  }
 };

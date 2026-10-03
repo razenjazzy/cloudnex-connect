@@ -176,6 +176,15 @@ export const createQuotationJourneyFlexMessage = (
   } else if (!isCancelled && isSale && options.portalLink) {
     bodyActions.push(createUriActionButton(t('invoiceField', language), options.portalLink, 'secondary', BRAND.goldTint));
   }
+  // Past orders (confirmed, done or cancelled): one tap repeats the main item as a fresh quote.
+  if (isSale || isCancelled || order.state === 'done') {
+    bodyActions.push(createMessageActionButton(
+      t(customerView ? 'orderAgain' : 'quoteAgain', language),
+      `QUOTE AGAIN ${order.id}`,
+      'primary',
+      BRAND.teal,
+    ));
+  }
   if (!isCancelled && (isDraft || isSent)) {
     bodyActions.push(pairButtons(
       createMessageActionButton(t('addMore', language), `FORM QUOTE ADD ${order.id}`, 'secondary', BRAND.tealTint),

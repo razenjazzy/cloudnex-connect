@@ -1,6 +1,6 @@
 {
   "name": "cloudnex-connect",
-  "version": "13.0.12",
+  "version": "14.0.1",
   "description": "LINE Official Account + Odoo for Cloudnex: Sales and Customer OAs, identity SoR, Flex quotes, enterprise Admin (campaigns, audit, IdP), dual LINE ingress, and consented messaging.",
   "main": "dist/index.js",
   "bin": {
@@ -60,7 +60,10 @@
     "rich-menu:generate": "node scripts/generate-rich-menu.mjs",
     "rich-menu:upload": "node scripts/upload-rich-menu.mjs",
     "journey:stills": "ts-node --transpile-only scripts/export-journey-stills.ts",
-    "lint": "eslint src tests"
+    "lint": "eslint src tests",
+    "check:line-tokens": "bash ./scripts/verify-line-tokens.sh",
+    "logs:pull": "bash ./scripts/pull-vps-logs.sh",
+    "test:webhook": "bash ./scripts/test-webhook.sh"
   },
   "keywords": [],
   "author": "",

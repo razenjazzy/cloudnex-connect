@@ -32,6 +32,12 @@ export const pathFromPublicBaseUrl = (raw: string | undefined = process.env.PUBL
   return path === '' ? '' : path;
 };
 
+/** Route prefixes for the public HMAC-host routes: host root plus the site path (`/cloudnex-connect`) when set. */
+export const sitePathPrefixes = (raw: string | undefined = process.env.PUBLIC_BASE_URL): string[] => {
+  const site = pathFromPublicBaseUrl(raw);
+  return site ? ['', site] : [''];
+};
+
 /** Origin + site path, no trailing slash. */
 export const publicSiteUrl = (raw: string | undefined): string => {
   const origin = originFromPublicBaseUrl(raw);

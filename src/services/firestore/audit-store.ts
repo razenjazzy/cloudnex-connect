@@ -8,7 +8,8 @@ type Dependencies = {
     read: <T>(action: string, fallback: T, operation: (database: Firestore) => Promise<T>) => Promise<T>;
     write: (action: string, operation: (database: Firestore) => Promise<void>) => Promise<FirestoreWriteResult>;
     normalize: (value: unknown) => string | undefined;
-    logRecorded: (params: { action: AuditAction; outcome: AuditOutcome; actorUserId: string; channelId?: string; hasTarget: boolean }) => void;
+    logRecorded: (params: { action: AuditAction; outcome: AuditOutcome; actorUserId: string; channelId?: string; requestId?: string; targetId?: string; detail?: string; hasTarget: boolean }) => void;
+    logFailed?: (params: { action: AuditAction; error: string }) => void;
 };
 
 const collectionName = 'auditLog';
@@ -29,9 +30,9 @@ export const createAuditStore = (dependencies: Dependencies) => ({
                 createdAt: new Date().toISOString(),
                 createdAtServer: FieldValue.serverTimestamp(),
             });
-            dependencies.logRecorded({ action: params.action, outcome: params.outcome, actorUserId: params.actorUserId, channelId: params.channelId, hasTarget: Boolean(params.targetId) });
-        } catch {
-            return;
+            dependencies.logRecorded({ action: params.action, outcome: params.outcome, actorUserId: params.actorUserId, channelId: params.channelId, requestId: params.requestId, targetId: params.targetId, detail: params.detail?.slice(0, 120), hasTarget: Boolean(params.targetId) });
+        } catch (error) {
+            dependencies.logFailed?.({ action: params.action, error: String(error) });
         }
     },
 

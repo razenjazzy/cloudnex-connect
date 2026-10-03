@@ -14,7 +14,7 @@ import {
 } from './firestore';
 import { getPartnerById, getPartnerByPhone } from './odoo/partners';
 import { getRuntime } from './runtime-settings';
-import { originFromPublicBaseUrl } from '../http/public-bases';
+import { publicSiteUrl } from '../http/public-bases';
 import { findOdooSalesTierByPartnerId } from './odoo/admin';
 import { DEFAULT_CHANNEL_ID, CUSTOMER_CHANNEL_ID, getAgentName, resolveChannelConfig } from '../line/channels';
 import { sendTargetedMessage, sendTargetedFlexMessage } from '../line/messaging';
@@ -66,7 +66,8 @@ const normalizePhone = (value: string): string => value.replace(/[^0-9+]/g, '').
 const buildBaseUrl = (fallbackBaseUrl?: string): string => {
   const fromEnv = getRuntime('PUBLIC_BASE_URL');
   const candidate = fromEnv || fallbackBaseUrl || 'http://localhost:8080';
-  return originFromPublicBaseUrl(candidate) || candidate.replace(/\/$/, '');
+  // /verify/* is served at the site path (https://host/cloudnex-connect/verify/...) and at the host root.
+  return publicSiteUrl(candidate) || candidate.replace(/\/$/, '');
 };
 
 export const generateOtp = (): string => {
@@ -248,6 +249,7 @@ const finalizeVerifiedIdentity = async (
   }
   const salesTier = await bindSalesTierIfOdooSalesUser(userId, partnerId);
   if (salesTier) await startSalesSession(userId);
+  appLogger.info('verification_completed', { userId, channelId, partnerId, tier: salesTier || 'customer' });
   return salesTier;
 };
 

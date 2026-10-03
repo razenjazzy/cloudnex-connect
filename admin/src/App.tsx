@@ -455,6 +455,14 @@ export const App = () => {
   const [assignId, setAssignId] = useState('');
   const [assignSales, setAssignSales] = useState('');
   const [logs, setLogs] = useState<Array<Record<string, unknown>>>([]);
+  type AppLogEntry = { time: string; level: string; scope?: string; message: string; requestId?: string; path?: string; statusCode?: number; channelId?: string; detail?: Record<string, unknown> };
+  type AppLogResult = { source: string; sources: string[]; windowHours: number; scannedFiles: number; truncated: boolean; summary: { total: number; byLevel: Record<string, number>; topMessages: Array<{ message: string; level: string; count: number }>; httpErrors: Array<{ path: string; statusCode: number; count: number }>; signatureInvalid: number }; entries: AppLogEntry[] };
+  const [appLogs, setAppLogs] = useState<AppLogResult | null>(null);
+  const [appLogError, setAppLogError] = useState('');
+  const [appLogSource, setAppLogSource] = useState('');
+  const [appLogHours, setAppLogHours] = useState('6');
+  const [appLogLevel, setAppLogLevel] = useState('');
+  const [appLogQuery, setAppLogQuery] = useState('');
   const [reveals, setReveals] = useState<Array<Record<string, unknown>>>([]);
   const [users, setUsers] = useState<Array<Record<string, unknown>>>([]);
   const [bindUser, setBindUser] = useState('');
@@ -753,6 +761,22 @@ export const App = () => {
     setChannelNote(`Editing ${row.channelId}. Leave secret or token empty to keep the stored value.`);
   };
 
+  const loadAppLogs = async () => {
+    const q = new URLSearchParams({ hours: appLogHours, limit: '150' });
+    if (appLogSource) q.set('source', appLogSource);
+    if (appLogLevel) q.set('level', appLogLevel);
+    if (appLogQuery.trim()) q.set('q', appLogQuery.trim());
+    const res = await api(`${ADMIN_BASE}/api/app-logs?${q.toString()}`);
+    const body = await res.json() as AppLogResult & { error?: string };
+    if (!res.ok) {
+      setAppLogError(body.error || 'Could not load application logs');
+      setAppLogs(null);
+      return;
+    }
+    setAppLogError('');
+    setAppLogs(body);
+  };
+
   const addLineChannel = async (event: FormEvent) => {
     event.preventDefault();
     const res = await api(`${ADMIN_BASE}/api/line-channels`, {
@@ -913,6 +937,7 @@ export const App = () => {
         return;
       }
       if (page === 'logs') {
+        await loadAppLogs();
         const res = await api(`${ADMIN_BASE}/api/audit-log?limit=50`);
         if (res.ok) {
           const body = await res.json() as { events?: Array<Record<string, unknown>> };
@@ -1715,6 +1740,68 @@ export const App = () => {
             </div>
           </div>
           </>
+        ) : null}
+        {page === 'logs' ? (
+          <div className="card">
+            <h2>Application logs</h2>
+            <p className="page-lead">One consolidated archive on the VPS (hourly files, 30 days): app and redis for each lane, plus nginx access and error for the site. Pick a source, then filter by level, text or request id.</p>
+            <div className="field-row">
+              <div className="field"><label>Source</label>
+                <select value={appLogSource} onChange={e => setAppLogSource(e.target.value)}>
+                  <option value="">this server (app)</option>
+                  {(appLogs?.sources || []).map(name => <option key={name} value={name}>{name}</option>)}
+                </select></div>
+              <div className="field"><label>Last</label>
+                <select value={appLogHours} onChange={e => setAppLogHours(e.target.value)}>
+                  {['1', '6', '24', '72', '168'].map(h => <option key={h} value={h}>{h} h</option>)}
+                </select></div>
+              <div className="field"><label>Level</label>
+                <select value={appLogLevel} onChange={e => setAppLogLevel(e.target.value)}>
+                  <option value="">all</option><option value="error">error</option><option value="warn">warn</option><option value="info">info</option>
+                </select></div>
+              <div className="field"><label>Search</label>
+                <input value={appLogQuery} onChange={e => setAppLogQuery(e.target.value)} placeholder="text, request id, webhook_signature_invalid" /></div>
+              <button type="button" onClick={loadAppLogs}>Load</button>
+            </div>
+            {appLogError ? <p className="error">{appLogError}</p> : null}
+            {appLogs ? (
+              <>
+                <p>
+                  <span className="pill">{appLogs.summary.total} lines</span>{' '}
+                  <span className="pill">errors {appLogs.summary.byLevel.error}</span>{' '}
+                  <span className="pill">warnings {appLogs.summary.byLevel.warn}</span>{' '}
+                  <span className="pill" title="Webhooks rejected for a wrong channel secret">bad signatures {appLogs.summary.signatureInvalid}</span>{' '}
+                  <span className="pill">{appLogs.scannedFiles} files{appLogs.truncated ? ' (truncated)' : ''}</span>
+                </p>
+                {appLogs.summary.topMessages.length ? (
+                  <div className="table-wrap"><table>
+                    <thead><tr><th>Top problems</th><th>Level</th><th>Count</th></tr></thead>
+                    <tbody>{appLogs.summary.topMessages.map(row => (
+                      <tr key={`${row.level}-${row.message}`}><td><button type="button" className="link" onClick={() => { setAppLogQuery(row.message); setAppLogLevel(''); }}>{row.message || '(blank)'}</button></td><td>{row.level}</td><td>{row.count}</td></tr>
+                    ))}</tbody>
+                  </table></div>
+                ) : null}
+                {appLogs.summary.httpErrors.length ? (
+                  <div className="table-wrap"><table>
+                    <thead><tr><th>HTTP errors</th><th>Status</th><th>Count</th></tr></thead>
+                    <tbody>{appLogs.summary.httpErrors.map(row => <tr key={`${row.statusCode}-${row.path}`}><td>{row.path}</td><td>{row.statusCode}</td><td>{row.count}</td></tr>)}</tbody>
+                  </table></div>
+                ) : null}
+                <div className="table-wrap"><table>
+                  <thead><tr><th>Time</th><th>Level</th><th>Event</th><th>Request</th><th>Detail</th></tr></thead>
+                  <tbody>{appLogs.entries.map((row, i) => (
+                    <tr key={`${row.time}-${i}`}>
+                      <td>{row.time.replace('T', ' ').slice(0, 19)}</td>
+                      <td>{row.level}</td>
+                      <td>{row.message}{row.channelId ? ` [${row.channelId}]` : ''}{row.path ? ` ${row.path}` : ''}{row.statusCode ? ` ${row.statusCode}` : ''}</td>
+                      <td>{row.requestId ? <button type="button" className="link" onClick={() => setAppLogQuery(row.requestId || '')}>{row.requestId}</button> : ''}</td>
+                      <td>{row.detail ? JSON.stringify(row.detail).slice(0, 160) : ''}</td>
+                    </tr>
+                  ))}</tbody>
+                </table></div>
+              </>
+            ) : null}
+          </div>
         ) : null}
         {page === 'logs' ? (
           <div className="card">

@@ -1,5 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { originFromPublicBaseUrl } from '../http/public-bases';
+import { originFromPublicBaseUrl, publicSiteUrl } from '../http/public-bases';
 import { appEnv } from '../http/env';
 import { customerNotifyChannelId } from '../line/channels';
 import { sendTargetedFlexMessage } from '../line/messaging';
@@ -55,7 +55,7 @@ export const shopPayPageUrl = (orderId: number, userId: string, publicBase = pro
   const origin = originFromPublicBaseUrl(publicBase);
   if (!origin || !originAllowed(origin)) return null;
   const exp = Date.now() + PAY_TTL_MS;
-  const url = new URL('/shop/pay', `${origin}/`);
+  const url = new URL(`${publicSiteUrl(publicBase)}/shop/pay`);
   url.searchParams.set('orderId', String(orderId));
   url.searchParams.set('uid', userId);
   url.searchParams.set('exp', String(exp));
@@ -66,7 +66,7 @@ export const shopPayPageUrl = (orderId: number, userId: string, publicBase = pro
 export const shopPayReturnUrl = (orderId: number, userId: string, exp: number, sig: string, publicBase = process.env.PUBLIC_BASE_URL): string | null => {
   const origin = originFromPublicBaseUrl(publicBase);
   if (!origin || !originAllowed(origin)) return null;
-  const url = new URL('/shop/pay/return', `${origin}/`);
+  const url = new URL(`${publicSiteUrl(publicBase)}/shop/pay/return`);
   url.searchParams.set('orderId', String(orderId));
   url.searchParams.set('uid', userId);
   url.searchParams.set('exp', String(exp));

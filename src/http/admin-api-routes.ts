@@ -73,6 +73,8 @@ import { verifyOdooAdminAccess } from '../services/odoo/admin';
 import { sendTargetedMessage, sendBroadcastMessage } from '../line/messaging';
 import { getAgentName, SALES_CHANNEL_ID, getChannelServiceOverride, setChannelServiceOverride, resolveChannelConfig, lineChannelKeys, listLineChannelIds } from '../line/channels';
 import { verifyLineChannelToken, normalizeBasicId } from '../line/channel-verify';
+import { parseAppLogQuery, queryAppLogs } from '../services/app-logs';
+import { appLogger } from '../services/logger';
 import { parseCampaignAudienceRequest, parseCampaignBroadcastRequest, parseCampaignSendRequest, parseCampaignTestText, resolveCampaignAudience } from '../line/campaigns';
 import { createQueuedCampaign, findCampaignByIdempotencyKey, listCampaigns } from '../jobs/campaign-store';
 import { enqueueCampaignSend, isQueueBackendReady } from '../jobs/queue';
@@ -195,8 +197,8 @@ const webhookTable = (base: string) => {
     customer: `${hook}/webhook/customer`,
     default: `${hook}/webhook`,
     test: `${hook}/webhook-test`,
-    verifyOdoo: `${origin}/verify/odoo`,
-    verifyAction: `${origin}/verify/action`,
+    verifyOdoo: `${hook}/verify/odoo`,
+    verifyAction: `${hook}/verify/action`,
   };
 };
 
@@ -261,6 +263,12 @@ export const registerAdminApiRoutes = (app: Express): void => {
 
   /** One audit row per admin mutation: actor, request id, optional channel, short change summary. */
   const auditAdminMutation = async (req: Request, res: Response, what: string, detail = '', channelId?: string): Promise<void> => {
+    appLogger.info('admin_action', {
+      what,
+      actor: (req as Request & { adminActor?: string }).adminActor || 'admin',
+      requestId: String(res.getHeader('x-request-id') || '') || undefined,
+      ...(channelId ? { channelId } : {}),
+    });
     try {
       await recordAuditEvent({
         action: 'admin_command',
@@ -732,6 +740,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
   const queryStr = (value: unknown): string => typeof value === 'string' ? value : '';
 
   const denyIdp = async (res: Response, userId: string, detail: string, asRedirect: boolean) => {
+    appLogger.warn('admin_login_denied', { userId: userId || 'unknown', reason: detail });
     await recordAuditEvent({ action: 'admin_session_bind', outcome: 'failure', actorUserId: userId || 'unknown', detail });
     if (asRedirect) return res.redirect(302, `${adminBase()}?idp_error=1`);
     return res.status(403).json({ error: 'Not authorized to bind.' });
@@ -743,6 +752,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     if (!isSuperAdminActor(userId, profile)) return denyIdp(res, userId, `${detail}_not_allowlisted`, asRedirect);
     const { cookie } = buildAdminActorCookie(userId);
     res.setHeader('Set-Cookie', [cookie, clearOauthStateCookie()]);
+    appLogger.info('admin_login', { userId, method: detail });
     await recordAuditEvent({ action: 'admin_session_bind', outcome: 'success', actorUserId: userId, detail });
     if (asRedirect) return res.redirect(302, adminBase());
     return res.json({ ok: true, actorUserId: userId });
@@ -880,6 +890,18 @@ export const registerAdminApiRoutes = (app: Express): void => {
     const page = await listRecentAuditEventsPage(Number(req.query.limit) || 50, filters, decodeAuditCursor(req.query.cursor));
     const events = page.events.filter(event => !REVEAL_ACTIONS.has(event.action));
     return res.json({ events, nextCursor: page.nextCursor, count: events.length });
+  });
+
+  /** Application logs from the VPS archive (mounted read-only). Same access as the ops audit log. */
+  router.get('/app-logs', adminApiLimiter, requireOpsStrict, (req, res) => {
+    const parsed = parseAppLogQuery(req.query as Record<string, unknown>, `${appEnv === 'production' ? 'production' : 'staging'}-app`);
+    if ('error' in parsed) return res.status(400).json({ error: parsed.error });
+    try {
+      return res.json(queryAppLogs(parsed));
+    } catch (error) {
+      console.warn('app-logs read failed:', error);
+      return res.status(503).json({ error: 'Log archive is not readable on this host. Check the /var/log/cloudnex-connect mount.' });
+    }
   });
 
   router.get('/audit-log/reveals', adminApiLimiter, requireSuperAdmin, async (req, res) => {

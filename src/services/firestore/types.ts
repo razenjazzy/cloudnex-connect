@@ -77,6 +77,8 @@ export type UserProfile = {
     lastActionOtpAt?: string;
     salesTier?: OdooSalesTier;
     salesSessionExpiresAt?: string;
+    /** Last inbound on a staff Sales session; drives the idle sign-out. */
+    salesLastActiveAt?: string;
     /** Last LINE OA channelId for this user (`sales` or `customer`). */
     lastChannelId?: string;
     lastTerminalAt?: string;

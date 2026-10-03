@@ -291,6 +291,48 @@ const quoteStatusHandler: CommandHandler = {
   },
 };
 
+// QUOTE AGAIN <orderId> — Order Again (customer) / Quote Again (sales): repeat the main item of a past order as
+// a fresh quote. It re-enters the one QUOTE CREATE path, so locks, step-up OTP, notifications and the journey
+// card are not duplicated here.
+const quoteAgainHandler: CommandHandler = {
+  name: 'quote-again',
+  match: (u) => u.startsWith('QUOTE AGAIN'),
+  handle: async (ctx) => {
+    const { userLanguage, text } = ctx;
+    const orderId = parseOrderId(text, 'QUOTE AGAIN');
+    if (!orderId) return [notFoundReply(userLanguage)];
+    const order = await getSaleOrderById(orderId);
+    if (!order) return [notFoundReply(userLanguage)];
+    const profile = await syncStaffProfile(ctx.userId, ctx.profile, ctx.channel?.channelId);
+    const orderPartnerId = Array.isArray(order.partner_id) ? order.partner_id[0] : undefined;
+    if (!canViewOrderAsCustomer(profile, orderPartnerId)) {
+      return [botText(t('quoteNotYours', userLanguage), userLanguage)];
+    }
+    const items = (order.lines || []).filter(line => !line.isDelivery && !line.optional && line.productId && line.qty > 0);
+    const main = items[0];
+    if (!main?.productId) return [botText(t('againNoLines', userLanguage), userLanguage)];
+
+    const staff = isQuoteStaff(profile);
+    let payload = `id:${main.productId},${main.qty}`;
+    if (staff) {
+      const partner = orderPartnerId ? await getPartnerById(orderPartnerId) : null;
+      const customerName = (partner?.name || order.partner_id?.[1] || '').replace(/,/g, ' ').trim();
+      const phone = (partner?.phone || '').replace(/,/g, ' ').trim();
+      if (!customerName || !phone) {
+        // The staff quote needs a customer phone; fall back to the guided form with the product and qty seeded.
+        const { resolveCommandReply } = await import('../command-router');
+        return resolveCommandReply({ ...ctx, text: `FORM QUOTE CREATE FROM CARD ${main.productId} ${main.qty}` });
+      }
+      payload += `,${customerName},${phone}`;
+    }
+    appLogger.info('quote_again', { userId: ctx.userId, sourceOrderId: orderId, productId: main.productId, qty: main.qty, staff });
+    const { resolveCommandReply } = await import('../command-router');
+    const created = await resolveCommandReply({ ...ctx, text: `QUOTE CREATE ${payload}` });
+    if (items.length > 1) return [...created, botText(t('againMoreLines', userLanguage), userLanguage)].slice(0, 5);
+    return created;
+  },
+};
+
 // QUOTE CONFIRM <orderId> — sales staff, Quotation -> Sales Order.
 const quoteConfirmHandler: CommandHandler = {
   name: 'quote-confirm',
@@ -1091,6 +1133,7 @@ const quoteCreateMoreHandler: CommandHandler = {
 
 export const quotationHandlers: CommandHandler[] = [
   quoteCreateMoreHandler,
+  quoteAgainHandler,
   quoteStatusHandler,
   quoteConfirmHandler,
   quoteSendConfirmHandler,

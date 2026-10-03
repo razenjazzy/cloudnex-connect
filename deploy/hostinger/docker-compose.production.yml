@@ -22,6 +22,11 @@ services:
     image: ${DOCKER_IMAGE:-razenjazzy/cloudnex-connect:staging}
     pull_policy: always
     container_name: cloudnex-connect-production
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
     restart: unless-stopped
     depends_on:
       redis:
@@ -52,6 +57,7 @@ services:
     volumes:
       - /usr/share/zoneinfo/Asia/Bangkok:/etc/localtime:ro
       - /usr/share/zoneinfo:/usr/share/zoneinfo:ro
+      - /var/log/cloudnex-connect:/var/log/cloudnex-connect:ro
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/healthz"]
       interval: 30s

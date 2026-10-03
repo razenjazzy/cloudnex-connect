@@ -37,7 +37,7 @@ import { createBotTextFlexMessage, createFormPromptFlexMessage, createOptionalSu
 import { getAvailableServices, serviceMenuLabel } from '../services/service-catalog';
 import { ChannelContext, CUSTOMER_CHANNEL_ID, SALES_CHANNEL_ID, getBrandTitle, withAgentColon } from './channels';
 import { trayVariantForCommand } from './rich-menu';
-import { clearSalesLogin, hasActiveSalesSession, salesSessionExpired } from '../services/sales-session';
+import { clearSalesLogin, hasActiveSalesSession, salesIdleExpired, salesSessionExpired, shouldTouchSalesActivity, touchSalesActivity } from '../services/sales-session';
 import type { FlowSpec } from '../services/guided-forms';
 import { COMMAND_HANDLERS } from './handlers/index';
 import { buildKeywordGuidanceMessages } from './handlers/help';
@@ -49,9 +49,10 @@ import { bindPostbackData } from './postback';
 import { withSpan } from '../observability/tracing';
 import { appLogger } from '../services/logger';
 import { applyChannelPersona, isQuoteStaff, selfQuoteIdentity, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary } from './quote-access';
-import { evaluateCommandGrid, isGuestAllowedCommand, matchCommandGrid } from './command-grid';
+import { evaluateCommandGrid, isGuestAllowedCommand, isSalesPreVerifyCommand, matchCommandGrid } from './command-grid';
 import { canonicalizeInboundCommand, loadCommandOverlay, overlayLabelForText } from './command-overlay';
 import { loadI18nOverlay } from '../services/i18n-overlay';
+import { t } from '../services/i18n';
 import { catalogUiLabel } from './catalog-ui';
 import { customerQtyChipLabels } from './customer-qty';
 import { getErpAdapter } from '../erp/registry';
@@ -862,9 +863,17 @@ export { isGuestAllowedCommand } from './command-grid';
 
 const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messagingApi.Message[]> => {
   const { userId, userLanguage, agentName } = ctx;
+  const onSalesOa = ctx.channel?.channelId !== CUSTOMER_CHANNEL_ID;
   if (salesSessionExpired(ctx.profile)) {
     await clearSalesLogin(userId);
-    ctx.profile = { ...ctx.profile, odooVerified: false, salesSessionExpiresAt: undefined };
+    ctx.profile = { ...ctx.profile, odooVerified: false, salesSessionExpiresAt: undefined, salesLastActiveAt: undefined };
+  } else if (onSalesOa && !ctx.isGroupContext && salesIdleExpired(ctx.profile)) {
+    appLogger.info('sales_idle_signout', { userId, idleSince: ctx.profile.salesLastActiveAt });
+    await clearSalesLogin(userId);
+    ctx.profile = { ...ctx.profile, odooVerified: false, salesSessionExpiresAt: undefined, salesLastActiveAt: undefined };
+  } else if (onSalesOa && !ctx.isGroupContext && shouldTouchSalesActivity(ctx.profile)) {
+    const stamped = await touchSalesActivity(userId);
+    ctx.profile = { ...ctx.profile, salesLastActiveAt: stamped };
   }
   ctx.profile = applyChannelPersona(ctx.profile, ctx.channel?.channelId);
   const { profile } = ctx;
@@ -915,6 +924,14 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
       ]),
       ...(await homeReplyFromContext(ctx)),
     ];
+  }
+
+  // Sales OA: verification is the front door. Until the staff member verifies (daily, or after 1 h idle), only
+  // identity/help/privacy/language commands run; Home and everything else show the Verify card.
+  if (!profile.odooVerified && onSalesOa && !ctx.isGroupContext && !isSalesPreVerifyCommand(upperText, profile.pendingFlow)) {
+    return [text(t('salesVerifyRequired', userLanguage).replace('{agent}', agentName), userLanguage, undefined, [
+      { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
+    ])];
   }
 
   if (!profile.odooVerified && !isGuestAllowedCommand(upperText, profile.pendingFlow)) {

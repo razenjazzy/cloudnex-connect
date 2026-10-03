@@ -1,8 +1,11 @@
 # Host crontab for Cloudnex Connect (no in-process Node cron).
 # Install with: crontab -e  (as root)
 
-# Hourly docker/app logrotate (30-day gzip in logrotate-cloudnex-connect.conf)
-0 * * * * /usr/sbin/logrotate /etc/logrotate.d/cloudnex-connect
+# Hourly container-log archive into /var/log/cloudnex-connect/<lane>/<date>/<HH>.log(.gz), 30-day retention.
+# Install: scp scripts/vps-log-archive.sh root@VPS:/usr/local/bin/cloudnex-log-archive (chmod 750). Pull locally: npm run logs:pull
+5 * * * * /usr/local/bin/cloudnex-log-archive >> /var/log/cloudnex-connect/.archive.log 2>&1
+
+# Docker json-file driver rotates at 50 MB x 5 per container (see the compose logging: block).
 
 # Daily Firestore audit archive + delete past AUDIT_RETENTION_DAYS (default 30)
 0 3 * * * curl -fsS -X POST -H "Authorization: Bearer $OPS_API_TOKEN" https://amardhaka.io/ops/audit-log/rotate

@@ -15,6 +15,7 @@ import { auditWrite, commandPrefixForAudit } from '../../services/write-audit';
 import { t } from '../../services/i18n';
 import { fitReply, outcomeFlex } from '../outcome-reply';
 import { getRuntime } from '../../services/runtime-settings';
+import { publicSiteUrl } from '../../http/public-bases';
 
 export const isGatedMutation = isOtpGatedCommand;
 
@@ -88,7 +89,8 @@ const actionOtpGateHandler: CommandHandler = {
       detail: commandPrefixForAudit(originalText),
     });
 
-    const origin = (getRuntime('PUBLIC_BASE_URL') || baseUrl || '').replace(/\/$/, '');
+    const rawBase = getRuntime('PUBLIC_BASE_URL') || baseUrl || '';
+    const origin = publicSiteUrl(rawBase) || rawBase.replace(/\/$/, '');
     const link = origin ? `${origin}/verify/action?token=${encodeURIComponent(linkToken)}` : '';
     if (!link) {
       return [outcomeFlex({

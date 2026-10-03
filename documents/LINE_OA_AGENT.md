@@ -387,3 +387,9 @@ Keep remaining `UI_STRINGS` keys in `i18n.ts` bilingual (invoice fields, reply f
 Latency: no extra Odoo on the HMAC reply path; catalog cache; notify sales async.
 
 Commit only when asked; never `.env`; message `Release: vX.Y.Z - Odoo Line OA vN …`.
+
+## Verification policy (Sales OA vs Customer OA)
+
+- **Sales OA (default / `sales` channel):** verification is the front door. Until the staff member verifies, only identity (`NAV VERIFY`, `FORM VERIFY`, `VERIFY *`), help, privacy and language commands run; Home and every other command show the Verify card. A session lasts `SALES_SESSION_TTL_HOURS` (24, fixed from verification) and ends after `SALES_IDLE_SIGNOUT_SECONDS` (3600, `0` = off) with no message. The next message after either limit shows the Verify card. Write actions still need the per-action step-up (`ACTION VERIFY` link).
+- **Customer OA:** browsing is open. Ordering (`FORM QUOTE CREATE FROM CARD`, `QUOTE CREATE`) requires the Odoo phone verification (OTP challenge completed through the `/verify/odoo` link); the product choice is kept for 2 hours while the customer verifies. A verified customer stays verified and is not asked again per order.
+- Links: verification, action-verify and shop-pay pages are served at `<PUBLIC_BASE_URL>/verify/*` and `/shop/*` (site path, e.g. `https://amardhaka.io/cloudnex-connect/verify/odoo`); the host-root paths still work.

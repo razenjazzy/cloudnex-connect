@@ -56,6 +56,7 @@ type CachedUserState = {
     lastActionOtpAt?: string;
     salesTier?: 'salesperson' | 'sales_manager';
     salesSessionExpiresAt?: string;
+    salesLastActiveAt?: string;
     lastChannelId?: string;
     lastTerminalAt?: string;
     relayWaitAt?: string;
@@ -489,6 +490,7 @@ export const setUserDisplayName = userProfileRepository.setDisplayName;
 
 export const setUserOdooVerificationStatus = userProfileRepository.setVerificationStatus;
 export const setSalesSessionExpiresAt = userProfileRepository.setSalesSessionExpiresAt;
+export const setSalesLastActiveAt = userProfileRepository.setSalesLastActiveAt;
 export const setLastChannelId = userProfileRepository.setLastChannelId;
 export const setLastTerminalAt = userProfileRepository.setLastTerminalAt;
 export const setRelayWaitAt = userProfileRepository.setRelayWaitAt;
@@ -677,6 +679,7 @@ const auditStore = createAuditStore({
     write: withFirestoreWrite,
     normalize: toOptionalString,
     logRecorded: params => auditLogger.info('audit_event_recorded', params),
+    logFailed: params => auditLogger.warn('audit_event_write_failed', params),
 });
 
 export const saveApprovalRecord = (record: ApprovalRecord, auditContext: { requestId?: string } = {}): Promise<FirestoreWriteResult> =>

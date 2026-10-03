@@ -17,6 +17,7 @@ type CachedProfileState = {
     lastActionOtpAt?: string;
     salesTier?: 'salesperson' | 'sales_manager';
     salesSessionExpiresAt?: string;
+    salesLastActiveAt?: string;
     lastChannelId?: string;
     lastTerminalAt?: string;
     relayWaitAt?: string;
@@ -49,6 +50,7 @@ export const buildFallbackUserProfile = (
     lastActionOtpAt: cached.lastActionOtpAt,
     salesTier: cached.salesTier,
     salesSessionExpiresAt: cached.salesSessionExpiresAt,
+    salesLastActiveAt: cached.salesLastActiveAt,
     lastChannelId: cached.lastChannelId,
     lastTerminalAt: cached.lastTerminalAt,
     relayWaitAt: cached.relayWaitAt,
@@ -109,6 +111,7 @@ export const parseStoredUserProfile = (
         lastActionOtpAt: typeof data.lastActionOtpAt === 'string' ? data.lastActionOtpAt : undefined,
         salesTier: data.salesTier === 'salesperson' || data.salesTier === 'sales_manager' ? data.salesTier : undefined,
         salesSessionExpiresAt: typeof data.salesSessionExpiresAt === 'string' ? data.salesSessionExpiresAt : undefined,
+        salesLastActiveAt: typeof data.salesLastActiveAt === 'string' ? data.salesLastActiveAt : undefined,
         lastChannelId: typeof data.lastChannelId === 'string' && data.lastChannelId.trim() ? data.lastChannelId.trim() : undefined,
         lastTerminalAt: typeof data.lastTerminalAt === 'string' ? data.lastTerminalAt : undefined,
         relayWaitAt: typeof data.relayWaitAt === 'string' ? data.relayWaitAt : undefined,

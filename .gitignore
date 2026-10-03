@@ -25,3 +25,6 @@ tmp/
 .backup/
 .build-info.txt
 build_log.txt
+
+# Local mirror of the VPS log archive (scripts/pull-vps-logs.sh)
+logs/

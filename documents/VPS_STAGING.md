@@ -159,3 +159,22 @@ That rsync uses `deploy/staging-rsync.allowlist` only. It never uses `--delete` 
 | Deploy refuses | `check-line-channels.sh` or lockfile SHA mismatch |
 
 Out of scope: extra npm packages on the VM, other vhosts, committing VPS secrets.
+
+## Logs (one consolidated archive, hourly, 30-day retention)
+
+`/var/log/cloudnex-connect/<source>/<YYYY-MM-DD>/<HH>.log` (current UTC hour) and `<HH>.log.gz` (closed hours). Sources:
+
+| Source | What |
+|---|---|
+| `staging-app`, `production-app` | App container stdout: webhooks, verification, Odoo, replies, `http_access` for every route including Admin, `admin_action` for Admin changes |
+| `staging-redis`, `production-redis` | Redis containers |
+| `edge-nginx-access`, `edge-nginx-error` | nginx for the amardhaka.io vhost only (own log files, `cnx` format in `/etc/nginx/conf.d/cnx-log-format.conf`) |
+
+Every line starts with a UTC ISO timestamp. Folder is `750 root:<gid 101>` (LINE user ids inside), so the app container can read it through the read-only mount.
+
+- Written hourly (minute 5) by root's crontab: `/usr/local/bin/cloudnex-log-archive` (source `scripts/vps-log-archive.sh`; cron line in `deploy/hostinger/crontab.example`). Hours older than 2 h are gzipped; files older than `RETENTION_DAYS` (default 30) are deleted. `.archive-last-run` shows the last successful run.
+- **Admin -> Logs -> Application logs** reads it (compose mounts the folder read-only): source, hours, level, text and request id filters, with top problems and HTTP error counts.
+- Docker's own json-file log is capped at 50 MB x 5 per container (compose `logging:` block).
+- Read it from this machine: `npm run logs:pull` mirrors the folder to `./logs/vps` (git-ignored). Then e.g. `grep webhook_signature_invalid logs/vps/staging-app/*/*.log`.
+- Live: `ssh amardhaka 'docker logs -f --since 30m cns-line-oa-staging'`.
+- The Firestore audit log (Admin -> Logs -> Ops audit) is separate: who did what, kept per `AUDIT_RETENTION_DAYS`.

@@ -7,6 +7,7 @@ import { getUserProfile, setLastChannelId, setUserDisplayName, updateUserScore }
 import { ChannelConfig, CUSTOMER_CHANNEL_ID, getAgentName } from './channels';
 import type { ChannelContext } from './channels';
 import { appLogger } from '../services/logger';
+import { commandActor, matchCommandGrid } from './command-grid';
 import { withSpan } from '../observability/tracing';
 import { createBotTextFlexMessage } from './templates';
 import { enforceLineLimits } from './message-limits';
@@ -147,6 +148,29 @@ export const extractLineMessageJobs = (events: webhook.Event[]): ExtractedLineMe
   return jobs;
 };
 
+/** Canonical command prefix only (never arguments or free text, which can hold names and phone numbers). */
+const COMMAND_WORDS = /^(NAV|FORM|QUOTE|CART|VERIFY|ACTION|ADMIN|RELAY|STAFF|MESSAGE|PRODUCT|UI|LANG|ORDER|USER|SERVICE|GUIDE|CUSTOMER|DEMO|SALES|HELP|MY|DELETE|CONFIRM|PROMO|BACK)$/;
+export const journeyCommand = (text: string): string => {
+  const upper = text.trim().toUpperCase();
+  const matched = matchCommandGrid(upper);
+  if (matched) return matched.prefix;
+  const [first, second] = upper.split(/\s+/);
+  return COMMAND_WORDS.test(first || '') ? [first, second && /^[A-Z]+$/.test(second) ? second : ''].filter(Boolean).join(' ') : 'free_text';
+};
+
+/** One line per handled message: who (role), where (OA), what (canonical command, no free text) and the outcome. */
+const journeyBase = (input: LineMessageJobInput, profile: Parameters<typeof commandActor>[0], text: string) => ({
+  channelId: input.channelConfig.channelId,
+  userId: input.conversationId,
+  role: commandActor(profile),
+  tier: profile.salesTier || undefined,
+  command: journeyCommand(text),
+  requestId: input.requestId,
+});
+
+const summarizeReplies = (messages: Array<{ type: string; altText?: string }>): string[] =>
+  messages.slice(0, 5).map(message => (message.type === 'flex' && message.altText ? `flex:${message.altText.slice(0, 40)}` : message.type));
+
 const deliverMessages = async (
   client: messagingApi.MessagingApiClient,
   input: LineMessageJobInput,
@@ -281,6 +305,7 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
     recordChannelInbound(input.channelConfig.channelId, input.conversationId);
 
     appLogger.info('line_message', {
+      channelId: input.channelConfig.channelId,
       source: input.sourceType || 'unknown',
       conversationId: input.conversationId,
       text: toSafeLogText(inputText),
@@ -320,10 +345,27 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
     ctx.trayGeneration = trayGeneration;
     const { noteTrayGeneration, pushDeferredCommerceCatalog, pushDeferredSalesQuoteList } = await import('./commerce-followup');
     noteTrayGeneration(input.conversationId, trayGeneration);
-    const messages = await resolveCommandReply(ctx);
+    const journeyStart = Date.now();
+    let messages: Awaited<ReturnType<typeof resolveCommandReply>>;
+    try {
+      messages = await resolveCommandReply(ctx);
+    } catch (error) {
+      appLogger.error('line_journey_error', {
+        ...journeyBase(input, profile, inputText),
+        durationMs: Date.now() - journeyStart,
+        error: String(error),
+        stack: error instanceof Error ? error.stack?.split('\n').slice(0, 4).join(' | ') : undefined,
+      });
+      throw error;
+    }
     let delivered: unknown;
     try {
       delivered = await deliverMessages(client, input, messages);
+      appLogger.info('line_journey', {
+        ...journeyBase(input, profile, inputText),
+        durationMs: Date.now() - journeyStart,
+        replies: summarizeReplies(messages),
+      });
     } catch (error) {
       appLogger.error('line_reply_failed', { error: String(error), requestId: input.requestId });
       const { stripFlexHeroImages } = await import('./templates');

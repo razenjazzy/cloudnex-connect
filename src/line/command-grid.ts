@@ -50,6 +50,7 @@ export const COMMAND_GRID: CommandGridEntry[] = [
   { id: 'ui-product-detail-message', prefix: 'UI PRODUCT DETAIL MESSAGE', labelEn: 'Send message', labelTh: 'ส่งข้อความ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], uiOnly: true },
   { id: 'ui-product-detail-description', prefix: 'UI PRODUCT DETAIL DESCRIPTION', labelEn: 'Description', labelTh: 'รายละเอียด', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], uiOnly: true },
   { id: 'ui-product-detail-back', prefix: 'UI PRODUCT DETAIL BACK', labelEn: 'Back', labelTh: 'กลับ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'], uiOnly: true },
+  { id: 'quote-again', prefix: 'QUOTE AGAIN', labelEn: 'Order Again', labelTh: 'สั่งซ้ำ', category: 'commerce', roles: ['customer', 'staff', 'admin'] },
   { id: 'form-quote-add', prefix: 'FORM QUOTE ADD', labelEn: 'Add more products', labelTh: 'เพิ่มสินค้า', category: 'commerce', roles: ['customer', 'staff', 'admin'] },
   { id: 'message-request-form', prefix: 'FORM MESSAGE REQUEST', labelEn: 'Send message', labelTh: 'ส่งข้อความ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'message-request', prefix: 'MESSAGE REQUEST', labelEn: 'Send message', labelTh: 'ส่งข้อความ', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
@@ -115,6 +116,18 @@ export const matchCommandGrid = (upperText: string): CommandGridEntry | null => 
     if (!best || entry.prefix.length > best.prefix.length) best = entry;
   }
   return best;
+};
+
+/**
+ * Sales OA (default or sales channel): until the staff member verifies, only identity, privacy, help and
+ * language commands run. Home, Back and every commerce command show the Verify card instead.
+ */
+export const isSalesPreVerifyCommand = (upperText: string, pendingFlow?: { flow: string }): boolean => {
+  if (pendingFlow?.flow === 'VERIFY') return true;
+  if (upperText === 'NAV HOME' || upperText === 'NAV' || upperText === 'BACK') return false;
+  if (upperText === 'LANG' || upperText === 'LANG TH' || upperText === 'LANG EN' || upperText === 'THAI' || upperText === 'ENGLISH' || upperText === 'ภาษาไทย') return true;
+  const entry = matchCommandGrid(upperText);
+  return Boolean(entry && ['identity', 'privacy', 'help'].includes(entry.category));
 };
 
 export const isGuestAllowedCommand = (upperText: string, pendingFlow?: { flow: string }): boolean => {

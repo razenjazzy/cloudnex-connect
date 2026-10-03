@@ -8,16 +8,13 @@ import { safeTokenMatch } from '../services/demo-session';
 import { jsonParser, webhookLimiter, webhookTestLimiter, isReadOnlyWebhookTestCommand, toSafeLogText } from './middleware';
 import { isProduction, isWebhookTestEnabled, webhookTestToken } from './env';
 import { isLineSecondWebhookEnabled } from './optional-flags';
-import { pathFromPublicBaseUrl } from './public-bases';
+import { sitePathPrefixes } from './public-bases';
 
 /**
  * Webhook paths. The host-root paths (`/webhook*`) stay for existing LINE console settings; the same routes are
  * also served under the site path from PUBLIC_BASE_URL (e.g. `/cloudnex-connect/webhook/sales`).
  */
-export const webhookPathPrefixes = (publicBaseUrl: string | undefined = process.env.PUBLIC_BASE_URL): string[] => {
-    const site = pathFromPublicBaseUrl(publicBaseUrl);
-    return site ? ['', site] : [''];
-};
+export const webhookPathPrefixes = sitePathPrefixes;
 
 export const registerWebhookRoutes = (app: Express): void => {
     for (const prefix of webhookPathPrefixes()) registerWebhookRoutesAt(app, prefix);

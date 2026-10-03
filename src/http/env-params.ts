@@ -46,6 +46,7 @@ export const ENV_PARAMS: EnvParam[] = [
   { key: 'TENANT_KEY', requiredIn: [], note: 'Overlay tenant; default default' },
   { key: 'GUIDED_FORM_TTL_MINUTES', requiredIn: [], note: 'Guided form pendingFlow TTL; default 60, raised to cover LINE_IDLE_HOME_SECONDS' },
   { key: 'SALES_SESSION_TTL_HOURS', requiredIn: [], note: 'Sales VERIFY gold session; default 24' },
+  { key: 'SALES_IDLE_SIGNOUT_SECONDS', requiredIn: [], note: 'Sales staff are signed out after this many idle seconds; default 3600, 0 = off' },
   { key: 'ADMIN_USER_ID', requiredIn: ['staging', 'production'], note: 'Fail-closed allowlist for ADMIN ENABLE' },
   { key: 'GOOGLE_CLOUD_PROJECT', requiredIn: ['staging', 'production'], note: 'Firestore project' },
   { key: 'GOOGLE_APPLICATION_CREDENTIALS_JSON', requiredIn: ['staging'], note: 'Required off-GCP (Railway). Omit on Cloud Run ADC' },

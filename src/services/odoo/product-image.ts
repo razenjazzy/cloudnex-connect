@@ -23,15 +23,18 @@ const asBuffer = (raw: unknown): Buffer | null => {
   }
 };
 
-const IMAGE_FIELDS = ['image_128', 'image_256', 'image_512', 'image_1920'] as const;
+// Hero images: 256 px is sharp on a LINE card and stays well under LINE's 1 MB hero cap once WebP -> PNG;
+// 128 px is the fallback for photos whose 256 px PNG is too heavy. Larger sizes are never fetched.
+const IMAGE_FIELDS = ['image_256', 'image_128'] as const;
+const HERO_MAX_BYTES = 900_000;
 
-const readImageField = async (
+const readImageFields = async (
   uid: number,
   model: 'product.product' | 'product.template',
   id: number,
-): Promise<Buffer | null> => {
+): Promise<Buffer[]> => {
   const config = getOdooConfig();
-  if (!config) return null;
+  if (!config) return [];
   const rows = await executeKwRead<Record<string, unknown>[]>(
     config,
     uid,
@@ -41,10 +44,19 @@ const readImageField = async (
     { fields: [...IMAGE_FIELDS], limit: 1 },
   );
   const row = rows[0];
-  if (!row) return null;
-  for (const field of IMAGE_FIELDS) {
-    const buffer = asBuffer(row[field]);
-    if (buffer) return buffer;
+  if (!row) return [];
+  return IMAGE_FIELDS.map(field => asBuffer(row[field])).filter((buffer): buffer is Buffer => Boolean(buffer));
+};
+
+/** First candidate (largest first) that converts to a LINE-safe image under the hero size cap. */
+export const pickHeroImage = (
+  candidates: Buffer[],
+  convert: (buffer: Buffer) => Buffer | null = toLineSafeImage,
+  maxBytes = HERO_MAX_BYTES,
+): Buffer | null => {
+  for (const candidate of candidates) {
+    const safe = convert(candidate);
+    if (safe && safe.length <= maxBytes) return safe;
   }
   return null;
 };
@@ -65,8 +77,8 @@ export const readProductImage128 = async (productId: number): Promise<Buffer | n
       cache.set(productId, { at: Date.now(), buffer: null });
       return null;
     }
-    let buffer = await readImageField(uid, 'product.product', productId);
-    if (!buffer) {
+    let candidates = await readImageFields(uid, 'product.product', productId);
+    if (!candidates.length) {
       const rows = await executeKwRead<Record<string, unknown>[]>(
         config,
         uid,
@@ -78,10 +90,10 @@ export const readProductImage128 = async (productId: number): Promise<Buffer | n
       const tmpl = rows[0]?.product_tmpl_id;
       const tmplId = Array.isArray(tmpl) ? Number(tmpl[0]) : Number(tmpl);
       if (Number.isInteger(tmplId) && tmplId > 0) {
-        buffer = await readImageField(uid, 'product.template', tmplId);
+        candidates = await readImageFields(uid, 'product.template', tmplId);
       }
     }
-    const safe = buffer ? toLineSafeImage(buffer) : null;
+    const safe = pickHeroImage(candidates);
     cache.set(productId, { at: Date.now(), buffer: safe });
     return safe;
   } catch {
