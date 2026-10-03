@@ -55,7 +55,7 @@ const serviceReadHandler: CommandHandler = {
     if (!item) {
       return [botText(tr(userLanguage, `ไม่พบบริการ ${identifier}`, `Service ${identifier} not found.`), userLanguage)];
     }
-    return [createProductCardFlexMessage(item.name, item.price, item.quantity || 0, userLanguage, item.id, catalogProductHeroUrl(item.id), { channelId: ctx.channel?.channelId })];
+    return [createProductCardFlexMessage(item.name, item.price, item.quantity || 0, userLanguage, item.id, catalogProductHeroUrl(item.imageUrl ? item.id : undefined, item.imageUrl), { channelId: ctx.channel?.channelId })];
   },
 };
 

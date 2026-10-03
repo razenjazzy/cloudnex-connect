@@ -35,7 +35,7 @@ import { resolveServiceForCommand } from '../services/service-catalog';
 import { FLOW_SPECS, getFlowByStartCommand, nextLinearFieldIndex } from '../services/guided-forms';
 import { createBotTextFlexMessage, createFormPromptFlexMessage, createOptionalSummaryFlexMessage, createRequiredResumeFlexMessage, createServiceHomeFlexMessage, createProductCarouselFlexMessage, createIdentityStripFlexMessage } from './templates';
 import { getAvailableServices, serviceMenuLabel } from '../services/service-catalog';
-import { ChannelContext, CUSTOMER_CHANNEL_ID, getBrandTitle, withAgentColon } from './channels';
+import { ChannelContext, CUSTOMER_CHANNEL_ID, SALES_CHANNEL_ID, getBrandTitle, withAgentColon } from './channels';
 import { trayVariantForCommand } from './rich-menu';
 import { clearSalesLogin, hasActiveSalesSession, salesSessionExpired } from '../services/sales-session';
 import type { FlowSpec } from '../services/guided-forms';
@@ -172,7 +172,7 @@ export const homeReplyFromContext = async (ctx: CommandReplyContext): Promise<me
     if (messages.length) return messages.slice(0, 5);
   }
   const persona = applyChannelPersona(ctx.profile, ctx.channel?.channelId);
-  if (isQuoteStaff(persona)) {
+  if (ctx.channel?.channelId === SALES_CHANNEL_ID || isQuoteStaff(persona)) {
     const { commerceFollowUpMessages } = await import('./commerce-followup');
     const menu = await commerceFollowUpMessages({ ...ctx, profile: persona }, 1);
     ctx.pendingQuoteListPush = true;

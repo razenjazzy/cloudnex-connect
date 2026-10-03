@@ -41,7 +41,7 @@ COPY --from=builder /usr/src/app/admin/dist ./admin/dist
 COPY skills ./skills
 
 # wget is used by the container HEALTHCHECK (not present on stock node:alpine).
-RUN apk add --no-cache wget tzdata \
+RUN apk add --no-cache wget tzdata libwebp-tools \
   && addgroup -S app && adduser -S -G app app && chown -R app:app /usr/src/app
 
 # Staging vs production is APP_ENV (injected by the host), not this file.

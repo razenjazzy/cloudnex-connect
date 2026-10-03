@@ -1,3 +1,14 @@
+# Release notes — v13.0.10
+
+**Date:** 2026-10-03  
+**Package version:** `13.0.10`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`). Production HMAC `:8080` unchanged.  
+**Commit title:** `Release: v13.0.10 - Odoo Line OA v10 Staging Deploy`
+
+LINE Flex catalog heroes are JPEG/PNG (`?v=png`; Odoo WebP converted). SKUs without a photo use `/catalog/product/placeholder/image`. Sales OA Home is the commerce menu immediately.
+
+---
+
 # Release notes — v13.0.8
 
 **Date:** 2026-10-02  

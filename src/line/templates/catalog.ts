@@ -198,7 +198,7 @@ export const createProductCardFlexMessage = (
     contents: {
       type: 'bubble',
       styles: flexBubbleStyles,
-      ...flexHero(showImage ? catalogProductHeroUrl(productId, imageUrl) : undefined),
+      ...flexHero(showImage ? catalogProductHeroUrl(imageUrl ? productId : undefined, imageUrl) : undefined),
       header: flexHeaderBox(t('productDetail', language), t('productNext', language)),
       body: {
         type: 'box',
@@ -294,7 +294,7 @@ const createProductCatalogBubble = (
     type: 'bubble',
     size: 'kilo',
     styles: flexBubbleStyles,
-    ...flexHero(showImage ? catalogProductHeroUrl(product.id, product.imageUrl) : undefined),
+    ...flexHero(showImage ? catalogProductHeroUrl(product.imageUrl ? product.id : undefined, product.imageUrl) : undefined),
     header: flexHeaderBox(truncate(product.name, 40), catalogContextSlug(product)),
     body: {
       type: 'box',

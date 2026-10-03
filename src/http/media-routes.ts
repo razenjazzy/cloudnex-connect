@@ -4,29 +4,45 @@ import { adminBase, catalogPublicPath } from './public-bases';
 import { CATALOG_PLACEHOLDER_PNG } from './catalog-placeholder';
 import { readProductImage128, sniffImageContentType } from '../services/odoo/product-image';
 
-const sendCatalogPlaceholderImage = (_req: Request, res: Response) => {
+const sendPlaceholder = (res: Response, maxAge: number) => {
   res.setHeader('content-type', 'image/png');
   res.setHeader('content-length', String(CATALOG_PLACEHOLDER_PNG.length));
-  res.setHeader('cache-control', 'public, max-age=86400');
+  res.setHeader('cache-control', `public, max-age=${maxAge}`);
+  res.setHeader('cross-origin-resource-policy', 'cross-origin');
   return res.status(200).send(CATALOG_PLACEHOLDER_PNG);
 };
 
+const sendCatalogPlaceholderImage = (_req: Request, res: Response) => sendPlaceholder(res, 86400);
+
 const sendCatalogProductImage = async (req: Request, res: Response) => {
   const productId = Number(req.params.id);
-  if (!Number.isInteger(productId) || productId <= 0) return sendCatalogPlaceholderImage(req, res);
-  const IMAGE_FETCH_MS = 1500;
+  if (!Number.isInteger(productId) || productId <= 0) return sendPlaceholder(res, 60);
+  const IMAGE_FETCH_MS = 8000;
   const buffer = await Promise.race([
     readProductImage128(productId),
     new Promise<null>(resolve => setTimeout(() => resolve(null), IMAGE_FETCH_MS)),
   ]);
-  if (!buffer || buffer.length < 32) return sendCatalogPlaceholderImage(req, res);
+  if (!buffer || buffer.length < 32) return sendPlaceholder(res, 60);
   res.setHeader('content-type', sniffImageContentType(buffer));
   res.setHeader('content-length', String(buffer.length));
   res.setHeader('cache-control', 'public, max-age=300');
+  res.setHeader('cross-origin-resource-policy', 'cross-origin');
   return res.status(200).send(buffer);
 };
 
+const catalogImageFromPath = (req: Request, res: Response, next: () => void) => {
+  const path = req.path.replace(/\/+$/, '');
+  if (/\/product\/placeholder\/image$/.test(path)) return sendCatalogPlaceholderImage(req, res);
+  const hit = path.match(/\/product\/(\d+)\/image$/);
+  if (hit) {
+    req.params.id = hit[1];
+    return sendCatalogProductImage(req, res);
+  }
+  return next();
+};
+
 export const registerMediaRoutes = (app: Express): void => {
+  app.get(/\/catalog(?:\/.*)?\/product\/(?:placeholder|\d+)\/image\/?$/, catalogImageFromPath);
   const placeholderPaths = new Set([
     `${catalogPublicPath()}/product/placeholder/image`,
     `${adminBase()}/catalog/product/placeholder/image`,

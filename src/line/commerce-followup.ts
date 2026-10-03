@@ -4,7 +4,7 @@ import { createServiceActionFlexMessage, createProductCarouselFlexMessage, creat
 import { isQuoteStaff } from './quote-access';
 import { getErpAdapter } from '../erp/registry';
 import { sendTargetedFlexMessage, sendTargetedPushMessages } from './messaging';
-import { DEFAULT_CHANNEL_ID, type ChannelContext } from './channels';
+import { DEFAULT_CHANNEL_ID, SALES_CHANNEL_ID, type ChannelContext } from './channels';
 import type { UserLanguage, UserProfile } from '../services/firestore';
 import { appLogger } from '../services/logger';
 import { overlayLabelForText } from './command-overlay';
@@ -33,7 +33,7 @@ const commerceActionMenu = (ctx: CommerceFollowCtx, shopMode = false) => {
   const { userLanguage, channel, profile } = ctx;
   const serviceDef = getServiceDefinition('commerce');
   const isAdmin = profile.role === 'admin';
-  const isStaff = isQuoteStaff(profile);
+  const isStaff = isQuoteStaff(profile) || channel?.channelId === SALES_CHANNEL_ID;
   const visibleCommands = serviceDef ? getVisibleCommands(serviceDef, isAdmin, isStaff, { shopMode }) : [];
   if (!serviceDef || !isServiceEnabledForChannel(serviceDef.key, channel) || !visibleCommands.length) return null;
   return createServiceActionFlexMessage(
@@ -63,7 +63,7 @@ export const commerceFollowUpMessages = async (
 ): Promise<messagingApi.Message[]> => {
   if (room <= 0) return [];
   const { userLanguage, profile, channel } = ctx;
-  const isStaff = isQuoteStaff(profile);
+  const isStaff = isQuoteStaff(profile) || channel?.channelId === SALES_CHANNEL_ID;
   const shopMode = !isStaff && customerShopUiEnabled();
   const actionMenu = commerceActionMenu(ctx, shopMode);
   if (!actionMenu) return [];

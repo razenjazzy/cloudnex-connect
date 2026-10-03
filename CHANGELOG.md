@@ -1,5 +1,9 @@
 # Changelog
 
+## v13.0.10 — Odoo LINE OA v10 (2026-10-03)
+
+- Catalog Flex uses LINE-safe PNG (Odoo WebP converted). Missing photos use the camera placeholder. Sales OA Home replies without waiting for `salesTier`.
+
 ## v13.0.8 — Odoo LINE OA v10 (2026-10-02)
 
 - Git titles are sequential `v13.0.3` … `v13.0.8`. GitHub `ci.yml` and manual `release.yml` stay so Actions can pass.

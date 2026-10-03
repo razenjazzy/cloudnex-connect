@@ -4,6 +4,7 @@ import { homeReplyFromContext } from '../command-router';
 import { getServiceDefinition, getVisibleCommands, isServiceEnabledForChannel, serviceMenuLabel } from '../../services/service-catalog';
 import { createServiceActionFlexMessage } from '../templates';
 import { isQuoteStaff } from '../quote-access';
+import { SALES_CHANNEL_ID } from '../channels';
 import { commerceFollowUpMessages, catalogFollowUpMessages } from '../commerce-followup';
 import { overlayLabelForText } from '../command-overlay';
 import { isCustomerShopEffective } from '../../platform/customer-commerce';
@@ -33,7 +34,7 @@ const navServiceHandler: CommandHandler = {
 
     const serviceDef = getServiceDefinition(key);
     const isAdmin = profile.role === 'admin';
-    const isStaff = isQuoteStaff(profile);
+    const isStaff = isQuoteStaff(profile) || channel?.channelId === SALES_CHANNEL_ID;
     const shopMode = !isStaff && await isCustomerShopEffective();
     const visibleCommands = serviceDef ? getVisibleCommands(serviceDef, isAdmin, isStaff, { shopMode }) : [];
 

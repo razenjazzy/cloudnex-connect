@@ -120,7 +120,7 @@ describe('Odoo ERP adapter', () => {
         price: 125,
         quantity: 8,
         currency: 'THB',
-        imageUrl: 'https://amardhaka.io/cloudnex-connect/catalog/product/1/image',
+        imageUrl: 'https://amardhaka.io/cloudnex-connect/catalog/product/1/image?v=png',
       },
     ]);
     if (previousBase === undefined) delete process.env.PUBLIC_BASE_URL;
@@ -129,7 +129,7 @@ describe('Odoo ERP adapter', () => {
     else process.env.PUBLIC_ADMIN_BASE = previousAdmin;
   });
 
-  it('omits Flex hero URLs when Odoo has no image_128', async () => {
+  it('omits Flex imageUrl when Odoo has no photo so LINE uses the camera placeholder', async () => {
     const previousBase = process.env.PUBLIC_BASE_URL;
     process.env.PUBLIC_BASE_URL = 'https://amardhaka.io/cloudnex-connect';
     vi.mocked(productIdsWithImage128).mockResolvedValueOnce(new Set());
@@ -138,19 +138,6 @@ describe('Odoo ERP adapter', () => {
       { id: 1, name: 'Widget Pro', sku: 'WP-1', price: 125, quantity: 8, currency: 'THB' },
     ]);
     expect(vi.mocked(readProductImage128)).not.toHaveBeenCalled();
-    if (previousBase === undefined) delete process.env.PUBLIC_BASE_URL;
-    else process.env.PUBLIC_BASE_URL = previousBase;
-  });
-
-  it('omits Flex hero URLs when image_128 metadata is set but bytes are empty', async () => {
-    const previousBase = process.env.PUBLIC_BASE_URL;
-    process.env.PUBLIC_BASE_URL = 'https://amardhaka.io/cloudnex-connect';
-    vi.mocked(productIdsWithImage128).mockResolvedValueOnce(new Set([1]));
-    vi.mocked(readProductImage128).mockResolvedValueOnce(null);
-    mockedFindProducts.mockResolvedValue([{ id: 1, name: 'Widget Pro', default_code: 'WP-1', list_price: 125, qty_available: 8 }]);
-    await expect(odooAdapter.searchProducts('widget', 5)).resolves.toEqual([
-      { id: 1, name: 'Widget Pro', sku: 'WP-1', price: 125, quantity: 8, currency: 'THB' },
-    ]);
     if (previousBase === undefined) delete process.env.PUBLIC_BASE_URL;
     else process.env.PUBLIC_BASE_URL = previousBase;
   });

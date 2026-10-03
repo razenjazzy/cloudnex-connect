@@ -13,23 +13,23 @@ export const publicCatalogProductImageUrl = (productId: number): string | undefi
   if (!Number.isInteger(productId) || productId <= 0) return undefined;
   const host = httpsCatalogOrigin();
   if (!host) return undefined;
-  return `${host.origin}${host.path}/product/${productId}/image`;
+  return `${host.origin}${host.path}/product/${productId}/image?v=png`;
 };
 
-/** Camera / no-photo hero when the product has no image_128. */
+/** Camera / no-photo hero when the product has no usable photo. */
 export const publicCatalogPlaceholderImageUrl = (): string | undefined => {
   const host = httpsCatalogOrigin();
   if (!host) return undefined;
   return `${host.origin}${host.path}/product/placeholder/image`;
 };
 
-/** Proven HTTPS image when Odoo has bytes; otherwise the camera placeholder (do not hit Odoo on the Flex hero). */
+/** Proven HTTPS photo, else the public /product/{id}/image URL, else the camera / no-photo PNG. */
 export const catalogProductHeroUrl = (productId?: number, imageUrl?: string): string | undefined => {
   const proven = imageUrl?.trim();
-  if (proven?.startsWith('https://')) return proven;
-  const placeholder = publicCatalogPlaceholderImageUrl();
-  if (placeholder) return placeholder;
-  return productId && Number.isInteger(productId) && productId > 0
-    ? publicCatalogProductImageUrl(productId)
-    : undefined;
+  if (proven?.startsWith('https://') && !proven.includes('/product/placeholder/image')) return proven;
+  if (productId && Number.isInteger(productId) && productId > 0) {
+    const fromId = publicCatalogProductImageUrl(productId);
+    if (fromId) return fromId;
+  }
+  return publicCatalogPlaceholderImageUrl();
 };

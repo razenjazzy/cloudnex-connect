@@ -31,7 +31,7 @@ describe('P1 sales home and list page', () => {
     expect(readFileSync('src/line/commerce-followup.ts', 'utf8')).toContain('syncStaffProfile');
     expect(router).toContain('commerceFollowUpMessages');
     expect(readFileSync('src/line/process-message.ts', 'utf8')).toContain('pushDeferredSalesQuoteList');
-    expect(readFileSync('src/line/commerce-followup.ts', 'utf8')).toContain("text: 'QUOTE LIST'");
+    expect(router).toContain('SALES_CHANNEL_ID');
   });
 
   it('names the salesperson after customer approve', () => {

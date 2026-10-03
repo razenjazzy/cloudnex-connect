@@ -82,7 +82,7 @@ flowchart TD
   so --> inv[QUOTE INVOICE]
 ```
 
-**Customer Home:** carousel (HTTPS hero: product image when `image_128` exists, else `{PUBLIC_BASE_URL}/catalog/product/placeholder/image` camera PNG) + commerce actions. Header caption is the shop slug (`website_url`, Internal Reference, or name → `app-premium`), not the word Catalog. Price uses the same teal highlight box as Order **Total** (label `xs` over amount `xl`); hide stock.
+**Customer Home:** carousel (HTTPS hero: Odoo photo `{PUBLIC_BASE_URL}/catalog/product/{id}/image?v=png` when a photo exists, else `{PUBLIC_BASE_URL}/catalog/product/placeholder/image` camera / no-photo PNG) + commerce actions. Header caption is the shop slug (`website_url`, Internal Reference, or name → `app-premium`), not the word Catalog. Price uses the same teal highlight box as Order **Total** (label `xs` over amount `xl`); hide stock.
 
 | Step | Canonical | Result |
 |---|---|---|
@@ -280,7 +280,7 @@ Full key list: [`src/http/env-params.ts`](../src/http/env-params.ts). Do not inv
 | `SALES_SESSION_TTL_HOURS` | Gold Verify | Session | Default 24 |
 | `PUBLIC_BASE_URL` | `https://…` | Admin, Flex images, shop Pay page origin | No https heroes / no signed `/shop/pay` |
 | `PUBLIC_ADMIN_BASE` | `/admin` | Admin UI (`/admin`, staging `/admin/test`) | SPA 404 |
-| Catalog image | `{PUBLIC_BASE_URL}/catalog/product/:id/image` (mirrors `/admin…` → `/catalog…`; missing bytes → placeholder) | Flex hero | No https / nginx miss |
+| Catalog image | `{PUBLIC_BASE_URL}/catalog/product/:id/image?v=png` (LINE JPEG/PNG; WebP converted). Missing/blank → `/catalog/product/placeholder/image` camera PNG | Flex hero | WebP as JPEG / nginx miss |
 | `ODOO_*` | ERP | Products, quotes | Empty / create fail |
 | `ERP_PROVIDER` | `odoo` | Live adapter | Placeholder fail-closed |
 | `ADMIN_USER_ID` | LINE ids | `ADMIN ENABLE` | No LINE admin |
