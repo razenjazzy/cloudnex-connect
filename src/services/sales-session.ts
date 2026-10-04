@@ -67,6 +67,26 @@ export const hasActiveSalesSession = (
   return new Date(profile.salesSessionExpiresAt).getTime() > now;
 };
 
+/** Verified staff with no session end on file (verified before sessions existed): not a live session, so Verify again. */
+export const salesSessionUntracked = (
+  profile: Pick<UserProfile, 'odooVerified' | 'salesTier' | 'salesSessionExpiresAt'>,
+): boolean => Boolean(profile.odooVerified && profile.salesTier && !profile.salesSessionExpiresAt);
+
+const formatSpan = (seconds: number, language: 'th' | 'en'): string => {
+  if (seconds < 3600) {
+    const minutes = Math.max(1, Math.round(seconds / 60));
+    return language === 'th' ? `${minutes} นาที` : `${minutes} min`;
+  }
+  const hours = Math.round((seconds / 3600) * 10) / 10;
+  return language === 'th' ? `${hours} ชม.` : `${hours} h`;
+};
+
+/** Config-driven wording for the Verify card and the Home account card (never hard-code 24 h / 1 h in copy). */
+export const salesPolicyText = (language: 'th' | 'en', env: NodeJS.ProcessEnv = process.env): { ttl: string; idle: string } => ({
+  ttl: formatSpan(salesSessionTtlHours(env) * 3600, language),
+  idle: salesIdleSignoutSeconds(env) > 0 ? formatSpan(salesIdleSignoutSeconds(env), language) : '',
+});
+
 export const salesSessionExpired = (
   profile: Pick<UserProfile, 'salesSessionExpiresAt' | 'salesTier' | 'odooVerified'>,
   now = Date.now(),

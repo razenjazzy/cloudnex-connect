@@ -28,3 +28,6 @@ build_log.txt
 
 # Local mirror of the VPS log archive (scripts/pull-vps-logs.sh)
 logs/
+
+# Local env backups (secrets)
+.env_files/

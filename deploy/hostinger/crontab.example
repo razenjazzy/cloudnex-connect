@@ -9,3 +9,7 @@
 
 # Daily Firestore audit archive + delete past AUDIT_RETENTION_DAYS (default 30)
 0 3 * * * curl -fsS -X POST -H "Authorization: Bearer $OPS_API_TOKEN" https://amardhaka.io/ops/audit-log/rotate
+
+# Sales sessions: sign out expired ones (24 h / 1 h idle) and reset their native menu to the default colors.
+# Install: scp scripts/vps-sales-sweep.sh root@VPS:/usr/local/bin/cloudnex-sales-sweep (chmod 750)
+*/5 * * * * /usr/local/bin/cloudnex-sales-sweep >> /var/log/cloudnex-connect/.sweep.log 2>&1

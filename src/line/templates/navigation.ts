@@ -43,6 +43,48 @@ export const createIdentityStripFlexMessage = (
   },
 });
 
+/** Sales OA Home header: who is signed in, role, session end, and the Verify / Sign out entry points. */
+export const createSalesAccountFlexMessage = (
+  account: { name?: string; phone?: string; roleKey: 'admin' | 'sales_manager' | 'salesperson'; expiresAt?: string; idle?: string },
+  language: ReportLanguage,
+): messagingApi.FlexMessage => {
+  const role = t(account.roleKey === 'admin' ? 'salesRoleAdmin' : account.roleKey === 'sales_manager' ? 'salesRoleManager' : 'salesRoleUser', language);
+  const until = account.expiresAt && Number.isFinite(Date.parse(account.expiresAt))
+    ? t('salesAccountUntil', language).replace('{time}', new Date(account.expiresAt).toLocaleString(language === 'th' ? 'th-TH' : 'en-GB', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short', hour12: false }))
+    : '';
+  return {
+    type: 'flex',
+    altText: truncate(`${account.name || role} — ${t('salesAccountSignedIn', language)}`, 390),
+    contents: {
+      type: 'bubble',
+      styles: flexBubbleStyles,
+      body: {
+        type: 'box',
+        layout: 'vertical',
+        spacing: 'xs',
+        paddingAll: 'lg',
+        contents: [
+          { type: 'text', text: account.name || '—', size: 'md', color: BRAND.ink, wrap: true, weight: 'bold' },
+          { type: 'text', text: `${role} · ${t('salesAccountSignedIn', language)}`, size: 'xs', color: BRAND.tealStrong, wrap: true },
+          ...(account.phone ? [{ type: 'text' as const, text: account.phone, size: 'xs' as const, color: BRAND.inkSoft, wrap: true }] : []),
+          ...(until ? [{ type: 'text' as const, text: until, size: 'xs' as const, color: BRAND.inkSoft, wrap: true }] : []),
+          ...(account.idle ? [{ type: 'text' as const, text: t('salesAccountIdle', language).replace('{idle}', account.idle), size: 'xs' as const, color: BRAND.inkSoft, wrap: true }] : []),
+        ],
+      },
+      footer: {
+        type: 'box',
+        layout: 'horizontal',
+        spacing: 'md',
+        paddingAll: 'md',
+        contents: [
+          { ...createMessageActionButton(t('salesVerifyAgain', language), 'FORM VERIFY', 'secondary', BRAND.tealTint), flex: 1 },
+          { ...createMessageActionButton(t('salesSignOut', language), 'VERIFY SIGNOUT', 'secondary', BRAND.goldTint), flex: 1 },
+        ],
+      },
+    },
+  };
+};
+
 export const createServiceHomeFlexMessage = (
   services: { key: string; label: string }[],
   language: ReportLanguage,

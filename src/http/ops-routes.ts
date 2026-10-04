@@ -13,6 +13,7 @@ import { buildWorkflowAudit } from './workflow-audit';
 import { demoSessionRotateBodySchema } from './openapi/schemas';
 import { getPlatformStatus } from '../platform/status';
 import { handleOdooHook } from './odoo-hook';
+import { sweepExpiredSalesSessions } from '../jobs/sales-session-sweep';
 
 export const registerOpsRoutes = (app: Express): void => {
     app.get('/ops/kpi', requireOpsToken, (_req, res) => {
@@ -77,6 +78,10 @@ export const registerOpsRoutes = (app: Express): void => {
 
     app.get('/ops/platform', requireOpsToken, async (_req, res) => {
         return res.status(200).json(await getPlatformStatus());
+    });
+
+    app.post('/ops/sales-session-sweep', requireOpsToken, async (_req, res) => {
+        return res.status(200).json(await sweepExpiredSalesSessions());
     });
 
     app.post('/ops/odoo-hook', requireOpsToken, jsonParser, async (req, res) => {

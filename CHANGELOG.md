@@ -1,5 +1,13 @@
 # Changelog
 
+## v14.0.2 — Odoo LINE OA v11 (2026-10-04)
+
+- Sales OA Home account card (name, role, session end, idle limit) with Verify / Sign out; Verify card wording now follows `SALES_SESSION_TTL_HOURS` and `SALES_IDLE_SIGNOUT_SECONDS`. Card also sent right after a successful verification (customers get the name/phone strip).
+- Sales sessions without a stored end time (verified before sessions existed) are signed out so Verify records the real expiry; fixes the native menu never turning Verify gold.
+- Session sweep (`POST /ops/sales-session-sweep`, host cron every 5 min, `scripts/vps-sales-sweep.sh`): signs out expired/idle staff and resets their native menu to the default colours.
+- Native menu colour guide documented and covered by `tests/tray-color-guide.test.ts` (Language gold=EN / white=TH, Verify white=not verified / gold=verified, tap = dark teal).
+- Journey logging (`line_journey`, `verification_completed`, `admin_login`, audit lines), consolidated log sources (app, redis, nginx) in Admin Logs. Hero images 256 px with 128 px fallback.
+
 ## v14.0.1 — Odoo LINE OA v11 (2026-10-04)
 
 - Sales OA: Verify is the front door (identity/help/privacy/language only until verified), 24 h session, new 1 h idle sign-out (`SALES_IDLE_SIGNOUT_SECONDS`). Customer OA unchanged (verify at order time).

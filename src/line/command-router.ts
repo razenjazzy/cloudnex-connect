@@ -33,11 +33,11 @@ import {
 import { isServiceConfigured, isServiceEnabledForChannel, isCommandDisabled } from '../services/service-catalog';
 import { resolveServiceForCommand } from '../services/service-catalog';
 import { FLOW_SPECS, getFlowByStartCommand, nextLinearFieldIndex } from '../services/guided-forms';
-import { createBotTextFlexMessage, createFormPromptFlexMessage, createOptionalSummaryFlexMessage, createRequiredResumeFlexMessage, createServiceHomeFlexMessage, createProductCarouselFlexMessage, createIdentityStripFlexMessage } from './templates';
+import { createBotTextFlexMessage, createFormPromptFlexMessage, createOptionalSummaryFlexMessage, createRequiredResumeFlexMessage, createServiceHomeFlexMessage, createProductCarouselFlexMessage, createIdentityStripFlexMessage, createSalesAccountFlexMessage } from './templates';
 import { getAvailableServices, serviceMenuLabel } from '../services/service-catalog';
 import { ChannelContext, CUSTOMER_CHANNEL_ID, SALES_CHANNEL_ID, getBrandTitle, withAgentColon } from './channels';
 import { trayVariantForCommand } from './rich-menu';
-import { clearSalesLogin, hasActiveSalesSession, salesIdleExpired, salesSessionExpired, shouldTouchSalesActivity, touchSalesActivity } from '../services/sales-session';
+import { clearSalesLogin, hasActiveSalesSession, salesIdleExpired, salesPolicyText, salesSessionExpired, salesSessionUntracked, shouldTouchSalesActivity, touchSalesActivity } from '../services/sales-session';
 import type { FlowSpec } from '../services/guided-forms';
 import { COMMAND_HANDLERS } from './handlers/index';
 import { buildKeywordGuidanceMessages } from './handlers/help';
@@ -177,8 +177,18 @@ export const homeReplyFromContext = async (ctx: CommandReplyContext): Promise<me
     const { commerceFollowUpMessages } = await import('./commerce-followup');
     const menu = await commerceFollowUpMessages({ ...ctx, profile: persona }, 1);
     ctx.pendingQuoteListPush = true;
-    if (menu.length) return menu.slice(0, 1);
-    return [homeMenuFromContext({ ...ctx, profile: persona })];
+    // Signed-in staff see who they are, their session end, and the Verify / Sign out entry points above the menu.
+    const account = persona.odooVerified && isQuoteStaff(persona)
+      ? [createSalesAccountFlexMessage({
+        name: persona.displayName,
+        phone: persona.phone,
+        roleKey: persona.role === 'admin' ? 'admin' : persona.salesTier === 'sales_manager' ? 'sales_manager' : 'salesperson',
+        expiresAt: persona.salesSessionExpiresAt,
+        idle: salesPolicyText(ctx.userLanguage).idle,
+      }, ctx.userLanguage)]
+      : [];
+    if (menu.length) return [...account, ...menu.slice(0, 1)];
+    return [...account, homeMenuFromContext({ ...ctx, profile: persona })];
   }
   return [homeMenuFromContext(ctx)];
 };
@@ -867,6 +877,10 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
   if (salesSessionExpired(ctx.profile)) {
     await clearSalesLogin(userId);
     ctx.profile = { ...ctx.profile, odooVerified: false, salesSessionExpiresAt: undefined, salesLastActiveAt: undefined };
+  } else if (onSalesOa && !ctx.isGroupContext && salesSessionUntracked(ctx.profile)) {
+    appLogger.info('sales_session_untracked_signout', { userId, tier: ctx.profile.salesTier });
+    await clearSalesLogin(userId);
+    ctx.profile = { ...ctx.profile, odooVerified: false, salesSessionExpiresAt: undefined, salesLastActiveAt: undefined };
   } else if (onSalesOa && !ctx.isGroupContext && salesIdleExpired(ctx.profile)) {
     appLogger.info('sales_idle_signout', { userId, idleSince: ctx.profile.salesLastActiveAt });
     await clearSalesLogin(userId);
@@ -929,7 +943,8 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
   // Sales OA: verification is the front door. Until the staff member verifies (daily, or after 1 h idle), only
   // identity/help/privacy/language commands run; Home and everything else show the Verify card.
   if (!profile.odooVerified && onSalesOa && !ctx.isGroupContext && !isSalesPreVerifyCommand(upperText, profile.pendingFlow)) {
-    return [text(t('salesVerifyRequired', userLanguage).replace('{agent}', agentName), userLanguage, undefined, [
+    const policy = salesPolicyText(userLanguage);
+    return [text(t('salesVerifyRequired', userLanguage).replace('{agent}', agentName).replace('{ttl}', policy.ttl).replace('{idle}', policy.idle || '-'), userLanguage, undefined, [
       { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
     ])];
   }

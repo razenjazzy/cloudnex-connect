@@ -18,9 +18,9 @@ import { publicSiteUrl } from '../http/public-bases';
 import { findOdooSalesTierByPartnerId } from './odoo/admin';
 import { DEFAULT_CHANNEL_ID, CUSTOMER_CHANNEL_ID, getAgentName, resolveChannelConfig } from '../line/channels';
 import { sendTargetedMessage, sendTargetedFlexMessage } from '../line/messaging';
-import { createBotTextFlexMessage } from '../line/templates';
+import { createBotTextFlexMessage, createIdentityStripFlexMessage, createSalesAccountFlexMessage } from '../line/templates';
 import { appLogger } from './logger';
-import { startSalesSession } from './sales-session';
+import { salesPolicyText, startSalesSession } from './sales-session';
 import { maskPhoneForLog, resolveVerificationPhase } from './verification-lifecycle';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
@@ -370,6 +370,18 @@ export const verifyOdooUserByToken = async (token: string): Promise<{ ok: boolea
     profile: { ...profile, odooVerified: true },
   });
   await sendTargetedFlexMessage([consumed.data.userId], successCard, consumed.data.channelId);
+  // Account card only appears once verified: Sales staff see role + session end, customers see who they are.
+  if (consumed.data.channelId === CUSTOMER_CHANNEL_ID) {
+    await sendTargetedFlexMessage([consumed.data.userId], createIdentityStripFlexMessage({ name: profile.displayName || bindResult.partnerName, phone: profile.phone }, language), consumed.data.channelId);
+  } else if (salesTier) {
+    await sendTargetedFlexMessage([consumed.data.userId], createSalesAccountFlexMessage({
+      name: profile.displayName || bindResult.partnerName,
+      phone: profile.phone,
+      roleKey: profile.role === 'admin' ? 'admin' : salesTier,
+      expiresAt: profile.salesSessionExpiresAt,
+      idle: salesPolicyText(language).idle,
+    }, language), consumed.data.channelId);
+  }
   const resume = await resumeQuoteFromLastProduct({
     text: '',
     userId: consumed.data.userId,

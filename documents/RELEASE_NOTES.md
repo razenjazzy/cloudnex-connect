@@ -1,3 +1,14 @@
+# Release notes — v14.0.2
+
+**Date:** 2026-10-04  
+**Package version:** `14.0.2`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`). Production lane unchanged (old image).  
+**Commit title:** `Release: v14.0.2 - Odoo Line OA v11 Bug Fix`
+
+Sales OA account card and config-driven Verify wording; sessions with no end time are signed out so Verify stores the expiry; session sweep (cron every 5 min) resets the native menu when a session ends; colour guide in `documents/LINE_OA_AGENT.md`. Host cron on the VPS: `cloudnex-log-archive` (hourly) and `cloudnex-sales-sweep` (every 5 min).
+
+---
+
 # Release notes — v14.0.1
 
 **Date:** 2026-10-04  

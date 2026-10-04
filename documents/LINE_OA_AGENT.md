@@ -393,3 +393,19 @@ Commit only when asked; never `.env`; message `Release: vX.Y.Z - Odoo Line OA vN
 - **Sales OA (default / `sales` channel):** verification is the front door. Until the staff member verifies, only identity (`NAV VERIFY`, `FORM VERIFY`, `VERIFY *`), help, privacy and language commands run; Home and every other command show the Verify card. A session lasts `SALES_SESSION_TTL_HOURS` (24, fixed from verification) and ends after `SALES_IDLE_SIGNOUT_SECONDS` (3600, `0` = off) with no message. The next message after either limit shows the Verify card. Write actions still need the per-action step-up (`ACTION VERIFY` link).
 - **Customer OA:** browsing is open. Ordering (`FORM QUOTE CREATE FROM CARD`, `QUOTE CREATE`) requires the Odoo phone verification (OTP challenge completed through the `/verify/odoo` link); the product choice is kept for 2 hours while the customer verifies. A verified customer stays verified and is not asked again per order.
 - Links: verification, action-verify and shop-pay pages are served at `<PUBLIC_BASE_URL>/verify/*` and `/shop/*` (site path, e.g. `https://amardhaka.io/cloudnex-connect/verify/odoo`); the host-root paths still work.
+
+## Native menu (tray) color guide - Sales OA and Customer OA
+
+The six-cell tray follows one color language on every OA. Images live in `assets/rich-menu/`; ids come from `npm run rich-menu:upload` (`LINE_RICH_MENU_*`). Dark teal is tap-only: a tap shows dark teal, then the tray rests on the state color.
+
+| Cell | Default (rest) | Pressed (tap) | Verified |
+|---|---|---|---|
+| Language, English | Gold fill | Dark teal | Gold fill |
+| Language, Thai | White (regular card) | Dark teal | White |
+| Verify | White: not verified, session ended or never started | Dark teal | Gold fill |
+| Home, Products & Quotes, Order Status, Help | White | Dark teal on the tapped cell only | White |
+
+- **Verify gold** means a live session: Sales staff for `SALES_SESSION_TTL_HOURS` (24 h) with no idle gap longer than `SALES_IDLE_SIGNOUT_SECONDS` (1 h); a verified customer stays gold (no expiry).
+- **Back to default** (white Verify) when a session ends: `VERIFY SIGNOUT`, 24 h expiry, 1 h idle, or no session end on file. The next message does it, and a sweep does it without waiting for a message: `POST /ops/sales-session-sweep` every 5 minutes from the host cron (`scripts/vps-sales-sweep.sh`).
+- **Customer OA:** Verify stays white until the customer presses it or places an order; the account (name, phone) card appears only once verified.
+- **Sales OA Home** shows the account card (name, role, session end, idle limit) above the menu only while signed in; signed out shows the Verify card.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hasActiveSalesSession, salesIdleExpired, salesIdleSignoutSeconds, salesSessionExpired, salesSessionExpiresAtFromNow, salesSessionTtlHours, shouldTouchSalesActivity } from '../src/services/sales-session';
+import { hasActiveSalesSession, salesIdleExpired, salesPolicyText, salesSessionUntracked, salesIdleSignoutSeconds, salesSessionExpired, salesSessionExpiresAtFromNow, salesSessionTtlHours, shouldTouchSalesActivity } from '../src/services/sales-session';
 import { isSalesPreVerifyCommand } from '../src/line/command-grid';
 
 describe('sales session', () => {
@@ -58,5 +58,18 @@ describe('sales session', () => {
       expect(isSalesPreVerifyCommand(blocked)).toBe(false);
     }
     expect(isSalesPreVerifyCommand('FORM FIELD 1', { flow: 'VERIFY' })).toBe(true);
+  });
+
+  it('treats a verified staff member with no session end on file as signed out (Verify again)', () => {
+    expect(salesSessionUntracked({ odooVerified: true, salesTier: 'sales_manager' })).toBe(true);
+    expect(salesSessionUntracked({ odooVerified: true, salesTier: 'sales_manager', salesSessionExpiresAt: new Date().toISOString() })).toBe(false);
+    expect(salesSessionUntracked({ odooVerified: true })).toBe(false); // customers have no tier and no expiry
+    expect(salesSessionUntracked({ odooVerified: false, salesTier: 'salesperson' })).toBe(false);
+  });
+
+  it('words the policy from config, never hard-coded', () => {
+    expect(salesPolicyText('en', {})).toEqual({ ttl: '24 h', idle: '1 h' });
+    expect(salesPolicyText('en', { SALES_SESSION_TTL_HOURS: '8', SALES_IDLE_SIGNOUT_SECONDS: '1800' })).toEqual({ ttl: '8 h', idle: '30 min' });
+    expect(salesPolicyText('th', { SALES_IDLE_SIGNOUT_SECONDS: '0' }).idle).toBe('');
   });
 });
