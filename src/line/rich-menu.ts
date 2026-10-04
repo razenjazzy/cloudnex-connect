@@ -2,6 +2,7 @@ import type { UserLanguage } from '../services/firestore';
 import { DEFAULT_CHANNEL_ID, resolveChannelConfig } from './channels';
 import { getRuntime } from '../services/runtime-settings';
 import { appLogger } from '../services/logger';
+import { getUserProfile } from '../services/firestore';
 
 export type RichMenuVariant = 'default' | 'home' | 'verify' | 'commerce' | 'orders' | 'help' | 'language' | 'keyboard';
 
@@ -73,6 +74,25 @@ export const trayVariantForCommand = (text: string): RichMenuVariant | undefined
   return undefined;
 };
 
+/**
+ * Dark teal the instant a tap arrives, before Odoo/Firestore work: a tap (button or typed command) fills its cell
+ * dark teal while the reply is still being prepared. Returns the variant that was pressed so the end of the
+ * reply does not press it a second time. Home is already the rest tray, so it is skipped.
+ */
+export const pressTrayAtTap = (
+  userId: string,
+  language: UserLanguage,
+  channelId: string,
+  commandText: string,
+  salesSessionActive: boolean,
+): RichMenuVariant | undefined => {
+  const variant = trayVariantForCommand(commandText);
+  const plan = trayAfterReplyPlan(variant);
+  if (!variant || !plan || !plan.restDelayed) return undefined;
+  void linkUserRichMenu(userId, language, channelId, plan.press, salesSessionActive);
+  return variant;
+};
+
 export const linkUserRichMenu = async (
   userId: string,
   language: UserLanguage,
@@ -123,6 +143,27 @@ export const queueTrayRestAfterReply = (
   }, 750);
 };
 
+/** The OTP/link challenge lives 10 minutes; a held Verify press must not outlive it. */
+export const VERIFY_HOLD_MS = 10 * 60 * 1000;
+
+/**
+ * Verify is in progress: the Verify cell stays dark teal until the link succeeds (rest -> gold, set by the
+ * verification flow). If nothing happens within the challenge lifetime, put the default colors back.
+ */
+export const queueTrayHoldExpiry = (
+  userId: string,
+  rest: TrayRestState | undefined,
+  channelId: string = DEFAULT_CHANNEL_ID,
+  holdMs: number = VERIFY_HOLD_MS,
+): void => {
+  if (!rest) return;
+  setTimeout(() => {
+    getUserProfile(userId)
+      .then(profile => (profile.odooVerified ? undefined : linkUserRichMenu(userId, rest.language, channelId, 'default', false)))
+      .catch(error => appLogger.warn('rich_menu_hold_expiry_failed', { error: String(error) }));
+  }, holdMs);
+};
+
 /**
  * Unlink falls back to the OA default tray. Customer qty/forms then link a blank/keyboard menu.
  * Operator must create that menu in LINE Console and set en.keyboard / LINE_CHANNEL_CUSTOMER_KEYBOARD_RICH_MENU.
@@ -161,11 +202,15 @@ export const applyTrayAfterReply = (
   channelId: string | undefined,
   highlight: RichMenuVariant | undefined,
   rest: TrayRestState | undefined,
+  hold = false,
+  alreadyPressed = false,
 ): void => {
   const plan = trayAfterReplyPlan(highlight);
   if (!plan) return;
   const sales = Boolean(rest?.salesSessionActive);
   const channel = channelId || DEFAULT_CHANNEL_ID;
-  void linkUserRichMenu(userId, language, channel, plan.press, sales);
-  if (plan.restDelayed) queueTrayRestAfterReply(userId, rest, channel);
+  if (!alreadyPressed) void linkUserRichMenu(userId, language, channel, plan.press, sales);
+  if (!plan.restDelayed) return;
+  if (hold) queueTrayHoldExpiry(userId, rest, channel);
+  else queueTrayRestAfterReply(userId, rest, channel);
 };

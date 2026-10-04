@@ -1,3 +1,14 @@
+# Release notes — v14.0.3
+
+**Date:** 2026-10-04  
+**Package version:** `14.0.3`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`). Production lane unchanged (old image).  
+**Commit title:** `Release: v14.0.3 - Odoo Line OA v11 Bug Fix`
+
+Native menu taps fill dark teal immediately; Verify stays dark teal while a link is pending (gold on success, default after 10 minutes). Colour guide: `documents/LINE_OA_AGENT.md`.
+
+---
+
 # Release notes — v14.0.2
 
 **Date:** 2026-10-04  

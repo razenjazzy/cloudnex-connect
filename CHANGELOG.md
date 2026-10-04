@@ -1,5 +1,10 @@
 # Changelog
 
+## v14.0.3 — Odoo LINE OA v11 (2026-10-04)
+
+- Native menu: a tap (button or typed command) fills its cell dark teal immediately, before the reply is built, instead of after it. The Verify cell stays dark teal while a verification link is waiting (gold on success, default colours if the link expires after 10 minutes).
+- Tests for the immediate press, the Verify hold and the expiry.
+
 ## v14.0.2 — Odoo LINE OA v11 (2026-10-04)
 
 - Sales OA Home account card (name, role, session end, idle limit) with Verify / Sign out; Verify card wording now follows `SALES_SESSION_TTL_HOURS` and `SALES_IDLE_SIGNOUT_SECONDS`. Card also sent right after a successful verification (customers get the name/phone strip).

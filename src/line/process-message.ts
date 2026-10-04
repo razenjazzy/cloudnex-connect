@@ -3,11 +3,14 @@ import type { Readable } from 'node:stream';
 import { classifyIntent, transcribeAudioToText } from '../services/vertexai';
 import { resolveCommandReply, type CommandReplyContext } from './command-router';
 import { resolvePostbackToText } from './postback';
-import { getUserProfile, setLastChannelId, setUserDisplayName, updateUserScore } from '../services/firestore';
+import { getPendingOdooVerificationChallenge, getUserProfile, setLastChannelId, setUserDisplayName, updateUserScore } from '../services/firestore';
 import { ChannelConfig, CUSTOMER_CHANNEL_ID, getAgentName } from './channels';
 import type { ChannelContext } from './channels';
 import { appLogger } from '../services/logger';
 import { commandActor, matchCommandGrid } from './command-grid';
+import { canonicalizeInboundCommand } from './command-overlay';
+import { pressTrayAtTap, type RichMenuVariant } from './rich-menu';
+import { hasActiveSalesSession } from '../services/sales-session';
 import { withSpan } from '../observability/tracing';
 import { createBotTextFlexMessage } from './templates';
 import { enforceLineLimits } from './message-limits';
@@ -304,6 +307,18 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
     if (!inputText) return null;
     recordChannelInbound(input.channelConfig.channelId, input.conversationId);
 
+    // Native menu: fill the tapped cell dark teal right away (button or typed command), not after the reply.
+    let earlyPressed: RichMenuVariant | undefined;
+    if (!input.isGroupContext) {
+      earlyPressed = pressTrayAtTap(
+        input.conversationId,
+        userLanguage,
+        input.channelConfig.channelId,
+        canonicalizeInboundCommand(inputText),
+        hasActiveSalesSession(profile),
+      );
+    }
+
     appLogger.info('line_message', {
       channelId: input.channelConfig.channelId,
       source: input.sourceType || 'unknown',
@@ -399,12 +414,18 @@ export const processLineMessageJob = async (input: LineMessageJobInput): Promise
       relayWait: Boolean(afterProfile.relayWaitAt),
     });
     if (!input.isGroupContext && applyTray) {
+      // Verify just started (a link is waiting): keep the Verify cell dark teal until it succeeds (gold) or expires.
+      const holdVerify = ctx.trayHighlight === 'verify'
+        && !afterProfile.odooVerified
+        && Boolean(await getPendingOdooVerificationChallenge(input.conversationId));
       applyTrayAfterReply(
         input.conversationId,
         ctx.userLanguage,
         input.channelConfig.channelId,
         ctx.trayHighlight,
         ctx.trayRest,
+        holdVerify,
+        Boolean(earlyPressed) && earlyPressed === ctx.trayHighlight && ctx.userLanguage === userLanguage,
       );
       await setLastTerminalAt(input.conversationId, new Date().toISOString());
     } else if (!input.isGroupContext && (afterProfile.pendingFlow || replyExpectsKeyboard(messages))) {
