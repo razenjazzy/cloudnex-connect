@@ -124,7 +124,8 @@ OTP on reconstructed writes (`requiresOtp` in `service-catalog.ts`): `QUOTE CREA
 | `NAV VERIFY` | Verify / ยืนยันตัวตน | Tap Verify | `FORM VERIFY` |
 | `FORM VERIFY` | Verify form / ฟอร์มยืนยัน | Open wizard | Completes into `VERIFY START` / OTP |
 | `VERIFY` | Verify / ยืนยันตัวตน | Type VERIFY | Verify entry |
-| `VERIFY START` | (form) | Submit phone/name | OTP / magic link; lockout after max attempts |
+| `VERIFY START` | (form) | Submit phone/name | OTP / magic link; lockout after max attempts. Sales miss: **Ask admin** (`VERIFY ASK ADMIN`) + **Another phone**. Customer miss: **New customer** + **I have a phone** |
+| `VERIFY ASK ADMIN` | Ask admin / ถามผู้ดูแล | Sales OA, unmatched phone | Pushes LINE admins (`ADMIN_USER_ID`) to add the phone on the Sales User in Odoo. Does not create `res.users`. Empty admin list: honest copy, not a fake send. Debounced 60s |
 | `VERIFY OTP` | (form) | Enter OTP | `odooVerified`; sales session if `res.users` |
 | `VERIFY STATUS` | — | Type status | Verification state |
 | `VERIFY SIGNOUT` | — | Sign out | Clears sales gold session |
@@ -140,7 +141,7 @@ OTP on reconstructed writes (`requiresOtp` in `service-catalog.ts`): `QUOTE CREA
 | `FORM FIELD n` | (chip) | Optional summary | Jump to field n |
 | `FEATURES` / `JOURNEY` / `DEMO JOURNEY` / `RUN DEMO JOURNEY` | — | Demo/help | Demo text/journey |
 | `NAME` / `BOT NAME` / `WHAT IS YOUR NAME` / `ชื่ออะไร` | — | Ask name | Persona name |
-| `HUMAN` / `AGENT` / Thai human phrases | Contact admin | Escalate | Handoff |
+| `HUMAN` / `AGENT` / Thai human phrases | Contact admin | Escalate | Handoff (`setEscalationState`). Not used for Sales verify-miss — that is `VERIFY ASK ADMIN` |
 | `HUMAN OFF` / `RESUME BOT` | Resume bot | Resume | Bot on |
 
 ### Catalog and ordering
@@ -275,6 +276,9 @@ Full key list: [`src/http/env-params.ts`](../src/http/env-params.ts). Do not inv
 | `CUSTOMER_COMMERCE` | unset/`quote` or `shop` | Customer OA exclusive XOR | Unset = quote. Shop never auto-on from module install. Shop Pay: `/shop/pay` + Odoo + `payment.done` |
 | `ODOO_WEBSITE_ID` | Positive int | Shop website | Missing + shop requested → quote + degraded |
 | `LINE_AGENT_NAME_EN` / `_TH` | Persona | Sora / โซระ | Defaults + colon helper |
+| `LINE_DEFAULT_CUSTOMER_NAME` / `_PHONE` / `_EMAIL` | EN sample | Razen / +8801787671962 / baizid.a@cloudnexsolutions.com | GUIDE, USER CREATE, quote examples |
+| `LINE_DEFAULT_CUSTOMER_NAME_TH` / `_PHONE_TH` / `_EMAIL_TH` | TH sample | Ashfaq / +66635153342 / ashfaq.kc@cloudnexsolutions.com | Thai GUIDE / examples |
+| `LINE_DEFAULT_GUEST_NAME` | Guest partner name | Razen (EN) / Ashfaq (TH) unless set | Unverified Order Now when LINE display name is empty |
 | `LINE_IDLE_HOME_SECONDS` | Idle | Next message Home | Default 3600 |
 | `GUIDED_FORM_TTL_MINUTES` | Form TTL | `pendingFlow` | Default ≥60 |
 | `SALES_SESSION_TTL_HOURS` | Gold Verify | Session | Default 24 |
@@ -366,7 +370,7 @@ Keep remaining `UI_STRINGS` keys in `i18n.ts` bilingual (invoice fields, reply f
 |---|---|
 | Valid HMAC | `resolveCommandReply` → Flex (max 5 messages) |
 | Invalid HMAC | 401 |
-| Guest Order Now | Catalog OK; create needs VERIFY |
+| Guest Order Now | New guest partner + draft SO; cap 3/24h; no `odooVerified` |
 | Customer Order Now done | Unassigned draft; sales ping; customer waits |
 | Sales Send both | Customer Confirm; Odoo `sent` |
 | Customer Confirm | SO; invoice path |
@@ -390,8 +394,8 @@ Commit only when asked; never `.env`; message `Release: vX.Y.Z - Odoo Line OA vN
 
 ## Verification policy (Sales OA vs Customer OA)
 
-- **Sales OA (default / `sales` channel):** verification is the front door. Until the staff member verifies, only identity (`NAV VERIFY`, `FORM VERIFY`, `VERIFY *`), help, privacy and language commands run; Home and every other command show the Verify card. A session lasts `SALES_SESSION_TTL_HOURS` (24, fixed from verification) and ends after `SALES_IDLE_SIGNOUT_SECONDS` (3600, `0` = off) with no message. The next message after either limit shows the Verify card. Write actions still need the per-action step-up (`ACTION VERIFY` link).
-- **Customer OA:** browsing is open. Ordering (`FORM QUOTE CREATE FROM CARD`, `QUOTE CREATE`) requires the Odoo phone verification (OTP challenge completed through the `/verify/odoo` link); the product choice is kept for 2 hours while the customer verifies. A verified customer stays verified and is not asked again per order.
+- **Sales OA (default / `sales` channel):** verification is the front door. Until the staff member verifies, only identity (`NAV VERIFY`, `FORM VERIFY`, `VERIFY *` including `VERIFY ASK ADMIN`), help, privacy and language commands run; Home and every other command show the Verify card. If the saved LINE phone is not on an Odoo Sales User contact, Sora names that miss (not a customer-number hint) and offers **Ask admin** plus **Another phone**. Ask admin notifies bound LINE admins; it does not create `res.users`. A session lasts `SALES_SESSION_TTL_HOURS` (24, fixed from verification) and ends after `SALES_IDLE_SIGNOUT_SECONDS` (3600, `0` = off) with no message. The next message after either limit shows the Verify card. Write actions still need the per-action step-up (`ACTION VERIFY` link).
+- **Customer OA:** browsing is open. Guest Order Now creates a **new** guest `res.partner` (LINE display name, typed phone, comment `LINE guest, unverified`) and a draft SO **without** setting `odooVerified` or `odooPartnerId` (`guestPartnerId` only). It never attaches to an existing contact by phone. Cap 3 drafts / 24 h per LINE user and per phone. Order History, order details, and registered messaging still require Verify (`FORM CUSTOMER REGISTER` / `FORM VERIFY MANUAL`). Copy uses `Sora:` and never “Odoo user account.” A verified customer stays verified and is not asked again per order.
 - Links: verification, action-verify and shop-pay pages are served at `<PUBLIC_BASE_URL>/verify/*` and `/shop/*` (site path, e.g. `https://amardhaka.io/cloudnex-connect/verify/odoo`); the host-root paths still work.
 
 ## Native menu (tray) color guide - Sales OA and Customer OA

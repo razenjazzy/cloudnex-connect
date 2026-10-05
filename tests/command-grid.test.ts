@@ -17,11 +17,13 @@ describe('command grid', () => {
     expect(isGuestAllowedCommand('SERVICE READ SVC-PREMIUM')).toBe(true);
     expect(isGuestAllowedCommand('NAV DIRECTORY')).toBe(false);
     expect(isGuestAllowedCommand('FORM QUOTE CREATE')).toBe(false);
+    expect(isGuestAllowedCommand('QUOTE CREATE App,1', undefined, 'customer')).toBe(true);
+    expect(isGuestAllowedCommand('QUOTE CREATE App,1')).toBe(false);
     expect(isGuestAllowedCommand('FORM QUOTE CREATE FROM CARD 11')).toBe(true);
     expect(isGuestAllowedCommand('FORM CART ADD FROM CARD 2')).toBe(true);
     expect(isGuestAllowedCommand('ADMIN ENABLE')).toBe(false);
     expect(isGuestAllowedCommand('FORM CUSTOMER REGISTER')).toBe(true);
-    expect(isGuestAllowedCommand('CUSTOMER REGISTER Somchai,0812345678')).toBe(true);
+    expect(isGuestAllowedCommand('CUSTOMER REGISTER Razen,+8801787671962')).toBe(true);
     expect(isGuestAllowedCommand('FORM ORDER STATUS')).toBe(true);
   });
 

@@ -78,9 +78,18 @@ CUSTOMER_COMMERCE=
 # LINE_RICH_MENU_EN / _TH / _JSON: printed by npm run rich-menu:upload after you upload the tray images (ids are per OA).
 # LINE_WEBHOOK_ASYNC=true needs REDIS_URL and RUN_BULLMQ_WORKER=true (replies are sent by a worker).
 # LINE_AGENT_NAME_EN/TH: persona name shown as the reply prefix.
+# LINE_DEFAULT_CUSTOMER_NAME / _PHONE / _EMAIL: EN Razen / +880…. _TH Ashfaq / +66….
+# LINE_DEFAULT_GUEST_NAME: guest res.partner name when LINE display name is empty (else Razen / Ashfaq).
 # ======================================================================
 LINE_AGENT_NAME_EN=Sora
 LINE_AGENT_NAME_TH=โซระ
+LINE_DEFAULT_CUSTOMER_NAME=Razen
+LINE_DEFAULT_CUSTOMER_PHONE=+8801787671962
+LINE_DEFAULT_CUSTOMER_EMAIL=baizid.a@cloudnexsolutions.com
+LINE_DEFAULT_CUSTOMER_NAME_TH=Ashfaq
+LINE_DEFAULT_CUSTOMER_PHONE_TH=+66635153342
+LINE_DEFAULT_CUSTOMER_EMAIL_TH=ashfaq.kc@cloudnexsolutions.com
+# LINE_DEFAULT_GUEST_NAME=
 # After npm run rich-menu:upload — EN Language gold at rest; TH Language idle white.
 LINE_RICH_MENU_EN=
 LINE_RICH_MENU_TH=

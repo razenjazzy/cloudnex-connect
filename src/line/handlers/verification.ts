@@ -8,7 +8,9 @@ import { clearSalesLogin } from '../../services/sales-session';
 import { parseUserCreatePayload } from '../command-validators';
 import { getErpAdapter } from '../../erp/registry';
 import { getPartnerByPhone } from '../../services/odoo/partners';
-import { CUSTOMER_CHANNEL_ID } from '../channels';
+import { CUSTOMER_CHANNEL_ID, getAgentSpeakPrefix } from '../channels';
+import { requestSalesAccessFromAdmins, salesAccessRequestReply, salesAskAdminPhone, salesVerifyMissActions } from '../sales-access-request';
+import { t, tFill } from '../../services/i18n';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -49,8 +51,8 @@ const verifyStartHandler: CommandHandler = {
         language: userLanguage,
         tone: 'warning',
         actions: [
-          { label: tr(userLanguage, 'สมัครลูกค้าใหม่', 'New customer'), text: 'FORM CUSTOMER REGISTER', style: 'primary' },
-          { label: tr(userLanguage, 'เบอร์อื่น', 'Another phone'), text: 'FORM VERIFY MANUAL', style: 'secondary' },
+          { label: t('newCustomer', userLanguage), text: 'FORM CUSTOMER REGISTER', style: 'primary' },
+          { label: t('iHaveAPhone', userLanguage), text: 'FORM VERIFY MANUAL', style: 'secondary' },
           { label: tr(userLanguage, 'คู่มือ', 'Guide'), text: 'GUIDE', style: 'secondary' },
         ],
       })];
@@ -60,11 +62,13 @@ const verifyStartHandler: CommandHandler = {
         title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
         body: result.message,
         language: userLanguage,
-        tone: inferTone(result.message),
-        actions: [
-          { label: tr(userLanguage, 'เบอร์อื่น', 'Another phone'), text: 'FORM VERIFY MANUAL', style: 'primary' },
-          { label: tr(userLanguage, 'คู่มือ', 'Guide'), text: 'GUIDE', style: 'secondary' },
-        ],
+        tone: result.salesMiss ? 'warning' : inferTone(result.message),
+        actions: result.salesMiss
+          ? salesVerifyMissActions(result.phone || '', userLanguage)
+          : [
+            { label: tr(userLanguage, 'เบอร์อื่น', 'Another phone'), text: 'FORM VERIFY MANUAL', style: 'primary' },
+            { label: tr(userLanguage, 'คู่มือ', 'Guide'), text: 'GUIDE', style: 'secondary' },
+          ],
       })];
     }
     // The link (when present) must render as a real uri-action button —
@@ -76,6 +80,36 @@ const verifyStartHandler: CommandHandler = {
       language: userLanguage,
       tone: inferTone(result.message),
       ...(result.link ? { linkAction: { label: result.linkLabel || 'Open link', uri: result.link } } : {}),
+    })];
+  },
+};
+
+// VERIFY ASK ADMIN [phone] — Sales OA, not verified: tell the admins which phone to add on the Sales User in Odoo.
+const verifyAskAdminHandler: CommandHandler = {
+  name: 'verify-ask-admin',
+  match: (u) => u.startsWith('VERIFY ASK ADMIN'),
+  handle: async (ctx) => {
+    const { userLanguage, profile, channel, text } = ctx;
+    if (channel?.channelId === CUSTOMER_CHANNEL_ID || profile.odooVerified) {
+      return [botText(tFill('verifyAskAdminDenied', userLanguage, { prefix: getAgentSpeakPrefix(userLanguage) }), userLanguage)];
+    }
+    const phone = salesAskAdminPhone(text, profile.phone);
+    if (!phone) {
+      return [createBotTextFlexMessage({
+        title: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'),
+        body: tFill('salesAskAdminNeedPhone', userLanguage, { prefix: getAgentSpeakPrefix(userLanguage) }),
+        language: userLanguage,
+        tone: 'warning',
+        actions: [{ label: t('anotherPhone', userLanguage), text: 'FORM VERIFY MANUAL', style: 'primary' }],
+      })];
+    }
+    const outcome = await requestSalesAccessFromAdmins(ctx, phone);
+    return [createBotTextFlexMessage({
+      title: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'),
+      body: salesAccessRequestReply(outcome, userLanguage),
+      language: userLanguage,
+      tone: outcome === 'sent' || outcome === 'already' ? 'success' : 'warning',
+      actions: [{ label: t('anotherPhone', userLanguage), text: 'FORM VERIFY MANUAL', style: 'primary' }],
     })];
   },
 };
@@ -187,6 +221,7 @@ export const verificationHandlers: CommandHandler[] = [
   customerRegisterHandler,
   verifySignoutHandler,
   verifyStartHandler,
+  verifyAskAdminHandler,
   verifyOtpHandler,
   verifyStatusHandler,
 ];

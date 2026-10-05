@@ -15,11 +15,11 @@ describe('verification lifecycle', () => {
   };
 
   it('returns VERIFIED when the profile is already verified', () => {
-    expect(resolveVerificationPhase({ odooVerified: true, phone: '0812345678' })).toBe('VERIFIED');
+    expect(resolveVerificationPhase({ odooVerified: true, phone: '+8801787671962' })).toBe('VERIFIED');
   });
 
   it('uses saved phone as VERIFICATION_REQUIRED', () => {
-    expect(resolveVerificationPhase({ odooVerified: false, phone: '081-234-5678' })).toBe('VERIFICATION_REQUIRED');
+    expect(resolveVerificationPhase({ odooVerified: false, phone: '+8801787671962-234-5678' })).toBe('VERIFICATION_REQUIRED');
   });
 
   it('returns UNVERIFIED when no phone and no challenge', () => {

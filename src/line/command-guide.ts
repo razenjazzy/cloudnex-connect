@@ -1,3 +1,5 @@
+import { fillSampleContact } from './default-contact';
+
 type UiLanguage = 'th' | 'en';
 
 /**
@@ -22,7 +24,7 @@ const COMMAND_SPECS: CommandSpec[] = [
   { key: 'OPTIONS', examples: ['OPTIONS'], aliases: ['MENU', 'HELP', 'START', 'เริ่มต้น'], category: 'basics' },
   { key: 'FEATURES', examples: ['FEATURES'], aliases: ['ฟีเจอร์'], category: 'basics' },
   { key: 'NAME', examples: ['NAME'], aliases: ['BOT NAME', 'WHAT IS YOUR NAME', 'ชื่ออะไร'], category: 'basics' },
-  { key: 'VERIFY START', examples: ['VERIFY START 0812345678'], category: 'basics' },
+  { key: 'VERIFY START', examples: ['VERIFY START {phone}'], category: 'basics' },
   { key: 'NAV HOME', examples: ['NAV HOME'], aliases: ['NAV'], category: 'basics' },
   { key: 'BACK', examples: ['BACK'], category: 'basics' },
   { key: 'LANG EN', examples: ['LANG EN'], aliases: ['ENGLISH'], category: 'basics' },
@@ -30,18 +32,18 @@ const COMMAND_SPECS: CommandSpec[] = [
   { key: 'LANG', examples: ['LANG'], category: 'basics' },
 
   { key: 'PRODUCT FIND', examples: ['PRODUCT FIND App'], category: 'commerce' },
-  { key: 'QUOTE CREATE', examples: ['QUOTE CREATE App Premium Plan,1,Somchai,0812345678'], category: 'commerce' },
+  { key: 'QUOTE CREATE', examples: ['QUOTE CREATE App Premium Plan,1,{name},{phone}'], category: 'commerce' },
   { key: 'QUOTE STATUS', examples: ['QUOTE STATUS 5'], category: 'commerce' },
   { key: 'QUOTE LIST', examples: ['QUOTE LIST'], category: 'commerce' },
   { key: 'QUOTE ASK', examples: ['QUOTE ASK'], category: 'commerce' },
   { key: 'CART', examples: ['CART', 'CART CHECKOUT', 'CART COUPON SAVE10', 'CART PAY', 'CART STATUS'], category: 'commerce' },
   { key: 'ORDER STATUS', examples: ['ORDER STATUS SO0001'], category: 'commerce' },
-  { key: 'MESSAGE CUSTOMER', examples: ['MESSAGE CUSTOMER 0812345678 Hi! We have a new offer for you.'], category: 'commerce' },
+  { key: 'MESSAGE CUSTOMER', examples: ['MESSAGE CUSTOMER {phone} Hi! We have a new offer for you.'], category: 'commerce' },
 
-  { key: 'USER CREATE', examples: ['USER CREATE Somchai,0812345678,somchai@example.com'], category: 'directory' },
-  { key: 'USER READ', examples: ['USER READ 0812345678'], category: 'directory' },
-  { key: 'USER UPDATE', examples: ['USER UPDATE 0812345678,Somchai CEO,0812345678,somchai.ceo@example.com'], category: 'directory' },
-  { key: 'USER DELETE', examples: ['USER DELETE 0812345678'], category: 'directory' },
+  { key: 'USER CREATE', examples: ['USER CREATE {name},{phone},{email}'], category: 'directory' },
+  { key: 'USER READ', examples: ['USER READ {phone}'], category: 'directory' },
+  { key: 'USER UPDATE', examples: ['USER UPDATE {phone},{name} CEO,{phone},{email}'], category: 'directory' },
+  { key: 'USER DELETE', examples: ['USER DELETE {phone}'], category: 'directory' },
 
   { key: 'SERVICE LIST', examples: ['SERVICE LIST'], category: 'catalog' },
   { key: 'SERVICE CREATE', examples: ['SERVICE CREATE Premium Support,SVC-PREMIUM,990'], category: 'catalog' },
@@ -201,11 +203,11 @@ const topMatches = (intent: string): string[] => {
   return Array.from(new Set(ranked));
 };
 
-const toCanonicalExample = (match: string): string | null => {
+const toCanonicalExample = (match: string, language: UiLanguage): string | null => {
   const normalizedMatch = normalize(match);
   for (const spec of COMMAND_SPECS) {
     const keys = [spec.key, ...(spec.aliases || [])].map(normalize);
-    if (keys.includes(normalizedMatch)) return spec.examples[0];
+    if (keys.includes(normalizedMatch)) return fillSampleContact(spec.examples[0], language);
   }
   return null;
 };
@@ -225,8 +227,8 @@ export const parseGuideCategoryKey = (input: string): CommandCategoryKey | null 
   return match || null;
 };
 
-export const getCommandsForCategory = (category: CommandCategoryKey): { key: string; example: string }[] =>
-  COMMAND_SPECS.filter(spec => spec.category === category && spec.key !== 'GUIDE').map(spec => ({ key: spec.key, example: spec.examples[0] }));
+export const getCommandsForCategory = (category: CommandCategoryKey, language: UiLanguage = 'en'): { key: string; example: string }[] =>
+  COMMAND_SPECS.filter(spec => spec.category === category && spec.key !== 'GUIDE').map(spec => ({ key: spec.key, example: fillSampleContact(spec.examples[0], language) }));
 
 export const buildCommandKeywordGuidance = (input: string, language: UiLanguage, agentName: string): string | null => {
   if (!isLikelyCommand(input)) return null;
@@ -238,7 +240,7 @@ export const buildCommandKeywordGuidance = (input: string, language: UiLanguage,
   if (exact.includes(intent)) return null;
 
   const matches = topMatches(intent)
-    .map(toCanonicalExample)
+    .map(match => toCanonicalExample(match, language))
     .filter((value): value is string => Boolean(value));
 
   const unique = Array.from(new Set(matches)).slice(0, 3);

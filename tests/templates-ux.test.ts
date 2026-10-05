@@ -144,12 +144,12 @@ describe('verification result icon', () => {
   it('keeps the original ✅ copy and does not add a second square tick', () => {
     const message = createBotTextFlexMessage({
       title: 'Cloudnex assistant',
-      body: '✅ Somchai is an Odoo Sales Administrator.',
+      body: '✅ Razen is an Odoo Sales Administrator.',
       language: 'en',
       tone: 'success',
     });
     const json = JSON.stringify(message);
-    expect(json).toContain('✅ Somchai is an Odoo Sales Administrator.');
+    expect(json).toContain('✅ Razen is an Odoo Sales Administrator.');
     expect(json).not.toContain('#12B76A');
   });
 });
@@ -163,7 +163,7 @@ describe('quotation journey invoice chip', () => {
       amount_total: 100,
       invoice_status: 'to invoice',
       amount_invoiced: 0,
-      partner_id: [9, 'Somchai'],
+      partner_id: [9, 'Razen'],
       lines: [{ productName: 'App', qty: 1, priceUnit: 100, subtotal: 100 }],
     }, { role: 'admin' }, 'en');
     expect(JSON.stringify(message)).toContain('To invoice');
@@ -175,7 +175,7 @@ describe('quotation journey invoice chip', () => {
       name: 'S0001',
       state: 'sale',
       amount_total: 100,
-      partner_id: [9, 'Somchai'],
+      partner_id: [9, 'Razen'],
       lines: [{ productName: 'App', qty: 1, priceUnit: 100, subtotal: 100 }],
     }, {
       role: 'customer',
@@ -199,7 +199,7 @@ describe('quotation journey state actions', () => {
     id: 17,
     name: 'S0017',
     amount_total: 100,
-    partner_id: [9, 'Somchai'] as [number, string],
+    partner_id: [9, 'Razen'] as [number, string],
     lines: [{ productName: 'App', qty: 1, priceUnit: 100, subtotal: 100 }],
   };
 
@@ -377,7 +377,7 @@ describe('quotation edit card', () => {
       name: 'S0017',
       state: 'draft',
       amount_total: 100,
-      partner_id: [9, 'Somchai'],
+      partner_id: [9, 'Razen'],
     }, {}, 'en'));
     expect(json).toContain('Edit Quote');
     expect(json).toContain('QUOTE LINES 17');
@@ -392,7 +392,7 @@ describe('quotation edit card', () => {
       name: 'S0017',
       state: 'draft',
       amount_total: 100,
-      partner_id: [9, 'Somchai'],
+      partner_id: [9, 'Razen'],
       lines: [{ productName: 'App Support Package', qty: 10, priceUnit: 539, subtotal: 5390 }],
     }, 'en');
     const json = JSON.stringify(message);
@@ -411,15 +411,15 @@ describe('quote send composer', () => {
       name: 'S0017',
       state: 'draft',
       amount_total: 100,
-      partner_id: [9, 'Somchai'],
-    }, 'somchai@example.com', 'en');
+      partner_id: [9, 'Razen'],
+    }, 'baizid.a@cloudnexsolutions.com', 'en');
     const json = JSON.stringify(message);
-    expect(json).toContain('QUOTE SEND CONFIRM 17 BOTH somchai@example.com');
+    expect(json).toContain('QUOTE SEND CONFIRM 17 BOTH baizid.a@cloudnexsolutions.com');
     expect(json).toContain('Send LINE');
     expect(json).toContain('Send Email');
     expect(json).toContain('Send both');
     expect(json).toContain('Type email');
-    expect(json).toContain('somchai@example.com');
+    expect(json).toContain('baizid.a@cloudnexsolutions.com');
   });
 
   it('uses invoice send confirm commands for the invoice composer', () => {
@@ -428,10 +428,10 @@ describe('quote send composer', () => {
       name: 'S0017',
       state: 'sale',
       amount_total: 100,
-      partner_id: [9, 'Somchai'],
-    }, 'somchai@example.com', 'en', 'invoice'));
+      partner_id: [9, 'Razen'],
+    }, 'baizid.a@cloudnexsolutions.com', 'en', 'invoice'));
     expect(json).toContain('Send invoice');
-    expect(json).toContain('QUOTE INVOICE SEND CONFIRM 17 BOTH somchai@example.com');
+    expect(json).toContain('QUOTE INVOICE SEND CONFIRM 17 BOTH baizid.a@cloudnexsolutions.com');
     expect(json).not.toContain('QUOTE SEND CONFIRM 17');
   });
 });
@@ -444,11 +444,11 @@ describe('quotation list subtitle', () => {
         name: 'S0001',
         state: 'draft',
         amount_total: 100,
-        partner_id: [9, 'Somchai'],
+        partner_id: [9, 'Razen'],
         date_order: '2026-09-05 10:00:00',
       },
     ], false, 'en', undefined, undefined, undefined, 'Utest', { staff: true });
-    expect(JSON.stringify(message)).toContain('Quotation: 2026-09-05 | Somchai');
+    expect(JSON.stringify(message)).toContain('Quotation: 2026-09-05 | Razen');
     expect(JSON.stringify(message)).toContain('quote.list.from|Utest');
   });
 
@@ -458,7 +458,7 @@ describe('quotation list subtitle', () => {
       name: 'S0001',
       state: 'draft' as const,
       amount_total: 100,
-      partner_id: [9, 'Somchai'] as [number, string],
+      partner_id: [9, 'Razen'] as [number, string],
       date_order: '2026-09-05 10:00:00',
     };
     const json = JSON.stringify(createQuotationListFlexMessage([order], true, 'en', 'cursor1', undefined, undefined, 'Utest', { staff: true }));

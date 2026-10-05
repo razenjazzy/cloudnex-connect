@@ -38,7 +38,7 @@ describe('ensureNextWindowOrHome', () => {
   });
 
   it('does not append Home when OTP fail has retry actions', () => {
-    const fail = doneCard([{ type: 'message', text: 'VERIFY START 0812345678' }]);
+    const fail = doneCard([{ type: 'message', text: 'VERIFY START +8801787671962' }]);
     expect(hasNextInputWindow([fail])).toBe(true);
     const messages = ensureNextWindowOrHome(ctx('VERIFY OTP 000000'), [fail], homeFlex);
     expect(messages).toHaveLength(1);

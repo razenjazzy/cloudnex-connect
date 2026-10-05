@@ -11,6 +11,16 @@ describe('phoneMatchVariants', () => {
     expect(fromIntl).toEqual(expect.arrayContaining(['0812345678', '+66812345678']));
   });
 
+  it('maps Razen 01… numbers to +880, not Thai +66', () => {
+    expect(phoneMatchVariants('+8801787671962')).toEqual(expect.arrayContaining([
+      '+8801787671962',
+      '01787671962',
+      '8801787671962',
+    ]));
+    expect(phoneMatchVariants('01787671962')).toEqual(expect.arrayContaining(['+8801787671962', '01787671962']));
+    expect(phoneMatchVariants('01787671962').join(',')).not.toContain('+66');
+  });
+
   it('stays within Firestore in-query limit', () => {
     expect(phoneMatchVariants('+66812345678').length).toBeLessThanOrEqual(10);
   });

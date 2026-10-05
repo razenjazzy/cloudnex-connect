@@ -1,9 +1,10 @@
 import { CUSTOMER_CHANNEL_ID } from './channels';
+import { getDefaultCustomerName } from './default-contact';
 import { setUserSalesTier } from '../services/firestore';
 import type { UserProfile } from '../services/firestore/types';
 import { findOdooSalesTierByPartnerId } from '../services/odoo/admin';
 
-type QuoteActor = Pick<UserProfile, 'role' | 'salesTier'>;
+type QuoteActor = Pick<UserProfile, 'role' | 'salesTier'> & { odooVerified?: boolean };
 type QuoteOwner = Pick<UserProfile, 'role' | 'salesTier' | 'odooPartnerId' | 'displayName' | 'phone'>;
 
 /** Customer OA never runs Sales User / Admin tools, even if the Odoo contact has a sales login. */
@@ -28,16 +29,43 @@ export const quoteJourneyRole = (profile: QuoteActor): 'admin' | 'customer' =>
 
 /** Name/phone for a customer self-quote — never collected as staff form fields. */
 export const selfQuoteIdentity = (profile: Pick<UserProfile, 'displayName' | 'phone'>): { customerName: string; phone: string } => ({
-  customerName: (profile.displayName || 'LINE Customer').trim(),
+  customerName: (profile.displayName || getDefaultCustomerName()).trim(),
   phone: (profile.phone || '').trim(),
 });
 
-/** Customer OA quote form is product + qty only (C3). Staff still get optional fields. */
-export const customerQuoteFormStepCount = (flowKey: string, fieldCount: number, profile: QuoteActor): number =>
-  flowKey === 'QUOTE_CREATE' && !isQuoteStaff(profile) ? 2 : fieldCount;
+/** Customer OA: verified C3 is product + qty only. Guests collect name and phone (4 steps). Staff get optional fields. */
+export const customerQuoteFormStepCount = (flowKey: string, fieldCount: number, profile: QuoteActor): number => {
+  if (flowKey !== 'QUOTE_CREATE' || isQuoteStaff(profile)) return fieldCount;
+  return profile.odooVerified ? 2 : 4;
+};
 
 export const customerQuoteSkipsOptionalSummary = (flowKey: string, profile: QuoteActor): boolean =>
   flowKey === 'QUOTE_CREATE' && !isQuoteStaff(profile);
+
+/** Verified Customer OA C3: product + qty only. Guests still collect name and phone. */
+export const skipsCustomerQuoteIdentityFields = (profile: QuoteActor): boolean =>
+  !isQuoteStaff(profile) && profile.odooVerified === true;
+
+/**
+ * Advance past name/phone when C3 says to skip them.
+ * The `!skipsCustomerQuoteIdentityFields` guard means: guests and staff keep the index;
+ * only a verified non-staff customer jumps those two fields.
+ */
+export const skipCustomerQuoteIdentityIndex = (
+  flowKey: string,
+  fields: ReadonlyArray<{ key: string }>,
+  index: number,
+  profile: QuoteActor,
+): number => {
+  if (flowKey !== 'QUOTE_CREATE' || !skipsCustomerQuoteIdentityFields(profile)) return index;
+  let i = index;
+  while (i < fields.length) {
+    const key = fields[i].key;
+    if (key !== 'customerName' && key !== 'phone') break;
+    i += 1;
+  }
+  return i;
+};
 
 /** Non-staff may only see SOs for their linked Odoo partner. */
 export const canViewOrderAsCustomer = (profile: QuoteOwner, orderPartnerId: number | undefined): boolean => {

@@ -7,6 +7,7 @@ import { getDailySalesSnapshot } from '../src/services/odoo/reporting';
 import { productIdsWithImage128, readProductImage128 } from '../src/services/odoo/product-image';
 import { odooAdapter, seedProductCatalogCacheForTests } from '../src/erp/odoo-adapter';
 import { getErpAdapter, isErpImplemented } from '../src/erp/registry';
+import { FALLBACK_CUSTOMER_NAME, FALLBACK_CUSTOMER_PHONE } from '../src/line/default-contact';
 
 vi.mock('../src/services/odoo/catalog', () => ({
   createServiceCatalogItem: vi.fn(),
@@ -38,6 +39,7 @@ vi.mock('../src/services/odoo/partners', () => ({
   getPartnerByName: vi.fn(),
   getPartnerByPhone: vi.fn(),
   updatePartnerFromLine: vi.fn(),
+  LINE_GUEST_PARTNER_COMMENT: 'LINE guest, unverified',
 }));
 vi.mock('../src/services/odoo/delivery', () => ({
   getOutgoingPickingForOrder: vi.fn(),
@@ -166,29 +168,40 @@ describe('Odoo ERP adapter', () => {
   });
 
   it('delegates customer and sales operations through domain facades', async () => {
-    mockedGetPartner.mockResolvedValue({ id: 7, name: 'Ada', phone: '081', email: 'ada@example.com' });
+    mockedGetPartner.mockResolvedValue({ id: 7, name: 'Razen', phone: '+8801787671962', email: 'baizid.a@cloudnexsolutions.com' });
     mockedCreateQuotation.mockResolvedValue({ orderId: 12, orderName: 'SO012', total: 250 });
     mockedFindOrder.mockResolvedValue({ id: 12, name: 'SO012', state: 'sale', amount_total: 250 });
 
-    await expect(odooAdapter.lookupCustomer('081')).resolves.toEqual({ id: 7, name: 'Ada', phone: '081', email: 'ada@example.com' });
-    await expect(odooAdapter.createQuotation('Ada', '081', 'Widget Pro', 2, { partnerId: 7, discountPercent: 10 })).resolves.toEqual({ id: 12, name: 'SO012', total: 250, currency: 'THB' });
+    await expect(odooAdapter.lookupCustomer('+8801787671962')).resolves.toEqual({ id: 7, name: 'Razen', phone: '+8801787671962', email: 'baizid.a@cloudnexsolutions.com' });
+    await expect(odooAdapter.createQuotation('Razen', '+8801787671962', 'Widget Pro', 2, { partnerId: 7, discountPercent: 10 })).resolves.toEqual({ id: 12, name: 'SO012', total: 250, currency: 'THB' });
     await expect(odooAdapter.getOrderStatus('SO012')).resolves.toEqual({ id: 12, name: 'SO012', state: 'sale', amountTotal: 250 });
-    expect(mockedGetPartner).toHaveBeenCalledWith('081');
-    expect(mockedCreateQuotation).toHaveBeenCalledWith('Ada', '081', 'Widget Pro', 2, 7, { discountPercent: 10 });
+    expect(mockedGetPartner).toHaveBeenCalledWith('+8801787671962');
+    expect(mockedCreateQuotation).toHaveBeenCalledWith('Razen', '+8801787671962', 'Widget Pro', 2, 7, { discountPercent: 10 });
     expect(mockedFindOrder).toHaveBeenCalledWith('SO012');
   });
 
   it('delegates customer CRUD operations through the partner facade', async () => {
-    mockedCreateCustomer.mockResolvedValue({ id: 7, name: 'Ada', phone: '081', email: 'ada@example.com' });
-    mockedUpdateCustomer.mockResolvedValue({ id: 7, name: 'Ada Updated', phone: '082', email: 'ada@example.com' });
+    mockedCreateCustomer.mockResolvedValue({ id: 7, name: 'Razen', phone: '+8801787671962', email: 'baizid.a@cloudnexsolutions.com' });
+    mockedUpdateCustomer.mockResolvedValue({ id: 7, name: 'Ashfaq', phone: '082', email: 'ashfaq.kc@cloudnexsolutions.com' });
     mockedDeleteCustomer.mockResolvedValue(true);
 
-    await expect(odooAdapter.createCustomer('Ada', '081', 'ada@example.com')).resolves.toEqual({ id: 7, name: 'Ada', phone: '081', email: 'ada@example.com' });
-    await expect(odooAdapter.updateCustomer(7, { name: 'Ada Updated', phone: '082', email: 'ada@example.com' })).resolves.toEqual({ id: 7, name: 'Ada Updated', phone: '082', email: 'ada@example.com' });
+    await expect(odooAdapter.createCustomer('Razen', '+8801787671962', 'baizid.a@cloudnexsolutions.com')).resolves.toEqual({ id: 7, name: 'Razen', phone: '+8801787671962', email: 'baizid.a@cloudnexsolutions.com' });
+    await expect(odooAdapter.updateCustomer(7, { name: 'Ashfaq', phone: '082', email: 'ashfaq.kc@cloudnexsolutions.com' })).resolves.toEqual({ id: 7, name: 'Ashfaq', phone: '082', email: 'ashfaq.kc@cloudnexsolutions.com' });
     await expect(odooAdapter.deleteCustomer(7)).resolves.toBe(true);
-    expect(mockedCreateCustomer).toHaveBeenCalledWith('Ada', '081', 'ada@example.com');
-    expect(mockedUpdateCustomer).toHaveBeenCalledWith(7, 'Ada Updated', '082', 'ada@example.com');
+    expect(mockedCreateCustomer).toHaveBeenCalledWith('Razen', '+8801787671962', 'baizid.a@cloudnexsolutions.com', undefined);
+    expect(mockedUpdateCustomer).toHaveBeenCalledWith(7, 'Ashfaq', '082', 'ashfaq.kc@cloudnexsolutions.com');
     expect(mockedDeleteCustomer).toHaveBeenCalledWith(7);
+  });
+
+  it('forceNew guest creates skip phone-match reconciliation options on the partner facade', async () => {
+    mockedCreateCustomer.mockResolvedValue({ id: 99, name: FALLBACK_CUSTOMER_NAME, phone: FALLBACK_CUSTOMER_PHONE });
+    await expect(odooAdapter.createCustomer(FALLBACK_CUSTOMER_NAME, FALLBACK_CUSTOMER_PHONE, undefined, { forceNew: true })).resolves.toEqual({
+      id: 99, name: FALLBACK_CUSTOMER_NAME, phone: FALLBACK_CUSTOMER_PHONE, email: undefined,
+    });
+    expect(mockedCreateCustomer).toHaveBeenCalledWith(FALLBACK_CUSTOMER_NAME, FALLBACK_CUSTOMER_PHONE, undefined, {
+      forceNew: true,
+      comment: 'LINE guest, unverified',
+    });
   });
 
   it('normalizes and delegates service catalog operations', async () => {
@@ -217,8 +230,8 @@ describe('Odoo ERP adapter', () => {
     ]);
 
     await expect(odooAdapter.lookupCustomer('  ')).resolves.toBeNull();
-    await expect(odooAdapter.lookupCustomer('081')).resolves.toBeNull();
-    await expect(odooAdapter.createQuotation('Ada', '081', 'Widget Pro', 2)).resolves.toBeNull();
+    await expect(odooAdapter.lookupCustomer('+66635153342')).resolves.toBeNull();
+    await expect(odooAdapter.createQuotation('Ashfaq', '+66635153342', 'Widget Pro', 2)).resolves.toBeNull();
     await expect(odooAdapter.getOrderStatus('SO404')).resolves.toBeNull();
     await expect(odooAdapter.getDailySummary()).resolves.toBe('Widget Pro: 3 sold, 8 in stock, 375 revenue');
     expect(mockedGetPartner).toHaveBeenCalledTimes(1);
@@ -283,7 +296,7 @@ describe('Odoo ERP adapter', () => {
 
   it('looks up products, named partners, payment terms, and order links through the adapter', async () => {
     vi.mocked(getProductById).mockResolvedValue({ id: 9, name: 'App', default_code: 'A1', list_price: 10, qty_available: 2 });
-    vi.mocked(getPartnerByName).mockResolvedValue({ id: 3, name: 'Somchai', phone: '081', email: 'a@b.c' });
+    vi.mocked(getPartnerByName).mockResolvedValue({ id: 3, name: 'Razen', phone: '+8801787671962', email: 'a@b.c' });
     vi.mocked(findPaymentTermByName).mockResolvedValue({ id: 7, name: 'Immediate' });
     vi.mocked(getSaleOrderPortalLink).mockResolvedValue('https://odoo/portal');
     vi.mocked(getSaleOrderPdfLink).mockResolvedValue('https://odoo/pdf');
@@ -291,8 +304,8 @@ describe('Odoo ERP adapter', () => {
     await expect(odooAdapter.lookupProduct(9)).resolves.toEqual({
       id: 9, name: 'App', sku: 'A1', price: 10, quantity: 2, currency: 'THB',
     });
-    await expect(odooAdapter.lookupCustomerByName('Somchai')).resolves.toEqual({
-      id: 3, name: 'Somchai', phone: '081', email: 'a@b.c',
+    await expect(odooAdapter.lookupCustomerByName('Razen')).resolves.toEqual({
+      id: 3, name: 'Razen', phone: '+8801787671962', email: 'a@b.c',
     });
     await expect(odooAdapter.findPaymentTermId('Immediate')).resolves.toBe(7);
     await expect(odooAdapter.getOrderLinks(42)).resolves.toEqual({ portal: 'https://odoo/portal', pdf: 'https://odoo/pdf' });

@@ -10,7 +10,7 @@ describe('Odoo verification challenge mapper', () => {
       userId: 'U-user',
       channelId: 'sales',
       partnerId: 12.8,
-      phone: ' 0812345678 ',
+      phone: ' +8801787671962 ',
       otpCode: '123456',
       linkToken: 'token-value',
       status: 'verified',
@@ -23,7 +23,7 @@ describe('Odoo verification challenge mapper', () => {
       userId: 'U-user',
       channelId: 'sales',
       partnerId: 12,
-      phone: '0812345678',
+      phone: '+8801787671962',
       status: 'verified',
       attemptCount: 0,
     });

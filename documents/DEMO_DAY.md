@@ -16,12 +16,12 @@ Firestore holds LINE identity, PDPA, guided-form `pendingFlow`, group-buy sessio
 
 1. Open `/demo`. You should see the HTML panel, not JSON. Paste `DEMO_CONTROL_TOKEN` (or `OPS_API_TOKEN` if they are the same), click **Login Session**, then **Refresh Connections**: LINE, Firestore, Odoo. Mongo may be “not configured” — that is fine.
 2. Open **Interactive Bot — Web Chat**. Send any first message. Expect PDPA + home menu. Same router as `POST /webhook`.
-3. Use **Try “create a quote”** or type `FORM QUOTE CREATE`. Complete the guided fields. A real `sale.order` is created when Odoo is up. On LINE, identity VERIFY comes first; staff mutations still need Action Verify (step-up OTP) on the final write.
+3. Use **Try “create a quote”** or type `FORM QUOTE CREATE`. Complete the guided fields. A real `sale.order` is created when Odoo is up. On LINE Sales OA, VERIFY comes first; Customer OA guest Order Now does not. Staff mutations still need Action Verify (step-up OTP) on the final write.
 4. Click **Run Full Simulation Flow**. Walk seed, partner, product, quotation readback.
 5. Ops add-ons, not the bot: `/api-docs` and `POST /graphql` (ops token). Do not send LINE webhooks here.
 6. Close: admin chain is LINE identity → Firestore profile → `odooVerified` → `ADMIN_USER_ID` allowlist → Odoo admin capability. Fail closed.
 7. On LINE, **FORM VERIFY**: the phone field chips the number already on the LINE session (and the Odoo contact matching the LINE display name). Tap the chip, then OTP / magic link.
-8. After VERIFY, the success card uses the Odoo partner name: **“Somchai is an Odoo Sales User.”** (or Sales Administrator / customer). Not a generic “verification completed.”
+8. After VERIFY, the success card uses the Odoo partner name: **“Razen is an Odoo Sales User.”** (or Sales Administrator / customer). Not a generic “verification completed.”
 
 **Async LINE (BullMQ)** is on for Hostinger staging (Redis + worker in `docker-compose.staging.yml`) so LINE gets HTTP 200 before `replyMessage`. Do not enable async on scale-to-zero Cloud Run without a queue.
 

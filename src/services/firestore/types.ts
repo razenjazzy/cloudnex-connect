@@ -64,6 +64,10 @@ export type UserProfile = {
     language: UserLanguage;
     role: UserRole;
     odooPartnerId?: number;
+    /** Guest Order Now contact only — never used as verified identity or order history key. */
+    guestPartnerId?: number;
+    /** ISO timestamps of guest draft quotes (per LINE user daily cap). */
+    guestQuoteAt?: string[];
     odooVerified: boolean;
     odooVerifiedAt?: string;
     displayName?: string;
@@ -179,6 +183,9 @@ export type AuditAction =
     | 'admin_session_bind'
     | 'bootstrap_complete'
     | 'customer_inbound'
+    | 'sales_access_request'
+    | 'guest_quote_create'
+    | 'guest_quote_refused'
     | 'campaign_test'
     | 'campaign_send'
     | 'campaign_broadcast'

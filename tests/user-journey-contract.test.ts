@@ -24,7 +24,7 @@ describe('USER_JOURNEY C0–C5 source contract', () => {
     expect(commerce).toContain('createProductCarouselFlexMessage(catalog, userLanguage, undefined, ctx.channel?.channelId, shopMode, cartIds)');
   });
 
-  it('C3: guests must VERIFY before quote; customers skip optional summary', () => {
+  it('C3: customers skip optional summary; guests still form-quote without staff fields', () => {
     expect(router).toContain('FORM QUOTE CREATE FROM CARD');
     expect(router).toContain('FORM CART ADD FROM CARD');
     expect(router).toContain('setLastProductContext');

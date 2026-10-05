@@ -6,48 +6,50 @@ import {
   parseServiceUpdatePayload,
   parseUserCreatePayload,
   parseUserUpdatePayload,
+  buildSelfQuoteCreateCommand,
 } from '../src/line/command-validators';
+import { FALLBACK_CUSTOMER_PHONE } from '../src/line/default-contact';
 
 describe('command validators', () => {
   describe('parseUserCreatePayload', () => {
     it('parses valid input with normalized email', () => {
-      const result = parseUserCreatePayload(' Somchai , 0812345678 , TEST@EXAMPLE.COM ');
+      const result = parseUserCreatePayload(' Razen , +8801787671962 , baizid.a@cloudnexsolutions.com ');
       expect(result).toEqual({
-        name: 'Somchai',
-        phone: '0812345678',
-        email: 'test@example.com',
+        name: 'Razen',
+        phone: '+8801787671962',
+        email: 'baizid.a@cloudnexsolutions.com',
       });
     });
 
     it('rejects invalid phone', () => {
-      expect(parseUserCreatePayload('Somchai,abc,test@example.com')).toBeNull();
+      expect(parseUserCreatePayload('Razen,abc,baizid.a@cloudnexsolutions.com')).toBeNull();
     });
 
     it('rejects invalid email', () => {
-      expect(parseUserCreatePayload('Somchai,0812345678,wrong-email')).toBeNull();
+      expect(parseUserCreatePayload('Razen,+8801787671962,wrong-email')).toBeNull();
     });
   });
 
   describe('parseUserUpdatePayload', () => {
     it('parses update with name only', () => {
-      const result = parseUserUpdatePayload('0812345678,Somchai CEO,,');
+      const result = parseUserUpdatePayload('+8801787671962,Razen CEO,,');
       expect(result).toEqual({
-        phone: '0812345678',
-        name: 'Somchai CEO',
+        phone: '+8801787671962',
+        name: 'Razen CEO',
       });
     });
 
     it('parses update with new phone and email', () => {
-      const result = parseUserUpdatePayload('0812345678,,0898765432,new@example.com');
+      const result = parseUserUpdatePayload('+8801787671962,,0898765432,new@example.com');
       expect(result).toEqual({
-        phone: '0812345678',
+        phone: '+8801787671962',
         newPhone: '0898765432',
         email: 'new@example.com',
       });
     });
 
     it('rejects when no updates are provided', () => {
-      expect(parseUserUpdatePayload('0812345678,,,')).toBeNull();
+      expect(parseUserUpdatePayload('+8801787671962,,,')).toBeNull();
     });
   });
 
@@ -93,29 +95,29 @@ describe('command validators', () => {
 
   describe('parseDemoQuotePayload', () => {
     it('reads shop carousel stay-on-cart from the 10th QUOTE CREATE field', () => {
-      expect(parseDemoQuotePayload('id:2,10,Somchai,0812345678,,,,,,cart')).toMatchObject({
+      expect(parseDemoQuotePayload('id:2,10,Razen,+8801787671962,,,,,,cart')).toMatchObject({
         productId: 2,
         shopNext: 'cart',
       });
-      expect(parseDemoQuotePayload('id:2,10,Somchai,0812345678,,,,,')).not.toHaveProperty('shopNext');
+      expect(parseDemoQuotePayload('id:2,10,Razen,+8801787671962,,,,,')).not.toHaveProperty('shopNext');
     });
 
     it('rejects invalid quantity', () => {
-      expect(parseDemoQuotePayload('App Premium Plan,0,Somchai,0812345678')).toBeNull();
-      expect(parseDemoQuotePayload('App Premium Plan,10001,Somchai,0812345678')).toBeNull();
+      expect(parseDemoQuotePayload('App Premium Plan,0,Razen,+8801787671962')).toBeNull();
+      expect(parseDemoQuotePayload('App Premium Plan,10001,Razen,+8801787671962')).toBeNull();
     });
 
     it('rejects invalid phone', () => {
-      expect(parseDemoQuotePayload('App Premium Plan,2,Somchai,abc')).toBeNull();
+      expect(parseDemoQuotePayload('App Premium Plan,2,Razen,abc')).toBeNull();
     });
 
     it('parses the 5 optional trailing fields when all are provided', () => {
-      const result = parseDemoQuotePayload('App Premium Plan,2,Somchai,0812345678,PO-1001,15,2026-12-31,Rush order,30 Days');
+      const result = parseDemoQuotePayload('App Premium Plan,2,Razen,+8801787671962,PO-1001,15,2026-12-31,Rush order,30 Days');
       expect(result).toEqual({
         productName: 'App Premium Plan',
         qty: 2,
-        customerName: 'Somchai',
-        phone: '0812345678',
+        customerName: 'Razen',
+        phone: '+8801787671962',
         customerReference: 'PO-1001',
         discountPercent: 15,
         validityDate: '2026-12-31',
@@ -125,17 +127,17 @@ describe('command validators', () => {
     });
 
     it('omits optional fields entirely when left blank, same as today\'s behavior', () => {
-      const result = parseDemoQuotePayload('App Premium Plan,2,Somchai,0812345678,,,,,');
+      const result = parseDemoQuotePayload('App Premium Plan,2,Razen,+8801787671962,,,,,');
       expect(result).toEqual({
         productName: 'App Premium Plan',
         qty: 2,
-        customerName: 'Somchai',
-        phone: '0812345678',
+        customerName: 'Razen',
+        phone: '+8801787671962',
       });
     });
 
     it('omits optional fields entirely when the trailing fields are absent, not just blank', () => {
-      const result = parseDemoQuotePayload('App Premium Plan,2,Somchai,0812345678');
+      const result = parseDemoQuotePayload('App Premium Plan,2,Razen,+8801787671962');
       expect(result).not.toHaveProperty('customerReference');
       expect(result).not.toHaveProperty('discountPercent');
       expect(result).not.toHaveProperty('validityDate');
@@ -144,29 +146,44 @@ describe('command validators', () => {
     });
 
     it('rejects an out-of-range discount percent', () => {
-      expect(parseDemoQuotePayload('App Premium Plan,2,Somchai,0812345678,,-1,,,')).toBeNull();
-      expect(parseDemoQuotePayload('App Premium Plan,2,Somchai,0812345678,,101,,,')).toBeNull();
+      expect(parseDemoQuotePayload('App Premium Plan,2,Razen,+8801787671962,,-1,,,')).toBeNull();
+      expect(parseDemoQuotePayload('App Premium Plan,2,Razen,+8801787671962,,101,,,')).toBeNull();
     });
 
     it('accepts discount percent boundary values 0 and 100', () => {
-      expect(parseDemoQuotePayload('App Premium Plan,2,Somchai,0812345678,,0,,,')?.discountPercent).toBe(0);
-      expect(parseDemoQuotePayload('App Premium Plan,2,Somchai,0812345678,,100,,,')?.discountPercent).toBe(100);
+      expect(parseDemoQuotePayload('App Premium Plan,2,Razen,+8801787671962,,0,,,')?.discountPercent).toBe(0);
+      expect(parseDemoQuotePayload('App Premium Plan,2,Razen,+8801787671962,,100,,,')?.discountPercent).toBe(100);
     });
 
     it('rejects a validity date that is not YYYY-MM-DD', () => {
-      expect(parseDemoQuotePayload('App Premium Plan,2,Somchai,0812345678,,,31-12-2026,,')).toBeNull();
-      expect(parseDemoQuotePayload('App Premium Plan,2,Somchai,0812345678,,,not-a-date,,')).toBeNull();
+      expect(parseDemoQuotePayload('App Premium Plan,2,Razen,+8801787671962,,,31-12-2026,,')).toBeNull();
+      expect(parseDemoQuotePayload('App Premium Plan,2,Razen,+8801787671962,,,not-a-date,,')).toBeNull();
     });
   });
 
   describe('parseSelfQuotePayload', () => {
     it('binds product and qty to the verified profile identity', () => {
-      expect(parseSelfQuotePayload('App Premium Plan,2', { customerName: 'Somchai', phone: '0812345678' })).toMatchObject({
+      expect(parseSelfQuotePayload('App Premium Plan,2', { customerName: 'Razen', phone: FALLBACK_CUSTOMER_PHONE })).toMatchObject({
         productName: 'App Premium Plan',
         qty: 2,
-        customerName: 'Somchai',
-        phone: '0812345678',
+        customerName: 'Razen',
+        phone: FALLBACK_CUSTOMER_PHONE,
       });
+    });
+  });
+
+  describe('buildSelfQuoteCreateCommand', () => {
+    it('puts name and phone on a guest qty utterance so QUOTE CREATE can parse', () => {
+      expect(buildSelfQuoteCreateCommand('App Premium Plan', 1, {
+        customerName: 'Razen',
+        phone: FALLBACK_CUSTOMER_PHONE,
+      })).toBe(`QUOTE CREATE App Premium Plan,1,Razen,${FALLBACK_CUSTOMER_PHONE}`);
+      expect(parseDemoQuotePayload('App Premium Plan,1')).toBeNull();
+    });
+
+    it('returns null when the guest has no name or phone, so the form can collect them', () => {
+      expect(buildSelfQuoteCreateCommand('App', 1, { customerName: '', phone: FALLBACK_CUSTOMER_PHONE })).toBeNull();
+      expect(buildSelfQuoteCreateCommand('App', 1, { customerName: 'Razen', phone: '' })).toBeNull();
     });
   });
 });

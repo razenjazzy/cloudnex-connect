@@ -4,6 +4,8 @@ export {
   getPartnerById,
   getPartnerByName,
   getPartnerByPhone,
+  isRecentGuestPartnerCreateDate,
+  LINE_GUEST_PARTNER_COMMENT,
   listPartners,
   updatePartnerFromLine,
 } from '../odoo';

@@ -8,7 +8,7 @@ const normalize = (value: string, maxLength = MAX_TEXT_LEN): string => {
 
 const parseCsv = (raw: string): string[] => raw.split(',').map(v => v.trim());
 
-const isValidPhone = (phone: string): boolean => /^\+?[0-9][0-9\-\s]{7,19}$/.test(phone);
+export const isValidPhone = (phone: string): boolean => /^\+?[0-9][0-9\-\s]{7,19}$/.test(phone);
 const isValidEmail = (email: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
 export type UserCreateInput = {
@@ -182,6 +182,20 @@ export const parseSelfQuotePayload = (
     .map(v => v || '')
     .join(',');
   return parseDemoQuotePayload(rest);
+};
+
+/** Guest qty utterance → full QUOTE CREATE. Null when name or phone is missing (use the form). */
+export const buildSelfQuoteCreateCommand = (
+  productName: string,
+  qty: number,
+  identity: { customerName: string; phone: string },
+): string | null => {
+  const product = normalize(productName);
+  const customerName = normalize(identity.customerName).replace(/,/g, ' ');
+  const phone = normalize(identity.phone, 24);
+  if (!product || !customerName || !isValidPhone(phone)) return null;
+  if (!Number.isInteger(qty) || qty < 1 || qty > 10000) return null;
+  return `QUOTE CREATE ${product},${qty},${customerName},${phone}`;
 };
 
 /** Customer OA free text like `2 units App Premium` or `2x Care`. */

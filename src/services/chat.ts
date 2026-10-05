@@ -33,6 +33,7 @@ import { spawn } from 'child_process';
 import path from 'path';
 import type { UserProfile, UserLanguage } from './firestore';
 import { getAgentName } from '../line/channels';
+import { getDefaultCustomerName } from '../line/default-contact';
 import { appLogger } from './logger';
 
 // ---------------------------------------------------------------------------
@@ -287,7 +288,7 @@ const processGeminiResponse = async (
         const qty = (args?.quantity as number) || 1;
         if (odooProduct && odooProduct.qty_available >= qty) {
           const profile = await getUserProfile(userId);
-          const partnerName = profile.displayName || `LINE Customer ${userId.slice(-6)}`;
+          const partnerName = profile.displayName || getDefaultCustomerName();
           const quotation = await createQuotationFromLine(
             partnerName,
             profile.phone || '',

@@ -1,5 +1,11 @@
 # Changelog
 
+## v15.0.1 — Odoo LINE OA v12 (2026-10-06)
+
+- Customer OA guest Order Now: new `res.partner` (`forceNew`, `guestPartnerId` only, comment `LINE guest, unverified`), cap 3 drafts / 24 h per LINE user and phone plus a global hourly cap. Verified C3 stays product + qty; guests collect name + phone.
+- Sales OA unmatched phone: **Ask admin** (`VERIFY ASK ADMIN`) to bound LINE admins; Customer walls **New customer** / **I have a phone**. Copy uses `Sora:` and never “Odoo user.”
+- EN sample Razen `+8801787671962`; TH sample Ashfaq `+66635153342`. Bangladesh `01…` (11 digits) matches `+880`, not Thai `+66`.
+
 ## v14.0.3 — Odoo LINE OA v11 (2026-10-04)
 
 - Native menu: a tap (button or typed command) fills its cell dark teal immediately, before the reply is built, instead of after it. The Verify cell stays dark teal while a verification link is waiting (gold on success, default colours if the link expires after 10 minutes).

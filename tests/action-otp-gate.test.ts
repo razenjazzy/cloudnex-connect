@@ -5,19 +5,19 @@ import type { UserProfile } from '../src/services/firestore';
 
 describe('isGatedMutation', () => {
   it('gates the quote lifecycle mutations', () => {
-    expect(isGatedMutation('QUOTE CREATE App Premium Plan,1,Somchai,0812345678')).toBe(true);
+    expect(isGatedMutation('QUOTE CREATE App Premium Plan,1,Razen,+8801787671962')).toBe(true);
     expect(isGatedMutation('QUOTE ADD 5 App Premium Plan,1')).toBe(true);
     expect(isGatedMutation('QUOTE REMOVE 5 App Premium Plan')).toBe(true);
     expect(isGatedMutation('QUOTE CANCEL 5')).toBe(true);
     expect(isGatedMutation('QUOTE INVOICE 5')).toBe(true);
     expect(isGatedMutation('QUOTE APPROVE 5')).toBe(false);
-    expect(isGatedMutation('MESSAGE CUSTOMER 0812345678 Hello')).toBe(true);
+    expect(isGatedMutation('MESSAGE CUSTOMER +8801787671962 Hello')).toBe(true);
   });
 
   it('gates USER and SERVICE CRUD, closing the security-scorecard gap', () => {
-    expect(isGatedMutation('USER CREATE Somchai,0812345678')).toBe(true);
-    expect(isGatedMutation('USER UPDATE 0812345678,,,')).toBe(true);
-    expect(isGatedMutation('USER DELETE 0812345678')).toBe(true);
+    expect(isGatedMutation('USER CREATE Razen,+8801787671962')).toBe(true);
+    expect(isGatedMutation('USER UPDATE +8801787671962,,,')).toBe(true);
+    expect(isGatedMutation('USER DELETE +8801787671962')).toBe(true);
     expect(isGatedMutation('SERVICE CREATE Premium Support,SVC-PREMIUM,990')).toBe(true);
     expect(isGatedMutation('SERVICE UPDATE SVC-PREMIUM,,1290,SVC-PRO')).toBe(true);
     expect(isGatedMutation('SERVICE DELETE SVC-PRO')).toBe(true);
@@ -34,8 +34,8 @@ describe('isGatedMutation', () => {
 
   it('does not gate view-only commands', () => {
     expect(isGatedMutation('QUOTE STATUS 5')).toBe(false);
-    expect(isGatedMutation('QUOTE LIST 0812345678')).toBe(false);
-    expect(isGatedMutation('USER READ 0812345678')).toBe(false);
+    expect(isGatedMutation('QUOTE LIST +8801787671962')).toBe(false);
+    expect(isGatedMutation('USER READ +8801787671962')).toBe(false);
     expect(isGatedMutation('SERVICE READ SVC-PREMIUM')).toBe(false);
     expect(isGatedMutation('SERVICE LIST')).toBe(false);
   });
@@ -60,13 +60,13 @@ describe('shouldGateActionOtp', () => {
   });
 
   it('skips Action OTP when a verified customer creates their own quote', () => {
-    expect(shouldGateActionOtp('QUOTE CREATE App,1,Somchai,0812345678', { profile: base({}) })).toBe(false);
+    expect(shouldGateActionOtp('QUOTE CREATE App,1,Razen,+8801787671962', { profile: base({}) })).toBe(false);
     expect(shouldGateActionOtp('QUOTE ADD 17 id:42,1', { profile: base({}) })).toBe(false);
   });
 
   it('still gates staff quote create and send confirm', () => {
     const staff = base({ salesTier: 'salesperson' });
-    expect(shouldGateActionOtp('QUOTE CREATE App,1,Somchai,0812345678', { profile: staff })).toBe(true);
+    expect(shouldGateActionOtp('QUOTE CREATE App,1,Razen,+8801787671962', { profile: staff })).toBe(true);
     expect(shouldGateActionOtp('QUOTE SEND CONFIRM 51 BOTH a@b.com', { profile: staff })).toBe(true);
     expect(shouldGateActionOtp('QUOTE SEND CONFIRM 51 BOTH a@b.com', { profile: base({}) })).toBe(true);
   });

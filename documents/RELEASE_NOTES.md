@@ -1,3 +1,14 @@
+# Release notes — v15.0.1
+
+**Date:** 2026-10-06  
+**Package version:** `15.0.1`  
+**Lane:** VPS staging `/opt/cns-line-oa` (`:8081`). Production lane unchanged (old image).  
+**Commit title:** `Release: v15.0.1 - Odoo Line OA v12 Staging Deploy`
+
+Customer guest Order Now (new partner, cap 3/24h), Sales Ask admin, Customer bind walls, Razen (+880) / Ashfaq (+66) locale samples. Journeys: `documents/LINE_OA_AGENT.md`, `documents/USER_JOURNEY.md`.
+
+---
+
 # Release notes — v14.0.3
 
 **Date:** 2026-10-04  

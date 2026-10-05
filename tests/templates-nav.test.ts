@@ -81,12 +81,12 @@ describe('NAV HOME rounded boxes', () => {
       'en',
       'Sora',
       false,
-      { name: 'Somchai', phone: '0812345678' },
+      { name: 'Razen', phone: '+8801787671962' },
     );
     const bubble = message.contents as { body?: { paddingAll?: string; contents?: Array<Record<string, unknown>> } };
     expect(bubble.body?.paddingAll).toBe('lg');
     expect(bubble.body?.contents?.[0]?.backgroundColor).toBe(BRAND.paper);
-    expect(JSON.stringify(bubble.body?.contents?.[0])).toContain('Somchai');
+    expect(JSON.stringify(bubble.body?.contents?.[0])).toContain('Razen');
     expect(bubble.body?.contents?.[1]?.backgroundColor).toBe(BRAND.teal);
   });
 });
@@ -102,13 +102,13 @@ describe('customer home after VERIFY', () => {
         role: 'user',
         odooVerified: true,
         marketingOptIn: false,
-        displayName: 'Somchai',
-        phone: '0812345678',
+        displayName: 'Razen',
+        phone: '+8801787671962',
       },
     });
     const json = JSON.stringify(message);
-    expect(json).toContain('Somchai');
-    expect(json).toContain('0812345678');
+    expect(json).toContain('Razen');
+    expect(json).toContain('+8801787671962');
   });
 
   it('does not print LINE displayName before VERIFY (C0)', async () => {
@@ -142,12 +142,12 @@ describe('customer home after VERIFY', () => {
         odooVerified: true,
         marketingOptIn: false,
         salesTier: 'sales_manager',
-        displayName: 'Somchai',
-        phone: '0812345678',
+        displayName: 'Razen',
+        phone: '+8801787671962',
       },
     });
     const json = JSON.stringify(message);
-    expect(json).toContain('Somchai');
-    expect(json).toContain('0812345678');
+    expect(json).toContain('Razen');
+    expect(json).toContain('+8801787671962');
   });
 });

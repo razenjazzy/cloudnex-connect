@@ -9,6 +9,7 @@ import {
 } from '../../services/firestore';
 import { sendTargetedFlexMessage } from '../messaging';
 import { customerNotifyChannelId } from '../channels';
+import { getDefaultCustomerPhone } from '../default-contact';
 import { isQuoteStaff, syncStaffProfile } from '../quote-access';
 import { resolveCustomerLineUserId } from '../quote-notify';
 import { t } from '../../services/i18n';
@@ -58,8 +59,8 @@ const messageCustomerHandler: CommandHandler = {
     const parsed = parsePhoneAndMessage(text, 'MESSAGE CUSTOMER');
     if (!parsed) {
       return [botText(tr(userLanguage,
-        'รูปแบบไม่ถูกต้อง ตัวอย่าง: MESSAGE CUSTOMER 0812345678 สวัสดีค่ะ มีโปรโมชันใหม่',
-        'That doesn\'t look right. Example: MESSAGE CUSTOMER 0812345678 Hi! We have a new offer for you.',
+        `รูปแบบไม่ถูกต้อง ตัวอย่าง: MESSAGE CUSTOMER ${getDefaultCustomerPhone('th')} สวัสดีค่ะ มีโปรโมชันใหม่`,
+        `That doesn't look right. Example: MESSAGE CUSTOMER ${getDefaultCustomerPhone('en')} Hi! We have a new offer for you.`,
       ), userLanguage, 'error')];
     }
 

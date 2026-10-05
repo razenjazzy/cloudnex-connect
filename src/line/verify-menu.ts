@@ -2,11 +2,14 @@ import type { messagingApi } from '@line/bot-sdk';
 import { getPendingOdooVerificationChallenge, type UserProfile } from '../services/firestore';
 import { startOdooUserVerification, verificationSuccessMessage } from '../services/user-verification';
 import { resolveVerificationPhase, type VerificationPhase } from '../services/verification-lifecycle';
-import { CUSTOMER_CHANNEL_ID } from './channels';
+import { CUSTOMER_CHANNEL_ID, getAgentSpeakPrefix } from './channels';
 import { createBotTextFlexMessage } from './templates';
 import { hasActiveSalesSession } from '../services/sales-session';
 import { isQuoteStaff } from './quote-access';
 import type { CommandReplyContext } from './command-router';
+import { t, tFill } from '../services/i18n';
+import { customerBindActions } from './customer-bind';
+import { salesVerifyMissActions } from './sales-access-request';
 
 const tr = (language: CommandReplyContext['userLanguage'], th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -123,32 +126,25 @@ export const resolveVerifyMenuMessages = async (ctx: CommandReplyContext): Promi
       channelId: ctx.channel?.channelId,
     });
     if (result.needsRegister) {
-      return [card(ctx, result.message, 'warning', [
-        { label: tr(userLanguage, 'สมัครลูกค้าใหม่', 'New customer'), text: 'FORM CUSTOMER REGISTER', style: 'primary' },
-        { label: tr(userLanguage, 'เบอร์อื่น', 'Another phone'), text: 'FORM VERIFY MANUAL', style: 'secondary' },
-      ])];
+      return [card(ctx, result.message, 'warning', customerBindActions(userLanguage))];
+    }
+    if (result.salesMiss) {
+      return [card(ctx, result.message, 'warning', salesVerifyMissActions(result.phone || phone, userLanguage))];
     }
     return [createBotTextFlexMessage({
       title: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'),
-      body: tr(userLanguage,
-        `ยืนยันเบอร์ที่มีอยู่แล้ว: ${phone}\n${result.message}`,
-        `Verifying your saved number: ${phone}\n${result.message}`,
-      ),
+      body: result.message,
       language: userLanguage,
       tone: 'info',
       ...(result.link ? { linkAction: { label: result.linkLabel || 'Verify now', uri: result.link } } : {}),
-      actions: [{ label: tr(userLanguage, 'เบอร์อื่น', 'Another phone'), text: 'FORM VERIFY MANUAL', style: 'secondary' }],
+      actions: [{ label: t('anotherPhone', userLanguage), text: 'FORM VERIFY MANUAL', style: 'secondary' }],
     })];
   }
 
   const onCustomer = ctx.channel?.channelId === CUSTOMER_CHANNEL_ID;
-  return [card(ctx, tr(userLanguage,
-    `${agentName} ยังไม่มีเบอร์ที่ยืนยัน แตะยืนยันตอนนี้เพื่อผูกบัญชี LINE นี้กับลูกค้า Odoo (ชื่อที่แสดงบน LINE ใช้เป็นชื่อเริ่มต้น) ไม่ต้องยืนยันเพื่อดูสินค้า`,
-    `${agentName} no phone is on file yet. Tap Verify now to bind this LINE account to an Odoo customer (your LINE display name is the starting name). You can browse products without verifying.`,
-  ), 'info', [
-    { label: tr(userLanguage, 'ยืนยันตอนนี้', 'Verify now'), text: onCustomer ? 'FORM CUSTOMER REGISTER' : 'FORM VERIFY MANUAL', style: 'primary' },
-    ...(onCustomer
-      ? [{ label: tr(userLanguage, 'มีเบอร์แล้ว', 'I have a phone'), text: 'FORM VERIFY MANUAL', style: 'secondary' as const }]
-      : []),
-  ])];
+  return [card(ctx, tFill('customerNoPhoneYet', userLanguage, { prefix: getAgentSpeakPrefix(userLanguage) }), 'info',
+    onCustomer
+      ? customerBindActions(userLanguage)
+      : [{ label: t('anotherPhone', userLanguage), text: 'FORM VERIFY MANUAL', style: 'primary' }],
+  )];
 };

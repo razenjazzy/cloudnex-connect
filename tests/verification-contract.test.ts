@@ -12,7 +12,7 @@ describe('verification repository contract', () => {
     const repository = createVerificationRepository(operations);
     operations.findVerifiedUserIdByPhone.mockResolvedValue('U-user');
 
-    expect(await repository.findVerifiedUserIdByPhone('0812345678')).toBe('U-user');
-    expect(operations.findVerifiedUserIdByPhone).toHaveBeenCalledWith('0812345678');
+    expect(await repository.findVerifiedUserIdByPhone('+8801787671962')).toBe('U-user');
+    expect(operations.findVerifiedUserIdByPhone).toHaveBeenCalledWith('+8801787671962');
   });
 });

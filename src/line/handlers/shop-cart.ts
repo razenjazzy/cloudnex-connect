@@ -5,6 +5,7 @@ import { getSaleOrderById } from '../../services/odoo/sales';
 import { recordAuditEvent } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
 import { t } from '../../services/i18n';
+import { customerBindMessages } from '../customer-bind';
 import { isQuoteStaff } from '../quote-access';
 import { getErpAdapter } from '../../erp/registry';
 import { isCustomerShopEffective, parseOdooWebsiteId } from '../../platform/customer-commerce';
@@ -42,10 +43,7 @@ export const parseCartRemove = (text: string): number | null => {
 const shopNotApplicable = (language: UserLanguage) =>
   [botText(t('shopCartQuoteMode', language), language, [{ label: tr(language, 'หน้าแรก', 'Home'), text: 'NAV HOME', style: 'primary' }])];
 
-const verifyFirst = (language: UserLanguage) =>
-  [botText(tr(language, 'ยืนยันตัวตนก่อนใช้ตะกร้า', 'Verify your account before using the cart.'), language, [
-    { label: tr(language, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
-  ])];
+const verifyFirst = (language: UserLanguage) => customerBindMessages(language, 'order');
 
 export const shopCartFlexForOrder = async (
   order: OdooSaleOrder,

@@ -51,7 +51,7 @@ describe('sales session', () => {
   });
 
   it('before verification the Sales OA only allows identity, help, privacy and language', () => {
-    for (const ok of ['NAV VERIFY', 'FORM VERIFY', 'VERIFY START 0123', 'VERIFY OTP 123456', 'HELP', 'MY DATA', 'LANG EN', 'LANG']) {
+    for (const ok of ['NAV VERIFY', 'FORM VERIFY', 'VERIFY START 0123', 'VERIFY ASK ADMIN 0123', 'VERIFY OTP 123456', 'HELP', 'MY DATA', 'LANG EN', 'LANG']) {
       expect(isSalesPreVerifyCommand(ok)).toBe(true);
     }
     for (const blocked of ['NAV HOME', 'NAV', 'BACK', 'NAV COMMERCE', 'QUOTE LIST', 'PRODUCT FIND shoes', 'FORM QUOTE CREATE FROM CARD 3']) {

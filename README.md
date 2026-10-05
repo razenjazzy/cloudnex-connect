@@ -4,7 +4,7 @@ Cloudnex Connect is the Cloudnex LINE Official Account platform: HMAC webhooks (
 
 TypeScript Express backend that connects LINE Official Accounts to Odoo ERP. Users work in LINE Flex cards (Thai/English). Identity is Firestore unless `MONGO_USERS` is on. Sales, partners, and products live in Odoo.
 
-**Release:** v14.0.3 — Odoo LINE OA v11 native menu: instant dark-teal tap, Verify hold until the link succeeds or expires. Cloud Run `release.yml` stays manual.  
+**Release:** v15.0.1 — Odoo LINE OA v12: Customer guest Order Now, Sales Ask admin, Razen/Ashfaq locale samples. Cloud Run `release.yml` stays manual.  
 **Runtime:** Node 22+. **Persona:** Sora / โซระ. **Package:** `cloudnex-connect`.
 
 The git root on disk is `.../Code/cloudnex-connect`. `cns-line-oa` is only a symlink. In Cursor: **File → Open Folder** and choose `cloudnex-connect` (not the symlink) so the sidebar name matches. GCP project id `cns-line-oa` is unrelated.

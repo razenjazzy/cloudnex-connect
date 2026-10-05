@@ -38,6 +38,7 @@ export const COMMAND_GRID: CommandGridEntry[] = [
   { id: 'form-order-status', prefix: 'FORM ORDER STATUS', labelEn: 'Order status', labelTh: 'สถานะออเดอร์', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'form-customer-register', prefix: 'FORM CUSTOMER REGISTER', labelEn: 'New customer', labelTh: 'สมัครลูกค้าใหม่', category: 'identity', roles: ['guest', 'customer'], channels: [CUSTOMER_CHANNEL_ID] },
   { id: 'customer-register', prefix: 'CUSTOMER REGISTER', labelEn: 'New customer', labelTh: 'สมัครลูกค้าใหม่', category: 'identity', roles: ['guest', 'customer'], channels: [CUSTOMER_CHANNEL_ID] },
+  { id: 'verify-ask-admin', prefix: 'VERIFY ASK ADMIN', labelEn: 'Ask admin', labelTh: 'ถามผู้ดูแล', category: 'identity', roles: ['guest', 'staff', 'admin'], channels: [SALES_CHANNEL_ID, DEFAULT_CHANNEL_ID] },
   { id: 'verify', prefix: 'VERIFY', labelEn: 'Verify', labelTh: 'ยืนยันตัวตน', category: 'identity', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'product-find-form', prefix: 'FORM PRODUCT FIND', labelEn: 'Find a product', labelTh: 'ค้นหาสินค้า', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
   { id: 'product-find', prefix: 'PRODUCT FIND', labelEn: 'Find a product', labelTh: 'ค้นหาสินค้า', category: 'commerce', roles: ['guest', 'customer', 'staff', 'admin'] },
@@ -130,9 +131,23 @@ export const isSalesPreVerifyCommand = (upperText: string, pendingFlow?: { flow:
   return Boolean(entry && ['identity', 'privacy', 'help'].includes(entry.category));
 };
 
-export const isGuestAllowedCommand = (upperText: string, pendingFlow?: { flow: string }): boolean => {
+/**
+ * Pending guided flows an unverified user may keep. QUOTE_CREATE (guest Order Now) is Customer OA only: the router's
+ * flow intercept runs before the Sales verify-first gate, so it must not rely on that gate to refuse it.
+ */
+export const unverifiedPendingFlowKept = (flow: string, channelId?: string): boolean => {
+  if (flow === 'QUOTE_CREATE') return channelId === CUSTOMER_CHANNEL_ID;
+  return flow === 'VERIFY' || flow === 'PRODUCT_FIND' || flow === 'CUSTOMER_REGISTER' || flow === 'MESSAGE_REQUEST';
+};
+
+export const isGuestAllowedCommand = (upperText: string, pendingFlow?: { flow: string }, channelId?: string): boolean => {
+  if (pendingFlow?.flow === 'QUOTE_CREATE') return channelId === CUSTOMER_CHANNEL_ID;
   if (pendingFlow?.flow === 'VERIFY' || pendingFlow?.flow === 'PRODUCT_FIND' || pendingFlow?.flow === 'CUSTOMER_REGISTER' || pendingFlow?.flow === 'MESSAGE_REQUEST' || pendingFlow?.flow === 'QUOTE_ADD' || pendingFlow?.flow === 'CART_COUPON') return true;
   if (parseQtyProductUtterance(upperText)) return true;
+  if (channelId === CUSTOMER_CHANNEL_ID && (
+    upperText === 'QUOTE CREATE' || upperText.startsWith('QUOTE CREATE ')
+    || upperText === 'FORM QUOTE CREATE' || (upperText.startsWith('FORM QUOTE CREATE ') && !upperText.startsWith('FORM QUOTE CREATE FROM CARD'))
+  )) return true;
   const entry = matchCommandGrid(upperText);
   const merged = entry ? mergeCommandGridEntry(entry) : null;
   return Boolean(merged?.enabled !== false && merged?.roles.includes('guest'));

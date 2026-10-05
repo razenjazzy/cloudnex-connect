@@ -17,9 +17,9 @@ describe('resolveServiceForCommand', () => {
   it('maps mapped command prefixes to their service key', () => {
     expect(resolveServiceForCommand('PRODUCT FIND App')).toBe('commerce');
     expect(resolveServiceForCommand('FORM PRODUCT FIND')).toBe('commerce');
-    expect(resolveServiceForCommand('QUOTE CREATE App,1,Somchai,0812345678')).toBe('commerce');
+    expect(resolveServiceForCommand('QUOTE CREATE App,1,Razen,+8801787671962')).toBe('commerce');
     expect(resolveServiceForCommand('FORM ORDER STATUS')).toBe('commerce');
-    expect(resolveServiceForCommand('USER CREATE Somchai,0812345678')).toBe('directory');
+    expect(resolveServiceForCommand('USER CREATE Razen,+8801787671962')).toBe('directory');
     expect(resolveServiceForCommand('FORM USER READ')).toBe('directory');
     expect(resolveServiceForCommand('SERVICE LIST')).toBe('catalog');
     expect(resolveServiceForCommand('FORM SERVICE READ')).toBe('catalog');
@@ -32,7 +32,7 @@ describe('resolveServiceForCommand', () => {
     expect(resolveServiceForCommand('ADMIN ENABLE')).toBeNull();
     expect(resolveServiceForCommand('SALES FEATURES')).toBeNull();
     expect(resolveServiceForCommand('SALES FEATURE catalog OFF')).toBeNull();
-    expect(resolveServiceForCommand('VERIFY START 0812345678')).toBeNull();
+    expect(resolveServiceForCommand('VERIFY START +8801787671962')).toBeNull();
     expect(resolveServiceForCommand('LANG EN')).toBeNull();
   });
 });

@@ -7,7 +7,8 @@ import { seedOdooSampleSalesDataWithAudit } from '../../services/seed-odoo';
 import { setEscalationState } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
 import { isServiceEnabledForChannel, type ServiceKey } from '../../services/service-catalog';
-import type { ChannelContext } from '../channels';
+import { type ChannelContext } from '../channels';
+import { getDefaultCustomerEmail, getDefaultCustomerName, getDefaultCustomerPhone } from '../default-contact';
 
 const SERVICE_GUIDE_KEYS: ServiceKey[] = ['commerce', 'directory', 'catalog', 'reporting', 'groupBuy'];
 
@@ -36,9 +37,9 @@ const buildFeaturesMessage = (language: UserLanguage, agentName: string): string
 
 const buildJourneyMessage = (language: UserLanguage, agentName: string): string => {
   if (language === 'en') {
-    return `${agentName} end-to-end demo journey\nStep 1: ADMIN VERIFY\nStep 2: ADMIN ENABLE (ADMIN_USER_ID + Odoo admin)\nStep 3: ADMIN ACCESS / SALES FEATURES\nStep 4: USER CREATE Somchai,0812345678,somchai@example.com — share Add friend Cloudnex Customer\nStep 5: Customer OA FORM VERIFY or FORM CUSTOMER REGISTER\nStep 6: PRODUCT FIND / QUOTE CREATE\nStep 7: QUOTE SEND then customer Confirm\nStep 8: ORDER STATUS / DAILY REPORT`;
+    return `${agentName} end-to-end demo journey\nStep 1: ADMIN VERIFY\nStep 2: ADMIN ENABLE (ADMIN_USER_ID + Odoo admin)\nStep 3: ADMIN ACCESS / SALES FEATURES\nStep 4: USER CREATE ${getDefaultCustomerName('en')},${getDefaultCustomerPhone('en')},${getDefaultCustomerEmail('en')} — share Add friend Cloudnex Customer\nStep 5: Customer OA FORM VERIFY or FORM CUSTOMER REGISTER\nStep 6: PRODUCT FIND / QUOTE CREATE\nStep 7: QUOTE SEND then customer Confirm\nStep 8: ORDER STATUS / DAILY REPORT`;
   }
-  return `${agentName} เส้นทางเดโมครบวงจร\nขั้นที่ 1: ADMIN VERIFY\nขั้นที่ 2: ADMIN ENABLE (ADMIN_USER_ID + สิทธิ์แอดมิน Odoo)\nขั้นที่ 3: ADMIN ACCESS / SALES FEATURES\nขั้นที่ 4: USER CREATE แล้วส่ง Add friend Cloudnex Customer\nขั้นที่ 5: ลูกค้า FORM VERIFY หรือ FORM CUSTOMER REGISTER\nขั้นที่ 6: PRODUCT FIND / QUOTE CREATE\nขั้นที่ 7: QUOTE SEND แล้วลูกค้า Confirm\nขั้นที่ 8: ORDER STATUS / DAILY REPORT`;
+  return `${agentName} เส้นทางเดโมครบวงจร\nขั้นที่ 1: ADMIN VERIFY\nขั้นที่ 2: ADMIN ENABLE (ADMIN_USER_ID + สิทธิ์แอดมิน Odoo)\nขั้นที่ 3: ADMIN ACCESS / SALES FEATURES\nขั้นที่ 4: USER CREATE ${getDefaultCustomerName('th')},${getDefaultCustomerPhone('th')},${getDefaultCustomerEmail('th')} แล้วส่ง Add friend Cloudnex Customer\nขั้นที่ 5: ลูกค้า FORM VERIFY หรือ FORM CUSTOMER REGISTER\nขั้นที่ 6: PRODUCT FIND / QUOTE CREATE\nขั้นที่ 7: QUOTE SEND แล้วลูกค้า Confirm\nขั้นที่ 8: ORDER STATUS / DAILY REPORT`;
 };
 
 // START / HELP / OPTIONS / MENU / เริ่มต้น — show home menu

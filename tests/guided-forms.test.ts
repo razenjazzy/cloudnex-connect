@@ -22,7 +22,7 @@ describe('getFlowByStartCommand', () => {
   it('matchFlowForPreview accepts the reconstructed command prefix', async () => {
     const { matchFlowForPreview } = await import('../src/services/guided-forms');
     expect(matchFlowForPreview('FORM USER CREATE')).not.toBeNull();
-    expect(matchFlowForPreview('USER CREATE Jane,0812345678')?.key).toBe('USER_CREATE');
+    expect(matchFlowForPreview('USER CREATE Razen,+8801787671962')?.key).toBe('USER_CREATE');
   });
 });
 
@@ -30,7 +30,7 @@ describe('lookup flows', () => {
   it('builds product, order, user, and service lookup commands', () => {
     expect(FLOW_SPECS.PRODUCT_FIND.buildFinalCommand({ productName: 'App Premium Plan' })).toBe('PRODUCT FIND App Premium Plan');
     expect(FLOW_SPECS.ORDER_STATUS.buildFinalCommand({ reference: 'SO0001' })).toBe('ORDER STATUS SO0001');
-    expect(FLOW_SPECS.USER_READ.buildFinalCommand({ phone: '0812345678' })).toBe('USER READ 0812345678');
+    expect(FLOW_SPECS.USER_READ.buildFinalCommand({ phone: '+8801787671962' })).toBe('USER READ +8801787671962');
     expect(FLOW_SPECS.SERVICE_READ.buildFinalCommand({ identifier: 'SVC-PREMIUM' })).toBe('SERVICE READ SVC-PREMIUM');
   });
 
@@ -51,23 +51,23 @@ describe('USER_CREATE flow', () => {
 
   it('validates each field', () => {
     const [name, phone, email] = spec.fields;
-    expect(name.validate('Somchai')).toBe(true);
+    expect(name.validate('Razen')).toBe(true);
     expect(name.validate('  ')).toBe(false);
-    expect(phone.validate('0812345678')).toBe(true);
+    expect(phone.validate('+8801787671962')).toBe(true);
     expect(phone.validate('abc')).toBe(false);
     expect(email.validate('')).toBe(true);
-    expect(email.validate('somchai@example.com')).toBe(true);
+    expect(email.validate('baizid.a@cloudnexsolutions.com')).toBe(true);
     expect(email.validate('not-an-email')).toBe(false);
   });
 
   it('builds the final command with an optional email included', () => {
-    const cmd = spec.buildFinalCommand({ name: 'Somchai', phone: '0812345678', email: 'somchai@example.com' });
-    expect(cmd).toBe('USER CREATE Somchai,0812345678,somchai@example.com');
+    const cmd = spec.buildFinalCommand({ name: 'Razen', phone: '+8801787671962', email: 'baizid.a@cloudnexsolutions.com' });
+    expect(cmd).toBe('USER CREATE Razen,+8801787671962,baizid.a@cloudnexsolutions.com');
   });
 
   it('builds the final command with the optional email omitted', () => {
-    const cmd = spec.buildFinalCommand({ name: 'Somchai', phone: '0812345678', email: '' });
-    expect(cmd).toBe('USER CREATE Somchai,0812345678');
+    const cmd = spec.buildFinalCommand({ name: 'Razen', phone: '+8801787671962', email: '' });
+    expect(cmd).toBe('USER CREATE Razen,+8801787671962');
   });
 });
 
@@ -97,13 +97,13 @@ describe('USER_UPDATE flow', () => {
   });
 
   it('builds the final command with skipped optional fields left blank', () => {
-    const cmd = spec.buildFinalCommand({ phone: '0812345678', name: '', newPhone: '', email: '' });
-    expect(cmd).toBe('USER UPDATE 0812345678,,,');
+    const cmd = spec.buildFinalCommand({ phone: '+8801787671962', name: '', newPhone: '', email: '' });
+    expect(cmd).toBe('USER UPDATE +8801787671962,,,');
   });
 
   it('builds the final command with optional fields filled in', () => {
-    const cmd = spec.buildFinalCommand({ phone: '0812345678', name: 'Somchai CEO', newPhone: '', email: 'somchai@example.com' });
-    expect(cmd).toBe('USER UPDATE 0812345678,Somchai CEO,,somchai@example.com');
+    const cmd = spec.buildFinalCommand({ phone: '+8801787671962', name: 'Razen CEO', newPhone: '', email: 'baizid.a@cloudnexsolutions.com' });
+    expect(cmd).toBe('USER UPDATE +8801787671962,Razen CEO,,baizid.a@cloudnexsolutions.com');
   });
 });
 
@@ -113,7 +113,7 @@ describe('USER_DELETE flow', () => {
   it('requires admin and builds the final command', () => {
     expect(spec.requiresAdmin).toBe(true);
     expect(getFlowByStartCommand('FORM USER DELETE')?.key).toBe('USER_DELETE');
-    expect(spec.buildFinalCommand({ phone: '0812345678' })).toBe('USER DELETE 0812345678');
+    expect(spec.buildFinalCommand({ phone: '+8801787671962' })).toBe('USER DELETE +8801787671962');
   });
 });
 
@@ -145,7 +145,7 @@ describe('QUOTE_CREATE flow', () => {
   const spec = FLOW_SPECS.QUOTE_CREATE;
 
   it('does not skip qty/customer after product even if a prior quote left those keys', () => {
-    const leftover = { productName: 'Care', qty: '1', customerName: 'Old', phone: '0812345678', paymentTerm: '30 Days' };
+    const leftover = { productName: 'Care', qty: '1', customerName: 'Razen', phone: '+8801787671962', paymentTerm: '30 Days' };
     expect(nextLinearFieldIndex(spec, leftover, 1)).toBe(1);
     expect(spec.fields[1].key).toBe('qty');
   });
@@ -162,30 +162,30 @@ describe('QUOTE_CREATE flow', () => {
 
   it('builds the final command with a product id when seeded from a card', () => {
     const cmd = spec.buildFinalCommand({
-      productName: 'App, Premium', productId: '99', qty: '1', customerName: 'Somchai', phone: '0812345678',
+      productName: 'App, Premium', productId: '99', qty: '1', customerName: 'Razen', phone: '+8801787671962',
     });
-    expect(cmd).toBe('QUOTE CREATE id:99,1,Somchai,0812345678,,,,,');
+    expect(cmd).toBe('QUOTE CREATE id:99,1,Razen,+8801787671962,,,,,');
   });
 
   it('appends cart when the shop carousel seeded stay', () => {
     const cmd = spec.buildFinalCommand({
-      productName: 'DualForth', productId: '2', qty: '10', customerName: 'Somchai', phone: '0812345678', shopStay: '1',
+      productName: 'DualForth', productId: '2', qty: '10', customerName: 'Razen', phone: '+8801787671962', shopStay: '1',
     });
-    expect(cmd).toBe('QUOTE CREATE id:2,10,Somchai,0812345678,,,,,,cart');
+    expect(cmd).toBe('QUOTE CREATE id:2,10,Razen,+8801787671962,,,,,,cart');
   });
 
   it('builds the final command with skipped optional fields left blank', () => {
-    const cmd = spec.buildFinalCommand({ productName: 'App Premium Plan', qty: '1', customerName: 'Somchai', phone: '0812345678' });
-    expect(cmd).toBe('QUOTE CREATE App Premium Plan,1,Somchai,0812345678,,,,,');
+    const cmd = spec.buildFinalCommand({ productName: 'App Premium Plan', qty: '1', customerName: 'Razen', phone: '+8801787671962' });
+    expect(cmd).toBe('QUOTE CREATE App Premium Plan,1,Razen,+8801787671962,,,,,');
   });
 
   it('builds the final command with optional fields filled in', () => {
     const cmd = spec.buildFinalCommand({
-      productName: 'App Premium Plan', qty: '1', customerName: 'Somchai', phone: '0812345678',
+      productName: 'App Premium Plan', qty: '1', customerName: 'Razen', phone: '+8801787671962',
       customerReference: 'PO-1001', discountPercent: '10', validityDate: '2026-12-31',
       note: 'Rush order', paymentTerm: '30 Days',
     });
-    expect(cmd).toBe('QUOTE CREATE App Premium Plan,1,Somchai,0812345678,PO-1001,10,2026-12-31,Rush order,30 Days');
+    expect(cmd).toBe('QUOTE CREATE App Premium Plan,1,Razen,+8801787671962,PO-1001,10,2026-12-31,Rush order,30 Days');
   });
 
   it('gives validityDate a computed default (today + 30 days) and no other optional field one', () => {
@@ -238,7 +238,7 @@ describe('QUOTE_SEND and INVOICE_SEND flows', () => {
 
 describe('VERIFY phone chips', () => {
   it('prefills the LINE session phone without calling Odoo', async () => {
-    await expect(loadVerifyPhoneOptions({ savedPhone: '0812345678' })).resolves.toEqual(['0812345678']);
+    await expect(loadVerifyPhoneOptions({ savedPhone: '+8801787671962' })).resolves.toEqual(['+8801787671962']);
     expect(FLOW_SPECS.VERIFY.fields[0].loadOptions).toBe(loadVerifyPhoneOptions);
   });
 });

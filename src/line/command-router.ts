@@ -35,7 +35,7 @@ import { resolveServiceForCommand } from '../services/service-catalog';
 import { FLOW_SPECS, getFlowByStartCommand, nextLinearFieldIndex } from '../services/guided-forms';
 import { createBotTextFlexMessage, createFormPromptFlexMessage, createOptionalSummaryFlexMessage, createRequiredResumeFlexMessage, createServiceHomeFlexMessage, createProductCarouselFlexMessage, createIdentityStripFlexMessage, createSalesAccountFlexMessage } from './templates';
 import { getAvailableServices, serviceMenuLabel } from '../services/service-catalog';
-import { ChannelContext, CUSTOMER_CHANNEL_ID, SALES_CHANNEL_ID, getBrandTitle, withAgentColon } from './channels';
+import { ChannelContext, CUSTOMER_CHANNEL_ID, SALES_CHANNEL_ID, getBrandTitle, getAgentSpeakPrefix, withAgentColon } from './channels';
 import { trayVariantForCommand } from './rich-menu';
 import { clearSalesLogin, hasActiveSalesSession, salesIdleExpired, salesPolicyText, salesSessionExpired, salesSessionUntracked, shouldTouchSalesActivity, touchSalesActivity } from '../services/sales-session';
 import type { FlowSpec } from '../services/guided-forms';
@@ -48,11 +48,12 @@ import { ensureNextWindowOrHome } from './journey-continue';
 import { bindPostbackData } from './postback';
 import { withSpan } from '../observability/tracing';
 import { appLogger } from '../services/logger';
-import { applyChannelPersona, isQuoteStaff, selfQuoteIdentity, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary } from './quote-access';
-import { evaluateCommandGrid, isGuestAllowedCommand, isSalesPreVerifyCommand, matchCommandGrid } from './command-grid';
+import { applyChannelPersona, isQuoteStaff, selfQuoteIdentity, customerQuoteFormStepCount, customerQuoteSkipsOptionalSummary, skipCustomerQuoteIdentityIndex } from './quote-access';
+import { evaluateCommandGrid, isGuestAllowedCommand, isSalesPreVerifyCommand, matchCommandGrid, unverifiedPendingFlowKept } from './command-grid';
 import { canonicalizeInboundCommand, loadCommandOverlay, overlayLabelForText } from './command-overlay';
 import { loadI18nOverlay } from '../services/i18n-overlay';
-import { t } from '../services/i18n';
+import { tFill } from '../services/i18n';
+import { customerBindMessages } from './customer-bind';
 import { catalogUiLabel } from './catalog-ui';
 import { customerQtyChipLabels } from './customer-qty';
 import { getErpAdapter } from '../erp/registry';
@@ -265,16 +266,8 @@ const applyFieldDefaults = async (flowSpec: FlowSpec, collected: Record<string, 
   return withDefaults;
 };
 
-const skipSelfQuoteIdentityIndex = (flowSpec: FlowSpec, index: number, profile: UserProfile): number => {
-  if (flowSpec.key !== 'QUOTE_CREATE' || isQuoteStaff(profile)) return index;
-  let i = index;
-  while (i < flowSpec.fields.length) {
-    const key = flowSpec.fields[i].key;
-    if (key !== 'customerName' && key !== 'phone') break;
-    i += 1;
-  }
-  return i;
-};
+const skipSelfQuoteIdentityIndex = (flowSpec: FlowSpec, index: number, profile: UserProfile): number =>
+  skipCustomerQuoteIdentityIndex(flowSpec.key, flowSpec.fields, index, profile);
 
 const quoteRequiredEndIndex = (flowSpec: FlowSpec): number =>
   flowSpec.optionalSummaryStartIndex ?? flowSpec.fields.length;
@@ -625,12 +618,7 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
       }
     }
     if (!profile.odooVerified) {
-      return [text(tr(userLanguage,
-        `${agentName} ยืนยันตัวตนก่อนส่งข้อความถึงฝ่ายขาย`,
-        `${agentName} verify your account before messaging sales.`,
-      ), userLanguage, undefined, [
-        { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
-      ])];
+      return customerBindMessages(userLanguage, 'message');
     }
     const flowSpec = FLOW_SPECS.MESSAGE_REQUEST;
     const product = (await getUserProfile(userId)).lastProductContext;
@@ -703,26 +691,12 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
         await setLastProductContext(userId, product);
       }
     }
-    if (!profile.odooVerified) {
-      const using = product?.productName
-        ? tr(userLanguage, `ใช้สินค้า: ${product.productName}\n`, `Using: ${product.productName}\n`)
-        : '';
-      return [text(tr(userLanguage,
-        `${using}${agentName} กรุณายืนยันด้วยเบอร์ในบัญชีผู้ใช้ Odoo ก่อนสร้างใบเสนอราคา`,
-        `${using}${agentName} verify with the phone on your Odoo user account before creating a quote.`,
-      ), userLanguage, undefined, [
-        { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
-      ])];
-    }
     const flowSpec = FLOW_SPECS.QUOTE_CREATE;
     if (!product?.productName) {
       return handleFormCommand({ ...ctx, text: 'FORM QUOTE CREATE' });
     }
     if (flowSpec.requiresAdmin && profile.role !== 'admin') {
       return [text(tr(userLanguage, 'คำสั่งนี้สำหรับแอดมินเท่านั้น', 'This command is admin-only.'), userLanguage)];
-    }
-    if (!isQuoteStaff(profile) && !profile.odooPartnerId) {
-      return handleFormCommand({ ...ctx, text: 'FORM QUOTE CREATE' });
     }
     if (ctx.isGroupContext) {
       return [text(tr(userLanguage,
@@ -736,7 +710,12 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
       ? (rfqCustomer?.displayName && rfqCustomer.phone
         ? { customerName: rfqCustomer.displayName, phone: rfqCustomer.phone, rfqUnassigned: '1' }
         : {})
-      : selfQuoteIdentity(profile);
+      : profile.odooVerified
+        ? selfQuoteIdentity(profile)
+        : {
+          ...(profile.displayName ? { customerName: profile.displayName } : {}),
+          ...(profile.phone ? { phone: profile.phone } : {}),
+        };
     const qtySeed = cardQty && cardQty > 0 ? String(cardQty) : (product?.qty && product.qty > 0 ? String(product.qty) : undefined);
     const seeded: Record<string, string> = {
       productName: product.productName,
@@ -801,12 +780,7 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
 
   if (flowSpec.key === 'ORDER_STATUS' && !isQuoteStaff(profile)) {
     if (!profile.odooVerified) {
-      return [text(tr(userLanguage,
-        `${agentName} ยืนยันตัวตนก่อนดูสถานะออเดอร์ของคุณ`,
-        `${agentName} verify your account to see your order status.`,
-      ), userLanguage, undefined, [
-        { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
-      ])];
+      return customerBindMessages(userLanguage, 'history');
     }
     return resolveCommandReply({ ...ctx, text: 'QUOTE LIST' });
   }
@@ -815,19 +789,15 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
     return resolveCommandReply({ ...ctx, text: 'PRODUCT FIND' });
   }
 
-  if (flowSpec.key === 'QUOTE_CREATE' && !isQuoteStaff(profile)) {
-    if (!profile.odooPartnerId) {
-      return [text(tr(userLanguage,
-        `${agentName} กรุณายืนยันตัวตนก่อนสร้างใบเสนอราคา`,
-        `${agentName} verify your account before creating a quote.`,
-      ), userLanguage, undefined, [
-        { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
-      ])];
-    }
-  }
-
   const formCollected: Record<string, string> = {
-    ...(flowSpec.key === 'QUOTE_CREATE' && !isQuoteStaff(profile) ? selfQuoteIdentity(profile) : {}),
+    ...(flowSpec.key === 'QUOTE_CREATE' && !isQuoteStaff(profile)
+      ? (profile.odooVerified
+        ? selfQuoteIdentity(profile)
+        : {
+          ...(profile.displayName ? { customerName: profile.displayName } : {}),
+          ...(profile.phone ? { phone: profile.phone } : {}),
+        })
+      : {}),
     ...(flowSpec.key !== 'VERIFY' || ctx.channel?.channelId !== CUSTOMER_CHANNEL_ID
       ? {
         ...(profile.phone ? { savedPhone: profile.phone } : {}),
@@ -905,7 +875,7 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
 
   // Step 1: Guided form intercept
   if (profile.pendingFlow) {
-    if (!profile.odooVerified && profile.pendingFlow.flow !== 'VERIFY' && profile.pendingFlow.flow !== 'PRODUCT_FIND' && profile.pendingFlow.flow !== 'CUSTOMER_REGISTER') {
+    if (!profile.odooVerified && !unverifiedPendingFlowKept(profile.pendingFlow.flow, ctx.channel?.channelId)) {
       await setUserPendingFlow(userId, null);
     } else {
       const result = await handleGuidedFormStep(ctx);
@@ -944,20 +914,28 @@ const dispatchCommandReply = async (ctx: CommandReplyContext): Promise<messaging
   // identity/help/privacy/language commands run; Home and everything else show the Verify card.
   if (!profile.odooVerified && onSalesOa && !ctx.isGroupContext && !isSalesPreVerifyCommand(upperText, profile.pendingFlow)) {
     const policy = salesPolicyText(userLanguage);
-    return [text(t('salesVerifyRequired', userLanguage).replace('{agent}', agentName).replace('{ttl}', policy.ttl).replace('{idle}', policy.idle || '-'), userLanguage, undefined, [
+    return [text(tFill('salesVerifyRequired', userLanguage, {
+      prefix: getAgentSpeakPrefix(userLanguage),
+      ttl: policy.ttl,
+      idle: policy.idle || '-',
+    }), userLanguage, undefined, [
       { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
     ])];
   }
 
-  if (!profile.odooVerified && !isGuestAllowedCommand(upperText, profile.pendingFlow)) {
+  if (!profile.odooVerified && !isGuestAllowedCommand(upperText, profile.pendingFlow, ctx.channel?.channelId)) {
     if (ctx.channel?.channelId === CUSTOMER_CHANNEL_ID && !matchCommandGrid(upperText) && !upperText.startsWith('FORM ')) {
       const { notifyAdminsOfCustomerInbound } = await import('./inbound-relay');
       await notifyAdminsOfCustomerInbound(ctx);
     }
-    return [text(tr(userLanguage,
-      `${agentName} กรุณายืนยันด้วยเบอร์ในบัญชีผู้ใช้ Odoo ก่อนใช้บริการ ลูกค้าที่ไม่ได้ยืนยันจะเห็นเฉพาะข้อความที่ผู้ใช้ Odoo ส่งมา`,
-      `${agentName} verify with the phone on your Odoo user account before using services. Unverified customers only see messages a verified Odoo user sends.`,
-    ), userLanguage, undefined, [
+    if (ctx.channel?.channelId === CUSTOMER_CHANNEL_ID) {
+      return customerBindMessages(userLanguage, 'services');
+    }
+    return [text(tFill('salesVerifyRequired', userLanguage, {
+      prefix: getAgentSpeakPrefix(userLanguage),
+      ttl: salesPolicyText(userLanguage).ttl,
+      idle: salesPolicyText(userLanguage).idle || '-',
+    }), userLanguage, undefined, [
       { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
     ])];
   }

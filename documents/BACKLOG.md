@@ -116,6 +116,7 @@ deferred or not-yet-verified pieces.
 
 ## Known limitations (accepted, not bugs)
 
+- **D5 — Verify proves knowledge of a phone, not ownership.** `startOdooUserVerification` returns the magic link (and the OTP only when `ODOO_VERIFY_DEBUG_INCLUDE_OTP`) to the same LINE chat that typed the number; there is no SMS/email. Anyone who knows an Odoo contact’s phone can request a code. Sales tier follows the matched contact the same way. Out of scope to change now. Follow-up: admin approval or an out-of-band code for Sales tier.
 - ~~The rich-menu chat-bar label ("Tap to open") is English-only.~~ **Closed:**
   EN/TH menus use `chatBarTextEn` / `chatBarTextTh` (`Menu` / `เมนู`) in
   [`assets/rich-menu/layout.json`](../assets/rich-menu/layout.json).
@@ -169,7 +170,7 @@ admin audit rows, server-side 20-char label validation, photo coverage in
 - `QUOTE ASSIGN` is not step-up OTP gated.
 - Customer-channel hard guards on relay handlers (`isCustomerChannel()`).
 - `SALES FEATURES` and `ADMIN *` missing from `COMMAND_PREFIX_SERVICE_MAP`.
-- Hero image fetched at 128px (blurry); measure 256/512 vs LINE 1 MB cap.
+- Hero image fetched at 128px (blurry); measure 256/512 vs LINE 1 MB cap. **Closed** in v13.0.11–v14.0.1 (256 px hero, 128 px fallback, `/readyz` photo checks).
 - `PUT /toggles` not scoped per channel; `/secrets` actor hardcoded to `ops`.
 - PUT `/commands`, `/i18n`, `/settings` use the weaker `requireAdminPanelAccess`.
 - Campaign broadcast: recipient count, test-send, idempotency key.

@@ -7,6 +7,10 @@ export const commandPrefixForAudit = (text: string): string => {
     .trim()
     .replace(/\s+/g, ' ')
     .replace(/\S+@\S+/g, '[email]')
+    .replace(/\+880\d{8,}\b/g, '[phone]')
+    .replace(/\+66\d{8,}\b/g, '[phone]')
+    .replace(/\b880\d{8,}\b/g, '[phone]')
+    .replace(/\b66\d{8,}\b/g, '[phone]')
     .replace(/\b0\d{8,}\b/g, '[phone]');
   return redacted.slice(0, 80);
 };

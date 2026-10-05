@@ -29,4 +29,14 @@ describe('isGuestAllowedCommand', () => {
     expect(isGuestAllowedCommand('ORDER STATUS SO0001')).toBe(false);
     expect(isGuestAllowedCommand('FORM ORDER STATUS')).toBe(true);
   });
+
+  it('lets a Customer OA guest create a quote after giving a phone, not list history', () => {
+    expect(isGuestAllowedCommand('QUOTE CREATE App,1', undefined, 'customer')).toBe(true);
+    expect(isGuestAllowedCommand('FORM QUOTE CREATE', undefined, 'customer')).toBe(true);
+    expect(isGuestAllowedCommand('QUOTE CREATE App,1', { flow: 'QUOTE_CREATE' }, 'customer')).toBe(true);
+    expect(isGuestAllowedCommand('QUOTE CREATE App,1', { flow: 'QUOTE_CREATE' })).toBe(false);
+    expect(isGuestAllowedCommand('QUOTE CREATE App,1', { flow: 'QUOTE_CREATE' }, 'sales')).toBe(false);
+    expect(isGuestAllowedCommand('QUOTE CREATE App,1', undefined, 'sales')).toBe(false);
+    expect(isGuestAllowedCommand('QUOTE LIST', undefined, 'customer')).toBe(false);
+  });
 });

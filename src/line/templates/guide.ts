@@ -68,7 +68,7 @@ export const createGuideCategoriesFlexMessage = (
  */
 export const createGuideCategoryFlexMessage = (category: CommandCategoryKey, language: ReportLanguage, _agentName: string): messagingApi.FlexMessage => {
   const label = GUIDE_CATEGORY_LABELS[category][language];
-  const commands = getCommandsForCategory(category);
+  const commands = getCommandsForCategory(category, language);
   const note = GUIDE_CATEGORY_NOTES[category]?.[language];
 
   return {

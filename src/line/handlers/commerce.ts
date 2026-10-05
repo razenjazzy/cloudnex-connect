@@ -7,10 +7,10 @@ import {
   createBotTextFlexMessage,
   formatMoney,
 } from '../templates';
-import { parseDemoQuotePayload, parseSelfQuotePayload, parseQtyProductUtterance } from '../command-validators';
+import { parseDemoQuotePayload, parseSelfQuotePayload, parseQtyProductUtterance, isValidPhone, buildSelfQuoteCreateCommand } from '../command-validators';
 import { seedOdooSampleSalesDataWithAudit } from '../../services/seed-odoo';
 import { getSaleOrderById } from '../../services/odoo/sales';
-import { recordAuditEvent, setLastProductContext, listVerifiedSalesLineUserIds } from '../../services/firestore';
+import { recordAuditEvent, setLastProductContext, listVerifiedSalesLineUserIds, setUserGuestPartner, setUserContactPhone, consumeGuestQuoteSlot, peekGuestQuoteSlot } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
 import { t, tFill } from '../../services/i18n';
 import { outcomeFlex, withOutcome } from '../outcome-reply';
@@ -28,6 +28,9 @@ import { beginQuoteCreate, completeQuoteCreate, failQuoteCreate, quoteCreateLock
 import { formatQuoteAskNote } from '../quote-ask';
 import { attachShopJourney, customerShopUiEnabled, isCustomerShopEffective, parseOdooWebsiteId, searchAudienceProducts } from '../../platform/customer-commerce';
 import { shopCartFlexForOrder, cartProductIdsForPartner } from './shop-cart';
+import { guestPhoneKey } from '../../services/guest-quote-cap';
+import { getDefaultGuestName } from '../default-contact';
+import { customerBindMessages } from '../customer-bind';
 import { getRuntime } from '../../services/runtime-settings';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
@@ -189,13 +192,39 @@ const demoQuoteHandler: CommandHandler = {
       return resolveCommandReply({ ...ctx, text: 'FORM QUOTE CREATE' });
     }
 
+    let guestDraft = false;
+    let createdGuestThisTurn = false;
     if (!isQuoteStaff(profile) && !profile.odooPartnerId) {
-      return [botText(tr(userLanguage,
-        'กรุณายืนยันตัวตนก่อนสร้างใบเสนอราคา',
-        'Verify your account before creating a quote.',
-      ), userLanguage, [
-        { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
-      ])];
+      const phone = (parsed.phone || '').trim();
+      if (!phone || !isValidPhone(phone) || !guestPhoneKey(phone)) {
+        recordAuditEvent({ action: 'guest_quote_refused', outcome: 'failure', actorUserId: userId, channelId: channel?.channelId, requestId, detail: 'phone' });
+        return customerBindMessages(userLanguage, 'order');
+      }
+      const peek = await peekGuestQuoteSlot(userId, guestPhoneKey(phone));
+      if (!peek.ok) {
+        recordAuditEvent({ action: 'guest_quote_refused', outcome: 'failure', actorUserId: userId, channelId: channel?.channelId, requestId, detail: peek.reason });
+        if (peek.reason === 'capped') {
+          return customerBindMessages(userLanguage, 'order', `${tFill('guestQuoteCapped', userLanguage, { prefix: getAgentSpeakPrefix(userLanguage) })}\n`);
+        }
+        return customerBindMessages(userLanguage, 'order');
+      }
+      const erp = getErpAdapter();
+      let guestId = profile.guestPartnerId;
+      if (!guestId) {
+        const created = await erp.createCustomer(parsed.customerName || getDefaultGuestName(userLanguage), phone, undefined, { forceNew: true });
+        if (!created) {
+          recordAuditEvent({ action: 'guest_quote_refused', outcome: 'failure', actorUserId: userId, channelId: channel?.channelId, requestId, detail: 'create_partner' });
+          return [botText(tr(userLanguage, 'บันทึกลูกค้าใน Odoo ไม่สำเร็จ', 'Could not save this customer in Odoo.'), userLanguage)];
+        }
+        guestId = created.id;
+        await setUserGuestPartner(userId, guestId);
+        profile.guestPartnerId = guestId;
+        createdGuestThisTurn = true;
+      }
+      profile.phone = phone;
+      await setUserContactPhone(userId, phone);
+      // Guest draft SO (new or reused guestPartnerId). Slot is consumed only after createQuotation succeeds.
+      guestDraft = true;
     }
 
     const { productName, qty, customerName, phone, customerReference, discountPercent, validityDate, note, paymentTerm, productId: parsedProductId } = parsed;
@@ -227,7 +256,7 @@ const demoQuoteHandler: CommandHandler = {
     const existingPartner = isQuoteStaff(profile)
       ? (namedPartner || await getErpAdapter().lookupCustomer(phone))
       : null;
-    const partnerId = isQuoteStaff(profile) ? existingPartner?.id : profile.odooPartnerId;
+    const partnerId = isQuoteStaff(profile) ? existingPartner?.id : (profile.odooPartnerId || profile.guestPartnerId);
     const lockKey = quoteCreateLockKey({ userId, productId: product.id, qty, requestId });
     const lock = await beginQuoteCreate(lockKey);
     if (!lock.ok) {
@@ -262,7 +291,7 @@ const demoQuoteHandler: CommandHandler = {
 
     const shop = await isCustomerShopEffective();
     const websiteId = shop ? parseOdooWebsiteId(getRuntime('ODOO_WEBSITE_ID')) : null;
-    if (shop && websiteId && !isQuoteStaff(profile) && partnerId) {
+    if (shop && websiteId && !isQuoteStaff(profile) && partnerId && profile.odooVerified && profile.odooPartnerId) {
       const cartDraft = await getErpAdapter().addToShopCart?.({
         partnerId,
         customerName,
@@ -296,7 +325,7 @@ const demoQuoteHandler: CommandHandler = {
       ];
     }
 
-    const quotation = await getErpAdapter().createQuotation(customerName, phone, product.name, qty, {
+    const quoteOptions = {
       partnerId,
       ...(rfqUnassigned || !customerReference ? {} : { customerRef: customerReference }),
       discountPercent,
@@ -306,7 +335,16 @@ const demoQuoteHandler: CommandHandler = {
       productId: product.id,
       ...(salespersonUserId !== undefined ? { salespersonUserId } : {}),
       ...(shop ? { websiteId: parseOdooWebsiteId(getRuntime('ODOO_WEBSITE_ID')) || undefined } : {}),
-    });
+    };
+    let quotation = await getErpAdapter().createQuotation(customerName, phone, product.name, qty, quoteOptions);
+    if (!quotation && guestDraft && !createdGuestThisTurn) {
+      const created = await getErpAdapter().createCustomer(parsed.customerName || getDefaultGuestName(userLanguage), phone, undefined, { forceNew: true });
+      if (created) {
+        await setUserGuestPartner(userId, created.id);
+        profile.guestPartnerId = created.id;
+        quotation = await getErpAdapter().createQuotation(customerName, phone, product.name, qty, { ...quoteOptions, partnerId: created.id });
+      }
+    }
     if (!quotation) {
       failQuoteCreate(lockKey);
       // Product genuinely exists, so this is a real failure (partner
@@ -321,7 +359,22 @@ const demoQuoteHandler: CommandHandler = {
 
     completeQuoteCreate(lockKey, quotation.name);
 
-    recordAuditEvent({ action: 'quote_create', outcome: 'success', actorUserId: userId, channelId: channel?.channelId, requestId, targetId: quotation.name });
+    if (guestDraft) {
+      const slot = await consumeGuestQuoteSlot(userId, guestPhoneKey(phone));
+      if (!slot.ok) {
+        appLogger.warn('guest_quote_slot_consume_failed', { userId, reason: slot.reason, order: quotation.name });
+      }
+    }
+
+    recordAuditEvent({
+      action: profile.odooPartnerId ? 'quote_create' : 'guest_quote_create',
+      outcome: 'success',
+      actorUserId: userId,
+      channelId: channel?.channelId,
+      requestId,
+      targetId: quotation.name,
+      detail: profile.odooPartnerId ? undefined : `guestPartnerId=${profile.guestPartnerId}`,
+    });
 
     const order = await getSaleOrderById(quotation.id);
     if (!order) {
@@ -501,9 +554,7 @@ const messageRequestConfirmHandler: CommandHandler = {
   handle: async (ctx) => {
     const { userLanguage, profile, userId, channel } = ctx;
     if (!profile.odooVerified || !profile.odooPartnerId) {
-      return [botText(tr(userLanguage, 'ยืนยันตัวตนก่อนส่งข้อความ', 'Verify your account before messaging sales.'), userLanguage, [
-        { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
-      ])];
+      return customerBindMessages(userLanguage, 'message');
     }
     const raw = ctx.text.replace(/^MESSAGE REQUEST CONFIRM\s*/i, '');
     const split = raw.indexOf('|');
@@ -549,9 +600,7 @@ const quoteAskHandler: CommandHandler = {
       ])];
     }
     if (!profile.odooVerified || !profile.odooPartnerId) {
-      return [botText(tr(userLanguage, 'ยืนยันตัวตนก่อนดูคำขอใบเสนอราคา', 'Verify your account before viewing quotation requests.'), userLanguage, [
-        { label: tr(userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
-      ])];
+      return customerBindMessages(userLanguage, 'message');
     }
     const posted = await getErpAdapter().postPartnerNote?.(
       profile.odooPartnerId,
@@ -591,12 +640,33 @@ const qtyProductUtteranceHandler: CommandHandler = {
           expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
         });
       }
-      return [botText(tr(ctx.userLanguage,
-        'ยืนยันตัวตนก่อนสร้างใบเสนอราคา',
-        'Verify your account before creating a quote.',
-      ), ctx.userLanguage, [
-        { label: tr(ctx.userLanguage, 'ยืนยันตัวตน', 'Verify'), text: 'FORM VERIFY', style: 'primary' },
-      ])];
+      const productToken = found ? `id:${found.id}` : parsed.productName;
+      const command = buildSelfQuoteCreateCommand(productToken, parsed.qty, {
+        customerName: (ctx.profile.displayName || '').trim(),
+        phone: (ctx.profile.phone || '').trim(),
+      });
+      if (!command) {
+        const { resolveCommandReply } = await import('../command-router');
+        return resolveCommandReply({
+          ...ctx,
+          text: found ? `FORM QUOTE CREATE FROM CARD ${found.id} ${parsed.qty}` : 'FORM QUOTE CREATE',
+        });
+      }
+      const phoneKey = guestPhoneKey(ctx.profile.phone || '');
+      if (!phoneKey) {
+        recordAuditEvent({ action: 'guest_quote_refused', outcome: 'failure', actorUserId: ctx.userId, channelId: ctx.channel?.channelId, detail: 'phone' });
+        return customerBindMessages(ctx.userLanguage, 'order');
+      }
+      const peek = await peekGuestQuoteSlot(ctx.userId, phoneKey);
+      if (!peek.ok) {
+        recordAuditEvent({ action: 'guest_quote_refused', outcome: 'failure', actorUserId: ctx.userId, channelId: ctx.channel?.channelId, detail: peek.reason });
+        if (peek.reason === 'capped') {
+          return customerBindMessages(ctx.userLanguage, 'order', `${tFill('guestQuoteCapped', ctx.userLanguage, { prefix: getAgentSpeakPrefix(ctx.userLanguage) })}\n`);
+        }
+        return customerBindMessages(ctx.userLanguage, 'order');
+      }
+      const { resolveCommandReply } = await import('../command-router');
+      return resolveCommandReply({ ...ctx, text: command });
     }
     const { resolveCommandReply } = await import('../command-router');
     return resolveCommandReply({ ...ctx, text: `QUOTE CREATE ${parsed.productName},${parsed.qty}` });

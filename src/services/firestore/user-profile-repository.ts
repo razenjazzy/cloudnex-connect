@@ -1,11 +1,21 @@
 import { FieldValue, type Firestore } from '@google-cloud/firestore';
 import { buildFallbackUserProfile, parseStoredUserProfile } from './user-profile';
 import type { LastProductContext, PendingFlowState, UserLanguage, UserProfile, UserRole } from './types';
+import {
+    GUEST_QUOTE_GLOBAL_DOC,
+    GUEST_QUOTE_HOUR_MS,
+    GUEST_QUOTE_WINDOW_MS,
+    appendGuestStampIsos,
+    guestQuoteWouldExceedCap,
+    recentGuestQuoteStamps,
+} from '../guest-quote-cap';
 
 type CachedUserState = {
     language?: UserLanguage;
     role?: UserRole;
     odooPartnerId?: number;
+    guestPartnerId?: number;
+    guestQuoteAt?: string[];
     odooVerified?: boolean;
     odooVerifiedAt?: string;
     displayName?: string;
@@ -39,6 +49,35 @@ type RepositoryDependencies = {
     write: (action: string, operation: (database: Firestore) => Promise<void>) => Promise<{ ok: boolean; error?: string; notConfigured?: boolean }>;
     defaultLanguage: UserLanguage;
     pendingFlowIsActive: (pendingFlow: PendingFlowState | undefined | null) => pendingFlow is PendingFlowState;
+};
+
+const stampStrings = (raw: unknown): string[] =>
+    Array.isArray(raw) ? raw.filter((value): value is string => typeof value === 'string') : [];
+
+const readGuestQuoteCapState = async (
+    dependencies: RepositoryDependencies,
+    userId: string,
+    phoneKey: string,
+    now: number,
+): Promise<
+    | { ok: true; userRecent: number[]; phoneAt: string[]; hourlyAt: string[] }
+    | { ok: false; reason: 'capped' | 'invalid' }
+> => {
+    if (!phoneKey) return { ok: false, reason: 'invalid' };
+    const cached = dependencies.getCached(userId);
+    const userRecent = recentGuestQuoteStamps(cached.guestQuoteAt || [], now);
+    const snap = await dependencies.read('readGuestQuoteCap', { at: [] as string[], hourlyAt: [] as string[] }, async database => {
+        const [phoneDoc, globalDoc] = await Promise.all([
+            database.collection('guestQuoteCaps').doc(phoneKey).get(),
+            database.collection('guestQuoteCaps').doc(GUEST_QUOTE_GLOBAL_DOC).get(),
+        ]);
+        return {
+            at: stampStrings(phoneDoc.data()?.at),
+            hourlyAt: stampStrings(globalDoc.data()?.hourlyAt),
+        };
+    });
+    if (guestQuoteWouldExceedCap(userRecent, snap.at, now, snap.hourlyAt)) return { ok: false, reason: 'capped' };
+    return { ok: true, userRecent, phoneAt: snap.at, hourlyAt: snap.hourlyAt };
 };
 
 export const createUserProfileRepository = (dependencies: RepositoryDependencies) => ({
@@ -334,5 +373,71 @@ export const createUserProfileRepository = (dependencies: RepositoryDependencies
         });
         if (!result.ok) dependencies.restorePrevious(userId, previous);
         return result;
+    },
+
+    setGuestPartner: async (userId: string, guestPartnerId: number) => {
+        const previous = dependencies.getPrevious(userId);
+        dependencies.mergeCached(userId, { guestPartnerId });
+        const result = await dependencies.write('setUserGuestPartner', async database => {
+            await database.collection('users').doc(userId).set({ guestPartnerId }, { merge: true });
+        });
+        if (!result.ok) dependencies.restorePrevious(userId, previous);
+        return result;
+    },
+
+    peekGuestQuoteSlot: async (userId: string, phoneKey: string, now = Date.now()): Promise<{ ok: true } | { ok: false; reason: 'capped' | 'invalid' }> => {
+        const state = await readGuestQuoteCapState(dependencies, userId, phoneKey, now);
+        if (!state.ok) return state;
+        return { ok: true };
+    },
+
+    consumeGuestQuoteSlot: async (userId: string, phoneKey: string, now = Date.now()): Promise<{ ok: true } | { ok: false; reason: 'capped' | 'invalid' | 'write' }> => {
+        const peek = await readGuestQuoteCapState(dependencies, userId, phoneKey, now);
+        if (!peek.ok) return peek;
+        const iso = new Date(now).toISOString();
+        const previous = dependencies.getPrevious(userId);
+        let nextUser = appendGuestStampIsos(peek.userRecent, now);
+        const result = await dependencies.write('consumeGuestQuoteSlot', async database => {
+            await database.runTransaction(async transaction => {
+                const userRef = database.collection('users').doc(userId);
+                const phoneRef = database.collection('guestQuoteCaps').doc(phoneKey);
+                const globalRef = database.collection('guestQuoteCaps').doc(GUEST_QUOTE_GLOBAL_DOC);
+                const [userSnap, phoneSnap, globalSnap] = await Promise.all([
+                    transaction.get(userRef),
+                    transaction.get(phoneRef),
+                    transaction.get(globalRef),
+                ]);
+                const userAt = stampStrings(userSnap.data()?.guestQuoteAt);
+                const phoneAt = stampStrings(phoneSnap.data()?.at);
+                const hourlyAt = stampStrings(globalSnap.data()?.hourlyAt);
+                if (guestQuoteWouldExceedCap(userAt, phoneAt, now, hourlyAt)) {
+                    throw new Error('guest_quote_capped');
+                }
+                const txUser = appendGuestStampIsos(userAt, now);
+                const txPhone = appendGuestStampIsos(phoneAt, now);
+                const txHourly = appendGuestStampIsos(hourlyAt, now, 'hour');
+                nextUser = txUser;
+                transaction.set(userRef, { guestQuoteAt: txUser }, { merge: true });
+                transaction.set(phoneRef, {
+                    at: txPhone,
+                    updatedAt: iso,
+                    expiresAt: new Date(now + GUEST_QUOTE_WINDOW_MS).toISOString(),
+                    windowMs: GUEST_QUOTE_WINDOW_MS,
+                }, { merge: true });
+                transaction.set(globalRef, {
+                    hourlyAt: txHourly,
+                    updatedAt: iso,
+                    expiresAt: new Date(now + GUEST_QUOTE_HOUR_MS).toISOString(),
+                    windowMs: GUEST_QUOTE_HOUR_MS,
+                }, { merge: true });
+            });
+        });
+        if (!result.ok) {
+            dependencies.restorePrevious(userId, previous);
+            if (result.error?.includes('guest_quote_capped')) return { ok: false, reason: 'capped' };
+            return { ok: false, reason: 'write' };
+        }
+        dependencies.mergeCached(userId, { guestQuoteAt: nextUser });
+        return { ok: true };
     },
 });

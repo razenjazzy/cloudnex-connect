@@ -1155,7 +1155,46 @@ export const getPartnerById = async (partnerId: number): Promise<OdooPartner | n
   return parsePartner(rows[0]);
 };
 
-export const createPartnerFromLine = async (name: string, phone: string, email?: string): Promise<OdooPartner | null> => {
+export type CreatePartnerFromLineOptions = {
+  forceNew?: boolean;
+  comment?: string;
+};
+
+export const LINE_GUEST_PARTNER_COMMENT = 'LINE guest, unverified';
+const GUEST_CREATE_RECONCILE_MS = 10 * 60 * 1000;
+
+export const isRecentGuestPartnerCreateDate = (value: unknown, now = Date.now()): boolean => {
+  if (typeof value !== 'string' || !value.trim()) return false;
+  const raw = value.trim();
+  const at = Date.parse(raw.includes('T') ? raw : `${raw.replace(' ', 'T')}Z`);
+  return Number.isFinite(at) && now - at >= 0 && now - at <= GUEST_CREATE_RECONCILE_MS;
+};
+
+const getRecentGuestPartnerByPhone = async (phone: string, now = Date.now()): Promise<OdooPartner | null> => {
+  const config = getConfig();
+  if (!config) return null;
+  const uid = await loginRead(config);
+  if (!uid) return null;
+  const variants = phoneMatchVariants(phone);
+  if (!variants.length) return null;
+  const phoneFields = await getPartnerPhoneFields(config, uid);
+  const fieldMatches = variants.flatMap(v => phoneFields.map(f => [f, '=', v]));
+  if (!fieldMatches.length) return null;
+  const phoneDomain = [...Array(fieldMatches.length - 1).fill('|'), ...fieldMatches];
+  const domain = ['&', ['comment', 'ilike', LINE_GUEST_PARTNER_COMMENT], ...phoneDomain];
+  const rows = await executeKwRead<Record<string, unknown>[]>(
+    config,
+    uid,
+    'res.partner',
+    'search_read',
+    [domain],
+    { fields: [...await partnerReadFields(config, uid), 'create_date', 'comment'], limit: 5, order: 'id desc' },
+  );
+  const row = rows.find(item => isRecentGuestPartnerCreateDate(item.create_date, now));
+  return row ? parsePartner(row) : null;
+};
+
+export const createPartnerFromLine = async (name: string, phone: string, email?: string, options?: CreatePartnerFromLineOptions): Promise<OdooPartner | null> => {
   const config = getConfig();
   if (!config) return null;
 
@@ -1168,7 +1207,7 @@ export const createPartnerFromLine = async (name: string, phone: string, email?:
       uid,
       'res.partner',
       'create',
-      [{ name, phone, ...(email ? { email } : {}) }]
+      [{ name, phone, ...(email ? { email } : {}), ...(options?.comment ? { comment: options.comment } : {}) }]
     );
 
     const rows = await executeKw<Record<string, unknown>[]>(
@@ -1186,10 +1225,13 @@ export const createPartnerFromLine = async (name: string, phone: string, email?:
     console.error('createPartnerFromLine failed:', error);
     // Never blindly retry a create (risks a duplicate partner). Instead,
     // reconcile: check whether it actually landed despite the client-side
-    // error before reporting failure.
+    // error before reporting failure. Guests must not attach to an existing
+    // customer by phone — only a just-created LINE guest contact.
     if (isTransientOdooError(error)) {
       try {
-        const reconciled = await getPartnerByPhone(phone);
+        const reconciled = options?.forceNew
+          ? await getRecentGuestPartnerByPhone(phone)
+          : await getPartnerByPhone(phone);
         if (reconciled) return reconciled;
       } catch (reconcileError) {
         console.error('createPartnerFromLine reconciliation check failed:', reconcileError);

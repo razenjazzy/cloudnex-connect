@@ -1650,15 +1650,18 @@ export const App = () => {
             </div>
             <div className="table-wrap">
             <table>
-              <thead><tr><th>LINE</th><th>OA</th><th>Lang</th><th>Verified</th><th>Odoo partner</th><th>Role</th><th>Promo</th><th></th></tr></thead>
+              <thead><tr><th>LINE</th><th>Phone</th><th>OA</th><th>Lang</th><th>Verified</th><th>Odoo partner</th><th>Guest partner</th><th>Guest drafts</th><th>Role</th><th>Promo</th><th></th></tr></thead>
               <tbody>
                 {users.map((u, i) => (
                   <tr key={String(u.userId || i)}>
                     <td>{String(u.userId || '')}</td>
+                    <td>{String(u.phone || '—')}</td>
                     <td>{String(u.lastChannelId || '—')}</td>
                     <td>{String(u.language || '')}</td>
                     <td>{String(u.odooVerified)}</td>
                     <td>{String(u.odooPartnerId || '—')}</td>
+                    <td>{u.guestPartnerId != null ? String(u.guestPartnerId) : '—'}</td>
+                    <td>{String(u.guestDraftsToday ?? '—')}</td>
                     <td>{String(u.commandRole || u.role || '')}</td>
                     <td>{String(u.marketingOptIn)}</td>
                     <td>
@@ -2375,15 +2378,18 @@ export const App = () => {
             </div>
             <div className="table-wrap">
             <table>
-              <thead><tr><th>LINE</th><th>OA</th><th>Lang</th><th>Verified</th><th>Odoo partner</th><th>Role</th><th>Promo</th><th></th></tr></thead>
+              <thead><tr><th>LINE</th><th>Phone</th><th>OA</th><th>Lang</th><th>Verified</th><th>Odoo partner</th><th>Guest partner</th><th>Guest drafts</th><th>Role</th><th>Promo</th><th></th></tr></thead>
               <tbody>
                 {users.map((u, i) => (
                   <tr key={String(u.userId || i)}>
                     <td>{String(u.userId || '')}</td>
+                    <td>{String(u.phone || '—')}</td>
                     <td>{String(u.lastChannelId || '—')}</td>
                     <td>{String(u.language || '')}</td>
                     <td>{String(u.odooVerified)}</td>
                     <td>{String(u.odooPartnerId || '—')}</td>
+                    <td>{u.guestPartnerId != null ? String(u.guestPartnerId) : '—'}</td>
+                    <td>{String(u.guestDraftsToday ?? '—')}</td>
                     <td>{String(u.commandRole || u.role || '')}</td>
                     <td>{String(u.marketingOptIn)}</td>
                     <td>

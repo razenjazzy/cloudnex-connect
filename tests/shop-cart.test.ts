@@ -23,7 +23,7 @@ describe('shop cart Flex', () => {
     name: 'S0009',
     state: 'draft',
     amount_total: 1090,
-    partner_id: [1, 'Somchai'] as [number, string],
+    partner_id: [1, 'Razen'] as [number, string],
     note: '<p>Terms &amp; Conditions</p><p>See <a href="https://example.com/terms">the policy</a>.</p>',
     lines: [
       { productId: 2, productName: 'DualForth', qty: 10, priceUnit: 99, subtotal: 990 },

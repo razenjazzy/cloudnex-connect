@@ -18,6 +18,7 @@ import {
   setUserPendingFlow,
   setUserRole,
 } from '../services/firestore';
+import { recentGuestQuoteStamps } from '../services/guest-quote-cap';
 import { getOpsBearerOrHeaderToken, isOpsTokenConfigured, isValidOpsToken } from '../services/ops-token-auth';
 import { isValidAdminToken } from '../services/admin-token-auth';
 import { jsonParser, formParser, adminApiLimiter, adminRevealLimiter } from './middleware';
@@ -153,6 +154,8 @@ const redactProfile = (userId: string, profile: Awaited<ReturnType<typeof getUse
   role: profile.role,
   odooVerified: profile.odooVerified,
   odooPartnerId: profile.odooPartnerId,
+  guestPartnerId: profile.guestPartnerId,
+  guestDraftsToday: recentGuestQuoteStamps(profile.guestQuoteAt || []).length,
   phone: profile.phone,
   displayName: profile.displayName,
   salesTier: profile.salesTier,

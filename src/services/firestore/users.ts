@@ -14,6 +14,7 @@ export {
   setMarketingOptIn,
   setUserLanguage,
   setUserOdooPartner,
+  setUserGuestPartner,
   setUserOdooVerificationStatus,
   setSalesSessionExpiresAt,
   setSalesLastActiveAt,

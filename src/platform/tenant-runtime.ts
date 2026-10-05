@@ -1,4 +1,12 @@
 import { resolveChannelConfig } from '../line/channels';
+import {
+  FALLBACK_CUSTOMER_EMAIL,
+  FALLBACK_CUSTOMER_EMAIL_TH,
+  FALLBACK_CUSTOMER_NAME,
+  FALLBACK_CUSTOMER_NAME_TH,
+  FALLBACK_CUSTOMER_PHONE,
+  FALLBACK_CUSTOMER_PHONE_TH,
+} from '../line/default-contact';
 import { getOdooConfig } from '../services/odoo/client';
 import { getRuntime, isAdminConfigLocked } from '../services/runtime-settings';
 import { getActiveTenantKey } from '../services/tenant';
@@ -43,6 +51,13 @@ export const describeTenantRuntime = async () => {
       disabledCommands: getRuntime('DISABLED_COMMANDS') || null,
       agentEn: getRuntime('LINE_AGENT_NAME_EN') || 'Sora',
       agentTh: getRuntime('LINE_AGENT_NAME_TH') || 'โซระ',
+      defaultCustomerName: getRuntime('LINE_DEFAULT_CUSTOMER_NAME') || FALLBACK_CUSTOMER_NAME,
+      defaultCustomerPhone: getRuntime('LINE_DEFAULT_CUSTOMER_PHONE') || FALLBACK_CUSTOMER_PHONE,
+      defaultCustomerEmail: getRuntime('LINE_DEFAULT_CUSTOMER_EMAIL') || FALLBACK_CUSTOMER_EMAIL,
+      defaultCustomerNameTh: getRuntime('LINE_DEFAULT_CUSTOMER_NAME_TH') || FALLBACK_CUSTOMER_NAME_TH,
+      defaultCustomerPhoneTh: getRuntime('LINE_DEFAULT_CUSTOMER_PHONE_TH') || FALLBACK_CUSTOMER_PHONE_TH,
+      defaultCustomerEmailTh: getRuntime('LINE_DEFAULT_CUSTOMER_EMAIL_TH') || FALLBACK_CUSTOMER_EMAIL_TH,
+      defaultGuestName: getRuntime('LINE_DEFAULT_GUEST_NAME') || FALLBACK_CUSTOMER_NAME,
     },
     customerCommerce: {
       requested: customerCommerce.requested,

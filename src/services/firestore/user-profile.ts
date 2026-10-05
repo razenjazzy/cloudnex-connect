@@ -4,6 +4,8 @@ type CachedProfileState = {
     language?: UserLanguage;
     role?: UserRole;
     odooPartnerId?: number;
+    guestPartnerId?: number;
+    guestQuoteAt?: string[];
     odooVerified?: boolean;
     odooVerifiedAt?: string;
     displayName?: string;
@@ -37,6 +39,8 @@ export const buildFallbackUserProfile = (
     language: cached.language || defaultLanguage,
     role: cached.role || 'user',
     odooPartnerId: cached.odooPartnerId,
+    guestPartnerId: cached.guestPartnerId,
+    guestQuoteAt: cached.guestQuoteAt,
     odooVerified: cached.odooVerified || false,
     odooVerifiedAt: cached.odooVerifiedAt,
     displayName: cached.displayName,
@@ -98,6 +102,10 @@ export const parseStoredUserProfile = (
         language: data.language === 'th' ? 'th' : 'en',
         role: data.role === 'admin' ? 'admin' : 'user',
         odooPartnerId: typeof data.odooPartnerId === 'number' ? data.odooPartnerId : undefined,
+        guestPartnerId: typeof data.guestPartnerId === 'number' ? data.guestPartnerId : undefined,
+        guestQuoteAt: Array.isArray(data.guestQuoteAt)
+          ? data.guestQuoteAt.filter((value): value is string => typeof value === 'string')
+          : undefined,
         odooVerified: data.odooVerified === true,
         odooVerifiedAt: typeof data.odooVerifiedAt === 'string' ? data.odooVerifiedAt : undefined,
         displayName: typeof data.displayName === 'string' ? data.displayName : undefined,

@@ -1,7 +1,7 @@
 import { getRuntime } from '../services/runtime-settings';
 import { createServiceCatalogItem, deleteServiceCatalogItem, findProductsByQuery, getProductById, getServiceByIdentifier, listProducts, listServiceCatalogItems, updateServiceCatalogItem } from '../services/odoo/catalog';
 import { addSaleOrderLine, addToShopCart as addToShopCartOrder, applyShopCoupon, cancelSaleOrder, confirmSaleOrder, createInvoiceForSaleOrder, createQuotationFromLine, findLatestShopOrder, findOpenShopCart, findOrderByReference, findPaymentTermByName, getSaleOrderById, getSaleOrderPdfLink, getSaleOrderPortalLink, getShopWebLinks, removeSaleOrderLine, sendQuotationEmail, updateSaleOrderLineQty } from '../services/odoo/sales';
-import { createPartnerFromLine, deletePartnerFromLine, getPartnerByName, getPartnerByPhone, updatePartnerFromLine } from '../services/odoo/partners';
+import { createPartnerFromLine, deletePartnerFromLine, getPartnerByName, getPartnerByPhone, LINE_GUEST_PARTNER_COMMENT, updatePartnerFromLine } from '../services/odoo/partners';
 import { getDailySalesSnapshot } from '../services/odoo/reporting';
 import { getOutgoingPickingForOrder } from '../services/odoo/delivery';
 import { postPartnerNote, listPartnerNotes, listCrmQuotations, assignSaleOrderSalesperson } from '../services/odoo';
@@ -222,8 +222,10 @@ export const odooAdapter: ErpAdapter = {
       email: partner.email,
     } : null;
   },
-  async createCustomer(name: string, phone: string, email?: string): Promise<ErpPartner | null> {
-    const partner = await createPartnerFromLine(name, phone, email);
+  async createCustomer(name: string, phone: string, email?: string, options?: { forceNew?: boolean }): Promise<ErpPartner | null> {
+    const partner = await createPartnerFromLine(name, phone, email, options?.forceNew
+      ? { forceNew: true, comment: LINE_GUEST_PARTNER_COMMENT }
+      : undefined);
     return partner ? { id: partner.id, name: partner.name, phone: partner.phone, email: partner.email } : null;
   },
   async updateCustomer(id: number, update: ErpCustomerUpdate): Promise<ErpPartner | null> {

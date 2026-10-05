@@ -16,7 +16,7 @@ describe('staff required resume Flex', () => {
         { index: 0, label: 'Product name?', value: 'Care' },
         { index: 1, label: 'Quantity?', value: '1' },
         { index: 2, label: "Customer's name?" },
-        { index: 3, label: "Customer's phone?", value: '0812345678' },
+        { index: 3, label: "Customer's phone?", value: '+8801787671962' },
       ],
     });
     const json = JSON.stringify(message);
@@ -91,8 +91,8 @@ describe('source contracts', () => {
 
 describe('customer identity strip', () => {
   it('renders verified name and phone', () => {
-    const json = JSON.stringify(createIdentityStripFlexMessage({ name: 'Somchai', phone: '0812345678' }, 'en'));
-    expect(json).toContain('Somchai');
-    expect(json).toContain('0812345678');
+    const json = JSON.stringify(createIdentityStripFlexMessage({ name: 'Razen', phone: '+8801787671962' }, 'en'));
+    expect(json).toContain('Razen');
+    expect(json).toContain('+8801787671962');
   });
 });

@@ -485,6 +485,13 @@ export const setUserOdooPartner = async (userId: string, partnerId: number, disp
     if (!guard.ok) return guard;
     return mirrorMongoIdentity(userId, await userProfileRepository.setOdooPartner(userId, partnerId, displayName, phone));
 };
+export const setUserGuestPartner = async (userId: string, guestPartnerId: number) => {
+    const guard = mongoWriteGuard();
+    if (!guard.ok) return guard;
+    return mirrorMongoIdentity(userId, await userProfileRepository.setGuestPartner(userId, guestPartnerId));
+};
+export const consumeGuestQuoteSlot = userProfileRepository.consumeGuestQuoteSlot;
+export const peekGuestQuoteSlot = userProfileRepository.peekGuestQuoteSlot;
 export const setUserContactPhone = userProfileRepository.setContactPhone;
 export const setUserDisplayName = userProfileRepository.setDisplayName;
 

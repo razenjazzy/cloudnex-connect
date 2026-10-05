@@ -16,7 +16,8 @@ import { getPartnerById, getPartnerByPhone } from './odoo/partners';
 import { getRuntime } from './runtime-settings';
 import { publicSiteUrl } from '../http/public-bases';
 import { findOdooSalesTierByPartnerId } from './odoo/admin';
-import { DEFAULT_CHANNEL_ID, CUSTOMER_CHANNEL_ID, getAgentName, resolveChannelConfig } from '../line/channels';
+import { DEFAULT_CHANNEL_ID, CUSTOMER_CHANNEL_ID, getAgentName, getAgentSpeakPrefix, resolveChannelConfig } from '../line/channels';
+import { tFill } from './i18n';
 import { sendTargetedMessage, sendTargetedFlexMessage } from '../line/messaging';
 import { createBotTextFlexMessage, createIdentityStripFlexMessage, createSalesAccountFlexMessage } from '../line/templates';
 import { appLogger } from './logger';
@@ -131,6 +132,9 @@ export type StartVerificationResult = {
   /** Customer OA: this phone is not an Odoo contact yet — collect name/phone. */
   needsRegister?: boolean;
   reused?: boolean;
+  /** Sales OA: no Odoo Sales User has this phone (customer copy would mislead). */
+  salesMiss?: boolean;
+  phone?: string;
 };
 
 export const startOdooUserVerification = async (input: StartVerificationInput): Promise<StartVerificationResult> => {
@@ -164,19 +168,13 @@ export const startOdooUserVerification = async (input: StartVerificationInput): 
     if (input.channelId === CUSTOMER_CHANNEL_ID) {
       return {
         needsRegister: true,
-        message: tr(
-          input.language,
-          `${input.agentName} ไม่พบบุคคลนี้ใน Odoo กรอกชื่อและเบอร์เพื่อสมัครลูกค้าใหม่ หรือให้ฝ่ายขายเพิ่มผู้ติดต่อก่อน`,
-          `${input.agentName} no Odoo contact matches ${phone}. Register as a new customer, or ask sales to add your contact first.`,
-        ),
+        message: tFill('customerNoContact', input.language, { prefix: getAgentSpeakPrefix(input.language), phone }),
       };
     }
     return {
-      message: tr(
-        input.language,
-        `${input.agentName} ไม่พบเบอร์ ${phone} ในผู้ติดต่อ Odoo ที่พนักงานขายบันทึกไว้`,
-        `${input.agentName} no Odoo contact matches phone ${phone}. Use the customer number the salesperson set in Odoo.`,
-      ),
+      salesMiss: true,
+      phone,
+      message: tFill('salesPhoneNotInOdoo', input.language, { prefix: getAgentSpeakPrefix(input.language), phone }),
     };
   }
 

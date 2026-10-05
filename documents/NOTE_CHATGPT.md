@@ -240,16 +240,16 @@ Bot asks:
 "Customer's name?"
 
 User types:
-"Somchai"
+"Razen"
 
 Bot asks:
 "Customer's phone?"
 
 User types:
-"0812345678"
+"+8801787671962"
 
 Bot submits:
-DEMO QUOTE App Premium Plan,1,Somchai,0812345678
+DEMO QUOTE App Premium Plan,1,Razen,+8801787671962
 
 Bot replies with:
 Order summary Flex Message
