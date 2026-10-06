@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BindSteps, CopyField, FaqRunbook } from './ui';
+import { BindFaq, CopyField, FaqRunbook } from './ui';
 import { t, type UiLang } from './i18n';
 
 type FormSpec = {
@@ -61,27 +61,33 @@ export const CommandWork = ({ adminBase, api, actor, uiLang, onIdentity, toast }
       <h2>{t(uiLang, 'navWork')}</h2>
       <p className="page-lead">{t(uiLang, 'commandWorkLead')}</p>
       {!actor ? (
-        <FaqRunbook
-          title="How to bind"
-          warn={t(uiLang, 'bindFirst')}
-        >
-          <BindSteps adminBase={adminBase} onIdentity={onIdentity} />
-        </FaqRunbook>
+        <BindFaq adminBase={adminBase} onIdentity={onIdentity} />
       ) : null}
-      <div className="row">
-        <select value={picked} onChange={e => {
-          const next = e.target.value;
-          setPicked(next);
-          setValues({});
-          setCommandText(next || 'NAV HOME');
-        }}>
-          <option value="">{t(uiLang, 'pickForm')}</option>
-          {forms.map(form => (
-            <option key={form.key} value={form.startCommand}>
-              {uiLang === 'th' ? form.labelTh : form.labelEn} — {form.startCommand}
-            </option>
-          ))}
-        </select>
+      <FaqRunbook
+        title="How this page works"
+        warn="Preview does not write Odoo. Confirm runs the same resolveCommandReply path as LINE."
+        items={[
+          <>Pick a FORM, fill fields, then Preview. Bind is required for Confirm.</>,
+          <>Canonical command text is what LINE buttons send, not overlay labels.</>,
+        ]}
+      />
+      <div className="field-row">
+        <div className="field">
+          <label>{t(uiLang, 'pickForm')}</label>
+          <select value={picked} onChange={e => {
+            const next = e.target.value;
+            setPicked(next);
+            setValues({});
+            setCommandText(next || 'NAV HOME');
+          }}>
+            <option value="">{t(uiLang, 'pickForm')}</option>
+            {forms.map(form => (
+              <option key={form.key} value={form.startCommand}>
+                {uiLang === 'th' ? form.labelTh : form.labelEn} — {form.startCommand}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
       {spec ? spec.fields.map(field => (
         <div className="field" key={field.key}>
@@ -98,7 +104,7 @@ export const CommandWork = ({ adminBase, api, actor, uiLang, onIdentity, toast }
         <label>{t(uiLang, 'commandText')}</label>
         <input value={commandText} onChange={e => setCommandText(e.target.value)} />
       </div>
-      <div className="row">
+      <div className="actions">
         <button type="button" disabled={!actor} onClick={() => void run(true)}>{t(uiLang, 'preview')}</button>
         <button type="button" disabled={!actor} onClick={() => void run(false)}>{t(uiLang, 'confirm')}</button>
       </div>

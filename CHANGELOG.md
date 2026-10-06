@@ -1,5 +1,9 @@
 # Changelog
 
+## v15.0.5 — Odoo LINE OA v12 (2026-10-06)
+
+- Admin: closed FAQ runbooks on every page; compact action rows; desktop inline nav (drawer under 900px); centered login.
+
 ## v15.0.4 — Odoo LINE OA v12 (2026-10-06)
 
 - Journey book stills are all studio Flex from live builders (`npm run journey:stills`), including Verify, Products & Quotes, quote chips/optional/draft/sent, approve, Sales Order, and invoice. Composer quick-reply chips render under the card.

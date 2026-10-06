@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 
-import { CopyField, FaqRunbook } from './ui';
+import { CopyField, FaqItem, FaqRunbook } from './ui';
 
 type ApiFn = (path: string, init?: RequestInit) => Promise<Response>;
 
@@ -147,8 +147,13 @@ export const DemoPanel = ({ adminBase, api, go }: { adminBase: string; api: ApiF
         <p>
           Catalogue and talk track for Admin testing. Live LINE/Odoo data is on Work pages (Products, Catalog, CRM, Group-buy, Approvals, Reporting). Chat, journey, and pricing save stay off in production.
         </p>
-        {!writesEnabled ? <p className="warn">This host is production: read-only inventory. Use staging Admin (<code>/admin/test</code>) or local development for web chat and journey writes.</p> : null}
-        <nav className="demo-jump">
+        {!writesEnabled ? (
+          <FaqRunbook
+            title="Writes on this host"
+            warn="This host is production: read-only inventory. Use staging Admin (/admin/test) or local development for web chat and journey writes."
+          />
+        ) : null}
+        <div className="actions demo-jump">
           {([
             ['demo-modules', 'Modules'],
             ['demo-ops', 'Ops'],
@@ -158,24 +163,23 @@ export const DemoPanel = ({ adminBase, api, go }: { adminBase: string; api: ApiF
           ] as const).map(([id, label]) => (
             <button key={id} type="button" className="secondary" onClick={() => jump(id)}>{label}</button>
           ))}
-        </nav>
+        </div>
       </div>
       <div className="card" id="demo-modules">
         <h2>Service modules (catalogue)</h2>
-        <p>{stores}</p>
-        <div className="module-grid">
+        <p className="page-lead">{stores}</p>
+        <div className="faq-list">
           {modules.map(mod => (
-            <div className="module-card" key={mod.id || mod.name}>
-              <h3>{mod.name} ({mod.status})</h3>
+            <FaqItem key={mod.id || mod.name} title={`${mod.name} (${mod.status})`}>
               <p>{mod.audience} · store: {mod.store}</p>
               <p>{mod.demoTalkTrack}</p>
-              <code>{(mod.commands || []).slice(0, 4).join(' · ')}</code>
+              {(mod.commands || []).length ? <p><code>{(mod.commands || []).slice(0, 4).join(' · ')}</code></p> : null}
               {mod.adminLeaf ? (
-                <div className="row">
+                <div className="actions">
                   <button type="button" onClick={() => go(`${adminBase}/${mod.adminLeaf}`)}>Open live page</button>
                 </div>
               ) : null}
-            </div>
+            </FaqItem>
           ))}
         </div>
         <CopyField label="Demo talk track" value={script || 'Talk track loads with the module map.'} />
@@ -183,7 +187,7 @@ export const DemoPanel = ({ adminBase, api, go }: { adminBase: string; api: ApiF
       <div className="overview-grid">
         <div className="card" id="demo-ops">
           <h2>Operations</h2>
-          <div className="row">
+          <div className="actions">
             <button type="button" onClick={async () => {
               try { note('connections', await loadJson(`${demoApi}/connections`)); }
               catch (error) { note('connections', String(error)); }
@@ -233,7 +237,7 @@ export const DemoPanel = ({ adminBase, api, go }: { adminBase: string; api: ApiF
       </div>
       <div className="card" id="demo-pricing">
         <h2>Pricing</h2>
-        <div className="row">
+        <div className="actions">
           <button type="button" onClick={async () => {
             try {
               const data = await loadJson(`${demoApi}/pricing-model`) as { model?: Record<string, number> };
@@ -276,7 +280,7 @@ export const DemoPanel = ({ adminBase, api, go }: { adminBase: string; api: ApiF
             </div>
           ))}
         </div>
-        <div className="row">
+        <div className="actions">
           <button type="button" disabled={!writesEnabled} onClick={async () => {
             const res = await api(`${demoApi}/journey`, { method: 'POST', body: JSON.stringify({ ...journey, qty: Number(journey.qty), seedOdoo: true }) });
             note('journey', await res.json());

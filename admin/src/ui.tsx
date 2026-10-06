@@ -147,6 +147,9 @@ export const FaqRunbook = ({
 );
 
 /** Shared actor bind runbook — Home, Identity, Campaigns, Settings, CRM. */
+export const ACTOR_UNBOUND_WARN =
+  'Actor unbound. Bind a super-admin LINE id before Campaigns, secret reveal, or CRM command run.';
+
 export const BindSteps = ({
   adminBase,
   onIdentity,
@@ -172,6 +175,20 @@ export const BindSteps = ({
     <>Send code. OTP arrives on Cloudnex Sales. Confirm. The actor cookie is now bound (header pill says bound).</>,
     <>LINE Login is optional (Identity IdP). Campaigns, secret reveal, CRM command run, and privilege grant need the bind. Jobs Run uses OPS sign-in plus <code>ADMIN_SECRET_TOKEN</code> and does not need actor.</>,
   ]} />
+);
+
+export const BindFaq = ({
+  adminBase,
+  onIdentity,
+  warn = ACTOR_UNBOUND_WARN,
+}: {
+  adminBase: string;
+  onIdentity?: () => void;
+  warn?: ReactNode;
+}) => (
+  <FaqRunbook title="How to bind" warn={warn}>
+    <BindSteps adminBase={adminBase} onIdentity={onIdentity} />
+  </FaqRunbook>
 );
 
 export type ToastItem = { id: number; kind: 'error' | 'ok'; text: string };

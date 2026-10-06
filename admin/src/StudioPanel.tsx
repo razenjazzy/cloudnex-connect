@@ -1,5 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 
+import { FaqRunbook } from './ui';
+
 type StudioStatus = {
   ollama?: { configured?: boolean; model?: string };
   flowise?: { configured?: boolean };
@@ -43,10 +45,15 @@ export const StudioPanel = ({ adminBase, api }: { adminBase: string; api: ApiFn 
   return (
     <>
       <h3>Open source studio (Ollama + Flowise)</h3>
-      <p className="page-lead">
-        Operator prompt window. This is not LINE and not Cursor. Requests stay on this host and only call URLs from VPS env
-        (<code>OLLAMA_BASE_URL</code>, <code>FLOWISE_BASE_URL</code>). LINE commands still go through <code>resolveCommandReply</code>.
-      </p>
+      <p className="page-lead">Operator prompt window. Requests stay on this host.</p>
+      <FaqRunbook
+        title="How studio works"
+        warn="This is not LINE and not Cursor. LINE commands still go through resolveCommandReply."
+        items={[
+          <>Only URLs from VPS env (OLLAMA_BASE_URL, FLOWISE_BASE_URL) are called.</>,
+          <>Do not paste secrets. Send is disabled until the selected engine is configured.</>,
+        ]}
+      />
       <div className="status-grid">
         <div className={`status-cell ${ollamaOn ? 'on' : 'off'}`}>
           <span className="status-dot" aria-hidden="true" />

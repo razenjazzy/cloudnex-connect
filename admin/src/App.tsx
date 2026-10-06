@@ -6,7 +6,7 @@ import { StudioPanel } from './StudioPanel';
 import { DemoPanel } from './DemoPanel';
 import { HelpFaq } from './HelpFaq';
 import { CommandWork } from './CommandWork';
-import { CopyField, FaqItem, BindSteps, FaqRunbook, ToastStack, type ToastItem } from './ui';
+import { CopyField, FaqItem, BindFaq, FaqRunbook, ToastStack, type ToastItem } from './ui';
 import { readUiLang, t, writeUiLang, applyPortalI18nOverlay, portalStringRows, type UiKey, type UiLang } from './i18n';
 
 const TOKEN_KEY = 'cloudnex_ops_token';
@@ -1047,10 +1047,6 @@ export const App = () => {
           <span className="brand-name">Cloudnex Connect</span>
         </a>
         <div className="header-end">
-          <div className="header-meta">
-            <span className="pill">{String(settings?.appEnv || appEnv)}</span>
-            {actor ? <span className="pill">{actor}</span> : <span className="pill">not bound</span>}
-          </div>
           <button className="nav-hamburger" type="button" aria-label="Open menu" aria-expanded={navOpen} onClick={() => setNavOpen(open => !open)}>
             <span className="nav-hamburger-icon" aria-hidden="true"><span /><span /><span /></span>
           </button>
@@ -1093,6 +1089,10 @@ export const App = () => {
               );
             })}
           </nav>
+          <div className="header-meta">
+            <span className="pill">{String(settings?.appEnv || appEnv)}</span>
+            {actor ? <span className="pill">{actor}</span> : <span className="pill">not bound</span>}
+          </div>
           <button className="secondary header-signout" type="button" onClick={async () => {
             await api(`${ADMIN_BASE}/api/session/logout`, { method: 'POST' });
             sessionStorage.removeItem(TOKEN_KEY);
@@ -1103,11 +1103,6 @@ export const App = () => {
       <ToastStack items={toasts} onDismiss={id => setToasts(list => list.filter(item => item.id !== id))} />
       <main>
         {error ? <p className="error">{error}</p> : null}
-        {(page === 'campaigns' || page === 'settings') && !actor ? (
-          <p className="warn">
-            Campaigns and secret reveal need a bound super-admin cookie. Open <a href={`${ADMIN_BASE}/identity`} onClick={e => { e.preventDefault(); go(`${ADMIN_BASE}/identity`); }}>Identity → Bind</a>, set the VPS allowlists, then OTP from Cloudnex Sales. LINE Login is optional.
-          </p>
-        ) : null}
         {page === 'home' ? (() => {
           const probes = dash?.flags || {};
           const traffic = dash?.traffic;
@@ -1138,15 +1133,9 @@ export const App = () => {
                 ))}
               </div>
               {!dash?.actorBound ? (
-                <>
-                  <p className="warn">Actor unbound. Bind a super-admin LINE id before Campaigns, secret reveal, or CRM command run.</p>
-                  <BindSteps adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} />
-                  <div className="row">
-                    <button type="button" onClick={() => go(`${ADMIN_BASE}/identity`)}>Open Identity → Bind</button>
-                  </div>
-                </>
+                <BindFaq adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} />
               ) : null}
-              <div className="row">
+              <div className="actions">
                 <button type="button" onClick={() => go(`${ADMIN_BASE}/commerce`)}>Products</button>
                 <button type="button" className="secondary" onClick={() => go(`${ADMIN_BASE}/catalog`)}>Service catalog</button>
                 <button type="button" className="secondary" onClick={() => go(`${ADMIN_BASE}/crm`)}>Quotes</button>
@@ -1154,9 +1143,7 @@ export const App = () => {
                 <button type="button" className="secondary" onClick={() => go(`${ADMIN_BASE}/approvals`)}>Approvals</button>
                 <button type="button" className="secondary" onClick={() => go(`${ADMIN_BASE}/ops`)}>Ops</button>
                 <button type="button" className="secondary" onClick={() => go(`${ADMIN_BASE}/tenants`)}>Tenants</button>
-              </div>
-              <div className="row">
-                <button type="button" onClick={async () => {
+                <button type="button" className="secondary" onClick={async () => {
                   await loadOverviewProbes();
                   await loadSettings();
                   const plat = await api(`${ADMIN_BASE}/api/platform`);
@@ -1260,13 +1247,7 @@ export const App = () => {
             </div>
             {actor ? <CopyField label="Bound LINE user id" value={actor} /> : null}
             {!actor ? (
-              <FaqRunbook
-                title="How to bind"
-                defaultOpen
-                warn="OPS login is not the actor cookie. Campaigns, secret reveal, and CRM command run stay off until bind succeeds."
-              >
-                <BindSteps adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} />
-              </FaqRunbook>
+              <BindFaq adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} />
             ) : null}
             <FaqItem title="Browser console startTime error">
               <p className="muted"><code>Cannot read properties of undefined (reading 'startTime')</code> is not this Admin app (usually an extension or Cursor overlay). Ignore it if Send code / Confirm return a normal toast.</p>
@@ -1278,14 +1259,16 @@ export const App = () => {
             <h2>Settings</h2>
             <p className="page-lead">Public values are editable when ADMIN_CONFIG_LOCK is false. Secrets stay masked until Reveal. Service toggles cannot enable a key omitted from env.</p>
             {!actor ? (
-              <FaqRunbook
-                title="How to bind"
-                warn="Secret reveal needs a bound super-admin cookie."
-              >
-                <BindSteps adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} />
-              </FaqRunbook>
+              <BindFaq adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} />
             ) : null}
-            <p className="muted">Lock: {String(settingsLock)}. If lock is true, set VPS <code>ADMIN_CONFIG_LOCK=false</code> and recreate the container.</p>
+            {settingsLock ? (
+              <FaqRunbook
+                title="Config lock"
+                warn="ADMIN_CONFIG_LOCK is on. Set VPS ADMIN_CONFIG_LOCK=false and recreate the container to edit overlay."
+              />
+            ) : (
+              <p className="muted">Lock: false. Overlay saves write to this process.</p>
+            )}
             <div className="actions">
               <button type="button" className="secondary" onClick={() => void loadSettings({ replaceDrafts: true })}>Refresh</button>
               <button type="button" onClick={async () => {
@@ -1300,7 +1283,7 @@ export const App = () => {
                 await loadSettings({ replaceDrafts: true });
               }}>Save settings</button>
             </div>
-            <FaqItem title="Environment values" defaultOpen>
+            <FaqItem title="Environment values">
             <div className="table-wrap">
             <table>
               <thead><tr><th>Key</th><th>Value</th><th></th></tr></thead>
@@ -1330,7 +1313,7 @@ export const App = () => {
             </div>
             </FaqItem>
             <FaqItem title="Webhooks">
-              <CopyField label="Webhook URLs" value={JSON.stringify(webhooks, null, 2)} defaultOpen />
+              <CopyField label="Webhook URLs" value={JSON.stringify(webhooks, null, 2)} />
             </FaqItem>
             <FaqItem title="Unmask log">
             {!actor ? <p className="muted">Super-admin bind required. Secret reveal audit stays closed until Identity → Bind.</p> : null}
@@ -1405,7 +1388,15 @@ export const App = () => {
           <div className="card">
             <h2>{t(uiLang, 'uiLanguage')}</h2>
             <p className="page-lead">Same keys for EN and TH. API/LINE strings are src/services/i18n.ts (`t(key)`). Portal strings are Admin chrome (`t(lang, key)`). Save writes overlay; code defaults remain until you override a cell.</p>
-            <div className="field-row">
+            <FaqRunbook
+              title="How translations work"
+              warn="Save writes overlay. Code defaults remain until you override a cell. Buttons still submit canonical command prefixes, not overlay labels."
+              items={[
+                <>Edit EN/TH cells. Reload strings to discard unsaved edits.</>,
+                <>Save translations to persist overlay for this TENANT_KEY.</>,
+              ]}
+            />
+            <div className="actions">
               <button type="button" className={uiLang === 'en' ? '' : 'secondary'} onClick={() => { writeUiLang('en'); setUiLang('en'); }}>English</button>
               <button type="button" className={uiLang === 'th' ? '' : 'secondary'} onClick={() => { writeUiLang('th'); setUiLang('th'); }}>ไทย</button>
               <button type="button" onClick={() => void loadI18nCatalog()}>Reload strings</button>
@@ -1496,8 +1487,16 @@ export const App = () => {
         {page === 'commands' ? (
           <div className="card">
             <h2>Command labels</h2>
-            <p>{t(uiLang, 'cmdLead')}</p>
-            <div className="field-row">
+            <p className="page-lead">{t(uiLang, 'cmdLead')}</p>
+            <FaqRunbook
+              title="How labels work"
+              warn="Prefix stays canonical. Overlay only changes EN/TH labels and enablement. Buttons still submit the prefix."
+              items={[
+                <>Reload commands, edit labels, then Save.</>,
+                <>Uncheck On to hide a LINE command or glossary row.</>,
+              ]}
+            />
+            <div className="actions">
               <button type="button" onClick={async () => {
                 const res = await api(`${ADMIN_BASE}/api/commands`);
                 const body = await res.json() as { commands?: Array<Record<string, unknown>>; tenantKey?: string; error?: string };
@@ -1593,7 +1592,7 @@ export const App = () => {
                 </tbody>
               </table>
             </div>
-            {commands.length ? <CopyField label="Command grid JSON" value={commandGridJson(commands)} defaultOpen /> : null}
+            {commands.length ? <CopyField label="Command grid JSON" value={commandGridJson(commands)} /> : null}
           </div>
         ) : null}
         {page === 'crm' ? (
@@ -1601,8 +1600,8 @@ export const App = () => {
           <CommandWork adminBase={ADMIN_BASE} api={api} actor={actor} uiLang={uiLang} onIdentity={() => go(`${ADMIN_BASE}/identity`)} toast={(text, kind) => toast(text, kind === 'ok' ? 'ok' : 'error')} />
           <div className="card">
             <h2>CRM quotes</h2>
-            {!actor ? <BindSteps adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} /> : null}
-            <div className="row">
+            {!actor ? <BindFaq adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} /> : null}
+            <div className="actions">
               <button type="button" onClick={async () => {
                 const res = await api(`${ADMIN_BASE}/crm/quotes?unassigned=1`);
                 const body = await res.json() as { quotes?: Quote[] };
@@ -1695,7 +1694,7 @@ export const App = () => {
                     <td>{String(u.commandRole || u.role || '')}</td>
                     <td>{String(u.marketingOptIn)}</td>
                     <td>
-                      <div className="row">
+                      <div className="actions">
                       <button type="button" onClick={async () => {
                         const id = String(u.userId || '');
                         const res = await api(`${ADMIN_BASE}/api/users/${encodeURIComponent(id)}/activity?limit=50`);
@@ -1742,6 +1741,17 @@ export const App = () => {
           <div className="card">
             <h2>Privileges</h2>
             <p className="page-lead">Roles from Directory. Admin grant still uses the fail-closed chain.</p>
+            {!actor ? (
+              <BindFaq adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} />
+            ) : null}
+            <FaqRunbook
+              title="How grant works"
+              warn="LINE identity → profile → odooVerified → ADMIN_USER_ID → Odoo admin capability → role=admin. Grant stays disabled until the actor cookie is bound."
+              items={[
+                <>Verify the LINE user on Cloudnex Sales first.</>,
+                <>Paste that LINE id and Grant role=admin. Fail-closed if any link is missing.</>,
+              ]}
+            />
             <div className="table-wrap">
               <table>
                 <thead><tr><th>LINE user</th><th>Role</th><th>Verified</th></tr></thead>
@@ -1778,6 +1788,14 @@ export const App = () => {
           <div className="card">
             <h2>Application logs</h2>
             <p className="page-lead">One consolidated archive on the VPS (hourly files, 30 days): app and redis for each lane, plus nginx access and error for the site. Pick a source, then filter by level, text or request id.</p>
+            <FaqRunbook
+              title="How this page works"
+              warn="Logs are the VPS archive, not Firestore. Secret reveals stay on Settings."
+              items={[
+                <>Pick a source and Load. Filter by level, text, or request id.</>,
+                <>Ops audit below is Firestore for actor/target LINE ids.</>,
+              ]}
+            />
             <div className="field-row">
               <div className="field"><label>Source</label>
                 <select value={appLogSource} onChange={e => setAppLogSource(e.target.value)}>
@@ -1897,7 +1915,7 @@ export const App = () => {
                 <>Open Tenants to set TENANT_KEY or point this process at a lab Odoo.</>,
               ]}
             />
-            <div className="field-row">
+            <div className="actions">
               <button type="button" className="secondary" onClick={() => go(`${ADMIN_BASE}/tenants`)}>Open Tenants</button>
               <button type="button" onClick={async () => {
                 await loadSettings();
@@ -2015,8 +2033,10 @@ export const App = () => {
                         ) : '-'}
                       </td>
                       <td>
-                        <button type="button" onClick={() => verifyLineChannel(row.channelId)} disabled={!row.configured}>Verify</button>{' '}
-                        <button type="button" onClick={() => editLineChannel(row)}>Edit</button>
+                        <div className="actions">
+                          <button type="button" onClick={() => verifyLineChannel(row.channelId)} disabled={!row.configured}>Verify</button>
+                          <button type="button" onClick={() => editLineChannel(row)}>Edit</button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -2026,7 +2046,6 @@ export const App = () => {
             <datalist id="line-channel-ids">{lineChannels.map(row => <option key={row.channelId} value={row.channelId} />)}</datalist>
             <FaqRunbook
               title="Add or change a channel"
-              defaultOpen
               warn="A value saved here overrides VPS .env for LINE keys. Tokens are checked against LINE before saving and are never shown again. HMAC /webhook* stays on production :8080."
               items={[
                 <>Pick a channel (or type a new id), paste its Channel secret and long-lived access token from LINE Developers, then Save.</>,
@@ -2049,9 +2068,7 @@ export const App = () => {
             <p className="page-lead">{t(uiLang, 'campLead')}</p>
             <FaqRunbook
               title="How to send"
-              warn={!actor
-                ? 'Bind super-admin on Identity first. Campaign send stays disabled until the actor cookie is set.'
-                : 'Promo must use multicast Send (honors PROMO OFF). LINE Broadcast cannot filter opt-out.'}
+              warn="Promo must use multicast Send (honors PROMO OFF). LINE Broadcast cannot filter opt-out."
               items={[
                 <>Bind super-admin if the header pill says not bound.</>,
                 <>{t(uiLang, 'transactionalAudience')} / {t(uiLang, 'optedInPromo')} / {t(uiLang, 'allFollowers')}.</>,
@@ -2059,12 +2076,7 @@ export const App = () => {
               ]}
             />
             {!actor ? (
-              <FaqRunbook
-                title="How to bind"
-                warn="OPS login is not the actor cookie."
-              >
-                <BindSteps adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} />
-              </FaqRunbook>
+              <BindFaq adminBase={ADMIN_BASE} onIdentity={() => go(`${ADMIN_BASE}/identity`)} />
             ) : null}
             <div className="field-row">
               <div className="field">
@@ -2156,7 +2168,14 @@ export const App = () => {
             {Array.isArray(settings?.missingRequired) && (settings.missingRequired as string[]).length
               ? <CopyField label={t(uiLang, 'missingEnv')} value={(settings.missingRequired as string[]).join('\n')} />
               : null}
-            <p className="muted">Lock: {String(settingsLock)}</p>
+            {settingsLock ? (
+              <FaqRunbook
+                title="Config lock"
+                warn="ADMIN_CONFIG_LOCK is on. Overlay flags will not persist until lock is false on the VPS."
+              />
+            ) : (
+              <p className="muted">Lock: false</p>
+            )}
             <FaqItem title="Feature flags">
             <div className="table-wrap">
             <table>

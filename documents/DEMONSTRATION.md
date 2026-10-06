@@ -1,6 +1,6 @@
 # Cloudnex Connect — demonstration pack
 
-**Release:** v15.0.4 · **Persona:** Sora / โซระ · **Product:** LINE Official Account + Odoo, one command router, fail-closed Admin.
+**Release:** v15.0.5 · **Persona:** Sora / โซระ · **Product:** LINE Official Account + Odoo, one command router, fail-closed Admin.
 
 This is the pack for a client meeting, a live event, or a running-client walkthrough. It is not a lab notebook. Local mocks stay on the laptop.
 

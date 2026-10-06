@@ -84,7 +84,7 @@ export const TenantPanel = ({
 
   return (
     <>
-      {error ? <p className="warn">{error}</p> : null}
+      {error ? <p className="error">{error}</p> : null}
       <div className="card">
         <h2>Tenants / subscription</h2>
         <p className="page-lead">
@@ -106,10 +106,17 @@ export const TenantPanel = ({
             <input value={tenantKey} onChange={e => setTenantKey(e.target.value)} placeholder="default" />
           </div>
           <button type="submit" disabled={snap?.lock === true}>Save overlay key</button>
+        </form>
+        <div className="actions">
           <button type="button" className="secondary" onClick={() => void load()}>Reload</button>
           <button type="button" className="secondary" onClick={() => go(`${adminBase}/platform`)}>ERP probe</button>
-        </form>
-        {snap?.lock ? <p className="warn">ADMIN_CONFIG_LOCK is on. Change TENANT_KEY in VPS <code>.env</code> and recreate the container, or set lock false with SECRETS_ENCRYPTION_KEY.</p> : null}
+        </div>
+        {snap?.lock ? (
+          <FaqRunbook
+            title="Config lock"
+            warn="ADMIN_CONFIG_LOCK is on. Change TENANT_KEY in VPS .env and recreate the container, or set lock false with SECRETS_ENCRYPTION_KEY."
+          />
+        ) : null}
       </div>
       <div className="card">
         <h2>This process</h2>
@@ -151,7 +158,7 @@ export const TenantPanel = ({
             ))}
           </tbody>
         </table>
-        <div className="row">
+        <div className="actions">
           <button type="button" className="secondary" onClick={() => go(`${adminBase}/settings`)}>Service toggles</button>
           <button type="button" className="secondary" onClick={() => go(`${adminBase}/commands`)}>Command overlay</button>
           <button type="button" className="secondary" onClick={() => go(`${adminBase}/line`)}>LINE channels</button>

@@ -1,3 +1,14 @@
+# Release notes — v15.0.5
+
+**Date:** 2026-10-06  
+**Package version:** `15.0.5`  
+**Lane:** Staging showcase `/admin/test`; production same image `/admin` until client cutover.  
+**Commit title:** `Release: v15.0.5 - Odoo Line OA v12 Staging Deploy`
+
+Admin UI: closed FAQ + even actions on all pages; desktop nav; mobile drawer; compact buttons.
+
+---
+
 # Release notes — v15.0.4
 
 **Date:** 2026-10-06  

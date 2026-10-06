@@ -139,7 +139,7 @@ export const LiveServices = ({
 
   return (
     <>
-      {error ? <p className="warn">{error}</p> : null}
+      {error ? <p className="error">{error}</p> : null}
       {page === 'commerce' ? (
         <div className="card">
           <h2>Products</h2>
@@ -158,9 +158,11 @@ export const LiveServices = ({
               <input value={query} onChange={e => setQuery(e.target.value)} placeholder="App Premium" />
             </div>
             <button type="submit">Search</button>
+          </form>
+          <div className="actions">
             <button type="button" className="secondary" onClick={() => go(`${adminBase}/crm`)}>Open quotes</button>
             <button type="button" className="secondary" onClick={() => go(`${adminBase}/settings`)}>Service toggles</button>
-          </form>
+          </div>
           <div className="table-wrap">
             <table>
               <thead><tr><th>Id</th><th>Name</th><th>SKU</th><th>Price</th><th>Qty</th><th>LINE photo</th></tr></thead>
@@ -192,7 +194,7 @@ export const LiveServices = ({
               <>Gate <code>catalog</code>: {gate('catalog') ? `${gate('catalog')!.effective ? 'on' : 'off'} (${gate('catalog')!.source})` : '—'}.</>,
             ]}
           />
-          <div className="row">
+          <div className="actions">
             <button type="button" onClick={async () => {
               const res = await api(`${adminBase}/api/live/services`);
               const body = await res.json() as { services?: ServiceRow[]; error?: string };
@@ -254,6 +256,13 @@ export const LiveServices = ({
         <div className="card">
           <h2>Approvals</h2>
           <p className="page-lead">Step-up OTP and QUOTE APPROVE records from Firestore. LINE still owns the confirm flow.</p>
+          <FaqRunbook
+            title="How this page works"
+            warn="LINE still owns the confirm flow. This table is a Firestore read of step-up OTP and QUOTE APPROVE records."
+            items={[
+              <>Use Directory Activity for a LINE id if you need the audit trail around an approval.</>,
+            ]}
+          />
           <div className="table-wrap">
             <table>
               <thead><tr><th>Id</th><th>Command</th><th>Status</th><th>Actor</th><th>Target</th><th>Created</th></tr></thead>
@@ -278,6 +287,14 @@ export const LiveServices = ({
         <div className="card">
           <h2>Ops</h2>
           <p className="page-lead">Live flags for GraphQL, Swagger, queue, and ERP. Same process as HMAC. Demo Chat is still Testing only.</p>
+          <FaqRunbook
+            title="How this page works"
+            warn="These flags are this HMAC process. Demo Chat stays on Testing. Production keeps /webhook-test off."
+            items={[
+              <>Jobs run with ADMIN_SECRET_TOKEN.</>,
+              <>Advanced flags cannot enable a key omitted from env.</>,
+            ]}
+          />
           <table>
             <thead><tr><th>Flag</th><th>Value</th></tr></thead>
             <tbody>
@@ -286,7 +303,7 @@ export const LiveServices = ({
               ))}
             </tbody>
           </table>
-          <div className="row">
+          <div className="actions">
             <button type="button" className="secondary" onClick={() => go(`${adminBase}/jobs`)}>Jobs</button>
             <button type="button" className="secondary" onClick={() => go(`${adminBase}/advanced`)}>Advanced flags</button>
             <button type="button" className="secondary" onClick={() => go(`${adminBase}/platform`)}>ERP</button>
@@ -304,7 +321,7 @@ export const LiveServices = ({
               <>Gate <code>reporting</code>: {gate('reporting') ? `${gate('reporting')!.effective ? 'on' : 'off'} (${gate('reporting')!.source})` : '—'}.</>,
             ]}
           />
-          <div className="row">
+          <div className="actions">
             <button type="button" className="secondary" onClick={() => go(`${adminBase}/jobs`)}>Run jobs</button>
           </div>
           <div className="table-wrap">
