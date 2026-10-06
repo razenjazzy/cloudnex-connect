@@ -1,5 +1,9 @@
 # Changelog
 
+## v15.0.4 — Odoo LINE OA v12 (2026-10-06)
+
+- Journey book stills are all studio Flex from live builders (`npm run journey:stills`), including Verify, Products & Quotes, quote chips/optional/draft/sent, approve, Sales Order, and invoice. Composer quick-reply chips render under the card.
+
 ## v15.0.3 — Odoo LINE OA v12 (2026-10-06)
 
 - Lane contract: **local** is R&D (mocks, `/webhook-test`, stubs); **staging** is client demo, running clients, and event showcase; **production** is the same product until client cutover.

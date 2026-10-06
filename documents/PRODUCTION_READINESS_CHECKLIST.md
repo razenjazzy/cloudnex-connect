@@ -21,7 +21,7 @@ Cloud Run (`release.yml`) is optional `workflow_dispatch` only. Railway variable
 - [x] After deploy: `/healthz` 200, `/readyz` 200 (`service: cloudnex-connect`, `appEnv: staging`).
 - [x] LINE webhooks: `POST https://amardhaka.io/webhook/sales` (Cloudnex Sales `@938qytwi`) and `POST https://amardhaka.io/webhook/customer` (Cloudnex Customer `@724tneri`). `POST /webhook` uses default Sales credentials.
 - [x] Compact rich menus published on both OAs (ids in VPS `LINE_RICH_MENU_*` and `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON`).
-- [x] USER_JOURNEY stills in `documents/journey/` (tray = published rich-menu PNGs; remaining Flex = studio from `scripts/export-journey-stills.ts` plus ten older on-device shots).
+- [x] USER_JOURNEY stills in `documents/journey/` (tray = published rich-menu PNGs; Flex = studio from `scripts/export-journey-stills.ts`).
 - [x] Staging deploy is laptop `npm run deploy:vps-staging` (see [DEVOPS.md](DEVOPS.md)). GitHub Actions does not mutate the VPS.
 
 ## Automated local evidence

@@ -8,11 +8,11 @@ Capture stills live in `documents/journey/`. Canonical prefixes vs EN/TH labels:
 | Staging | Admin `…/admin/test` + live OAs | Client demo, running clients, events. Same app as production. |
 | Production | Cloudnex Sales / Customer OAs | Same product until cutover. Live HMAC `https://amardhaka.io/webhook/sales` and `/webhook/customer`. |
 
-Tray stills are the published `assets/rich-menu` PNGs. Flex stills without an on-device capture are **studio renders** of the same builders (`npx ts-node --transpile-only scripts/export-journey-stills.ts`) — dummy partner data, no OTP. Recapture on the OA if a tap fails.
+Tray stills are the published `assets/rich-menu` PNGs. Flex stills are **studio renders** of the same builders (`npm run journey:stills`) — sample partner **Razen** / `+8801787671962` (Thai sample **Ashfaq**), no OTP. Composer chips are drawn under the card. Recapture on the OA if a tap fails.
 
 Each step: send the listed command (tray or button), confirm the expected UI, then save one PNG into `documents/journey/` using the filename. Chat plus the native tray should be visible when the tray is part of the step.
 
-English is the default. Thai appears only after **Language**. Do not screenshot OTP codes or real customer PII; use dummy Odoo partners.
+English is the default. Thai appears only after **Language**. Do not screenshot OTP codes or real customer PII; use the Razen / Ashfaq sample partners.
 
 Persona names: **Sora** (EN), **โซระ** (TH). Guide/home titles: **CloudNex Connect: Sora** / **CloudNex Connect: โซระ**.
 
@@ -58,6 +58,7 @@ Capture on **Cloudnex Customer** (`@724tneri`). No staff name/phone fields. No A
 | A2 | Open chat-bar **Menu** | Compact 2×3. **Language gold** (English). **Verify white** (not verified). Other tiles white, equal gap. | `journey/a2-tray-en.png` |
 | A3a | Tray **Language** only | EN rest **gold** → tap **dark teal** → Thai rest **no teal** → tap **dark teal** → English **gold**. Verify does not change. | `journey/a3-language.png` |
 | A3b | Tray **Verify** only | Unverified rest **no teal** → tap **dark teal** + `FORM VERIFY` → success **gold** → tap **dark teal** + sign-out → **no teal**. Language does not change. | `journey/a3-verify.png` |
+| A3c | Sales unmatched phone | **Ask admin** (`VERIFY ASK ADMIN`) + **Another phone** | `journey/a3-ask-admin.png` |
 | A4 | `NAV commerce` (tray Products & Quotes) | Service action list: find product, create quote, order status, my quotations | `journey/a4-products-quotes.png` |
 | A5 | `FORM ORDER STATUS` (tray Order Status) | Order-status form prompt | `journey/a5-order-status.png` |
 | A6 | `GUIDE` (tray Help) | Guide categories; header CloudNex Connect: Sora | `journey/a6-help-guide.png` |
@@ -136,6 +137,7 @@ Drop files next to this doc:
 ![A2 Tray EN](journey/a2-tray-en.png)
 ![A3 Language](journey/a3-language.png)
 ![A3 Verify](journey/a3-verify.png)
+![A3 Ask admin](journey/a3-ask-admin.png)
 ![A4 Products & Quotes](journey/a4-products-quotes.png)
 ![A5 Order status](journey/a5-order-status.png)
 ![A6 Help](journey/a6-help-guide.png)
@@ -165,7 +167,7 @@ Drop files next to this doc:
 ![D4 Guide TH](journey/d4-guide-th.png)
 ![D5 Lang EN](journey/d5-lang-en.png)
 
-In git: every filename in the tables above. Tray stills (`a2`, `a3-language`, `d3`) are the published rich-menu PNGs. Ten older on-device shots remain (`a3-verify`, `a4`, `b1`, `b4`, `b5`, `b6`, `b8`, `c1-customer-approve`, `c2-sales-order-admin`, `c4-invoice-staff`). The rest are studio Flex from `scripts/export-journey-stills.ts`. Recapture on-device if a tap fails.
+In git: every filename in the tables above. Tray stills (`a2`, `a3-language`, `d3`) are the published rich-menu PNGs. Every other Flex still is studio from `scripts/export-journey-stills.ts` (`npm run journey:stills`). Recapture on-device if a tap fails.
 
 ---
 

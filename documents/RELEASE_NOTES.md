@@ -1,3 +1,14 @@
+# Release notes — v15.0.4
+
+**Date:** 2026-10-06  
+**Package version:** `15.0.4`  
+**Lane:** Staging showcase `/admin/test`; production same image `/admin` until client cutover.  
+**Commit title:** `Release: v15.0.4 - Odoo Line OA v12 Staging Deploy`
+
+Journey stills regenerated from current Flex builders (Razen/Ashfaq, Order Now, Ask admin, New customer, composer chips). Former on-device PNGs are studio now.
+
+---
+
 # Release notes — v15.0.3
 
 **Date:** 2026-10-06  
