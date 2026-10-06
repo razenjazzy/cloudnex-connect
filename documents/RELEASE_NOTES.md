@@ -1,3 +1,14 @@
+# Release notes — v15.0.2
+
+**Date:** 2026-10-06  
+**Package version:** `15.0.2`  
+**Lane:** Same image on VPS staging `/opt/cns-line-oa` (`:8081`, Admin `/admin/test`) and production `/opt/cloudnex-connect` (`:8080`, Admin `/admin`, HMAC).  
+**Commit title:** `Release: v15.0.2 - Odoo Line OA v12 Staging Deploy`
+
+Same Admin/API on UAT and live except Admin URL. FAQ runbooks (warn then steps). Journey stills aligned with current LINE. Local remains the experimental `/webhook-test` lane. LINE and Odoo secrets stay on each host `.env`.
+
+---
+
 # Release notes — v15.0.1
 
 **Date:** 2026-10-06  

@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 
-import { CopyField, Steps } from './ui';
+import { CopyField, FaqRunbook } from './ui';
 
 type ApiFn = (path: string, init?: RequestInit) => Promise<Response>;
 
@@ -198,12 +198,16 @@ export const DemoPanel = ({ adminBase, api, go }: { adminBase: string; api: ApiF
         </div>
         <div className="card">
           <h2>Runbook</h2>
-          <Steps items={[
-            <>Refresh connections: LINE, Firestore, Odoo.</>,
-            <>Web chat uses the real command router.</>,
-            <>FORM QUOTE CREATE writes an Odoo quotation.</>,
-            <>Journey + LINE simulator below.</>,
-          ]} />
+          <FaqRunbook
+            title="How to run the demo"
+            warn="Web chat and /webhook-test are local experimental tools. Staging and production keep them off."
+            items={[
+              <>Refresh connections: LINE, Firestore, Odoo.</>,
+              <>Web chat uses the real command router.</>,
+              <>FORM QUOTE CREATE writes an Odoo quotation.</>,
+              <>Journey + LINE simulator below.</>,
+            ]}
+          />
         </div>
       </div>
       <div className="card" id="demo-chat">

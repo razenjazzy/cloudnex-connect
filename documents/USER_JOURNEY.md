@@ -1,12 +1,26 @@
 # User journey book — CloudNex Connect (LINE OA)
 
-**Staging code is frozen** on `https://amardhaka.io`. Journey PNGs for every listed filename now live in `documents/journey/`. Tray stills are the published `assets/rich-menu` PNGs. Flex stills without an on-device capture are **studio renders** of the same builders (`npx ts-node --transpile-only scripts/export-journey-stills.ts`) — dummy partner data, no OTP. Recapture on the OA if a tap fails.
+Capture stills live in `documents/journey/`. Canonical prefixes vs EN/TH labels: [LINE_OA_AGENT.md](LINE_OA_AGENT.md) §3–4. **Code wins** if a still disagrees with running Flex.
 
-Capture this on the **staging** Official Account after `/healthz` is green and the compact rich menu is published. English is the default. Thai appears only after **Language**. Do not screenshot OTP codes or real customer PII; use dummy Odoo partners.
+| Lane | Where to capture | Notes |
+|---|---|---|
+| Local | `/webhook-test` + Admin `/admin` | Experimental. Mock LINE. Do not treat as UAT. |
+| Staging UAT | Admin `…/admin/test` | Same app as production. HMAC stays on production `:8080` until staging has its own live webhook URL. |
+| Production | Cloudnex Sales / Customer OAs | Live HMAC `https://amardhaka.io/webhook/sales` and `/webhook/customer`. |
+
+Tray stills are the published `assets/rich-menu` PNGs. Flex stills without an on-device capture are **studio renders** of the same builders (`npx ts-node --transpile-only scripts/export-journey-stills.ts`) — dummy partner data, no OTP. Recapture on the OA if a tap fails.
 
 Each step: send the listed command (tray or button), confirm the expected UI, then save one PNG into `documents/journey/` using the filename. Chat plus the native tray should be visible when the tray is part of the step.
 
+English is the default. Thai appears only after **Language**. Do not screenshot OTP codes or real customer PII; use dummy Odoo partners.
+
 Persona names: **Sora** (EN), **โซระ** (TH). Guide/home titles: **CloudNex Connect: Sora** / **CloudNex Connect: โซระ**.
+
+Current implementation (must match LINE):
+
+1. **Sales OA** — VERIFY is the front door. Unmatched phone → **Ask admin** (`VERIFY ASK ADMIN`) + **Another phone**. Home is commerce menu then quote list. Staff Send → Customer `sent` + Confirm.
+2. **Customer OA** — Browse open. Guest Order Now creates a **new** guest `res.partner` (`guestPartnerId` only, cap 3/24h). History / messaging still Verify. Verified C3 is product + qty only.
+3. Tray 2×3: Home, Products & Quotes, Order Status / Verify, Language, Help. Language gold = English. Verify gold = live session (Sales TTL/idle; Customer stays gold after verify).
 
 ---
 
@@ -120,6 +134,7 @@ Drop files next to this doc:
 
 ![A1 Home EN](journey/a1-home-en.png)
 ![A2 Tray EN](journey/a2-tray-en.png)
+![A3 Language](journey/a3-language.png)
 ![A3 Verify](journey/a3-verify.png)
 ![A4 Products & Quotes](journey/a4-products-quotes.png)
 ![A5 Order status](journey/a5-order-status.png)
@@ -134,6 +149,12 @@ Drop files next to this doc:
 ![B9 Sent customer](journey/b9-quote-sent-customer.png)
 ![B10 More](journey/b10-quote-more.png)
 ![B11 Edit Quote](journey/b11-quote-edit.png)
+![C0 Customer home](journey/c0-customer-home.png)
+![C1 Guest catalog](journey/c1-guest-catalog.png)
+![C2 Customer verify](journey/c2-customer-verify.png)
+![C3 Self quote draft](journey/c3-self-quote-draft.png)
+![C4 Customer sent](journey/c4-customer-sent.png)
+![C5 My quotes](journey/c5-my-quotes.png)
 ![C1 Approve](journey/c1-customer-approve.png)
 ![C2 SO admin](journey/c2-sales-order-admin.png)
 ![C3 SO customer](journey/c3-sales-order-customer.png)
@@ -152,21 +173,23 @@ In git: every filename in the tables above. Tray stills (`a2`, `a3-language`, `d
 
 Live OA + this book are the source of truth. Do not restyle Flex or the tray unless a capture step fails. Bugs (wrong command, Thai on default English, missing Send) get a small fix and a re-shot of that page only.
 
-Out of scope until a new ticket: Odoo e-sign, payment capture, extra npm UI packages. Production deploy is not this cut.
+Out of scope until a new ticket: Odoo e-sign, payment capture, extra npm UI packages.
 
 Implemented (flags default false unless noted): `POST /webhook-alt` 404 unless `LINE_SECOND_WEBHOOK` (same `handleWebhook`). GraphQL `ingestLineEvents` then `processLineMessageJob` (`GRAPHQL_LINE_INGEST`). Mongo identity SoR when `MONGO_USERS` (fail closed without URI; Firestore may mirror; Odoo never in Mongo). Command overlay from Admin Commands. `TENANT_KEY` scopes overlays. Extra locales beyond EN/TH are not in this cut.
 
 ---
 
-## Admin campaigns and chat (staging)
+## Admin campaigns and chat (UAT / production Admin)
 
-1. Open `https://amardhaka.io/cloudnex-connect/` with OPS token + super-admin cookie.
+1. Staging Admin `https://amardhaka.io/cloudnex-connect/admin/test` or production `…/admin` with OPS token + super-admin cookie.
 2. Header pill `U…` is the **LINE user id** (U + 32 hex), not Odoo login. **Directory** lookup that id (or phone / partner id) for Firestore dossier + live Odoo groups (`describePartnerPrivileges` via `getErpAdapter()`). **Audit** filters `userId` as actor or target. **Privileges** shows `ADMIN_USER_ID` chain and grant `role=admin`.
 3. **Campaigns:** Channel → class (promo vs transactional) → message → Preview (no LINE) → Test (actor only) → Send (`confirm: SEND`, queued). Promo must use multicast Send (honors `PROMO OFF`). LINE Broadcast is blocked for promo class because the LINE API cannot filter opt-out.
 4. Customer swipe-reply: Sales Flex includes `Re:` quoted text or “card”.
 5. Sales chips: up to four `RELAY TO` / assign chips; **More** / `STAFF PICK` for overflow.
 6. Image/file/video: allowlist, default 10MB, optional AV; no GCS → Flex, no throw.
-7. Advanced pane: controls present and **disabled**.
+7. Advanced pane: controls present and **disabled** unless overlay lock is off.
+
+Related: `documents/STORYBOARD.md` (capability status), `documents/DESIGN_SYSTEM.md` (tokens), `documents/requirement/MGT_Implementation_Playbook.md` (Phase 1 Odoo vs Phase 2 LINE, UAT).
 
 Related: `documents/STORYBOARD.md` (capability status), `documents/DESIGN_SYSTEM.md` (tokens), `documents/requirement/MGT_Implementation_Playbook.md` (Phase 1 Odoo vs Phase 2 LINE, UAT).
 

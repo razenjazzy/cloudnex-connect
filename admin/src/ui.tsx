@@ -88,26 +88,25 @@ export const CopyField = ({
 
   return (
     <div className={`faq-item snippet-faq${open ? ' open' : ''}`} onClickCapture={e => stopInjectedLink(e, toggle)}>
-      <div className="faq-toggle-row">
-        <button type="button" className="faq-toggle" aria-expanded={open} onClick={toggle}>
-          <span className="faq-title">{label}</span>
-          <span className="faq-chevron" aria-hidden="true">▾</span>
-        </button>
-        {open ? (
-          <button
-            type="button"
-            className="copy"
-            onClick={() => {
-              void navigator.clipboard.writeText(copyText);
-              setCopied(true);
-              window.setTimeout(() => setCopied(false), 1400);
-            }}
-          >{copied ? 'Copied' : 'Copy'}</button>
-        ) : null}
-      </div>
+      <button type="button" className="faq-toggle" aria-expanded={open} onClick={toggle}>
+        <span className="faq-title">{label}</span>
+        <span className="faq-chevron" aria-hidden="true">▾</span>
+      </button>
       {open ? (
         <div className="faq-body">
-          {url ? <p className="snippet-url">{softenUrl(url)}</p> : null}
+          <div className="faq-snippet-toolbar">
+            {url ? <p className="snippet-url">{softenUrl(url)}</p> : <span className="faq-snippet-spacer" />}
+            <button
+              type="button"
+              className="copy"
+              onClick={event => {
+                event.stopPropagation();
+                void navigator.clipboard.writeText(copyText);
+                setCopied(true);
+                window.setTimeout(() => setCopied(false), 1400);
+              }}
+            >{copied ? 'Copied' : 'Copy'}</button>
+          </div>
           <pre><code>{live}</code></pre>
         </div>
       ) : null}
@@ -124,6 +123,27 @@ export const Steps = ({ items }: { items: Array<ReactNode> }) => (
       </li>
     ))}
   </ol>
+);
+
+/** Generic FAQ title; open to see warn (if any) then numbered steps. */
+export const FaqRunbook = ({
+  title,
+  warn,
+  items,
+  children,
+  defaultOpen = false,
+}: {
+  title: string;
+  warn?: ReactNode;
+  items?: Array<ReactNode>;
+  children?: ReactNode;
+  defaultOpen?: boolean;
+}) => (
+  <FaqItem title={title} defaultOpen={defaultOpen}>
+    {warn ? <p className="warn">{warn}</p> : null}
+    {items?.length ? <Steps items={items} /> : null}
+    {children}
+  </FaqItem>
 );
 
 /** Shared actor bind runbook — Home, Identity, Campaigns, Settings, CRM. */

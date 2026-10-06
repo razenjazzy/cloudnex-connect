@@ -1,5 +1,10 @@
 # Changelog
 
+## v15.0.2 — Odoo LINE OA v12 (2026-10-06)
+
+- Staging and production ship the same API and Admin image; the product difference is Admin URL (`/admin/test` vs `/admin`). Local keeps `/webhook-test` and mock LINE.
+- Admin runbooks: generic FAQ title; open shows warn then steps. Journey book matches live Sales verify-first and Customer guest Order Now.
+
 ## v15.0.1 — Odoo LINE OA v12 (2026-10-06)
 
 - Customer OA guest Order Now: new `res.partner` (`forceNew`, `guestPartnerId` only, comment `LINE guest, unverified`), cap 3 drafts / 24 h per LINE user and phone plus a global hourly cap. Verified C3 stays product + qty; guests collect name + phone.

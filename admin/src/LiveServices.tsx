@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 
-import { CopyField, Steps } from './ui';
+import { CopyField, FaqRunbook } from './ui';
 
 type ApiFn = (path: string, init?: RequestInit) => Promise<Response>;
 
@@ -144,10 +144,14 @@ export const LiveServices = ({
         <div className="card">
           <h2>Products</h2>
           <p className="page-lead">Live Odoo <code>list_price</code> catalogue used by LINE PRODUCT FIND. Not the Demo pricing model. Quotes stay on Work → CRM.</p>
-          <Steps items={[
-            <>Service gate <code>commerce</code>: {gate('commerce') ? `${gate('commerce')!.effective ? 'on' : 'off'} (${gate('commerce')!.source})` : '—'}. Change on Settings.</>,
-            <>Odoo: {String(flags.odooConfigured ?? '—')}.</>,
-          ]} />
+          <FaqRunbook
+            title="How this page works"
+            warn="This is live Odoo, not Demo pricing. A commerce gate off in env cannot be turned on from Admin."
+            items={[
+              <>Service gate <code>commerce</code>: {gate('commerce') ? `${gate('commerce')!.effective ? 'on' : 'off'} (${gate('commerce')!.source})` : '—'}. Change on Settings.</>,
+              <>Odoo: {String(flags.odooConfigured ?? '—')}.</>,
+            ]}
+          />
           <form className="field-row" onSubmit={searchProducts}>
             <div className="field">
               <label>Search name or SKU</label>
@@ -181,9 +185,13 @@ export const LiveServices = ({
         <div className="card">
           <h2>Service catalog</h2>
           <p className="page-lead">Odoo service records for LINE <code>SERVICE LIST</code>. Not an Admin SKU editor — create/update stays on LINE FORM SERVICE *.</p>
-          <Steps items={[
-            <>Gate <code>catalog</code>: {gate('catalog') ? `${gate('catalog')!.effective ? 'on' : 'off'} (${gate('catalog')!.source})` : '—'}.</>,
-          ]} />
+          <FaqRunbook
+            title="How this page works"
+            warn="Create and update stay on LINE FORM SERVICE *. This table is read-only."
+            items={[
+              <>Gate <code>catalog</code>: {gate('catalog') ? `${gate('catalog')!.effective ? 'on' : 'off'} (${gate('catalog')!.source})` : '—'}.</>,
+            ]}
+          />
           <div className="row">
             <button type="button" onClick={async () => {
               const res = await api(`${adminBase}/api/live/services`);
@@ -215,10 +223,14 @@ export const LiveServices = ({
         <div className="card">
           <h2>Group-buy</h2>
           <p className="page-lead">Firestore sessions. Confirm still writes an Odoo quotation through LINE. Env <code>GROUPBUY_ENABLED</code> plus the <code>groupBuy</code> toggle must both allow it.</p>
-          <Steps items={[
-            <>Env GROUPBUY: {String(flags.groupBuyEnabled ?? '—')}.</>,
-            <>Gate <code>groupBuy</code>: {gate('groupBuy') ? `${gate('groupBuy')!.effective ? 'on' : 'off'} (${gate('groupBuy')!.source})` : '—'}.</>,
-          ]} />
+          <FaqRunbook
+            title="How this page works"
+            warn="Confirm still writes an Odoo quotation through LINE. Env GROUPBUY_ENABLED plus the groupBuy toggle must both allow it."
+            items={[
+              <>Env GROUPBUY: {String(flags.groupBuyEnabled ?? '—')}.</>,
+              <>Gate <code>groupBuy</code>: {gate('groupBuy') ? `${gate('groupBuy')!.effective ? 'on' : 'off'} (${gate('groupBuy')!.source})` : '—'}.</>,
+            ]}
+          />
           <div className="table-wrap">
             <table>
               <thead><tr><th>Id</th><th>Status</th><th>Product</th><th>Joined / target</th><th>Odoo</th><th>Creator</th></tr></thead>
@@ -285,9 +297,13 @@ export const LiveServices = ({
         <div className="card">
           <h2>Reporting</h2>
           <p className="page-lead">Odoo daily sales snapshot. LINE <code>DAILY REPORT</code> and Jobs → daily-report push the Gemini summary to allowlisted admins.</p>
-          <Steps items={[
-            <>Gate <code>reporting</code>: {gate('reporting') ? `${gate('reporting')!.effective ? 'on' : 'off'} (${gate('reporting')!.source})` : '—'}.</>,
-          ]} />
+          <FaqRunbook
+            title="How this page works"
+            warn="LINE DAILY REPORT and Jobs → daily-report push to ADMIN_USER_ID. Empty rows mean Odoo is empty or unreachable."
+            items={[
+              <>Gate <code>reporting</code>: {gate('reporting') ? `${gate('reporting')!.effective ? 'on' : 'off'} (${gate('reporting')!.source})` : '—'}.</>,
+            ]}
+          />
           <div className="row">
             <button type="button" className="secondary" onClick={() => go(`${adminBase}/jobs`)}>Run jobs</button>
           </div>

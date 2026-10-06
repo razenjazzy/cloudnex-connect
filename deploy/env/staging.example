@@ -15,8 +15,8 @@ DEFAULT_LANGUAGE=en
 TENANT_KEY=default
 PUBLIC_BASE_URL=https://amardhaka.io/cloudnex-connect
 # Local HTTPS clone of staging path: PUBLIC_BASE_URL=https://site.local/cloudnex-connect
-# Local: /admin. VPS: PUBLIC_BASE_URL=https://amardhaka.io/cloudnex-connect and PUBLIC_ADMIN_BASE=/admin (Node mounts /cloudnex-connect/admin)
-PUBLIC_ADMIN_BASE=/admin
+# Local: /admin. Staging VPS sibling: PUBLIC_ADMIN_BASE=/admin/test (HTTP /cloudnex-connect/admin/test on :8081). Production: /admin.
+PUBLIC_ADMIN_BASE=/admin/test
 # Legacy; GET redirects to Admin /testing
 PUBLIC_DEMO_BASE=/demo
 MAX_JSON_BODY=64kb
@@ -263,10 +263,10 @@ FLOWISE_API_KEY=
 ENABLED_SERVICES=commerce,directory,catalog,reporting,groupBuy
 # Comma-separated command prefixes to hide and reject, e.g. QUOTE ADD,QUOTE EDIT
 DISABLED_COMMANDS=
-# Optional: keep webhook-test private in production
-ENABLE_WEBHOOK_TEST=true
+# Optional: keep webhook-test and demo on laptop only. Staging/production compose force these off.
+ENABLE_WEBHOOK_TEST=false
 WEBHOOK_TEST_TOKEN=
-ENABLE_DEMO_CONTROL_PANEL=true
+ENABLE_DEMO_CONTROL_PANEL=false
 DEMO_CONTROL_TOKEN=
 DEMO_SESSION_SECRET=
 DEMO_SESSION_TTL_MINUTES=30

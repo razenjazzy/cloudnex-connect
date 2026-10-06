@@ -22,7 +22,7 @@ If this file disagrees with running TypeScript, **the code wins**. Update this f
 - Identity: LINE id → profile SoR (Firestore, or Mongo if `MONGO_USERS`) → `odooVerified` → `ADMIN_USER_ID` → Odoo admin capability → `role=admin`. Super-admin web: `SUPER_ADMIN_USER_IDS` + bound actor.
 - Odoo masters via `getErpAdapter()`. Mongo is never Odoo SoR. Non-odoo `ERP_PROVIDER` stays unimplemented.
 - Locales: **EN and TH only**. Agent speech: visible `Sora` or `Sora ` → `Sora: `; `โซระ` → `โซระ: `. Apply in bot titles/bodies that use `getAgentName`, never inside product names.
-- No new npm packages. No production deploy from this spec (`deploy:vps-prod`, Cloud Run `deploy:prod`, `release.yml` dispatch). Staging only after tests pass.
+- No new npm packages. Staging and production deploy the same image; Admin URL is the product difference (`/admin/test` vs `/admin`). HMAC stays `:8080`. Local `/webhook-test` mocks LINE.
 - HMAC `:8080`. Admin staging `{PUBLIC_BASE_URL}/admin/test` on the sibling host; production Admin `/admin/`. Do not mix HMAC ports.
 
 ---
@@ -50,6 +50,8 @@ How to read tables below: **Command** = wire/gate. **User sees** = EN / TH. **Ac
 ---
 
 ## 3. Journeys
+
+Still book (PNG filenames, capture order): [USER_JOURNEY.md](USER_JOURNEY.md) and `documents/journey/`. Lanes: local experimental `/webhook-test`; staging UAT Admin `/admin/test`; production HMAC + Admin `/admin`. Same Flex builders on every lane.
 
 ```mermaid
 flowchart TD
@@ -385,7 +387,7 @@ Keep remaining `UI_STRINGS` keys in `i18n.ts` bilingual (invoice fields, reply f
 1. **P0 shipped** — Customer images-if-bytes, keyboard unlink+link, qty chips, details CTAs, glossary, `Sora:`. Keyboard Console id still required in env.
 2. **P1 shipped** — Sales dual Home, RFQ Create quote, list page 5, salesperson name after approve. One router.
 3. **P2 shipped** — Admin Commands = human language; prefix read-only; aliases field.
-4. **P3** — CI is `lint` / `build` / `npm test` / `npm audit --omit=dev --audit-level=high` on `main` and PRs. Staging deploy is laptop `npm run deploy:vps-staging`. Health: sibling `:8081` / `npm run ops:staging`. Public `/healthz` is production. Admin `/cloudnex-connect/admin/test`.
+4. **P3** — CI is `lint` / `build` / `npm test` / `npm audit --omit=dev --audit-level=high` on `main` and PRs. Deploy: laptop `npm run deploy:vps-staging` then `deploy:vps-prod` (same image). Health: sibling `:8081` / `npm run ops:staging`; public `/healthz` is production. Admin `/cloudnex-connect/admin/test` vs `/admin`.
 5. **P4 shipped** — Overlay aliases; emit canonical.
 
 Latency: no extra Odoo on the HMAC reply path; catalog cache; notify sales async.

@@ -13,6 +13,8 @@ describe('staging compose LINE queue', () => {
     expect(yaml).toContain('TZ: Asia/Bangkok');
     expect(yaml).toContain('/usr/share/zoneinfo:/usr/share/zoneinfo:ro');
     expect(yaml).toContain('condition: service_healthy');
+    expect(yaml).toContain('ENABLE_DEMO_CONTROL_PANEL: "false"');
+    expect(yaml).toContain('ENABLE_WEBHOOK_TEST: "false"');
   });
 });
 
@@ -53,5 +55,6 @@ describe('sibling compose', () => {
     expect(yaml).toContain('PUBLIC_ADMIN_BASE: /admin/test');
     expect(yaml).toContain('127.0.0.1:8081:8080');
     expect(yaml).toContain('ENABLE_WEBHOOK_TEST: "false"');
+    expect(yaml).toContain('ENABLE_DEMO_CONTROL_PANEL: "false"');
   });
 });

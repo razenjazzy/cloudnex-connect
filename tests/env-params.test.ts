@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { auditEnvParams } from '../src/http/env-params';
 
 describe('environment param catalog', () => {
-  it('requires APP_ENV=staging plus LINE, Odoo, and demo flags for Railway', () => {
+  it('requires APP_ENV=staging plus LINE and Odoo; demo flags are optional', () => {
     const audit = auditEnvParams('staging', {
       APP_ENV: 'staging',
       NODE_ENV: 'production',
@@ -21,10 +21,6 @@ describe('environment param catalog', () => {
       ERP_PROVIDER: 'odoo',
       PUBLIC_BASE_URL: 'https://app.example',
       OPS_API_TOKEN: 'ops',
-      DEMO_CONTROL_TOKEN: 'demo',
-      ENABLE_DEMO_CONTROL_PANEL: 'true',
-      ENABLE_WEBHOOK_TEST: 'true',
-      WEBHOOK_TEST_TOKEN: 'wh',
     });
     expect(audit.missingRequired).toEqual([]);
     expect(audit.railwayStagingReady).toBe(true);

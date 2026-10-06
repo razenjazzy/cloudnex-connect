@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { BindSteps, CopyField } from './ui';
+import { BindSteps, CopyField, FaqRunbook } from './ui';
 import { t, type UiLang } from './i18n';
 
 type FormSpec = {
@@ -61,10 +61,12 @@ export const CommandWork = ({ adminBase, api, actor, uiLang, onIdentity, toast }
       <h2>{t(uiLang, 'navWork')}</h2>
       <p className="page-lead">{t(uiLang, 'commandWorkLead')}</p>
       {!actor ? (
-        <>
-          <p className="warn">{t(uiLang, 'bindFirst')}</p>
+        <FaqRunbook
+          title="How to bind"
+          warn={t(uiLang, 'bindFirst')}
+        >
           <BindSteps adminBase={adminBase} onIdentity={onIdentity} />
-        </>
+        </FaqRunbook>
       ) : null}
       <div className="row">
         <select value={picked} onChange={e => {

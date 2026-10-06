@@ -202,25 +202,39 @@ header nav > a.active {
   font-weight: 600;
   font-size: 0.9rem;
 }
-.faq-toggle:hover { background: #eef1f0; }
-.faq-chevron {
-  flex: 0 0 auto;
-  color: #3d5551;
-  transition: transform 0.15s ease;
-}
-.faq-item.open .faq-chevron { transform: rotate(180deg); }
-.faq-toggle-row {
-  display: flex;
-  align-items: center;
-  gap: 0.35rem;
-}
-.faq-toggle-row .faq-toggle {
+.faq-title {
   flex: 1 1 auto;
   min-width: 0;
+  line-height: 1.35;
 }
-.faq-toggle-row .copy { flex: 0 0 auto; }
+.faq-toggle:hover { background: #eef1f0; }
+.faq-item.open > .faq-toggle { background: #eef1f0; }
+.faq-chevron {
+  flex: 0 0 auto;
+  width: 1.35rem;
+  height: 1.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #3d5551;
+  border-radius: 999px;
+  background: #eef1f0;
+  font-size: 0.7rem;
+  line-height: 1;
+  transition: transform 0.15s ease;
+}
+.faq-item.open .faq-chevron { transform: rotate(180deg); background: #dde6e4; }
+.faq-snippet-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.faq-snippet-spacer { flex: 1 1 auto; min-width: 0; }
+.faq-snippet-toolbar .copy { flex: 0 0 auto; margin-left: auto; }
 .snippet-url {
   margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 0.8rem;
   color: #3d5551;
   word-break: break-all;
@@ -240,7 +254,18 @@ header nav > a.active {
 }
 .faq-body > p { margin: 0; font-size: 0.88rem; line-height: 1.5; color: #102a27; }
 .faq-body .steps { margin: 0; }
-.faq-body .faq-item { background: #fff; }
+.faq-body .faq-item {
+  background: #fff;
+  border-color: #e6eeec;
+}
+.faq-body .faq-toggle {
+  min-height: 2.4rem;
+  padding: 0.55rem 0.75rem;
+  font-size: 0.84rem;
+}
+.faq-body .faq-body {
+  padding: 0.75rem 0.85rem;
+}
 .faq-body pre {
   margin: 0;
   padding: 0.75rem;
@@ -254,6 +279,27 @@ header nav > a.active {
   white-space: pre-wrap;
   word-break: break-word;
 }
+.lane-table {
+  width: 100%;
+  min-width: 0 !important;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+.lane-table th,
+.lane-table td {
+  text-align: left;
+  padding: 0.45rem 0.55rem;
+  border-bottom: 1px solid #e6eeec;
+  vertical-align: top;
+}
+.lane-table th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #3d5551;
+  font-weight: 700;
+}
+.lane-table code { font-size: 0.78rem; }
 .idp-bind h3 { margin: 1rem 0 0.4rem; font-size: 0.95rem; }
 .idp-console-links {
   display: flex;
@@ -591,11 +637,30 @@ th, td { text-align: left; padding: 0.55rem 0.45rem; border-bottom: 1px solid #e
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-width: 11rem;
+  min-width: min(100%, 11rem);
   flex: 1 1 11rem;
 }
 .field label { font-size: 0.8rem; color: #3d5551; }
-.field-row > button { flex: 0 0 auto; }
+.field input, .field select, .field textarea { width: 100%; box-sizing: border-box; }
+.field-row > button { flex: 0 0 auto; min-width: 7.5rem; }
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: stretch;
+  margin: 0;
+}
+.actions > button {
+  flex: 1 1 10rem;
+  min-width: min(100%, 10rem);
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+.form-grid > button { grid-column: 1 / -1; width: 100%; }
 .snippet { margin: 0; }
 .snippet-bar {
   display: flex;
@@ -646,7 +711,8 @@ code { background: #eef4f2; padding: 0.1rem 0.35rem; border-radius: 4px; word-br
 
 @media (max-width: 720px) {
   header, main { padding: 0.75rem; }
-  .field-row, .row { flex-direction: column; align-items: stretch; }
-  .field-row button, .row button, .row a { width: 100%; }
+  .field-row, .row, .actions { flex-direction: column; align-items: stretch; }
+  .field-row button, .row button, .row a, .actions button { width: 100%; }
+  .faq-snippet-toolbar { flex-wrap: wrap; }
   table { font-size: 0.8rem; min-width: 22rem; }
 }

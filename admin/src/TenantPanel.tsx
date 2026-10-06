@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from 'react';
 
-import { CopyField, Steps } from './ui';
+import { CopyField, FaqRunbook } from './ui';
 
 type ApiFn = (path: string, init?: RequestInit) => Promise<Response>;
 
@@ -90,11 +90,15 @@ export const TenantPanel = ({
         <p className="page-lead">
           This Admin and HMAC process is <strong>one client silo</strong>. A second paying company gets its own deploy (own <code>.env</code>, own Odoo, own LINE secrets), not a second row in a shared Odoo.
         </p>
-        <Steps items={[
-          <>Keep Sales and Customer OAs on this process only for this client.</>,
-          <>Point <code>ODOO_*</code> at that client’s database (or a lab copy for tests).</>,
-          <>Use <code>TENANT_KEY</code> to isolate overlay labels — it does not switch Odoo.</>,
-        ]} />
+        <FaqRunbook
+          title="How silos work"
+          warn="TENANT_KEY only scopes overlay documents. It does not switch Odoo or LINE."
+          items={[
+            <>Keep Sales and Customer OAs on this process only for this client.</>,
+            <>Point <code>ODOO_*</code> at that client’s database (or a lab copy for tests).</>,
+            <>Use <code>TENANT_KEY</code> to isolate overlay labels — it does not switch Odoo.</>,
+          ]}
+        />
         <p className="muted">Model: {snap?.model || '—'} · overlay lock: {String(snap?.lock ?? '—')}</p>
         <form className="field-row" onSubmit={save}>
           <div className="field">
@@ -125,13 +129,16 @@ export const TenantPanel = ({
       <div className="card">
         <h2>Test Odoo with the current Official Accounts</h2>
         <p className="page-lead">Keep LINE secrets and webhook URLs. Swap only the ERP database this process calls.</p>
-        <Steps items={[
-          <>Create a lab Odoo (Odoo.sh staging, Docker, or a copy DB). Add a dedicated API user with partner / product / sale.order access. Put products and at least one partner with a phone you can VERIFY.</>,
-          <>On the <strong>same</strong> HMAC host, set <code>ODOO_URL</code>, <code>ODOO_DB</code>, <code>ODOO_USERNAME</code>, <code>ODOO_API_KEY</code> to that lab. Leave <code>LINE_CHANNEL_*</code> unchanged so Sales/Customer webhooks stay on this OA.</>,
-          <>Recreate the container (runtime reads env at start). Admin → ERP → Refresh. <code>PRODUCT FIND</code> and Home must show lab prices, not production.</>,
-          <>Firestore still stores <code>odooPartnerId</code> from the previous DB. Re-VERIFY on LINE (or use a fresh LINE tester) so partner ids match the lab. Overlay <code>TENANT_KEY</code> does not remap partners.</>,
-        ]} />
-        <p className="muted">Do not point production HMAC at a lab Odoo if live shoppers are on that OA. Use staging sibling <code>/opt/cns-line-oa</code> with a duplicate OA or the same OA only during a freeze.</p>
+        <FaqRunbook
+          title="How to point at a lab Odoo"
+          warn="Do not point production HMAC at a lab Odoo if live shoppers are on that OA. Use staging sibling /opt/cns-line-oa during a freeze, or a duplicate OA."
+          items={[
+            <>Create a lab Odoo (Odoo.sh staging, Docker, or a copy DB). Add a dedicated API user with partner / product / sale.order access. Put products and at least one partner with a phone you can VERIFY.</>,
+            <>On the <strong>same</strong> HMAC host, set <code>ODOO_URL</code>, <code>ODOO_DB</code>, <code>ODOO_USERNAME</code>, <code>ODOO_API_KEY</code> to that lab. Leave <code>LINE_CHANNEL_*</code> unchanged so Sales/Customer webhooks stay on this OA.</>,
+            <>Recreate the container (runtime reads env at start). Admin → ERP → Refresh. <code>PRODUCT FIND</code> and Home must show lab prices, not production.</>,
+            <>Firestore still stores <code>odooPartnerId</code> from the previous DB. Re-VERIFY on LINE (or use a fresh LINE tester) so partner ids match the lab. Overlay <code>TENANT_KEY</code> does not remap partners.</>,
+          ]}
+        />
       </div>
       <div className="card">
         <h2>Packaging (silo SKUs)</h2>

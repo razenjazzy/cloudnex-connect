@@ -35,11 +35,35 @@ export const HelpFaq = ({
     </FaqItem>
 
     <FaqItem title="Where to get OPS token, admin secret, and other config">
-      <p>Values live in env files. They are never in this UI as plaintext until a super-admin reveal. Do not commit <code>.env</code>.</p>
+      <p>Values live in env files. They are never in this UI as plaintext until a super-admin reveal. Do not commit <code>.env</code>. Staging and production use the same Admin app and API; the difference is the Admin URL. Local is the experimental lane (<code>/webhook-test</code>, mock LINE). Staging is <code>/admin/test</code> on <code>:8081</code>, production is <code>/admin</code> on <code>:8080</code> (HMAC).</p>
+      <table className="lane-table">
+        <thead>
+          <tr>
+            <th>Lane</th>
+            <th>Admin</th>
+            <th>.env</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Local (experimental)</td>
+            <td><code>/admin</code></td>
+            <td><code>repo .env</code></td>
+          </tr>
+          <tr>
+            <td>Staging</td>
+            <td><code>/admin/test</code></td>
+            <td><code>/opt/cns-line-oa/.env</code></td>
+          </tr>
+          <tr>
+            <td>Production</td>
+            <td><code>/admin</code></td>
+            <td><code>/opt/cloudnex-connect/.env</code></td>
+          </tr>
+        </tbody>
+      </table>
       <CopyField label="Key names (not the secrets)" value={'OPS_API_TOKEN — Admin login and /ops/*\nADMIN_SECRET_TOKEN — Jobs page and CLI jobs:*\nADMIN_USER_ID / SUPER_ADMIN_USER_IDS — LINE ids for bind\nLINE_LOGIN_CHANNEL_ID / LINE_LOGIN_CHANNEL_SECRET — optional Admin OAuth'} />
-      <CopyField label="Local file" value="repo .env (copy keys from .env.example)" />
-      <CopyField label="Staging VPS file" value="/opt/cloudnex-connect/.env" />
-      <CopyField label="Templates" value={'repo .env.example\ndeploy/env/staging.example'} />
+      <CopyField label="Templates" value={'repo .env.example\ndeploy/env/staging.example\ndeploy/env/production.example'} />
       <p className="muted">Admin → Platform → Settings lists keys masked. Jobs uses <code>ADMIN_SECRET_TOKEN</code>, not the OPS token you sign in with.</p>
     </FaqItem>
 

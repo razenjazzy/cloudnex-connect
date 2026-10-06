@@ -4,7 +4,7 @@ Cloudnex Connect is the Cloudnex LINE Official Account platform: HMAC webhooks (
 
 TypeScript Express backend that connects LINE Official Accounts to Odoo ERP. Users work in LINE Flex cards (Thai/English). Identity is Firestore unless `MONGO_USERS` is on. Sales, partners, and products live in Odoo.
 
-**Release:** v15.0.1 — Odoo LINE OA v12: Customer guest Order Now, Sales Ask admin, Razen/Ashfaq locale samples. Cloud Run `release.yml` stays manual.  
+**Release:** v15.0.2 — Odoo LINE OA v12: same Admin/API on staging and production (Admin URL only), FAQ runbooks, guest Order Now / Ask admin. Cloud Run `release.yml` stays manual.  
 **Runtime:** Node 22+. **Persona:** Sora / โซระ. **Package:** `cloudnex-connect`.
 
 The git root on disk is `.../Code/cloudnex-connect`. `cns-line-oa` is only a symlink. In Cursor: **File → Open Folder** and choose `cloudnex-connect` (not the symlink) so the sidebar name matches. GCP project id `cns-line-oa` is unrelated.
@@ -123,11 +123,13 @@ All ERP calls go through `getErpAdapter()` (`src/erp/registry.ts` → `odoo-adap
 
 Same codebase. Lane is `APP_ENV`, not `NODE_ENV`. Docker sets `NODE_ENV=production`. **Unset `APP_ENV` + `NODE_ENV=production` fails closed to production** (demo and webhook-test off). Staging **must** set `APP_ENV=staging`.
 
-| Lane | `APP_ENV` | Host | `/demo` | `/webhook-test` |
+| Lane | `APP_ENV` | Host | Admin | `/demo` + `/webhook-test` |
 |---|---|---|---|---|
-| Dev | `development` | laptop | on | on |
-| Staging | `staging` | `https://amardhaka.io` | if `ENABLE_DEMO_CONTROL_PANEL` | if `ENABLE_WEBHOOK_TEST` |
-| Production | `production` | delivery (Cloud Run when cut) | **off** | **off** |
+| Local | `development` | laptop | `/admin` | **on** (experimental, mock LINE) |
+| Staging UAT | `staging` | sibling `:8081` | `/cloudnex-connect/admin/test` | **off** |
+| Production | `production` | `:8080` HMAC | `/cloudnex-connect/admin` | **off** |
+
+Staging and production are the same app until you point staging LINE webhooks at a live URL. HMAC stays production `:8080`.
 
 Canonical keys: `src/http/env-params.ts`. Copy-paste: `.env.example`, `deploy/env/staging.example`, `deploy/env/production.example`. Full table: `documents/ENVIRONMENTS.md`. Staging VM: `documents/VPS_STAGING.md`. `npm run deploy:staging-vm`.
 

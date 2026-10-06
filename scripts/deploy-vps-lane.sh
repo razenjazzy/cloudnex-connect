@@ -75,7 +75,7 @@ rsync -az \
   "$ROOT/" \
   "$HOST:$REMOTE/"
 
-ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$HOST" bash -s -- "$REMOTE" "$LOCK_SHA" "$IMAGE" "$COMPOSE" "$HEALTH_PORT" "$COMPOSE_PROJECT" "$SEED_ENV_FROM" "$IMAGE_VIA_LOAD" <<'REMOTE'
+ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new "$HOST" bash -s -- "$REMOTE" "$LOCK_SHA" "$IMAGE" "$COMPOSE" "$HEALTH_PORT" "$COMPOSE_PROJECT" "${SEED_ENV_FROM:--}" "$IMAGE_VIA_LOAD" <<'REMOTE'
 set -euo pipefail
 REMOTE_DIR="$1"
 EXPECTED_LOCK="$2"
@@ -84,7 +84,8 @@ COMPOSE="$4"
 HEALTH_PORT="$5"
 COMPOSE_PROJECT="$6"
 SEED_ENV_FROM="$7"
-IMAGE_VIA_LOAD="$8"
+IMAGE_VIA_LOAD="${8:-0}"
+if [ "$SEED_ENV_FROM" = "-" ]; then SEED_ENV_FROM=""; fi
 if [ ! -f "$REMOTE_DIR/.env" ] && [ -n "$SEED_ENV_FROM" ] && [ -f "$SEED_ENV_FROM" ]; then
   cp "$SEED_ENV_FROM" "$REMOTE_DIR/.env"
   chmod 600 "$REMOTE_DIR/.env"
