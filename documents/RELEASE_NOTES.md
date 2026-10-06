@@ -1,3 +1,14 @@
+# Release notes — v15.0.6
+
+**Date:** 2026-10-06  
+**Package version:** `15.0.6`  
+**Lane:** Staging showcase `/admin/test`; production same image `/admin` until client cutover.  
+**Commit title:** `Release: v15.0.6 - Odoo Line OA v12 Bug Fix`
+
+Patched `@graphql-tools/utils` and `proxy-addr` so `npm audit --omit=dev --audit-level=high` passes. No Yoga 2 downgrade.
+
+---
+
 # Release notes — v15.0.5
 
 **Date:** 2026-10-06  

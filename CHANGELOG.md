@@ -1,5 +1,9 @@
 # Changelog
 
+## v15.0.6 — Odoo LINE OA v12 (2026-10-06)
+
+- CI production audit: pin patched `@graphql-tools/utils` and `proxy-addr`; bump `graphql-yoga`. No `audit fix --force`.
+
 ## v15.0.5 — Odoo LINE OA v12 (2026-10-06)
 
 - Admin: closed FAQ runbooks on every page; compact action rows; desktop inline nav (drawer under 900px); centered login.
