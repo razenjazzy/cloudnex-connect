@@ -51,7 +51,7 @@ How to read tables below: **Command** = wire/gate. **User sees** = EN / TH. **Ac
 
 ## 3. Journeys
 
-Still book (PNG filenames, capture order): [USER_JOURNEY.md](USER_JOURNEY.md) and `documents/journey/`. Lanes: local experimental `/webhook-test`; staging UAT Admin `/admin/test`; production HMAC + Admin `/admin`. Same Flex builders on every lane.
+Still book (PNG filenames, capture order): [USER_JOURNEY.md](USER_JOURNEY.md) and `documents/journey/`. Client/event talk track: [DEMONSTRATION.md](DEMONSTRATION.md). Lanes: local R&D `/webhook-test`; staging showcase Admin `/admin/test`; production same product until cutover, HMAC + Admin `/admin`. Same Flex builders on every lane.
 
 ```mermaid
 flowchart TD

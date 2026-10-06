@@ -4,9 +4,9 @@ Capture stills live in `documents/journey/`. Canonical prefixes vs EN/TH labels:
 
 | Lane | Where to capture | Notes |
 |---|---|---|
-| Local | `/webhook-test` + Admin `/admin` | Experimental. Mock LINE. Do not treat as UAT. |
-| Staging UAT | Admin `…/admin/test` | Same app as production. HMAC stays on production `:8080` until staging has its own live webhook URL. |
-| Production | Cloudnex Sales / Customer OAs | Live HMAC `https://amardhaka.io/webhook/sales` and `/webhook/customer`. |
+| Local | `/webhook-test` + Admin `/admin` | R&D. Mock LINE. Never a client demo. |
+| Staging | Admin `…/admin/test` + live OAs | Client demo, running clients, events. Same app as production. |
+| Production | Cloudnex Sales / Customer OAs | Same product until cutover. Live HMAC `https://amardhaka.io/webhook/sales` and `/webhook/customer`. |
 
 Tray stills are the published `assets/rich-menu` PNGs. Flex stills without an on-device capture are **studio renders** of the same builders (`npx ts-node --transpile-only scripts/export-journey-stills.ts`) — dummy partner data, no OTP. Recapture on the OA if a tap fails.
 

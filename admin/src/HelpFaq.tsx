@@ -35,7 +35,7 @@ export const HelpFaq = ({
     </FaqItem>
 
     <FaqItem title="Where to get OPS token, admin secret, and other config">
-      <p>Values live in env files. They are never in this UI as plaintext until a super-admin reveal. Do not commit <code>.env</code>. Staging and production use the same Admin app and API; the difference is the Admin URL. Local is the experimental lane (<code>/webhook-test</code>, mock LINE). Staging is <code>/admin/test</code> on <code>:8081</code>, production is <code>/admin</code> on <code>:8080</code> (HMAC).</p>
+      <p>Values live in env files. They are never in this UI as plaintext until a super-admin reveal. Do not commit <code>.env</code>. Local is R&amp;D (mocks, <code>/webhook-test</code>). Staging is the client and event showcase. Production is the same product until a client cutover. Staging Admin is <code>/admin/test</code> on <code>:8081</code>; production Admin is <code>/admin</code> on <code>:8080</code> (HMAC).</p>
       <table className="lane-table">
         <thead>
           <tr>
@@ -46,17 +46,17 @@ export const HelpFaq = ({
         </thead>
         <tbody>
           <tr>
-            <td>Local (experimental)</td>
+            <td>Local (R&amp;D)</td>
             <td><code>/admin</code></td>
             <td><code>repo .env</code></td>
           </tr>
           <tr>
-            <td>Staging</td>
+            <td>Staging (showcase)</td>
             <td><code>/admin/test</code></td>
             <td><code>/opt/cns-line-oa/.env</code></td>
           </tr>
           <tr>
-            <td>Production</td>
+            <td>Production (cutover hold)</td>
             <td><code>/admin</code></td>
             <td><code>/opt/cloudnex-connect/.env</code></td>
           </tr>

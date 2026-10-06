@@ -1,8 +1,13 @@
 # Changelog
 
+## v15.0.3 — Odoo LINE OA v12 (2026-10-06)
+
+- Lane contract: **local** is R&D (mocks, `/webhook-test`, stubs); **staging** is client demo, running clients, and event showcase; **production** is the same product until client cutover.
+- Presenter pack: `documents/DEMONSTRATION.md`. Admin Help lane table matches. Laptop `/demo` stays engineer-only (`DEMO_DAY.md`).
+
 ## v15.0.2 — Odoo LINE OA v12 (2026-10-06)
 
-- Staging and production ship the same API and Admin image; the product difference is Admin URL (`/admin/test` vs `/admin`). Local keeps `/webhook-test` and mock LINE.
+- Staging and production ship the same API and Admin image; the product difference is Admin URL (`/admin/test` vs `/admin`).
 - Admin runbooks: generic FAQ title; open shows warn then steps. Journey book matches live Sales verify-first and Customer guest Order Now.
 
 ## v15.0.1 — Odoo LINE OA v12 (2026-10-06)

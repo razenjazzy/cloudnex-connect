@@ -4,12 +4,12 @@ Cloudnex Connect is the Cloudnex LINE Official Account platform: HMAC webhooks (
 
 TypeScript Express backend that connects LINE Official Accounts to Odoo ERP. Users work in LINE Flex cards (Thai/English). Identity is Firestore unless `MONGO_USERS` is on. Sales, partners, and products live in Odoo.
 
-**Release:** v15.0.2 — Odoo LINE OA v12: same Admin/API on staging and production (Admin URL only), FAQ runbooks, guest Order Now / Ask admin. Cloud Run `release.yml` stays manual.  
+**Release:** v15.0.3 — Odoo LINE OA v12: local R&D, staging client/event showcase, production hold until cutover. Pack: `documents/DEMONSTRATION.md`. Cloud Run `release.yml` stays manual.  
 **Runtime:** Node 22+. **Persona:** Sora / โซระ. **Package:** `cloudnex-connect`.
 
 The git root on disk is `.../Code/cloudnex-connect`. `cns-line-oa` is only a symlink. In Cursor: **File → Open Folder** and choose `cloudnex-connect` (not the symlink) so the sidebar name matches. GCP project id `cns-line-oa` is unrelated.
 
-This README is the map. Implementation details stay in `documents/` and `CLAUDE.md`. Local vs staging ops: [documents/DEVOPS.md](documents/DEVOPS.md). LINE **commands vs readable labels**, Customer/Sales storyboard, and Action→Result tables: [documents/LINE_OA_AGENT.md](documents/LINE_OA_AGENT.md) (agent prompt: [documents/AGENTIC_PROMPT.md](documents/AGENTIC_PROMPT.md)). Buttons post canonical prefixes (`NAV COMMERCE`, `QUOTE LIST`); Admin Commands edits EN/TH (and optional typed aliases). Catalog heroes attach HTTPS `imageUrl` only when Odoo image bytes exist. Customer qty uses a Console **keyboard** rich-menu id (`LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` `en.keyboard` / `th.keyboard` or `LINE_CHANNEL_CUSTOMER_KEYBOARD_RICH_MENU`). If a document disagrees with running code, the code wins.
+This README is the map. **Client demonstration pack:** [documents/DEMONSTRATION.md](documents/DEMONSTRATION.md). Implementation details stay in `documents/` and `CLAUDE.md`. Local vs staging ops: [documents/DEVOPS.md](documents/DEVOPS.md). LINE **commands vs readable labels**, Customer/Sales storyboard, and Action→Result tables: [documents/LINE_OA_AGENT.md](documents/LINE_OA_AGENT.md) (agent prompt: [documents/AGENTIC_PROMPT.md](documents/AGENTIC_PROMPT.md)). Buttons post canonical prefixes (`NAV COMMERCE`, `QUOTE LIST`); Admin Commands edits EN/TH (and optional typed aliases). Catalog heroes attach HTTPS `imageUrl` only when Odoo image bytes exist. Customer qty uses a Console **keyboard** rich-menu id (`LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` `en.keyboard` / `th.keyboard` or `LINE_CHANNEL_CUSTOMER_KEYBOARD_RICH_MENU`). If a document disagrees with running code, the code wins.
 
 ---
 
@@ -123,13 +123,13 @@ All ERP calls go through `getErpAdapter()` (`src/erp/registry.ts` → `odoo-adap
 
 Same codebase. Lane is `APP_ENV`, not `NODE_ENV`. Docker sets `NODE_ENV=production`. **Unset `APP_ENV` + `NODE_ENV=production` fails closed to production** (demo and webhook-test off). Staging **must** set `APP_ENV=staging`.
 
-| Lane | `APP_ENV` | Host | Admin | `/demo` + `/webhook-test` |
+| Lane | Purpose | `APP_ENV` | Admin | Experimental (`/demo`, `/webhook-test`) |
 |---|---|---|---|---|
-| Local | `development` | laptop | `/admin` | **on** (experimental, mock LINE) |
-| Staging UAT | `staging` | sibling `:8081` | `/cloudnex-connect/admin/test` | **off** |
-| Production | `production` | `:8080` HMAC | `/cloudnex-connect/admin` | **off** |
+| Local | Development, mock, stubs, R&D | `development` | `/admin` | **on** |
+| Staging | Client demo, running clients, events | `staging` | `/cloudnex-connect/admin/test` | **off** |
+| Production | Same as staging until client cutover | `production` | `/cloudnex-connect/admin` | **off** |
 
-Staging and production are the same app until you point staging LINE webhooks at a live URL. HMAC stays production `:8080`.
+Same app on staging and production. HMAC stays production `:8080` until a client brings their own host. Showcase talk track: `documents/DEMONSTRATION.md`.
 
 Canonical keys: `src/http/env-params.ts`. Copy-paste: `.env.example`, `deploy/env/staging.example`, `deploy/env/production.example`. Full table: `documents/ENVIRONMENTS.md`. Staging VM: `documents/VPS_STAGING.md`. `npm run deploy:staging-vm`.
 

@@ -1,18 +1,23 @@
-# Demo day — 19 September 2026
+# Demo day — laptop R&D only
 
-Presenter script for a walkable architecture demo. Live surface: `https://amardhaka.io/demo`. Web chat uses the same `resolveCommandReply` as LINE.
+**Client meetings, events, and running-client walkthroughs use [DEMONSTRATION.md](DEMONSTRATION.md)** (staging Admin + live Sales/Customer OAs).
+
+This file is the **local** lane only: `APP_ENV=development`, `/demo`, `/webhook-test`, mocks and stubs. Do not present this URL to a client.
+
+Presenter surface on the laptop: `http://127.0.0.1:8080/demo` (redirects into Admin Testing). Web chat uses the same `resolveCommandReply` as LINE.
 
 ## Do not say
 
 - GraphQL is how LINE events arrive.
 - Mongo is the ERP or the user store.
 - Admin is “just a LINE user who verified Odoo.”
+- Laptop `/demo` is the production product.
 
 ## Stores in one sentence
 
 Firestore holds LINE identity, PDPA, guided-form `pendingFlow`, group-buy sessions, audit, and chat history. Odoo holds partners, products, and quotations via `getErpAdapter()`. Mongo (optional) holds `skill_embeddings` and `chat_embeddings` only.
 
-## Talk track (about 12 minutes)
+## Talk track (engineers, about 12 minutes)
 
 1. Open `/demo`. You should see the HTML panel, not JSON. Paste `DEMO_CONTROL_TOKEN` (or `OPS_API_TOKEN` if they are the same), click **Login Session**, then **Refresh Connections**: LINE, Firestore, Odoo. Mongo may be “not configured” — that is fine.
 2. Open **Interactive Bot — Web Chat**. Send any first message. Expect PDPA + home menu. Same router as `POST /webhook`.
@@ -23,9 +28,9 @@ Firestore holds LINE identity, PDPA, guided-form `pendingFlow`, group-buy sessio
 7. On LINE, **FORM VERIFY**: the phone field chips the number already on the LINE session (and the Odoo contact matching the LINE display name). Tap the chip, then OTP / magic link.
 8. After VERIFY, the success card uses the Odoo partner name: **“Razen is an Odoo Sales User.”** (or Sales Administrator / customer). Not a generic “verification completed.”
 
-**Async LINE (BullMQ)** is on for Hostinger staging (Redis + worker in `docker-compose.staging.yml`) so LINE gets HTTP 200 before `replyMessage`. Do not enable async on scale-to-zero Cloud Run without a queue.
+**Async LINE (BullMQ)** is on for the VPS Redis worker so LINE gets HTTP 200 before `replyMessage`. Do not enable async on scale-to-zero Cloud Run without a queue.
 
-## Commands worth typing live
+## Commands worth typing locally
 
 | Command | Why |
 |---|---|

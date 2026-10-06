@@ -1,3 +1,14 @@
+# Release notes — v15.0.3
+
+**Date:** 2026-10-06  
+**Package version:** `15.0.3`  
+**Lane:** Staging showcase `/admin/test`; production same image `/admin` until client cutover.  
+**Commit title:** `Release: v15.0.3 - Odoo Line OA v12 Staging Deploy`
+
+Local is R&D only. Staging is the client and event demonstration. Production stays identical until cutover. Pack: `documents/DEMONSTRATION.md`.
+
+---
+
 # Release notes — v15.0.2
 
 **Date:** 2026-10-06  
