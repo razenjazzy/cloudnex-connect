@@ -1,4 +1,4 @@
-# CloudNEx Connect — enterprise certification
+# Nex Connect — enterprise certification
 
 **Final score: 10/10 · 100/100.** Every axis is complete. No scored gap.
 
@@ -76,7 +76,7 @@ Chain: LINE identity → Firestore profile → `odooVerified` → `ADMIN_USER_ID
 
 ## 4. UX — 10/10 — complete
 
-Flex under [src/line/templates/](../src/line/templates/); title **CloudNEx Connect**; Sora / โซระ. Guided forms reconstruct one command. Compact 2×3 tray live: 28 Sales + 28 Customer menus. Buttons send real command text. OA profile pictures set in Official Account Manager.
+Flex under [src/line/templates/](../src/line/templates/); title **Nex Connect**; Sora / โซระ. Guided forms reconstruct one command. Compact 2×3 tray live: 28 Sales + 28 Customer menus. Buttons send real command text. OA profile pictures set in Official Account Manager.
 
 ---
 

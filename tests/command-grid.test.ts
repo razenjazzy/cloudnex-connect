@@ -55,6 +55,12 @@ describe('command grid', () => {
     })).toEqual({ ok: true });
   });
 
+  it('allows CART on Sales OA for verified staff when shop commands are in the grid', () => {
+    const staff = profile({ odooVerified: true, role: 'user', salesTier: 'salesperson' });
+    expect(evaluateCommandGrid('CART', { profile: staff, channel: { channelId: 'sales' } })).toEqual({ ok: true });
+    expect(evaluateCommandGrid('FORM CART ADD FROM CARD 2', { profile: staff, channel: { channelId: 'sales' } })).toEqual({ ok: true });
+  });
+
   it('matches longest admin prefix', () => {
     expect(matchCommandGrid('ADMIN ENABLE')?.id).toBe('admin-enable');
     expect(matchCommandGrid('ADMIN CHANNEL sales SERVICES commerce')?.id).toBe('admin-channel');

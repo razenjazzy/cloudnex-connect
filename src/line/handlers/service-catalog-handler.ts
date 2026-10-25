@@ -5,6 +5,7 @@ import { getErpAdapter } from '../../erp/registry';
 import { catalogProductHeroUrl } from '../../erp/product-image-url';
 import { recordAuditEvent } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
+import { assistantTitle } from '../channels';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
@@ -17,7 +18,7 @@ const inferTone = (value: string): 'info' | 'success' | 'warning' | 'error' => {
 
 const botText = (value: string, language: UserLanguage) =>
   createBotTextFlexMessage({
-    title: tr(language, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+    title: assistantTitle(language),
     body: value,
     language,
     tone: inferTone(value),

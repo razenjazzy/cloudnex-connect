@@ -3,7 +3,7 @@ description: CNS LINE OA architecture, 3-env deploy, and agent budget
 alwaysApply: true
 ---
 
-# CNS LINE OA
+# Nex Connect (LINE OA)
 
 LINE HMAC `POST /webhook` and `POST /webhook/:channelId` (and `POST /webhook-alt` when `LINE_SECOND_WEBHOOK`) → identity SoR → one `resolveCommandReply` → Flex.
 GraphQL `ingestLineEvents` (`GRAPHQL_LINE_INGEST`, ops-auth) is an allowed ingest path → `processLineMessageJob` → the same `resolveCommandReply`. Do not duplicate command logic.

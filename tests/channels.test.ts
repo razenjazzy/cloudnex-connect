@@ -135,9 +135,9 @@ describe('agent name', () => {
   it('defaults to Sora in English and โซระ in Thai', () => {
     expect(getAgentName('en')).toBe('Sora');
     expect(getAgentName('th')).toBe('โซระ');
-    expect(APP_NAME).toBe('CloudNex Connect');
-    expect(getBrandTitle('en')).toBe('CloudNex Connect: Sora');
-    expect(getBrandTitle('th')).toBe('CloudNex Connect: โซระ');
+    expect(APP_NAME).toBe('Nex Connect');
+    expect(getBrandTitle('en')).toBe('Nex Connect: Sora');
+    expect(getBrandTitle('th')).toBe('Nex Connect: โซระ');
     expect(withAgentColon('Sora')).toBe('Sora: ');
     expect(withAgentColon('โซระ')).toBe('โซระ: ');
     expect(withAgentColon('Sora hello')).toBe('Sora: hello');

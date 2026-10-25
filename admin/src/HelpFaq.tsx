@@ -88,10 +88,10 @@ export const HelpFaq = ({
       <p>
         Same console → provider → <strong>Create a LINE Login channel</strong> (not Messaging API). App type: Web app. LINE Login tab → Callback URL. Set <code>LINE_LOGIN_CHANNEL_ID</code> and <code>LINE_LOGIN_CHANNEL_SECRET</code> on the VPS.
       </p>
-      <CopyField label="Channel name" value="Cloudnex Connect" />
+      <CopyField label="Channel name" value="Nex Connect" />
       <CopyField
         label="Channel description"
-        value="Cloudnex Connect Admin web sign-in. LINE Login (OAuth 2.0 PKCE) identifies the operator’s LINE user id so a super-admin cookie can be issued after OPS token auth. Scopes: profile and openid. This channel does not receive Messaging API webhooks."
+        value="Nex Connect Admin web sign-in. LINE Login (OAuth 2.0 PKCE) identifies the operator’s LINE user id so a super-admin cookie can be issued after OPS token auth. Scopes: profile and openid. This channel does not receive Messaging API webhooks."
       />
       <CopyField
         label="LINE Login APIs"

@@ -89,13 +89,13 @@ describe('shop cart Flex', () => {
   });
 });
 
-describe('shop menu XOR', () => {
-  it('swaps Ask for Quotations for Cart in shop mode only', () => {
+describe('shop menu plus quote ask', () => {
+  it('adds My Cart in shop mode and keeps Ask for Quotations', () => {
     const commerce = SERVICE_CATALOG.find(s => s.key === 'commerce')!;
     expect(getVisibleCommands(commerce, false, false).map(c => c.text)).toContain('QUOTE ASK');
     expect(getVisibleCommands(commerce, false, false, { shopMode: true }).map(c => c.text)).toContain('CART');
     expect(getVisibleCommands(commerce, false, false, { shopMode: true }).find(c => c.text === 'CART')?.labelEn).toBe('My Cart');
     expect(getVisibleCommands(commerce, false, false, { shopMode: true }).map(c => c.text)).not.toContain('CART VIEW');
-    expect(getVisibleCommands(commerce, false, false, { shopMode: true }).map(c => c.text)).not.toContain('QUOTE ASK');
+    expect(getVisibleCommands(commerce, false, false, { shopMode: true }).map(c => c.text)).toContain('QUOTE ASK');
   });
 });

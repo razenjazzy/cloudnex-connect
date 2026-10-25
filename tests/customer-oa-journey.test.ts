@@ -7,9 +7,9 @@ import { catalogUiLabel } from '../src/line/catalog-ui';
 import { readFileSync } from 'node:fs';
 
 describe('customer qty chips', () => {
-  it('defaults to 10–50 by fives and stays within the LINE chip budget', () => {
-    expect(parseCustomerQtyChips('')).toEqual([10, 15, 20, 25, 30, 35, 40, 45, 50]);
-    expect(customerQtyChipLabels('10,15,20,25,30,35,40,45,50').length + 2).toBeLessThanOrEqual(13);
+  it('defaults to 5–50 by fives and stays within the LINE chip budget', () => {
+    expect(parseCustomerQtyChips('')).toEqual([5, 10, 15, 20, 25, 30, 35, 40, 45, 50]);
+    expect(customerQtyChipLabels('5,10,15,20,25,30,35,40,45,50').length + 2).toBeLessThanOrEqual(13);
     expect(parseCustomerQtyChips('1,x,99,99').length).toBeLessThanOrEqual(11);
   });
 });
@@ -43,7 +43,7 @@ describe('product find selection', () => {
     expect(productFindId('App Premium')).toBeNull();
     const commerce = readFileSync('src/line/handlers/commerce.ts', 'utf8');
     expect(commerce).toMatch(/lookedUp \? \[\] : await /);
-    expect(commerce).toContain('searchAudienceProducts(query, 10)');
+    expect(commerce).toContain('searchAudienceProducts(query, CATALOG_CAROUSEL_MAX)');
     expect(commerce).not.toContain('lookedUp || id');
   });
 });

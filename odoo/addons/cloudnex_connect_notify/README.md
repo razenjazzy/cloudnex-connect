@@ -1,10 +1,10 @@
-# Cloudnex Connect — LINE notify (current Odoo)
+# Nex Connect — LINE notify (current Odoo)
 
 Uses the same Odoo database already configured as `ODOO_URL` / `ODOO_DB` on `/opt/cloudnex-connect/.env`. Does not add a second ERP.
 
 ## Install
 
-Add this directory to the Odoo addons path, update apps list, install **Cloudnex Connect LINE notify**.
+Add this directory to the Odoo addons path, update apps list, install **Nex Connect LINE notify**.
 
 Settings → Technical → Parameters:
 

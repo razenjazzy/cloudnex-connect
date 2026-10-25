@@ -1,4 +1,4 @@
-# Cloudnex Connect — Ansible playbooks
+# Nex Connect — Ansible playbooks
 
 This directory provisions, deploys, and monitors **cloudnex-connect** on Ubuntu/Debian.
 

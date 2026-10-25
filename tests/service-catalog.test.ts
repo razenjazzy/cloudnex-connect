@@ -67,7 +67,22 @@ describe('isServiceEnabledForChannel', () => {
 
 describe('getAvailableServices', () => {
   it('returns the full catalog for an admin when unrestricted', () => {
+    const previous = process.env.GROUPBUY_ENABLED;
+    process.env.GROUPBUY_ENABLED = 'true';
     expect(getAvailableServices(undefined, true)).toHaveLength(SERVICE_CATALOG.length);
+    if (previous === undefined) delete process.env.GROUPBUY_ENABLED;
+    else process.env.GROUPBUY_ENABLED = previous;
+  });
+
+  it('hides groupBuy unless GROUPBUY_ENABLED is on', () => {
+    const previous = process.env.GROUPBUY_ENABLED;
+    delete process.env.GROUPBUY_ENABLED;
+    expect(isServiceEnabledForChannel('groupBuy')).toBe(false);
+    expect(getAvailableServices(undefined, true).map(s => s.key)).not.toContain('groupBuy');
+    process.env.GROUPBUY_ENABLED = 'true';
+    expect(isServiceEnabledForChannel('groupBuy')).toBe(true);
+    if (previous === undefined) delete process.env.GROUPBUY_ENABLED;
+    else process.env.GROUPBUY_ENABLED = previous;
   });
 
   it('keeps customers on commerce only', () => {
@@ -106,10 +121,10 @@ describe('getVisibleCommands', () => {
     expect(getVisibleCommands(directory, true)).toEqual(directory.commands);
   });
 
-  it('keeps customers on shop commands only', () => {
+  it('keeps quote commands and adds Cart when shop mode is on', () => {
     const commerce = SERVICE_CATALOG.find(s => s.key === 'commerce')!;
     expect(getVisibleCommands(commerce, false, false).map(c => c.text)).toEqual(['FORM PRODUCT FIND', 'QUOTE LIST', 'QUOTE ASK']);
-    expect(getVisibleCommands(commerce, false, false, { shopMode: true }).map(c => c.text)).toEqual(['FORM PRODUCT FIND', 'QUOTE LIST', 'CART']);
+    expect(getVisibleCommands(commerce, false, false, { shopMode: true }).map(c => c.text)).toEqual(['FORM PRODUCT FIND', 'QUOTE LIST', 'CART', 'QUOTE ASK']);
     expect(getVisibleCommands(commerce, true, true).map(c => c.text)).toEqual([
       'FORM PRODUCT FIND',
       'FORM QUOTE CREATE',
@@ -117,6 +132,15 @@ describe('getVisibleCommands', () => {
       'QUOTE LIST',
       'FORM MESSAGE CUSTOMER',
     ]);
+    expect(getVisibleCommands(commerce, true, true, { shopMode: true }).map(c => c.text)).toEqual([
+      'FORM PRODUCT FIND',
+      'FORM QUOTE CREATE',
+      'FORM ORDER STATUS',
+      'QUOTE LIST',
+      'CART',
+      'FORM MESSAGE CUSTOMER',
+    ]);
+    expect(getVisibleCommands(commerce, false, true, { shopMode: true }).find(c => c.text === 'CART')?.labelEn).toBe('Shop orders');
   });
 });
 

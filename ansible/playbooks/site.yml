@@ -1,6 +1,6 @@
 ---
-# Full provisioning and deployment playbook for Cloudnex Connect
-- name: Provision and Deploy Cloudnex Connect
+# Full provisioning and deployment playbook for Nex Connect
+- name: Provision and Deploy Nex Connect
   hosts: all
   become: true
   roles:

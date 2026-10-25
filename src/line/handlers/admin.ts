@@ -5,7 +5,7 @@ import { findOdooSalesTierByPartnerId, verifyOdooAdminAccess } from '../../servi
 import { recordAuditEvent, setUserRole, setUserSalesTier } from '../../services/firestore';
 import { createAdminConfigFlexMessage, createBotTextFlexMessage } from '../templates';
 import type { UserLanguage } from '../../services/firestore';
-import { getChannelServiceOverride, resolveChannelConfig, setChannelServiceOverride } from '../channels';
+import { assistantTitle, getChannelServiceOverride, resolveChannelConfig, setChannelServiceOverride } from '../channels';
 import { SERVICE_CATALOG } from '../../services/service-catalog';
 import { runAuditRotationJob } from '../../jobs/audit-rotation';
 
@@ -20,7 +20,7 @@ const inferTone = (value: string): 'info' | 'success' | 'warning' | 'error' => {
 
 const botText = (value: string, language: UserLanguage) =>
   createBotTextFlexMessage({
-    title: tr(language, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+    title: assistantTitle(language),
     body: value,
     language,
     tone: inferTone(value),

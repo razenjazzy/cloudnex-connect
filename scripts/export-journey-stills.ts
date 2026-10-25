@@ -467,7 +467,7 @@ body{margin:0;background:#1a2a28;font-family:-apple-system,BlinkMacSystemFont,sa
 #root{display:flex;flex-direction:column;gap:16px;padding:24px;align-items:flex-start;width:max-content}
 .cap{color:#9bb3af;font-size:11px;letter-spacing:.02em}
 </style></head><body>
-<div class="cap">Studio Flex — same builders as Cloudnex Connect OA</div>
+<div class="cap">Studio Flex — same builders as Nex Connect OA</div>
 <div id="root"></div>
 <script>${renderer}mount(${JSON.stringify(messages)});</script>
 </body></html>`;

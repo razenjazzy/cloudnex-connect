@@ -1,6 +1,6 @@
 export const DEMO_PAGE_MARKUP = `
   <header class="demo-top">
-    <a class="brand" href="#demo-home">Cloudnex Connect</a>
+    <a class="brand" href="#demo-home">Nex Connect</a>
     <nav>
       <a href="#demo-home">Home</a>
       <a href="#demo-modules">Modules</a>
@@ -14,7 +14,7 @@ export const DEMO_PAGE_MARKUP = `
   <div class="shell">
     <section class="hero" id="demo-home">
       <div class="panel hero-copy">
-        <div class="eyebrow">Cloudnex Connect Testing</div>
+        <div class="eyebrow">Nex Connect Testing</div>
         <h1>Walk LINE → Firestore → Odoo in one panel. Mongo and GraphQL stay optional ops add-ons.</h1>
         <p>Same resolveCommandReply as the Official Account. Chat, journey runner, and connection checks are the live demo path.</p>
         <div class="token-row">

@@ -7,7 +7,7 @@ import { seedOdooSampleSalesDataWithAudit } from '../../services/seed-odoo';
 import { setEscalationState } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
 import { isServiceEnabledForChannel, type ServiceKey } from '../../services/service-catalog';
-import { type ChannelContext } from '../channels';
+import { assistantTitle, type ChannelContext } from '../channels';
 import { getDefaultCustomerEmail, getDefaultCustomerName, getDefaultCustomerPhone } from '../default-contact';
 
 const SERVICE_GUIDE_KEYS: ServiceKey[] = ['commerce', 'directory', 'catalog', 'reporting', 'groupBuy'];
@@ -22,7 +22,7 @@ const tr = (language: UserLanguage, th: string, en: string): string => (language
 
 const botText = (value: string, language: UserLanguage) =>
   createBotTextFlexMessage({
-    title: tr(language, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+    title: assistantTitle(language),
     body: value,
     language,
     tone: 'info',
@@ -107,7 +107,7 @@ const humanHandoffHandler: CommandHandler = {
       ? tr(userLanguage, `${agentName} โอนเคสให้แอดมินแล้วนะคะ เดี๋ยวเจ้าหน้าที่จะดูแลต่อทันที`, `${agentName} has escalated this chat to a human agent. Someone will follow up shortly.`)
       : tr(userLanguage, `${agentName} ยังไม่สามารถโอนเคสให้แอดมินได้ กรุณาลองใหม่อีกครั้ง`, `${agentName} could not escalate right now. Please try again.`);
     return [createBotTextFlexMessage({
-      title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+      title: assistantTitle(userLanguage),
       body: message,
       language: userLanguage,
       tone: result.ok ? 'success' : 'error',

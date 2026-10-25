@@ -61,7 +61,7 @@ const profile = {
   marketingOptIn: false,
 };
 
-describe('Cloudnex Connect admin API', () => {
+describe('Nex Connect admin API', () => {
   const store: Record<string, unknown> = {};
   const original: Record<string, string | undefined> = {};
   const keys = [
@@ -358,7 +358,7 @@ describe('Cloudnex Connect admin API', () => {
       body: JSON.stringify({ audienceType: 'sales_internal', channelId: 'sales', text: 'hello staff' }),
     });
     expect(res.status).toBe(200);
-    expect(mockedSend).toHaveBeenCalledWith(['Usuper'], '[Cloudnex test] hello staff', 'sales');
+    expect(mockedSend).toHaveBeenCalledWith(['Usuper'], '[Nex Connect test] hello staff', 'sales');
     const body = await res.json() as { to: string };
     expect(body.to).toBe('Usuper');
   });
@@ -630,7 +630,7 @@ describe('Cloudnex Connect admin API', () => {
   });
 });
 
-describe('OpenAPI Cloudnex Connect coverage', () => {
+describe('OpenAPI Nex Connect coverage', () => {
   it('documents install, admin, webhooks, and audit actorUserId', () => {
     const document = buildOpenApiDocument() as {
       tags: Array<{ name: string }>;

@@ -1,4 +1,4 @@
-# Cloudnex Connect on amardhaka.io (two VPS lanes)
+# Nex Connect on amardhaka.io (two VPS lanes)
 
 Secrets stay on the VM — never commit `.env`. Laptop **builds and pushes** `razenjazzy/cloudnex-connect:staging`. The VPS **docker pull**s that image (no `npm install` / `npm ci` on the host).
 

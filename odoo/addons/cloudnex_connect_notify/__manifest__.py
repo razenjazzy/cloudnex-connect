@@ -1,8 +1,10 @@
+# Odoo loads this file with ast.literal_eval, so the manifest stays a bare dict.
+# pyright: reportUnusedExpression=false
 {
-    "name": "Cloudnex Connect LINE notify",
+    "name": "Nex Connect LINE notify",
     "version": "1.0.0",
     "category": "Sales",
-    "summary": "POST picking.done / approval.stage to Cloudnex Connect /ops/odoo-hook",
+    "summary": "POST picking.done / approval.stage to Nex Connect /ops/odoo-hook",
     "depends": ["sale_stock"],
     "data": ["data/ir_config_parameter.xml"],
     "installable": True,

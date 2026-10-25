@@ -1,4 +1,4 @@
-# CloudNEx Connect architecture review
+# Nex Connect architecture review
 
 Updated: 2026-09-14. **In-scope grade: 100/100** (same scoring model as [ENTERPRISE_CERTIFICATION.md](ENTERPRISE_CERTIFICATION.md): contracted LINE Phase 2 product, CI + staging probes. Device UAT and Odoo Online Python addons are out of score).
 

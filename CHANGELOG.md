@@ -164,7 +164,7 @@
 
 ## v5.0.1 — Odoo LINE OA v3 staging (2026-09-19)
 
-Staging cut of Cloudnex Connect on `https://amardhaka.io`. No new product domains. Dual OA, catalog carousels, customer C0–C5 / staff send-approve-invoice, demo talk track.
+Staging cut of Nex Connect on `https://amardhaka.io`. No new product domains. Dual OA, catalog carousels, customer C0–C5 / staff send-approve-invoice, demo talk track.
 
 ### Platform (frozen)
 

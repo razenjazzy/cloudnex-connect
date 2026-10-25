@@ -16,7 +16,7 @@ import { getPartnerById, getPartnerByPhone } from './odoo/partners';
 import { getRuntime } from './runtime-settings';
 import { publicSiteUrl } from '../http/public-bases';
 import { findOdooSalesTierByPartnerId } from './odoo/admin';
-import { DEFAULT_CHANNEL_ID, CUSTOMER_CHANNEL_ID, getAgentName, getAgentSpeakPrefix, resolveChannelConfig } from '../line/channels';
+import { assistantTitle, DEFAULT_CHANNEL_ID, CUSTOMER_CHANNEL_ID, getAgentName, getAgentSpeakPrefix, resolveChannelConfig } from '../line/channels';
 import { tFill } from './i18n';
 import { sendTargetedMessage, sendTargetedFlexMessage } from '../line/messaging';
 import { createBotTextFlexMessage, createIdentityStripFlexMessage, createSalesAccountFlexMessage } from '../line/templates';
@@ -353,7 +353,7 @@ export const verifyOdooUserByToken = async (token: string): Promise<{ ok: boolea
   // LINE chat never learns the verification actually succeeded.
   const language = await getUserLanguage(consumed.data.userId);
   const successCard = createBotTextFlexMessage({
-    title: tr(language, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+    title: assistantTitle(language),
     body: verificationSuccessMessage(language, bindResult.partnerName, salesTier),
     language,
     tone: 'success',

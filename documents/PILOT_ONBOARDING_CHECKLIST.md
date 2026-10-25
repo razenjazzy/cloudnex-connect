@@ -1,6 +1,6 @@
 # Pilot Onboarding Checklist
 
-Use this for every new Cloudnex Connect pilot customer (Go-to-Market Phase 1–2).
+Use this for every new Nex Connect pilot customer (Go-to-Market Phase 1–2).
 Each pilot is a single-tenant **silo** deployment — its own process, env vars, and Odoo.
 Do not add a second paying company’s LINE OA onto an existing HMAC. Overlay `TENANT_KEY`
 only isolates Admin command/i18n docs. Admin → Tenants documents that model.
@@ -23,7 +23,7 @@ only isolates Admin command/i18n docs. Admin → Tenants documents that model.
 ## 2. Odoo access
 
 - [ ] Confirm the customer's Odoo instance URL and database name
-- [ ] Create a **dedicated Odoo service account** for Cloudnex Connect (do not reuse a human user's login) with API key access, scoped to:
+- [ ] Create a **dedicated Odoo service account** for Nex Connect (do not reuse a human user's login) with API key access, scoped to:
   - `res.partner` (read/write) — customer directory
   - `product.product` (read/write) — service/product catalog
   - `sale.order` (read/write) — quotations

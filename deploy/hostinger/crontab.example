@@ -1,4 +1,4 @@
-# Host crontab for Cloudnex Connect (no in-process Node cron).
+# Host crontab for Nex Connect (no in-process Node cron).
 # Install with: crontab -e  (as root)
 
 # Hourly container-log archive into /var/log/cloudnex-connect/<lane>/<date>/<HH>.log(.gz), 30-day retention.

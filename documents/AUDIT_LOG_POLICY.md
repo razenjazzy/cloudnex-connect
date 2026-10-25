@@ -37,7 +37,7 @@ best-effort record, not a transactional ledger.
 
 | Tier | Store | Retention | Purpose |
 |---|---|---|---|
-| Hot | Firestore `auditLog` | `AUDIT_RETENTION_DAYS` (default **30**) | Fast reads for `/ops/audit-log`, Cloudnex Connect Admin Logs, and `ADMIN AUDIT ROTATE` |
+| Hot | Firestore `auditLog` | `AUDIT_RETENTION_DAYS` (default **30**) | Fast reads for `/ops/audit-log`, Nex Connect Admin Logs, and `ADMIN AUDIT ROTATE` |
 | Cold | BigQuery `ops_archive.audit_log` | Indefinite | Full history, day-partitioned on `createdAt`, queryable with SQL |
 
 Firestore stays small and fast on purpose — it's not meant as a permanent

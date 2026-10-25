@@ -20,8 +20,11 @@ export const CUSTOMER_CHANNEL_ID = 'customer';
 
 /** True when the message arrived on the Customer OA. Staff-only commands must never run there. */
 export const isCustomerChannel = (channel?: { channelId: string } | null): boolean => channel?.channelId === CUSTOMER_CHANNEL_ID;
-/** Flex / product name. LINE OA Manager names are Cloudnex Sales and Cloudnex Customer. */
-export const APP_NAME = 'CloudNex Connect';
+/** Flex / product name. LINE OA Manager names (Sales / Customer) stay as configured in LINE Console. */
+export const APP_NAME = 'Nex Connect';
+
+export const assistantTitle = (language: string): string =>
+  language === 'th' ? `ผู้ช่วย ${APP_NAME}` : `${APP_NAME} assistant`;
 
 /** LINE user ids on this OA are not valid on the other. Pushes must use matching credentials. */
 export const customerNotifyChannelId = (): string =>

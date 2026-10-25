@@ -1,11 +1,11 @@
-# User journey book — CloudNex Connect (LINE OA)
+# User journey book — Nex Connect (LINE OA)
 
 Capture stills live in `documents/journey/`. Canonical prefixes vs EN/TH labels: [LINE_OA_AGENT.md](LINE_OA_AGENT.md) §3–4. **Code wins** if a still disagrees with running Flex.
 
 | Lane | Where to capture | Notes |
 |---|---|---|
-| Local | `/webhook-test` + Admin `/admin` | R&D. Mock LINE. Never a client demo. |
-| Staging | Admin `…/admin/test` + live OAs | Client demo, running clients, events. Same app as production. |
+| Local | `/webhook-test` + Admin `/admin` | R&D. Mock LINE. Admin Home is the public one-pager; HMAC overview is `/admin/dashboard` after OPS. Never a client demo. |
+| Staging | Admin `…/admin/test` + live OAs | Client demo, running clients, events. Same app as production. Home is the product one-pager (no login). |
 | Production | Cloudnex Sales / Customer OAs | Same product until cutover. Live HMAC `https://amardhaka.io/webhook/sales` and `/webhook/customer`. |
 
 Tray stills are the published `assets/rich-menu` PNGs. Flex stills are **studio renders** of the same builders (`npm run journey:stills`) — sample partner **Razen** / `+8801787671962` (Thai sample **Ashfaq**), no OTP. Composer chips are drawn under the card. Recapture on the OA if a tap fails.
@@ -14,7 +14,7 @@ Each step: send the listed command (tray or button), confirm the expected UI, th
 
 English is the default. Thai appears only after **Language**. Do not screenshot OTP codes or real customer PII; use the Razen / Ashfaq sample partners.
 
-Persona names: **Sora** (EN), **โซระ** (TH). Guide/home titles: **CloudNex Connect: Sora** / **CloudNex Connect: โซระ**.
+Persona names: **Sora** (EN), **โซระ** (TH). Guide/home titles: **Nex Connect: Sora** / **Nex Connect: โซระ**.
 
 Current implementation (must match LINE):
 
@@ -27,7 +27,7 @@ Current implementation (must match LINE):
 ## Setup (once per capture session)
 
 1. `https://amardhaka.io/healthz` and `/readyz` are 200.
-2. **Cloudnex Sales** webhook: `POST https://amardhaka.io/webhook/sales`. **Cloudnex Customer** webhook: `POST https://amardhaka.io/webhook/customer` with `LINE_CHANNEL_CUSTOMER_*`. Quotes/invoices push to Cloudnex Customer; sales staff stay on Cloudnex Sales. A customer asking for a quote or order creates a **draft** `sale.order`. Flex title stays CloudNex Connect.
+2. **Cloudnex Sales** webhook: `POST https://amardhaka.io/webhook/sales`. **Cloudnex Customer** webhook: `POST https://amardhaka.io/webhook/customer` with `LINE_CHANNEL_CUSTOMER_*`. Quotes/invoices push to Cloudnex Customer; sales staff stay on Cloudnex Sales. A customer asking for a quote or order creates a **draft** `sale.order`. Flex title stays Nex Connect.
 3. Compact tray is live (2×3: **Home | Products & Quotes | Order Status** / **Verify | Language | Help**). Rest tiles are **white (no teal)**. **Language is gold** while English and **white** while Thai. **Verify is gold** while the session is on and **white** while not. A tap fills that tile **dark teal**. Equal gutter around and between tiles. After generate/upload, set `LINE_RICH_MENU_EN`, `LINE_RICH_MENU_TH`, `LINE_RICH_MENU_JSON`, and `LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON` on the VPS `.env`, then recreate. **Customer qty / pendingFlow** unlinks the tray then links `en.keyboard` / `LINE_CHANNEL_CUSTOMER_KEYBOARD_RICH_MENU` (create that menu in LINE Console; unlink alone still shows the OA default tray). After a terminal Flex (not waiting-for-customer), the tray is linked again.
 4. Extra OA (e.g. Cloudnex HR): Admin **LINE** / Settings → Add LINE channel (`hr`) → overlay `LINE_CHANNEL_HR_*` → webhook `POST {PUBLIC_BASE_URL}/webhook/hr`. Same process, no second router. `ADMIN_CONFIG_LOCK` blocks overlay writes.
 5. Sales onboard: add **Cloudnex Sales** as a friend, then **VERIFY**. If the saved LINE phone is not on the Sales User contact, the card offers **Ask admin** (notifies `ADMIN_USER_ID` LINE ids) and **Another phone**. Capture account language is English (or tap Language until English). Existing Firestore `language: th` stays Thai until Language is tapped.
@@ -61,7 +61,7 @@ Capture on **Cloudnex Customer** (`@724tneri`). No staff name/phone fields. No A
 | A3c | Sales unmatched phone | **Ask admin** (`VERIFY ASK ADMIN`) + **Another phone** | `journey/a3-ask-admin.png` |
 | A4 | `NAV commerce` (tray Products & Quotes) | Service action list: find product, create quote, order status, my quotations | `journey/a4-products-quotes.png` |
 | A5 | `FORM ORDER STATUS` (tray Order Status) | Order-status form prompt | `journey/a5-order-status.png` |
-| A6 | `GUIDE` (tray Help) | Guide categories; header CloudNex Connect: Sora | `journey/a6-help-guide.png` |
+| A6 | `GUIDE` (tray Help) | Guide categories; header Nex Connect: Sora | `journey/a6-help-guide.png` |
 
 ---
 
@@ -120,9 +120,9 @@ Odoo **Sales Administrator** (`sales_manager` after VERIFY) or LINE `role=admin`
 | # | Command | You should see | File |
 |---|---|---|---|
 | D1 | `LANG` | Reply that language switched to Thai; **Language gold is removed** (regular) | `journey/d1-lang-toggle.png` |
-| D2 | `NAV HOME` in Thai | CloudNex Connect: โซระ | `journey/d2-home-th.png` |
+| D2 | `NAV HOME` in Thai | Nex Connect: โซระ | `journey/d2-home-th.png` |
 | D3 | Tray in Thai | Same six labels; Language **regular**; Verify gold only if the sales session is on | `journey/d3-tray-th.png` |
-| D4 | `GUIDE` in Thai | Header CloudNex Connect: โซระ | `journey/d4-guide-th.png` |
+| D4 | `GUIDE` in Thai | Header Nex Connect: โซระ | `journey/d4-guide-th.png` |
 | D5 | `LANG` back to English | English copy again | `journey/d5-lang-en.png` |
 
 If `FORM FIELD 8` is tapped with no open form, the reply must follow the **current** language (English default), not mixed Thai chrome.

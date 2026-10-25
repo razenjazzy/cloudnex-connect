@@ -173,11 +173,41 @@ describe('product catalogue carousel', () => {
     expect(json).toContain('FORM QUOTE CREATE FROM CARD 21');
   });
 
-  it('caps the carousel at 10 slides', () => {
+  it('caps the carousel at 12 slides (LINE Flex max)', () => {
     const products = Array.from({ length: 15 }, (_, i) => ({ id: i + 1, name: `Item ${i + 1}`, price: 1, quantity: 1 }));
     const message = createProductCarouselFlexMessage(products, 'en');
     const contents = message.contents as { contents?: unknown[] };
-    expect(contents.contents).toHaveLength(10);
+    expect(contents.contents).toHaveLength(12);
+  });
+
+  it('uses Create quote on Sales OA and Order Now on Customer OA', () => {
+    const products = [{ id: 11, name: 'App Premium', sku: 'APP-PREMIUM', price: 990, quantity: 4 }];
+    const sales = JSON.stringify(createProductCarouselFlexMessage(products, 'en', undefined, 'sales'));
+    const customer = JSON.stringify(createProductCarouselFlexMessage(products, 'en', undefined, 'customer'));
+    expect(sales).toContain('Create quote');
+    expect(sales).not.toContain('Order Now');
+    expect(customer).toContain('Order Now');
+    expect(JSON.stringify(createProductCardFlexMessage('App Premium', 990, 4, 'en', 11, undefined, { channelId: 'sales' }))).toContain('Create quote');
+  });
+
+  it('pairs Create quote with Add to Cart on Sales OA when shop mode is on', () => {
+    const sales = JSON.stringify(createProductCarouselFlexMessage(
+      [{ id: 11, name: 'App Premium', sku: 'APP-PREMIUM', price: 990, quantity: 4 }],
+      'en',
+      undefined,
+      'sales',
+      true,
+    ));
+    expect(sales).toContain('Create quote');
+    expect(sales).toContain('Add to Cart');
+    expect(sales).toContain('FORM QUOTE CREATE FROM CARD 11');
+    expect(sales).toContain('FORM CART ADD FROM CARD 11');
+    const card = JSON.stringify(createProductCardFlexMessage('App Premium', 990, 4, 'en', 11, undefined, {
+      channelId: 'sales',
+      shopMode: true,
+    }));
+    expect(card).toContain('Create quote');
+    expect(card).toContain('Add to Cart');
   });
 
   it('shows Order Now until the SKU is in the cart; carousel Remove only for in-cart items', () => {

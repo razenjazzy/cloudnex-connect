@@ -215,7 +215,7 @@ const buildFormPromptMessage = async (
   const loaded = field.loadOptions
     ? await field.loadOptions(collected).catch(err => { console.warn('buildFormPromptMessage: loadOptions failed (non-fatal):', err); return []; })
     : undefined;
-  const qtyChips = field.key === 'qty' && !isQuoteStaff(profile) ? customerQtyChipLabels() : undefined;
+  const qtyChips = field.key === 'qty' ? customerQtyChipLabels() : undefined;
   const options = loaded?.length ? loaded : qtyChips;
   const savedPhoneNote = field.key === 'phone' && options?.[0]
     ? tr(language,
@@ -725,7 +725,7 @@ const handleFormCommand = async (ctx: CommandReplyContext): Promise<messagingApi
     if (identity && 'phone' in identity && identity.phone) seeded.phone = identity.phone;
     if (identity && 'rfqUnassigned' in identity && identity.rfqUnassigned) seeded.rfqUnassigned = identity.rfqUnassigned;
     if (qtySeed) seeded.qty = qtySeed;
-    if (fromCartAdd && !isQuoteStaff(profile) && await isCustomerShopEffective()) seeded.shopStay = '1';
+    if (fromCartAdd && await isCustomerShopEffective()) seeded.shopStay = '1';
     if (seeded.rfqUnassigned === '1' && seeded.qty && seeded.customerName && seeded.phone) {
       const productToken = `id:${product.productId}`;
       return resolveCommandReply({

@@ -397,9 +397,9 @@ const opsPaths: Record<string, OpenApiPath> = {
 export const buildOpenApiDocument = (): Record<string, unknown> => ({
   openapi: '3.1.0',
   info: {
-    title: 'Cloudnex Connect',
+    title: 'Nex Connect',
     version: '1.0.0',
-    description: 'LINE services, ERP adapter, ops, and Cloudnex Connect Admin. Secrets are never in response examples.',
+    description: 'LINE services, ERP adapter, ops, and Nex Connect Admin. Secrets are never in response examples.',
   },
   servers: [{ url: '/' }],
   tags: [

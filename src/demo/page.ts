@@ -12,7 +12,7 @@ export const buildDemoPage = (demoBase = '/demo'): string => `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Cloudnex Connect Testing</title>
+  <title>Nex Connect Testing</title>
   <style>
 ${DEMO_PAGE_STYLES}
   </style>

@@ -1,4 +1,4 @@
-# CNS LINE OA
+# Nex Connect (LINE OA)
 
 ## Architecture
 
@@ -30,7 +30,7 @@ Odoo masters stay in Odoo via `getErpAdapter()`. Mongo is never Odoo SoR. Non-od
 - `src/services/guided-forms.ts`: step-by-step guided-form field specs for multi-field commands (reconstructs the equivalent single-line command on completion; not used in group/room chats).
 - `src/services/user-verification.ts`: Odoo user verification (OTP + magic link, with attempt lockout).
 - `src/services/admin-authorization.ts`: `ADMIN_USER_ID` allowlist check used by `ADMIN ENABLE`, applied after verification and before the Odoo admin-capability check.
-- `src/http/admin-api-routes.ts`: Cloudnex Connect Admin HTTP (`/admin/api`). Overlay settings, command overlay, tenant key, LINE bind OTP, LINE Login OAuth, Okta OIDC/SAML, secret reveal, CRM/ops. Same `getErpAdapter()`. Extra LINE ingresses still share `resolveCommandReply`.
+- `src/http/admin-api-routes.ts`: Nex Connect Admin HTTP (`/admin/api`). Overlay settings, command overlay, tenant key, LINE bind OTP, LINE Login OAuth, Okta OIDC/SAML, secret reveal, CRM/ops. Same `getErpAdapter()`. Extra LINE ingresses still share `resolveCommandReply`.
 - `src/services/opsAuth.ts`: operational API protection.
 - `src/services/odoo.ts`: Odoo integration.
 - `src/services/vertexai.ts`: Gemini integration for insights, intent classification, and voice-message transcription.

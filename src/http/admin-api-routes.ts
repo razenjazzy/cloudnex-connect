@@ -605,7 +605,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     const previewCount = audience.ok ? audience.userIds.length : 0;
     const delivered = await sendTargetedMessage(
       [actor],
-      `[Cloudnex test] ${text}`,
+      `[Nex Connect test] ${text}`,
       parsed.channelId,
     );
     await recordAuditEvent({
@@ -698,7 +698,7 @@ export const registerAdminApiRoutes = (app: Express): void => {
     }
     const issued = await issueBindOtp(userId);
     if (!issued.ok) return res.status(503).json({ error: issued.error });
-    await sendTargetedMessage([userId], `Cloudnex Connect Admin login code: ${issued.otp}`, SALES_CHANNEL_ID);
+    await sendTargetedMessage([userId], `Nex Connect Admin login code: ${issued.otp}`, SALES_CHANNEL_ID);
     await recordAuditEvent({ action: 'admin_session_bind', outcome: 'success', actorUserId: userId, detail: 'otp_issued' });
     return res.json({ ok: true, expiresInSec: issued.expiresInSec });
   });

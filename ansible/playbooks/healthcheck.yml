@@ -1,5 +1,5 @@
 ---
-- name: Verify Health and Readiness of Cloudnex Connect
+- name: Verify Health and Readiness of Nex Connect
   hosts: all
   gather_facts: false
   tasks:

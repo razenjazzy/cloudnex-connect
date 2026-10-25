@@ -1,4 +1,4 @@
-const DEFAULT_CHIPS = [10, 15, 20, 25, 30, 35, 40, 45, 50];
+const DEFAULT_CHIPS = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
 
 /** LINE quickReply max is 13. Qty chips share the bar with Cancel (+ Skip / Home). */
 export const parseCustomerQtyChips = (raw = process.env.CUSTOMER_QTY_CHIPS): number[] => {

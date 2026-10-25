@@ -5,7 +5,7 @@ import { LINE_LIMITS } from '../src/line/message-limits';
 
 const homeFlex = (): messagingApi.FlexMessage => ({
   type: 'flex',
-  altText: 'CloudNex Connect: Sora menu',
+  altText: 'Nex Connect: Sora menu',
   contents: { type: 'bubble', body: { type: 'box', layout: 'vertical', contents: [] } },
 });
 
@@ -160,14 +160,14 @@ describe('shouldPushDeferredCatalog', () => {
       isGroupContext: false,
       applyTray: true,
       text: 'NAV HOME',
-      messages: [{ type: 'flex', altText: 'CloudNex Connect: Sora menu', contents: { type: 'bubble', body: { type: 'box', layout: 'vertical', contents: [] } } }],
+      messages: [{ type: 'flex', altText: 'Nex Connect: Sora menu', contents: { type: 'bubble', body: { type: 'box', layout: 'vertical', contents: [] } } }],
     })).toBe(true);
     expect(shouldPushDeferredCatalog({
       pendingCatalogPush: true,
       isGroupContext: true,
       applyTray: true,
       text: 'NAV HOME',
-      messages: [{ type: 'flex', altText: 'CloudNex Connect: Sora menu', contents: { type: 'bubble', body: { type: 'box', layout: 'vertical', contents: [] } } }],
+      messages: [{ type: 'flex', altText: 'Nex Connect: Sora menu', contents: { type: 'bubble', body: { type: 'box', layout: 'vertical', contents: [] } } }],
     })).toBe(false);
   });
 });

@@ -21,7 +21,7 @@ import { LINE_LIMITS } from '../message-limits';
 import { getErpAdapter } from '../../erp/registry';
 import type { ErpProduct } from '../../erp/adapter';
 import { getPlatformStatus } from '../../platform/status';
-import { CUSTOMER_CHANNEL_ID, getAgentSpeakPrefix, salesNotifyChannelId } from '../channels';
+import { assistantTitle, CUSTOMER_CHANNEL_ID, getAgentSpeakPrefix, salesNotifyChannelId } from '../channels';
 import { findOdooUserIdByPartnerId } from '../../services/odoo/admin';
 import { sendTargetedFlexMessage } from '../messaging';
 import { beginQuoteCreate, completeQuoteCreate, failQuoteCreate, quoteCreateLockKey } from '../../services/quote-idempotency';
@@ -63,7 +63,7 @@ const inferTone = (value: string): 'info' | 'success' | 'warning' | 'error' => {
 
 const botText = (value: string, language: UserLanguage, actions?: { label: string; text: string; style?: 'primary' | 'secondary' }[]) =>
   createBotTextFlexMessage({
-    title: tr(language, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+    title: assistantTitle(language),
     body: value,
     language,
     tone: inferTone(value),

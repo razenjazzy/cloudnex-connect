@@ -30,7 +30,8 @@ import { guidedFormTtlMinutes } from '../idle-home';
 import { markSalesWaiting, clearSalesWaiting } from '../inbound-relay';
 import { listCrmQuotations } from '../../services/odoo';
 import { getErpAdapter } from '../../erp/registry';
-import { attachShopJourney, isCustomerShopEffective, searchAudienceProducts } from '../../platform/customer-commerce';
+import { attachShopJourney, isCustomerShopEffective, parseOdooWebsiteId, searchAudienceProducts } from '../../platform/customer-commerce';
+import { getRuntime } from '../../services/runtime-settings';
 import type { ErpDeliveryStatus } from '../../erp/adapter';
 import { decodeQuoteListCursor, encodeQuoteListCursor } from '../quote-list-cursor';
 import { FLOW_SPECS } from '../../services/guided-forms';
@@ -1036,8 +1037,9 @@ const quoteListHandler: CommandHandler = {
         listMode = 'salesperson';
       } else if (listMode !== 'lookup' && isQuoteStaff(profile) && partnerId) {
         const odooUserId = await findOdooUserIdByPartnerId(partnerId);
+        const shopWebsiteId = (await isCustomerShopEffective()) ? parseOdooWebsiteId(getRuntime('ODOO_WEBSITE_ID')) : null;
         fetched = odooUserId
-          ? await getSaleOrdersForSalesperson(odooUserId, listOpts)
+          ? await getSaleOrdersForSalesperson(odooUserId, listOpts, shopWebsiteId)
           : await getSaleOrdersForPartner(partnerId, listOpts);
         listMode = odooUserId ? 'salesperson' : 'partner';
         if (!odooUserId) {

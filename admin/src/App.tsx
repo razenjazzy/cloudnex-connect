@@ -5,6 +5,7 @@ import { TenantPanel } from './TenantPanel';
 import { StudioPanel } from './StudioPanel';
 import { DemoPanel } from './DemoPanel';
 import { HelpFaq } from './HelpFaq';
+import { OnePager } from './OnePager';
 import { CommandWork } from './CommandWork';
 import { CopyField, FaqItem, BindFaq, FaqRunbook, ToastStack, type ToastItem } from './ui';
 import { readUiLang, t, writeUiLang, applyPortalI18nOverlay, portalStringRows, type UiKey, type UiLang } from './i18n';
@@ -97,6 +98,8 @@ const PAGE_BY_LEAF: Record<string, string> = {
   testing: 'testing',
   demo: 'testing',
   help: 'help',
+  login: 'login',
+  dashboard: 'dashboard',
   admin: 'home',
 };
 
@@ -386,7 +389,14 @@ const parseDash = (body: {
 
 type NavItem = { id: string; href: string; label: string };
 const navGroupsFor = (lang: UiLang): Array<{ id: string; label: string; items: NavItem[] }> => [
-  { id: 'home', label: t(lang, 'navHome'), items: [{ id: 'home', href: ADMIN_BASE, label: t(lang, 'navOverview') }] },
+  {
+    id: 'home',
+    label: t(lang, 'navHome'),
+    items: [
+      { id: 'home', href: ADMIN_BASE, label: t(lang, 'navHome') },
+      { id: 'dashboard', href: `${ADMIN_BASE}/dashboard`, label: t(lang, 'navDashboard') },
+    ],
+  },
   {
     id: 'identity',
     label: t(lang, 'navIdentity'),
@@ -530,13 +540,6 @@ export const App = () => {
   const [idp, setIdp] = useState<IdpStatus | null>(null);
 
   useEffect(() => {
-    void (async () => {
-      const res = await fetch(`${ADMIN_BASE}/api/session/idp`);
-      if (res.ok) setIdp(await res.json() as IdpStatus);
-    })();
-  }, []);
-
-  useEffect(() => {
     const onPop = () => setPath(pathOf());
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
@@ -609,6 +612,7 @@ export const App = () => {
     setAuthed(true);
     setError('');
     await loadSettings({ replaceDrafts: true });
+    go(`${ADMIN_BASE}/dashboard`);
   };
 
   const loadSettings = async (opts?: { replaceDrafts?: boolean }) => {
@@ -823,6 +827,19 @@ export const App = () => {
   }, [path]);
 
   useEffect(() => {
+    if (page !== 'help' && page !== 'login') return;
+    void (async () => {
+      const res = await fetch(`${ADMIN_BASE}/api/session/idp`);
+      if (res.ok) setIdp(await res.json() as IdpStatus);
+    })();
+  }, [page]);
+
+  useEffect(() => {
+    if (!authed || page !== 'login') return;
+    go(`${ADMIN_BASE}/dashboard`);
+  }, [authed, page]);
+
+  useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setNavOpen(false);
@@ -846,7 +863,7 @@ export const App = () => {
   useEffect(() => {
     if (!authed) return;
     void (async () => {
-      if (page === 'home') {
+      if (page === 'dashboard') {
         await loadOverviewProbes();
         const dashRes = await api(`${ADMIN_BASE}/api/dashboard`);
         if (dashRes.ok) setDash(parseDash(await dashRes.json()));
@@ -973,13 +990,30 @@ export const App = () => {
     />
   );
 
+  const loginCard = (
+    <main className="login-page">
+      <div className="card login-card">
+        <h1>Admin</h1>
+        <p className="page-lead">OPS token to enter. Super-admin bind is Identity after sign-in.</p>
+        <form className="field-row" onSubmit={login}>
+          <div className="field">
+            <label htmlFor="ops-token">OPS token</label>
+            <input id="ops-token" type="password" value={token} onChange={e => setToken(e.target.value)} placeholder="OPS_API_TOKEN" autoComplete="off" />
+          </div>
+          <button type="submit">{t(uiLang, 'signIn')}</button>
+        </form>
+        {error ? <p className="error">{error}</p> : null}
+      </div>
+    </main>
+  );
+
   if (!authed) {
     return (
       <>
         <header>
           <a className="brand" href={ADMIN_BASE} onClick={e => { e.preventDefault(); go(ADMIN_BASE); }}>
             <img src={logo} alt="" />
-            <span className="brand-name">Cloudnex Connect</span>
+            <span className="brand-name">Nex Connect</span>
           </a>
           <div className="header-end">
             <button className="nav-hamburger" type="button" aria-label="Open menu" aria-expanded={navOpen} onClick={() => setNavOpen(open => !open)}>
@@ -988,36 +1022,35 @@ export const App = () => {
             {navOpen ? <button type="button" className="nav-backdrop" aria-label="Close menu" onClick={() => setNavOpen(false)} /> : null}
             <nav className={navOpen ? 'open' : ''}>
               <a
+                className={page === 'home' ? 'active' : ''}
+                href={ADMIN_BASE}
+                onClick={e => { e.preventDefault(); setNavOpen(false); go(ADMIN_BASE); }}
+              >{t(uiLang, 'navHome')}</a>
+              <a
                 className={page === 'help' ? 'active' : ''}
                 href={`${ADMIN_BASE}/help`}
                 onClick={e => { e.preventDefault(); setNavOpen(false); go(`${ADMIN_BASE}/help`); }}
               >{t(uiLang, 'navHelp')}</a>
+              <a
+                className={page === 'login' || (page !== 'home' && page !== 'help') ? 'active' : ''}
+                href={`${ADMIN_BASE}/login`}
+                onClick={e => { e.preventDefault(); setNavOpen(false); go(`${ADMIN_BASE}/login`); }}
+              >{t(uiLang, 'signIn')}</a>
             </nav>
           </div>
         </header>
-        {page === 'help' ? (
+        {page === 'home' ? (
+          <main className="one-pager-main">
+            <OnePager onSignIn={() => go(`${ADMIN_BASE}/login`)} />
+          </main>
+        ) : page === 'help' ? (
           <main>
             <div className="card">
               <h2>Help</h2>
               {helpFaq}
             </div>
           </main>
-        ) : (
-          <main className="login-page">
-            <div className="card login-card">
-              <h1>Admin</h1>
-              <p className="page-lead">OPS token to enter. Super-admin bind is Identity after sign-in.</p>
-              <form className="field-row" onSubmit={login}>
-                <div className="field">
-                  <label htmlFor="ops-token">OPS token</label>
-                  <input id="ops-token" type="password" value={token} onChange={e => setToken(e.target.value)} placeholder="OPS_API_TOKEN" autoComplete="off" />
-                </div>
-                <button type="submit">{t(uiLang, 'signIn')}</button>
-              </form>
-              {error ? <p className="error">{error}</p> : null}
-            </div>
-          </main>
-        )}
+        ) : loginCard}
       </>
     );
   }
@@ -1044,7 +1077,7 @@ export const App = () => {
       <header>
         <a className="brand" href={ADMIN_BASE} onClick={e => { e.preventDefault(); go(ADMIN_BASE); }}>
           <img src={logo} alt="" />
-          <span className="brand-name">Cloudnex Connect</span>
+          <span className="brand-name">Nex Connect</span>
         </a>
         <div className="header-end">
           <button className="nav-hamburger" type="button" aria-label="Open menu" aria-expanded={navOpen} onClick={() => setNavOpen(open => !open)}>
@@ -1097,13 +1130,17 @@ export const App = () => {
             await api(`${ADMIN_BASE}/api/session/logout`, { method: 'POST' });
             sessionStorage.removeItem(TOKEN_KEY);
             setAuthed(false);
+            go(ADMIN_BASE);
           }}>{t(uiLang, 'signOut')}</button>
         </div>
       </header>
       <ToastStack items={toasts} onDismiss={id => setToasts(list => list.filter(item => item.id !== id))} />
-      <main>
+      <main className={page === 'home' ? 'one-pager-main' : undefined}>
         {error ? <p className="error">{error}</p> : null}
-        {page === 'home' ? (() => {
+        {page === 'home' ? (
+          <OnePager authed onSignIn={() => go(`${ADMIN_BASE}/dashboard`)} />
+        ) : null}
+        {page === 'dashboard' ? (() => {
           const probes = dash?.flags || {};
           const traffic = dash?.traffic;
           const active = traffic?.activeUsers || emptyCounts();

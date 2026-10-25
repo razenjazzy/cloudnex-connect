@@ -1,7 +1,9 @@
 import type { CommandHandler } from './index';
 import type { CommandReplyContext } from '../command-router';
-import { createBotTextFlexMessage, createShopCartFlexMessage, shopCartHasItems } from '../templates';
-import { getSaleOrderById } from '../../services/odoo/sales';
+import { messagingApi } from '@line/bot-sdk';
+import { createBotTextFlexMessage, createShopCartFlexMessage, createQuotationListFlexMessage, shopCartHasItems } from '../templates';
+import { getSaleOrderById, listShopSaleOrders } from '../../services/odoo/sales';
+import { findOdooUserIdByPartnerId } from '../../services/odoo/admin';
 import { recordAuditEvent } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
 import { t } from '../../services/i18n';
@@ -96,21 +98,46 @@ const loadPartnerShopOrder = async (partnerId: number): Promise<OdooSaleOrder | 
   return getSaleOrderById(latestId);
 };
 
-const requireShopCustomer = async (ctx: CommandReplyContext) => {
-  if (isQuoteStaff(ctx.profile)) {
-    return shopNotApplicable(ctx.userLanguage);
-  }
-  if (!(await isCustomerShopEffective())) return shopNotApplicable(ctx.userLanguage);
-  if (!ctx.profile.odooVerified || !ctx.profile.odooPartnerId) return verifyFirst(ctx.userLanguage);
-  return null;
+const requireShopAccess = async (ctx: CommandReplyContext): Promise<
+  { kind: 'error'; error: messagingApi.Message[] } | { kind: 'staff' } | { kind: 'customer' }
+> => {
+  if (!(await isCustomerShopEffective())) return { kind: 'error', error: shopNotApplicable(ctx.userLanguage) };
+  if (isQuoteStaff(ctx.profile)) return { kind: 'staff' };
+  if (!ctx.profile.odooVerified || !ctx.profile.odooPartnerId) return { kind: 'error', error: verifyFirst(ctx.userLanguage) };
+  return { kind: 'customer' };
+};
+
+const staffShopUseJourney = (language: UserLanguage) =>
+  [botText(tr(language,
+    'เปิดออเดอร์ร้านค้า แล้วใช้ยืนยัน / ส่ง / ใบแจ้งหนี้ตามขั้นตอน Odoo Sales',
+    'Open Shop orders, then Confirm, Send, or Invoice — the Odoo Sales next stage.',
+  ), language, [{ label: tr(language, 'ออเดอร์ร้านค้า', 'Shop orders'), text: 'CART', style: 'primary' }])];
+
+const staffShopOrderList = async (ctx: CommandReplyContext) => {
+  const websiteId = websiteIdOrNull();
+  if (!websiteId) return shopNotApplicable(ctx.userLanguage);
+  const salespersonUserId = ctx.profile.odooPartnerId
+    ? await findOdooUserIdByPartnerId(ctx.profile.odooPartnerId)
+    : undefined;
+  const page = await listShopSaleOrders(websiteId, {
+    admin: ctx.profile.role === 'admin',
+    salespersonUserId: salespersonUserId || undefined,
+    limit: 6,
+  });
+  const hasMore = page.length > 5;
+  return [createQuotationListFlexMessage(page.slice(0, 5), hasMore, ctx.userLanguage, undefined, undefined, undefined, ctx.userId, {
+    staff: true,
+    admin: ctx.profile.role === 'admin',
+  })];
 };
 
 const cartViewHandler: CommandHandler = {
   name: 'shop-cart-view',
   match: (u) => u === 'CART' || u === 'CART VIEW',
   handle: async (ctx) => {
-    const blocked = await requireShopCustomer(ctx);
-    if (blocked) return blocked;
+    const access = await requireShopAccess(ctx);
+    if (access.kind === 'error') return access.error;
+    if (access.kind === 'staff') return staffShopOrderList(ctx);
     const order = await loadPartnerCart(ctx.profile.odooPartnerId!);
     if (!order) {
       return [botText(t('shopCartEmpty', ctx.userLanguage), ctx.userLanguage, [
@@ -125,8 +152,9 @@ const cartCheckoutHandler: CommandHandler = {
   name: 'shop-cart-checkout',
   match: (u) => u === 'CART CHECKOUT',
   handle: async (ctx) => {
-    const blocked = await requireShopCustomer(ctx);
-    if (blocked) return blocked;
+    const access = await requireShopAccess(ctx);
+    if (access.kind === 'error') return access.error;
+    if (access.kind === 'staff') return staffShopUseJourney(ctx.userLanguage);
     const order = await loadPartnerCart(ctx.profile.odooPartnerId!);
     if (!order || !(order.lines || []).length) {
       return [botText(t('shopCartEmpty', ctx.userLanguage), ctx.userLanguage, [
@@ -141,8 +169,9 @@ const cartStatusHandler: CommandHandler = {
   name: 'shop-cart-status',
   match: (u) => u === 'CART STATUS',
   handle: async (ctx) => {
-    const blocked = await requireShopCustomer(ctx);
-    if (blocked) return blocked;
+    const access = await requireShopAccess(ctx);
+    if (access.kind === 'error') return access.error;
+    if (access.kind === 'staff') return staffShopUseJourney(ctx.userLanguage);
     const order = await loadPartnerShopOrder(ctx.profile.odooPartnerId!);
     if (!order) {
       return [botText(t('shopCartEmpty', ctx.userLanguage), ctx.userLanguage, [
@@ -164,8 +193,9 @@ const cartPayHandler: CommandHandler = {
   name: 'shop-cart-pay',
   match: (u) => u === 'CART PAY',
   handle: async (ctx) => {
-    const blocked = await requireShopCustomer(ctx);
-    if (blocked) return blocked;
+    const access = await requireShopAccess(ctx);
+    if (access.kind === 'error') return access.error;
+    if (access.kind === 'staff') return staffShopUseJourney(ctx.userLanguage);
     const order = await loadPartnerShopOrder(ctx.profile.odooPartnerId!);
     if (!order || !(order.lines || []).length) {
       return [botText(t('shopCartEmpty', ctx.userLanguage), ctx.userLanguage)];
@@ -188,8 +218,9 @@ const cartCouponHandler: CommandHandler = {
   name: 'shop-cart-coupon',
   match: (u) => u === 'CART COUPON' || u.startsWith('CART COUPON '),
   handle: async (ctx) => {
-    const blocked = await requireShopCustomer(ctx);
-    if (blocked) return blocked;
+    const access = await requireShopAccess(ctx);
+    if (access.kind === 'error') return access.error;
+    if (access.kind === 'staff') return staffShopUseJourney(ctx.userLanguage);
     const code = parseCartCoupon(ctx.text);
     if (!code) {
       const { resolveCommandReply } = await import('../command-router');
@@ -222,8 +253,9 @@ const cartAddHandler: CommandHandler = {
   name: 'shop-cart-add',
   match: (u) => u === 'CART ADD' || u.startsWith('CART ADD '),
   handle: async (ctx) => {
-    const blocked = await requireShopCustomer(ctx);
-    if (blocked) return blocked;
+    const access = await requireShopAccess(ctx);
+    if (access.kind === 'error') return access.error;
+    if (access.kind === 'staff') return staffShopUseJourney(ctx.userLanguage);
     const parsed = parseCartAdd(ctx.text);
     if (!parsed) {
       return [botText(tr(ctx.userLanguage, 'ใช้ CART ADD <id> <จำนวน>', 'Use CART ADD <id> <qty>.'), ctx.userLanguage)];
@@ -261,8 +293,9 @@ const cartRemoveHandler: CommandHandler = {
   name: 'shop-cart-remove',
   match: (u) => u.startsWith('CART REMOVE'),
   handle: async (ctx) => {
-    const blocked = await requireShopCustomer(ctx);
-    if (blocked) return blocked;
+    const access = await requireShopAccess(ctx);
+    if (access.kind === 'error') return access.error;
+    if (access.kind === 'staff') return staffShopUseJourney(ctx.userLanguage);
     const productId = parseCartRemove(ctx.text);
     const order = await loadPartnerCart(ctx.profile.odooPartnerId!);
     if (!productId || !order) {
@@ -285,8 +318,9 @@ const cartClearHandler: CommandHandler = {
   name: 'shop-cart-clear',
   match: (u) => u === 'CART CLEAR',
   handle: async (ctx) => {
-    const blocked = await requireShopCustomer(ctx);
-    if (blocked) return blocked;
+    const access = await requireShopAccess(ctx);
+    if (access.kind === 'error') return access.error;
+    if (access.kind === 'staff') return staffShopUseJourney(ctx.userLanguage);
     const order = await loadPartnerCart(ctx.profile.odooPartnerId!);
     if (!order) return [botText(t('shopCartEmpty', ctx.userLanguage), ctx.userLanguage)];
     const ok = await getErpAdapter().cancelQuote(order.id);

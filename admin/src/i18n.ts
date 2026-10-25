@@ -22,6 +22,7 @@ export const writeUiLang = (lang: UiLang): void => {
 const en = {
   navHome: 'Home',
   navOverview: 'Overview',
+  navDashboard: 'Dashboard',
   navIdentity: 'Identity',
   navBind: 'Bind',
   navDirectory: 'Directory',
@@ -81,6 +82,7 @@ const en = {
 const th: typeof en = {
   navHome: 'หน้าแรก',
   navOverview: 'ภาพรวม',
+  navDashboard: 'แดชบอร์ด',
   navIdentity: 'ตัวตน',
   navBind: 'ผูกสิทธิ์',
   navDirectory: 'รายชื่อ',

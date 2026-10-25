@@ -30,7 +30,7 @@ export const describeTenantRuntime = async () => {
     tenantKey: getActiveTenantKey(),
     model: 'silo' as const,
     isolation: {
-      process: 'One Cloudnex Connect process equals one client (or one lab). Do not load a second company LINE OA onto this HMAC.',
+      process: 'One Nex Connect process equals one client (or one lab). Do not load a second company LINE OA onto this HMAC.',
       odoo: 'Single ODOO_URL and ODOO_DB per process via getErpAdapter(). Mongo is never Odoo SoR.',
       line: 'LINE_CHANNEL_* on this process. Sales and Customer are this client’s OAs, not other subscribers.',
       overlay: 'TENANT_KEY only scopes Firestore overlay docs (commands, i18n, channel service overrides).',

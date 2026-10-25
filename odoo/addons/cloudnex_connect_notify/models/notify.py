@@ -10,7 +10,7 @@ _logger = logging.getLogger(__name__)
 
 class CloudnexConnectNotify(models.AbstractModel):
     _name = "cloudnex.connect.notify"
-    _description = "POST LINE ops hook for Cloudnex Connect"
+    _description = "POST LINE ops hook for Nex Connect"
 
     @api.model
     def post_event(self, event, order_id):

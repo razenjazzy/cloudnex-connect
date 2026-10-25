@@ -1,4 +1,4 @@
-# Cloudnex Connect — Project Summary
+# Nex Connect — Project Summary
 
 LINE Official Account + Odoo for Cloudnex: Sales and Customer OAs, identity SoR, Flex quotes, enterprise Admin (campaigns, audit, IdP), dual LINE ingress, and consented messaging.
 

@@ -8,7 +8,7 @@ import {
   type UserLanguage,
 } from '../../services/firestore';
 import { sendTargetedFlexMessage } from '../messaging';
-import { customerNotifyChannelId } from '../channels';
+import { assistantTitle, customerNotifyChannelId } from '../channels';
 import { getDefaultCustomerPhone } from '../default-contact';
 import { isQuoteStaff, syncStaffProfile } from '../quote-access';
 import { resolveCustomerLineUserId } from '../quote-notify';
@@ -19,7 +19,7 @@ const tr = (language: UserLanguage, th: string, en: string): string => (language
 
 const botText = (value: string, language: UserLanguage, tone: 'info' | 'success' | 'warning' | 'error' = 'info') =>
   createBotTextFlexMessage({
-    title: tr(language, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+    title: assistantTitle(language),
     body: value,
     language,
     tone,
@@ -89,7 +89,7 @@ const messageCustomerHandler: CommandHandler = {
 
     recordAuditEvent({ action: 'sales_message', outcome: 'success', actorUserId: userId, channelId: channel?.channelId, requestId, targetId: customerUserId });
     return [createBotTextFlexMessage({
-      title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+      title: assistantTitle(userLanguage),
       body: t('waitingForCustomerReply', userLanguage),
       language: userLanguage,
       tone: 'info',

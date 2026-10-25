@@ -1,4 +1,4 @@
-# Cloudnex Connect — demonstration pack
+# Nex Connect — demonstration pack
 
 **Release:** v15.0.6 · **Persona:** Sora / โซระ · **Product:** LINE Official Account + Odoo, one command router, fail-closed Admin.
 
@@ -34,7 +34,7 @@ Staging and production stay **the same software** until a client cutover. The Ad
 |---|---|---|
 | Health | https://amardhaka.io/healthz | Process is up |
 | Ready | https://amardhaka.io/readyz | LINE + Firestore + Odoo |
-| Staging Admin (showcase) | https://amardhaka.io/cloudnex-connect/admin/test | OPS login, Help FAQs, Home, Identity, CRM |
+| Staging Admin (showcase) | https://amardhaka.io/cloudnex-connect/admin/test | Public Home one-pager (no OPS). Sign in → Dashboard. Help FAQs, Identity, CRM |
 | Production Admin (cutover hold) | https://amardhaka.io/cloudnex-connect/admin | Same SPA; different path |
 | Cloudnex Sales OA | LINE `@938qytwi` · HMAC `POST /webhook/sales` | Staff: VERIFY, quotes, send |
 | Cloudnex Customer OA | LINE `@724tneri` · HMAC `POST /webhook/customer` | Guest catalog, Order Now, approve |
@@ -74,13 +74,14 @@ Stills: [USER_JOURNEY.md](USER_JOURNEY.md) C0–C5 (Customer), B1–B11 (Sales c
 
 ## 5. Eight-minute Admin showcase
 
-Open **staging** Admin. Sign in with `OPS_API_TOKEN` (panel password). Bind is a separate cookie (Identity → OTP on Sales OA).
+Open **staging** Admin. Home is the public one-pager (no OPS). Sign in with `OPS_API_TOKEN` (panel password) at `/login`; operators land on **Dashboard**. Bind is a separate cookie (Identity → OTP on Sales OA).
 
 | Min | Page | Show |
 |---|---|---|
-| 0–1 | Help | FAQ toggles. Lane table: Local R&D, Staging showcase, Production hold |
-| 1–3 | Home | App / Firestore / Odoo pills. Traffic is real HMAC, not Admin clicks |
-| 3–5 | Identity | Bind steps behind FAQ (warn, then steps). Actor pill |
+| 0–1 | Home | Product one-pager (Sales/Customer journey). Then Sign in |
+| 1–2 | Help | FAQ toggles. Lane table: Local R&D, Staging showcase, Production hold |
+| 2–4 | Dashboard | App / Firestore / Odoo pills. Traffic is real HMAC, not Admin clicks |
+| 4–5 | Identity | Bind steps behind FAQ (warn, then steps). Actor pill |
 | 5–6 | Products / CRM | Live Odoo catalogue and quotes |
 | 6–8 | Commands / Settings | Overlay labels; secrets masked until reveal |
 

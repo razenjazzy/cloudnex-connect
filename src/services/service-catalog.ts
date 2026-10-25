@@ -53,6 +53,7 @@ export const SERVICE_CATALOG: ServiceDefinition[] = [
       { text: 'FORM QUOTE CREATE', labelTh: 'สร้างใบเสนอราคา', labelEn: 'Create a quote', audience: 'staff' },
       { text: 'FORM ORDER STATUS', labelTh: 'ค้นหาออเดอร์', labelEn: 'Look up an order', audience: 'staff' },
       { text: 'QUOTE LIST', labelTh: 'ใบเสนอราคา', labelEn: 'Quotations', audience: 'staff' },
+      { text: 'CART', labelTh: 'ออเดอร์ร้านค้า', labelEn: 'Shop orders', audience: 'staff' },
       { text: 'FORM PRODUCT FIND', labelTh: 'ค้นหาสินค้า', labelEn: 'Find a product', audience: 'customer' },
       { text: 'QUOTE LIST', labelTh: 'ประวัติคำสั่งซื้อ', labelEn: 'Order History', audience: 'customer' },
       { text: 'CART', labelTh: 'ตะกร้าของฉัน', labelEn: 'My Cart', audience: 'customer' },
@@ -227,6 +228,7 @@ export const serviceMenuLabel = (
  * matching current ungated behavior.
  */
 export const isServiceEnabledForChannel = (service: ServiceKey, channel?: ChannelContext): boolean => {
+  if (service === 'groupBuy' && !/^(1|true|yes|on)$/i.test(process.env.GROUPBUY_ENABLED || '')) return false;
   const channelAllows = !channel || channel.enabledServices === null || channel.enabledServices.includes(service);
   return channelAllows && isLiveOverrideEnabled(service);
 };
@@ -241,7 +243,6 @@ export const getVisibleCommands = (
     if (c.requiresAdmin && !isAdmin) return false;
     if (c.audience === 'staff' && !isStaff) return false;
     if (c.audience === 'customer' && isStaff) return false;
-    if (options?.shopMode && c.text.toUpperCase() === 'QUOTE ASK') return false;
     if (!options?.shopMode && c.text.toUpperCase() === 'CART') return false;
     return !isCommandDisabled(c.text.toUpperCase());
   });

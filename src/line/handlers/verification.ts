@@ -8,7 +8,7 @@ import { clearSalesLogin } from '../../services/sales-session';
 import { parseUserCreatePayload } from '../command-validators';
 import { getErpAdapter } from '../../erp/registry';
 import { getPartnerByPhone } from '../../services/odoo/partners';
-import { CUSTOMER_CHANNEL_ID, getAgentSpeakPrefix } from '../channels';
+import { assistantTitle, CUSTOMER_CHANNEL_ID, getAgentSpeakPrefix } from '../channels';
 import { requestSalesAccessFromAdmins, salesAccessRequestReply, salesAskAdminPhone, salesVerifyMissActions } from '../sales-access-request';
 import { t, tFill } from '../../services/i18n';
 
@@ -23,7 +23,7 @@ const inferTone = (value: string): 'info' | 'success' | 'warning' | 'error' => {
 
 const botText = (value: string, language: UserLanguage) =>
   createBotTextFlexMessage({
-    title: tr(language, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+    title: assistantTitle(language),
     body: value,
     language,
     tone: inferTone(value),
@@ -46,7 +46,7 @@ const verifyStartHandler: CommandHandler = {
     });
     if (result.needsRegister) {
       return [createBotTextFlexMessage({
-        title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+        title: assistantTitle(userLanguage),
         body: result.message,
         language: userLanguage,
         tone: 'warning',
@@ -59,7 +59,7 @@ const verifyStartHandler: CommandHandler = {
     }
     if (!result.link) {
       return [createBotTextFlexMessage({
-        title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+        title: assistantTitle(userLanguage),
         body: result.message,
         language: userLanguage,
         tone: result.salesMiss ? 'warning' : inferTone(result.message),
@@ -75,7 +75,7 @@ const verifyStartHandler: CommandHandler = {
     // Flex text isn't auto-linkified or selectable, so a raw URL in the
     // body was previously an inert, uncopyable string.
     return [createBotTextFlexMessage({
-      title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+      title: assistantTitle(userLanguage),
       body: result.message,
       language: userLanguage,
       tone: inferTone(result.message),
@@ -126,7 +126,7 @@ const verifyOtpHandler: CommandHandler = {
       const pending = await getPendingOdooVerificationChallenge(userId);
       const retryPhone = (pending?.phone || '').trim();
       return [createBotTextFlexMessage({
-        title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+        title: assistantTitle(userLanguage),
         body: message,
         language: userLanguage,
         tone: 'error',
@@ -159,7 +159,7 @@ const verifyStatusHandler: CommandHandler = {
     const { userLanguage, profile, agentName, userId } = ctx;
     const synced = await syncStaffProfile(userId, profile, ctx.channel?.channelId);
     return [createBotTextFlexMessage({
-      title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+      title: assistantTitle(userLanguage),
       body: profile.odooVerified
         ? verificationSuccessMessage(userLanguage, synced.displayName, synced.salesTier)
         : tr(userLanguage, `${agentName} บัญชียังไม่ยืนยัน`, `${agentName} your account is not verified yet`),

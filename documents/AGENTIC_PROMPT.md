@@ -1,6 +1,6 @@
-# Agent prompt — Cloudnex Connect LINE OA (Sales + Customer)
+# Agent prompt — Nex Connect LINE OA (Sales + Customer)
 
-You are implementing Cloudnex Connect (`cloudnex-connect`): TypeScript Express + LINE Official Accounts + Odoo. Follow `CLAUDE.md`, `AGENTS.md`, `.cursor/rules/cns-platform.mdc`. Read the smallest files; grep before full reads; **no new npm packages**; do **not** production-deploy (`deploy:vps-prod`, Cloud Run `deploy:prod`, `release.yml` dispatch). Staging only after tests pass.
+You are implementing Nex Connect (`cloudnex-connect`): TypeScript Express + LINE Official Accounts + Odoo. Follow `CLAUDE.md`, `AGENTS.md`, `.cursor/rules/cns-platform.mdc`. Read the smallest files; grep before full reads; **no new npm packages**; do **not** production-deploy (`deploy:vps-prod`, Cloud Run `deploy:prod`, `release.yml` dispatch). Staging only after tests pass.
 
 **Command, label, env, and i18n Action→Result tables** live in [`LINE_OA_AGENT.md`](LINE_OA_AGENT.md). Do not copy those tables here. If this file and that file disagree with TypeScript, **the code wins** — update both docs in the same change.
 

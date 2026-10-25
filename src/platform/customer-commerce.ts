@@ -2,6 +2,7 @@ import { getErpAdapter } from '../erp/registry';
 import type { ErpProduct } from '../erp/adapter';
 import { getRuntime } from '../services/runtime-settings';
 import { probeOdooSaleModules } from '../services/odoo/modules';
+import { CATALOG_CAROUSEL_MAX } from '../line/templates/catalog';
 
 export type CustomerCommerceMode = 'quote' | 'shop';
 export type CustomerCommerceDegradeReason = 'module' | 'website_id' | 'odoo';
@@ -85,7 +86,7 @@ export const attachShopJourney = async <T extends { role?: string }>(opts: T): P
 };
 
 /** Browse catalog: same product search as Sales so Home can show many SKUs. Shop publish filter stays on add-to-cart. */
-export const searchAudienceProducts = async (query: string, limit = 10): Promise<ErpProduct[]> => {
+export const searchAudienceProducts = async (query: string, limit = CATALOG_CAROUSEL_MAX): Promise<ErpProduct[]> => {
   const erp = getErpAdapter();
   return erp.searchProducts(query, limit);
 };

@@ -2,12 +2,13 @@ import type { CommandHandler } from './index';
 import { createBotTextFlexMessage } from '../templates';
 import { deleteUserProfile, setMarketingOptIn } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
+import { assistantTitle } from '../channels';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
 const botText = (value: string, language: UserLanguage, tone: 'info' | 'success' | 'warning' | 'error' = 'info', quickReplyActions?: { label: string; text: string }[]) =>
   createBotTextFlexMessage({
-    title: tr(language, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+    title: assistantTitle(language),
     body: value,
     language,
     tone,

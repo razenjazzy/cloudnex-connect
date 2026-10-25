@@ -9,12 +9,13 @@ import {
 } from '../../services/feature-toggles';
 import { recordAuditEvent, type UserLanguage } from '../../services/firestore';
 import { canManageQuoteLines, syncStaffProfile } from '../quote-access';
+import { assistantTitle } from '../channels';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
 const adminOnlyReply = (language: UserLanguage) =>
   createBotTextFlexMessage({
-    title: tr(language, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+    title: assistantTitle(language),
     body: tr(language, 'คำสั่งนี้สำหรับผู้ดูแลฝ่ายขาย', 'This action is for sales administrators.'),
     language,
     tone: 'error',

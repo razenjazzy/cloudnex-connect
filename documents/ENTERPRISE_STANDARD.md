@@ -1,4 +1,4 @@
-# Enterprise standard architecture for CloudNEx Connect
+# Enterprise standard architecture for Nex Connect
 
 ## Objective
 

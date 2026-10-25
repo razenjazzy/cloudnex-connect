@@ -516,7 +516,35 @@ export const getSaleOrdersForPartner = async (
 export const getSaleOrdersForSalesperson = async (
   odooUserId: number,
   limitOrOpts: number | SaleOrderListOpts = 8,
-): Promise<OdooSaleOrder[]> => listSaleOrders([['user_id', '=', odooUserId]], limitOrOpts);
+  shopWebsiteId?: number | null,
+): Promise<OdooSaleOrder[]> => {
+  if (shopWebsiteId && shopWebsiteId > 0) {
+    return listSaleOrders([
+      '|',
+      ['user_id', '=', odooUserId],
+      ['website_id', '=', shopWebsiteId],
+    ], limitOrOpts);
+  }
+  return listSaleOrders([['user_id', '=', odooUserId]], limitOrOpts);
+};
+
+/** Website_sale carts and orders for Sales OA Shop orders (next stage). */
+export const listShopSaleOrders = async (
+  websiteId: number,
+  opts: { salespersonUserId?: number; admin?: boolean; limit?: number } = {},
+): Promise<OdooSaleOrder[]> => {
+  if (!Number.isInteger(websiteId) || websiteId <= 0) return [];
+  const domain: unknown[] = [
+    ['website_id', '=', websiteId],
+    ['state', 'in', ['draft', 'sent', 'sale']],
+  ];
+  if (!opts.admin && opts.salespersonUserId) {
+    domain.push('|');
+    domain.push(['user_id', '=', opts.salespersonUserId]);
+    domain.push(['user_id', '=', false]);
+  }
+  return listSaleOrders(domain, opts.limit ?? 5);
+};
 
 export type CrmQuoteListOpts = {
   state?: string;

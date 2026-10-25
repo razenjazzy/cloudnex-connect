@@ -222,8 +222,8 @@ export const UI_STRINGS = {
     th: 'คำสั่งซื้อ {name} อยู่ที่ขั้นตอนชำระ เปิดหน้าชำระในเบราว์เซอร์ แล้วกดตรวจสอบการชำระ',
   },
   quoteAskNotApplicable: {
-    en: 'This Official Account is in shop mode. Browse products and tap Order Now instead of Ask for Quotations.',
-    th: 'บัญชีนี้เป็นโหมดร้านค้า เลือกสินค้าแล้วกดสั่งซื้อ ไม่ใช้ขอใบเสนอราคา',
+    en: 'Ask for Quotations is not available on this Official Account.',
+    th: 'บัญชีนี้ไม่มีเมนูขอใบเสนอราคา',
   },
   shopUsePay: {
     en: 'Use Pay on the order card. Confirm is not used in shop mode.',

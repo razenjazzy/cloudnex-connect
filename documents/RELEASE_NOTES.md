@@ -519,7 +519,7 @@ Campaigns (preview/test/queued send/broadcast), quoted customer relay, sales chi
 **Lane:** staging VPS (`APP_ENV=staging`, `https://amardhaka.io`)  
 **Commit title:** `Release: v5.0.1 - Odoo Line OA v3 Staging - Deploy`
 
-Cloudnex Connect LINE OA v3 staging wrap. Architecture unchanged: webhook HMAC → Firestore → one `resolveCommandReply` → Flex.
+Nex Connect LINE OA v3 staging wrap. Architecture unchanged: webhook HMAC → Firestore → one `resolveCommandReply` → Flex.
 
 ## Concrete surface
 

@@ -1,4 +1,4 @@
-# CloudNEx Connect — Quick Start
+# Nex Connect — Quick Start
 
 ## Development
 

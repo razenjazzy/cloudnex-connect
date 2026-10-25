@@ -143,7 +143,7 @@ describe('optional summary', () => {
 describe('verification result icon', () => {
   it('keeps the original ✅ copy and does not add a second square tick', () => {
     const message = createBotTextFlexMessage({
-      title: 'Cloudnex assistant',
+      title: 'Nex Connect assistant',
       body: '✅ Razen is an Odoo Sales Administrator.',
       language: 'en',
       tone: 'success',

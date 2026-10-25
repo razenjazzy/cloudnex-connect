@@ -4,12 +4,13 @@ import { isGroupBuyCommand, isGroupBuyEnabledForUser } from '../../services/feat
 import { handleGroupBuyCommand } from '../../services/group-buy';
 import { recordGroupBuyGate } from '../../services/kpi';
 import type { UserLanguage } from '../../services/firestore';
+import { assistantTitle } from '../channels';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
 const botText = (value: string, language: UserLanguage) =>
   createBotTextFlexMessage({
-    title: tr(language, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+    title: assistantTitle(language),
     body: value,
     language,
     tone: 'info',

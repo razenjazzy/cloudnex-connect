@@ -12,6 +12,7 @@ If this file disagrees with running TypeScript, **the code wins**. Update this f
 | `.claude/skills/line-oa-operator/SKILL.md` | When to load this file |
 | `.cursor/mcp.json` + `src/mcp/server.ts` | Live `healthz` / `readyz` / `/ops/platform` / webhook-test. **Does not define LINE commands.** LINE Developers MCP is console-only. |
 | Admin Commands | `labelEn` / `labelTh` (≤20 chars), enabled, roles, channels — **not** handler prefixes |
+| Admin Home | Public Nex Connect one-pager (no OPS). HMAC overview is `/dashboard` after Sign in. Overlay still does not change prefixes |
 | LINE Console rich menus | Tray PNG + `action.text` (canonical). Keyboard variant id in env JSON |
 
 ---
@@ -22,6 +23,7 @@ If this file disagrees with running TypeScript, **the code wins**. Update this f
 - Identity: LINE id → profile SoR (Firestore, or Mongo if `MONGO_USERS`) → `odooVerified` → `ADMIN_USER_ID` → Odoo admin capability → `role=admin`. Super-admin web: `SUPER_ADMIN_USER_IDS` + bound actor.
 - Odoo masters via `getErpAdapter()`. Mongo is never Odoo SoR. Non-odoo `ERP_PROVIDER` stays unimplemented.
 - Locales: **EN and TH only**. Agent speech: visible `Sora` or `Sora ` → `Sora: `; `โซระ` → `โซระ: `. Apply in bot titles/bodies that use `getAgentName`, never inside product names.
+- Product display name is **Nex Connect** (`APP_NAME` in `src/line/channels.ts`). Package, Docker image, env keys, webhook paths, and VPS dirs stay `cloudnex-connect`. LINE OA Manager names stay **Cloudnex Sales** / **Cloudnex Customer**.
 - No new npm packages. Staging and production deploy the same image; Admin URL is the product difference (`/admin/test` vs `/admin`). HMAC stays `:8080`. Local `/webhook-test` mocks LINE.
 - HMAC `:8080`. Admin staging `{PUBLIC_BASE_URL}/admin/test` on the sibling host; production Admin `/admin/`. Do not mix HMAC ports.
 

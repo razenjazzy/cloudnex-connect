@@ -68,7 +68,7 @@ LINE_CHANNEL_CUSTOMER_SERVICES=commerce,catalog
 LINE_CHANNEL_CUSTOMER_RICH_MENU_JSON=
 # Blank/keyboard rich menu for qty forms (en.keyboard in JSON, or this id). Without it, unlink still shows the OA default tray.
 LINE_CHANNEL_CUSTOMER_KEYBOARD_RICH_MENU=
-CUSTOMER_QTY_CHIPS=10,15,20,25,30,35,40,45,50
+CUSTOMER_QTY_CHIPS=5,10,15,20,25,30,35,40,45,50
 # Customer OA exclusive mode: quote (default) or shop. Shop needs website_sale installed and ODOO_WEBSITE_ID.
 # Shop Pay web UI is GET /shop/pay (HMAC host). Odoo should POST /ops/odoo-hook { "event": "payment.done", "orderId" } after provider success.
 CUSTOMER_COMMERCE=

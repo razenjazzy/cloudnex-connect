@@ -67,4 +67,4 @@
 
 - name: Log health status
   debug:
-    msg: "Cloudnex Connect is running /healthz: {{ healthz_result.json | default(healthz_result.content) }}"
+    msg: "Nex Connect is running /healthz: {{ healthz_result.json | default(healthz_result.content) }}"

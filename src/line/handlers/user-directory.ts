@@ -5,7 +5,7 @@ import { getPartnerByPhone } from '../../services/odoo/partners';
 import { getErpAdapter } from '../../erp/registry';
 import { recordAuditEvent } from '../../services/firestore';
 import type { UserLanguage } from '../../services/firestore';
-import { oaChatDeepLink, CUSTOMER_CHANNEL_ID } from '../channels';
+import { assistantTitle, oaChatDeepLink, CUSTOMER_CHANNEL_ID } from '../channels';
 import { t } from '../../services/i18n';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
@@ -19,7 +19,7 @@ const inferTone = (value: string): 'info' | 'success' | 'warning' | 'error' => {
 
 const botText = (value: string, language: UserLanguage) =>
   createBotTextFlexMessage({
-    title: tr(language, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+    title: assistantTitle(language),
     body: value,
     language,
     tone: inferTone(value),
@@ -52,7 +52,7 @@ const userCreateHandler: CommandHandler = {
     recordAuditEvent({ action: 'user_create', outcome: 'success', actorUserId: userId, channelId: channel?.channelId, requestId, targetId: String(partner.id) });
     const inviteUri = oaChatDeepLink(CUSTOMER_CHANNEL_ID);
     return [createBotTextFlexMessage({
-      title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+      title: assistantTitle(userLanguage),
       body: tr(userLanguage,
         `สร้างผู้ติดต่อ Odoo แล้ว\n- ID: ${partner.id}\n- ชื่อ: ${partner.name}\n- เบอร์: ${partner.phone || '-'}\nให้ลูกค้าเพิ่มเพื่อน Cloudnex Customer แล้ว VERIFY ด้วยเบอร์นี้`,
         `Odoo contact created\n- ID: ${partner.id}\n- Name: ${partner.name}\n- Phone: ${partner.phone || '-'}\nAsk them to add Cloudnex Customer and VERIFY with this phone.`,

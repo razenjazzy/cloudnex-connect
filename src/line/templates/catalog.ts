@@ -1,7 +1,7 @@
 import { messagingApi } from '@line/bot-sdk';
 import { t } from '../../services/i18n';
 import { BRAND, amountHighlightBox, createMessageActionButton, createTapRow, flexBubbleStyles, flexHeaderBox, formatMoney, mutedNoteBox, pairFlexButtons, truncate, type ReportLanguage } from './shared';
-import { catalogUiLabel, isCatalogUiVisible } from '../catalog-ui';
+import { catalogUiLabel, isCatalogUiVisible, quoteFromCardLabel } from '../catalog-ui';
 import { catalogContextSlug } from '../catalog-slug';
 import { CUSTOMER_CHANNEL_ID } from '../channels';
 import { catalogProductHeroUrl } from '../../erp/product-image-url';
@@ -152,8 +152,8 @@ export const createProductCardFlexMessage = (
   const showDescription = channelId === CUSTOMER_CHANNEL_ID || isCatalogUiVisible('ui-product-detail-description', channelId);
   const description = showDescription ? options?.description?.trim() : undefined;
   const footerButtons: messagingApi.FlexComponent[] = [];
-  const shopCta = catalogUiLabel('quote-from-card', language, { en: 'Order Now', th: 'สั่งซื้อเลย' });
-  if (options?.shopMode && options.inCart && productId) {
+  const shopCta = quoteFromCardLabel(language, channelId);
+  if (options?.shopMode && options.inCart && productId && channelId === CUSTOMER_CHANNEL_ID) {
     footerButtons.push(createMessageActionButton(
       catalogUiLabel('cart-remove', language, { en: 'Remove', th: 'ลบ' }),
       `CART REMOVE ${productId}`,
@@ -167,6 +167,14 @@ export const createProductCardFlexMessage = (
       'primary',
       BRAND.teal,
     ));
+    if (options?.shopMode && productId && channelId !== CUSTOMER_CHANNEL_ID) {
+      footerButtons.push(createMessageActionButton(
+        catalogUiLabel('cart-add-from-card', language, { en: 'Add to Cart', th: 'ใส่ตะกร้า' }),
+        `FORM CART ADD FROM CARD ${productId}`,
+        'secondary',
+        BRAND.goldTint,
+      ));
+    }
   }
   if (showMessage) {
     footerButtons.push(createMessageActionButton(
@@ -235,7 +243,7 @@ const createProductCatalogBubble = (
   const showMessage = isCatalogUiVisible('ui-catalog-message', channelId);
   const showView = isCatalogUiVisible('ui-catalog-view', channelId);
   const footer: messagingApi.FlexComponent[] = [];
-  if (shopMode && product.id) {
+  if (shopMode && product.id && channelId === CUSTOMER_CHANNEL_ID) {
     const add = createMessageActionButton(
       catalogUiLabel('cart-add-from-card', language, { en: 'Add to Cart', th: 'ใส่ตะกร้า' }),
       `FORM CART ADD FROM CARD ${product.id}`,
@@ -261,13 +269,39 @@ const createProductCatalogBubble = (
       'secondary',
       BRAND.tealTint,
     ));
+  } else if (shopMode && product.id) {
+    const quoteText = `FORM QUOTE CREATE FROM CARD ${product.id}`;
+    if (showQuote) {
+      footer.push(pairFlexButtons(
+        createMessageActionButton(
+          quoteFromCardLabel(language, channelId),
+          quoteText,
+          'primary',
+          BRAND.teal,
+        ),
+        createMessageActionButton(
+          catalogUiLabel('cart-add-from-card', language, { en: 'Add to Cart', th: 'ใส่ตะกร้า' }),
+          `FORM CART ADD FROM CARD ${product.id}`,
+          'secondary',
+          BRAND.goldTint,
+        ),
+      ));
+    }
+    if (showView || footer.length === 0) {
+      footer.push(createMessageActionButton(
+        catalogUiLabel('ui-catalog-view', language, { en: 'View Details', th: 'ดูรายละเอียด' }),
+        viewText,
+        'secondary',
+        BRAND.tealTint,
+      ));
+    }
   } else {
     const quoteText = product.id
       ? `FORM QUOTE CREATE FROM CARD ${product.id}`
       : viewText;
     if (showQuote) {
       footer.push(createMessageActionButton(
-        catalogUiLabel('quote-from-card', language, { en: 'Order Now', th: 'สั่งซื้อเลย' }),
+        quoteFromCardLabel(language, channelId),
         quoteText,
         'primary',
         BRAND.teal,
@@ -320,6 +354,8 @@ const createProductCatalogBubble = (
   };
 };
 
+export const CATALOG_CAROUSEL_MAX = 12;
+
 export const createProductCarouselFlexMessage = (
   products: CatalogCarouselItem[],
   language: ReportLanguage,
@@ -332,7 +368,7 @@ export const createProductCarouselFlexMessage = (
   altText: truncate(language === 'en' ? `${products.length} products` : `สินค้า ${products.length} รายการ`, 390),
   contents: {
     type: 'carousel',
-    contents: products.slice(0, 10).map(product =>
+    contents: products.slice(0, CATALOG_CAROUSEL_MAX).map(product =>
       createProductCatalogBubble(
         product,
         language,

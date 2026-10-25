@@ -1,10 +1,11 @@
 import type { CommandHandler } from './index';
 import { createBotTextFlexMessage } from '../templates';
 import { loadSkills, matchSkill, renderSkillReply } from '../../services/skill-loader';
+import { assistantTitle } from '../channels';
 
 const adminOnlyReply = (language: 'th' | 'en') =>
   createBotTextFlexMessage({
-    title: language === 'en' ? 'Cloudnex assistant' : 'ผู้ช่วย Cloudnex',
+    title: assistantTitle(language),
     body: language === 'en' ? 'This command is admin-only.' : 'คำสั่งนี้สำหรับแอดมินเท่านั้น',
     language,
     tone: 'error',

@@ -11,6 +11,7 @@ import type { OdooProduct, OdooSaleOrder } from '../services/odoo/types';
 import type { ErpAdapter, ErpCrmQuote, ErpCrmQuoteListOpts, ErpCustomerUpdate, ErpPartner, ErpPermission, ErpProduct, ErpProviderName, ErpQuoteDraft, ErpQuotationOptions, ErpService, ErpServiceUpdate, ErpWriteAction } from './adapter';
 import { publicCatalogProductImageUrl } from './product-image-url';
 import { productIdsWithImage128 } from '../services/odoo/product-image';
+import { CATALOG_CAROUSEL_MAX } from '../line/templates/catalog';
 
 const toErpProduct = (product: OdooProduct, imageUrl?: string): ErpProduct => ({
   id: product.id,
@@ -50,7 +51,7 @@ let productCatalogCache: { at: number; items: ErpProduct[] } | null = null;
 const PRODUCT_CATALOG_CACHE_MS = Number(process.env.PRODUCT_CATALOG_CACHE_MS || 5 * 60 * 1000);
 let catalogRefresh: Promise<void> | null = null;
 
-const refreshProductCatalog = async (limit = 10): Promise<void> => {
+const refreshProductCatalog = async (limit = CATALOG_CAROUSEL_MAX): Promise<void> => {
   if (catalogRefresh) return catalogRefresh;
   catalogRefresh = (async () => {
     const products = await listProducts(limit);
@@ -62,10 +63,10 @@ const refreshProductCatalog = async (limit = 10): Promise<void> => {
 };
 
 export const warmProductCatalog = (): void => {
-  void refreshProductCatalog(10).catch(() => undefined);
+  void refreshProductCatalog(CATALOG_CAROUSEL_MAX).catch(() => undefined);
 };
 
-export const peekCachedProducts = (limit = 10): ErpProduct[] | null => {
+export const peekCachedProducts = (limit = CATALOG_CAROUSEL_MAX): ErpProduct[] | null => {
   if (!productCatalogCache?.items.length) return null;
   return productCatalogCache.items.slice(0, limit);
 };
@@ -112,12 +113,12 @@ export const odooAdapter: ErpAdapter = {
     supportsDailyReport: true,
     supportsWebsiteShop: true,
   },
-  async searchProducts(query: string, limit = 10): Promise<ErpProduct[]> {
+  async searchProducts(query: string, limit = CATALOG_CAROUSEL_MAX): Promise<ErpProduct[]> {
     const normalized = query.trim().toLowerCase();
     if (productCatalogCache?.items.length) {
       if (!normalized) {
         if (Date.now() - productCatalogCache.at >= PRODUCT_CATALOG_CACHE_MS) {
-          void refreshProductCatalog(Math.max(limit, 10)).catch(() => undefined);
+          void refreshProductCatalog(Math.max(limit, CATALOG_CAROUSEL_MAX)).catch(() => undefined);
         }
         return productCatalogCache.items.slice(0, limit);
       }
@@ -127,13 +128,13 @@ export const odooAdapter: ErpAdapter = {
       if (hits.length) return hits.slice(0, limit);
     }
     if (!normalized) {
-      await refreshProductCatalog(Math.max(limit, 10));
+      await refreshProductCatalog(Math.max(limit, CATALOG_CAROUSEL_MAX));
       return (productCatalogCache?.items || []).slice(0, limit);
     }
     const products = await findProductsByQuery(normalized, limit);
     return withPublicImages(products);
   },
-  async listShopProducts(query = '', limit = 10): Promise<ErpProduct[]> {
+  async listShopProducts(query = '', limit = CATALOG_CAROUSEL_MAX): Promise<ErpProduct[]> {
     const websiteId = Number.parseInt(getRuntime('ODOO_WEBSITE_ID') || '', 10);
     if (!Number.isInteger(websiteId) || websiteId <= 0) return [];
     const normalized = query.trim();

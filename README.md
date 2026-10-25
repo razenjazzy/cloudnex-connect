@@ -1,6 +1,6 @@
-# Cloudnex Connect
+# Nex Connect
 
-Cloudnex Connect is the Cloudnex LINE Official Account platform: HMAC webhooks (plus gated `/webhook-alt` and GraphQL ingest), identity SoR (Firestore or Mongo), one command router, Odoo ERP, and a fail-closed Admin console. Staging host: https://amardhaka.io.
+Nex Connect is the Cloudnex LINE Official Account platform: HMAC webhooks (plus gated `/webhook-alt` and GraphQL ingest), identity SoR (Firestore or Mongo), one command router, Odoo ERP, and a fail-closed Admin console. Package, Docker image, and VPS paths stay `cloudnex-connect`. Staging host: https://amardhaka.io.
 
 TypeScript Express backend that connects LINE Official Accounts to Odoo ERP. Users work in LINE Flex cards (Thai/English). Identity is Firestore unless `MONGO_USERS` is on. Sales, partners, and products live in Odoo.
 
@@ -15,7 +15,7 @@ This README is the map. **Client demonstration pack:** [documents/DEMONSTRATION.
 
 ## What it does
 
-Sales staff use **Cloudnex Line Sales** (`POST /webhook/sales`). Customers use **Cloudnex Line Customer** (`POST /webhook/customer`). Same CloudNex Connect app and `resolveCommandReply`. Asking for a quote or order on the Customer OA creates a draft sales quotation. Quote/invoice LINE pushes go to Cloudnex Line Customer; sales alerts stay on Cloudnex Line Sales.
+Sales staff use **Cloudnex Line Sales** (`POST /webhook/sales`). Customers use **Cloudnex Line Customer** (`POST /webhook/customer`). Same Nex Connect app and `resolveCommandReply`. Asking for a quote or order on the Customer OA creates a draft sales quotation. Quote/invoice LINE pushes go to Cloudnex Line Customer; sales alerts stay on Cloudnex Line Sales.
 
 | Persona | What they do in LINE |
 |---|---|

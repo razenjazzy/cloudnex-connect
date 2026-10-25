@@ -18,12 +18,13 @@ import { createBotTextFlexMessage } from '../templates';
 import { homeMenuFromContext, type CommandReplyContext } from '../command-router';
 import type { UserLanguage } from '../../services/firestore';
 import { searchSimilarFaqs } from '../../infra/mongo/embeddings';
+import { assistantTitle } from '../channels';
 
 const tr = (language: UserLanguage, th: string, en: string): string => (language === 'en' ? en : th);
 
 const botText = (value: string, language: UserLanguage, quickReplyActions?: { label: string; text: string }[]) =>
   createBotTextFlexMessage({
-    title: tr(language, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+    title: assistantTitle(language),
     body: value,
     language,
     tone: 'info',
@@ -65,7 +66,7 @@ export const handleChatFallback = async (
   // normally; only this last-resort AI-chat path is gated.
   if (ctx.profile.escalatedToHuman) {
     return [createBotTextFlexMessage({
-      title: tr(userLanguage, 'ผู้ช่วย Cloudnex', 'Cloudnex assistant'),
+      title: assistantTitle(userLanguage),
       body: tr(userLanguage,
         `${agentName} โอนเคสนี้ให้แอดมินแล้ว เจ้าหน้าที่จะดูแลต่อจากนี้ค่ะ`,
         `${agentName} has connected you with a human agent, who'll take it from here.`,

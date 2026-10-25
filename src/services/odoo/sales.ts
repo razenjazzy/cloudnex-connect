@@ -20,6 +20,7 @@ export {
   addToShopCart,
   getSaleOrdersForPartner,
   getSaleOrdersForSalesperson,
+  listShopSaleOrders,
   markSaleOrderSent,
   sendQuotationEmail,
   removeSaleOrderLine,
